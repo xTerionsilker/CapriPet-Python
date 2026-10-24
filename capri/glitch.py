@@ -47,6 +47,7 @@ class GlitchOverlay(QWidget):
         screen.geometryChanged.connect(self._sync_geometry)
 
         self._spike_frames = 0
+        self._active = True
 
         self._frame_timer = QTimer(self)
         self._frame_timer.setInterval(_BASE_INTERVAL_MS)
@@ -59,6 +60,23 @@ class GlitchOverlay(QWidget):
         self._spike_timer.start(random.randint(3000, 6500))
 
     # --- timing ------------------------------------------------------------
+    def set_active(self, active: bool) -> None:
+        """Show/hide the overlay and pause/resume its timers."""
+        if active == self._active:
+            return
+        self._active = active
+        if active:
+            self._spike_frames = 0
+            self._frame_timer.setInterval(_BASE_INTERVAL_MS)
+            self._frame_timer.start()
+            self._spike_timer.start(random.randint(1500, 4000))
+            self.show()
+        else:
+            self._frame_timer.stop()
+            self._spike_timer.stop()
+            self._spike_frames = 0
+            self.hide()
+
     def _sync_geometry(self, *_args) -> None:
         self.setGeometry(self._screen.geometry())
 
@@ -137,24 +155,24 @@ class GlitchOverlay(QWidget):
     def _paint_tears(
         self, painter: QPainter, width: int, height: int, spike: bool
     ) -> None:
-        count = random.randint(3, 6) if spike else (1 if random.random() < 0.3 else 0)
+        count = random.randint(3, 6) if spike else (1 if random.random() < 0.45 else 0)
         for _ in range(count):
             y = random.randint(0, height - 1)
-            band = random.randint(1, 26) if spike else random.randint(1, 3)
+            band = random.randint(1, 26) if spike else random.randint(1, 4)
             tint = QColor(random.choice(_COLORS))
             tint.setAlpha(
-                random.randint(45, 130) if spike else random.randint(6, 16)
+                random.randint(45, 130) if spike else random.randint(10, 22)
             )
             painter.fillRect(0, y, width, band, tint)
 
     def _paint_slices(
         self, painter: QPainter, width: int, height: int, spike: bool
     ) -> None:
-        count = random.randint(14, 30) if spike else random.randint(1, 4)
+        count = random.randint(14, 30) if spike else random.randint(2, 6)
         for _ in range(count):
             y = random.randint(0, height - 1)
             slice_height = (
-                random.randint(1, 22) if spike else random.randint(1, 2)
+                random.randint(1, 22) if spike else random.randint(1, 3)
             )
             slice_width = random.randint(
                 width // 12, max(width // 12 + 1, width // 2)
@@ -162,7 +180,7 @@ class GlitchOverlay(QWidget):
             x = random.randint(0, max(0, width - slice_width))
             color = QColor(random.choice(_COLORS))
             color.setAlpha(
-                random.randint(50, 180) if spike else random.randint(8, 26)
+                random.randint(50, 180) if spike else random.randint(14, 34)
             )
             painter.fillRect(x, y, slice_width, slice_height, color)
 
@@ -179,7 +197,7 @@ class GlitchOverlay(QWidget):
     def _paint_scanlines(
         self, painter: QPainter, width: int, height: int, spike: bool
     ) -> None:
-        alpha = random.randint(18, 60) if spike else random.randint(4, 9)
+        alpha = random.randint(18, 60) if spike else random.randint(7, 13)
         painter.setPen(QPen(QColor(57, 255, 106, alpha)))
         step = random.choice((2, 3)) if spike else 3
         for y in range(0, height, step):
@@ -190,7 +208,7 @@ class GlitchOverlay(QWidget):
     ) -> None:
         base = max(18, min(80, width * height // 60000))
         count = random.randint(base * 8, base * 14) if spike else random.randint(
-            base // 2, base
+            int(base * 0.8), int(base * 1.3)
         )
         count = min(count, 1300)
         for _ in range(count):
@@ -199,14 +217,14 @@ class GlitchOverlay(QWidget):
             size = random.randint(1, 3) if spike else 1
             fleck = QColor(random.choice(_NOISE))
             fleck.setAlpha(
-                random.randint(70, 220) if spike else random.randint(20, 65)
+                random.randint(70, 220) if spike else random.randint(30, 80)
             )
             painter.fillRect(x, y, size, size, fleck)
 
     def _paint_bars(
         self, painter: QPainter, width: int, height: int, spike: bool
     ) -> None:
-        chance = 0.7 if spike else 0.04
+        chance = 0.7 if spike else 0.06
         if random.random() >= chance:
             return
         y = random.randint(0, height - 1)
@@ -245,6 +263,7 @@ class GlitchManager(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._overlays: dict[QScreen, GlitchOverlay] = {}
+        self._enabled = True
 
         app = QGuiApplication.instance()
         if app is not None:
@@ -253,11 +272,31 @@ class GlitchManager(QObject):
         for screen in QGuiApplication.screens():
             self._add_screen(screen)
 
+    @property
+    def is_enabled(self) -> bool:
+        return self._enabled
+
+    def set_enabled(self, enabled: bool) -> None:
+        """Turn the overlays on or off without destroying them."""
+        if enabled == self._enabled:
+            return
+        self._enabled = enabled
+        for overlay in self._overlays.values():
+            overlay.set_active(enabled)
+
+    def toggle(self) -> bool:
+        """Flip the overlay state and return the new state."""
+        self.set_enabled(not self._enabled)
+        return self._enabled
+
     def _add_screen(self, screen: QScreen) -> None:
         if screen in self._overlays:
             return
         overlay = GlitchOverlay(screen)
-        overlay.show()
+        if self._enabled:
+            overlay.show()
+        else:
+            overlay.set_active(False)
         self._overlays[screen] = overlay
 
     def _remove_screen(self, screen: QScreen) -> None:

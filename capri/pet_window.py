@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .commands import CommandRegistry
 from .glitch import GlitchManager
 from .speech import SpeechWindow, show_text
 from .theme import APP_STYLE
@@ -122,6 +123,14 @@ class CapriWindow(QWidget):
 
         self._glitches = GlitchManager(self)
 
+        self.commands = CommandRegistry()
+        self.commands.register(
+            "glitch",
+            "turn the screen glitches on or off.",
+            self._toggle_glitches,
+            aliases=("turn glitch",),
+        )
+
         self.input.setFocus()
 
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
@@ -140,6 +149,9 @@ class CapriWindow(QWidget):
 
     def process_input(self, text: str) -> str:
         """Handle a line of user input. Extend this to build your pet's brain."""
+        reply = self.commands.dispatch(text)
+        if reply is not None:
+            return reply
         return f"You said: {text}"
 
     def speak(self, text: str) -> SpeechWindow:
@@ -156,6 +168,10 @@ class CapriWindow(QWidget):
         return speech
 
     # --- internals ---------------------------------------------------------
+    def _toggle_glitches(self) -> str:
+        enabled = self._glitches.toggle()
+        return "Glitches ON." if enabled else "Glitches OFF."
+
     def _greet(self) -> None:
         if self._speech is not None:  # user already got a reply
             return

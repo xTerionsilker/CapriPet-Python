@@ -25,6 +25,8 @@ layer that occasionally goes haywire.
 - The speech bubble appears at a random spot on screen and avoids the main
   window, then closes itself after the text has been read.
 - Random startup greetings, including one that uses your OS username.
+- Built-in commands: `help` / `what u can?` lists everything Capri understands,
+  and `glitch` / `turn glitch` toggles the glitch overlay.
 - Constant subtle scanlines/static with periodic, much stronger glitch spikes.
 - Glitch overlays are click-through, focus-less and cover every monitor.
 - Quit with `Ctrl+Q`.
@@ -68,6 +70,15 @@ You can replace it with another clip, though the window is sized for an
    the bubble to skip the typing animation; click again to close it early.
 4. `Ctrl+Q` closes the application and removes the glitch overlays.
 
+### Commands
+
+| Command | Aliases | Action |
+| --- | --- | --- |
+| `help` | `what u can?`, `commands` | List every available command. |
+| `glitch` | `turn glitch` | Toggle the full-screen glitch overlay. |
+
+Anything else is passed through `process_input()` and echoed back by the demo.
+
 ## Project structure
 
 ```
@@ -77,6 +88,7 @@ capri/
 ├── pet_window.py       # main window: video, input, greeting, wiring
 ├── speech.py           # reusable typewriter speech bubble
 ├── glitch.py           # full-screen click-through glitch overlays
+├── commands.py         # command registry and help listing
 └── theme.py            # cyberpunk stylesheet
 requirements.txt
 capri.mp4
@@ -87,13 +99,30 @@ capri.mp4
 ### Replies
 
 `CapriWindow.process_input()` in `capri/pet_window.py` receives the raw text
-and returns the reply string. Replace it with your own logic — a state
-machine, an API call, a local model, etc.
+and returns the reply string. Replace or extend it with your own logic — a
+state machine, an API call, a local model, etc.
 
 ```python
 def process_input(self, text: str) -> str:
+    reply = self.commands.dispatch(text)
+    if reply is not None:
+        return reply
     return f"You said: {text}"
 ```
+
+Commands are kept in `capri/commands.py` (`CommandRegistry`). Register your
+own in `CapriWindow.__init__`:
+
+```python
+self.commands.register(
+    "dance",
+    "make Capri dance.",
+    lambda: "Capri wiggles!",
+    aliases=("start dance",),
+)
+```
+
+Registered commands appear automatically in `help` / `what u can?`.
 
 ### Startup lines
 
