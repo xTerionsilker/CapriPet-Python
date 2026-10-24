@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .glitch import GlitchManager
 from .speech import SpeechWindow, show_text
 from .theme import APP_STYLE
 
@@ -119,6 +120,8 @@ class CapriWindow(QWidget):
 
         QShortcut(QKeySequence("Ctrl+Q"), self, self.close)
 
+        self._glitches = GlitchManager(self)
+
         self.input.setFocus()
 
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
@@ -168,4 +171,5 @@ class CapriWindow(QWidget):
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         self.player.stop()
+        self._glitches.stop()
         super().closeEvent(event)
