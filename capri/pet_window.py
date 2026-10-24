@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import getpass
+import random
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QColor, QKeySequence, QShortcut
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
@@ -24,6 +26,12 @@ from .theme import APP_STYLE
 
 VIDEO = Path(__file__).resolve().parent.parent / "capri.mp4"
 
+STARTUP_LINES = (
+    "Good boy, {user}",
+    "just call me Capri!!!",
+    "...",
+)
+
 
 class CapriWindow(QWidget):
     """The pet window. Type something to get a spoken reply from Capri."""
@@ -36,6 +44,7 @@ class CapriWindow(QWidget):
         self.setStyleSheet(APP_STYLE)
 
         self._speech: SpeechWindow | None = None
+        self._greeted = False
 
         # --- video ---------------------------------------------------------
         self.video = QVideoWidget(self)
@@ -112,6 +121,12 @@ class CapriWindow(QWidget):
 
         self.input.setFocus()
 
+    def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        super().showEvent(event)
+        if not self._greeted:
+            self._greeted = True
+            QTimer.singleShot(600, self._greet)
+
     # --- input -------------------------------------------------------------
     def submit(self) -> None:
         text = self.input.text().strip()
@@ -138,6 +153,12 @@ class CapriWindow(QWidget):
         return speech
 
     # --- internals ---------------------------------------------------------
+    def _greet(self) -> None:
+        if self._speech is not None:  # user already got a reply
+            return
+        line = random.choice(STARTUP_LINES).format(user=getpass.getuser())
+        self.speak(line)
+
     def _forget_speech(self, window: SpeechWindow) -> None:
         if self._speech is window:
             self._speech = None
