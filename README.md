@@ -1,0 +1,155 @@
+# CapriPet
+
+A small Tamagotchi-style desktop pet. Capri lives in a looping video, listens
+to whatever you type, and answers through a typewriter speech bubble that
+appears somewhere else on the screen. The interface is styled like a neon
+cyberpunk terminal, and the whole desktop is covered by a subtle CRT glitch
+layer that occasionally goes haywire.
+
+```
++--------------------------------------------------+
+|                                                  |
+|                 looping capri.mp4                |
+|                                                  |
++--------------------------------------------------+
+| // CAPRI ONLINE                                  |
+| > Say something to Capri…                [SEND]  |
++--------------------------------------------------+
+```
+
+## Features
+
+- Loop the character video forever with QtMultimedia.
+- Text input with Enter or the **SEND** button.
+- Replies are typed out character by character in a frameless neon bubble.
+- The speech bubble appears at a random spot on screen and avoids the main
+  window, then closes itself after the text has been read.
+- Random startup greetings, including one that uses your OS username.
+- Constant subtle scanlines/static with periodic, much stronger glitch spikes.
+- Glitch overlays are click-through, focus-less and cover every monitor.
+- Quit with `Ctrl+Q`.
+
+## Requirements
+
+- Python 3.10+ (tested with 3.14)
+- PySide6 6.12+ (QtMultimedia and its FFmpeg backend ship with the wheel)
+
+Everything is pinned in `requirements.txt`.
+
+## Installation
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+## Running
+
+```bash
+python main.py
+```
+
+Or directly with the virtualenv interpreter:
+
+```bash
+.venv/bin/python main.py
+```
+
+The video is loaded from `capri.mp4` next to `main.py`; it loops indefinitely.
+You can replace it with another clip, though the window is sized for an
+800×450 video.
+
+## Using Capri
+
+1. Type a message into the input field.
+2. Press **Enter** or click **SEND**.
+3. Capri's answer appears in a speech bubble somewhere on the screen. Click
+   the bubble to skip the typing animation; click again to close it early.
+4. `Ctrl+Q` closes the application and removes the glitch overlays.
+
+## Project structure
+
+```
+main.py                 # application entry point
+capri/
+├── __init__.py         # public exports
+├── pet_window.py       # main window: video, input, greeting, wiring
+├── speech.py           # reusable typewriter speech bubble
+├── glitch.py           # full-screen click-through glitch overlays
+└── theme.py            # cyberpunk stylesheet
+requirements.txt
+capri.mp4
+```
+
+## Customizing
+
+### Replies
+
+`CapriWindow.process_input()` in `capri/pet_window.py` receives the raw text
+and returns the reply string. Replace it with your own logic — a state
+machine, an API call, a local model, etc.
+
+```python
+def process_input(self, text: str) -> str:
+    return f"You said: {text}"
+```
+
+### Startup lines
+
+Edit `STARTUP_LINES` in `capri/pet_window.py`. `{user}` is replaced with
+`getpass.getuser()`:
+
+```python
+STARTUP_LINES = (
+    "Good boy, {user}",
+    "just call me Capri!!!",
+    "...",
+)
+```
+
+### Speech bubble
+
+`capri.speech.show_text()` can be reused anywhere:
+
+```python
+from capri.speech import show_text
+
+show_text(
+    "Hello there!",
+    parent=window,          # window to avoid overlapping
+    chars_per_second=40,    # reveal speed
+    hold_ms=1200,           # pause after the text is fully shown
+    max_width=420,          # wrapping width in pixels
+)
+```
+
+Placement uses the parent window's screen. A random free rectangle is chosen
+with a 24 px gap from the parent; if the parent fills the whole screen, the
+least-overlapping spot is used instead.
+
+### Glitches
+
+Tune `_BASE_INTERVAL_MS` and `_SPIKE_INTERVAL_MS` at the top of
+`capri/glitch.py`. The spike duration and frequency live in `_start_spike()`
+and `_tick()`; colours are in `_COLORS` / `_NOISE`. The overlay only draws —
+it never intercepts clicks or keyboard input.
+
+### Theme
+
+All colours, fonts and widget styles for the main window are in
+`capri/theme.py`; the speech bubble keeps its own small matching stylesheet in
+`capri/speech.py` so it stays self-contained and reusable.
+
+## Platform notes
+
+- Wayland does not allow applications to position their own top-level windows.
+  To make the random speech placement work, `main.py` automatically switches
+  to XWayland (`QT_QPA_PLATFORM=xcb`) when both a Wayland session and an X11
+  display are available. Set `QT_QPA_PLATFORM=wayland` explicitly to override
+  this; the speech bubble will then be placed by the compositor instead.
+- XWayland is also the most reliable backend for the always-on-top glitch
+  overlays. Some compositors may still restrict coverage across native Wayland
+  windows.
+- The glitch overlay is decorative and renders above other applications while
+  Capri is running.

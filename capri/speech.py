@@ -11,6 +11,11 @@ Usage::
     show_text("Hello there!", parent=window)
     show_text("Faster and shorter", chars_per_second=80, hold_ms=500)
 
+The bubble appears at a random spot on the screen that does not overlap the
+``parent`` window (which is treated as the main program window). This needs a
+platform that honours window moves: X11/XWayland works; plain Wayland lets the
+compositor decide where windows go.
+
 Clicking the window while text is appearing reveals the rest instantly;
 clicking again closes it. The window also closes after ``hold_ms``.
 
@@ -20,10 +25,11 @@ resize or reflow while it is being typed out.
 
 from __future__ import annotations
 
+import random
 from html import escape
 
-from PySide6.QtCore import QElapsedTimer, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QGuiApplication
+from PySide6.QtCore import QElapsedTimer, QRect, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QGuiApplication, QScreen
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
@@ -63,7 +69,6 @@ class SpeechWindow(QFrame):
         text: str,
         parent: QWidget | None = None,
         *,
-        anchor: QWidget | None = None,
         chars_per_second: float = 40.0,
         hold_ms: int = 1200,
         max_width: int = _TEXT_WIDTH,
@@ -77,7 +82,6 @@ class SpeechWindow(QFrame):
         self.setWindowTitle("Capri")
         self.setStyleSheet(_STYLE)
 
-        self._anchor = anchor
         self._text = text if text else "…"
         self._hold_ms = max(0, int(hold_ms))
         speed = max(1.0, float(chars_per_second))
@@ -145,7 +149,7 @@ class SpeechWindow(QFrame):
         super().showEvent(event)
         if not self._clock.isValid():
             self.adjustSize()
-            self._center_on_parent()
+            self._place_randomly()
             self._clock.start()
             self._timer.start()
 
@@ -193,28 +197,115 @@ class SpeechWindow(QFrame):
         )
         self._revealed_chars = count
 
-    def _center_on_parent(self) -> None:
-        reference = self._anchor if self._anchor is not None else self.parentWidget()
-        if reference is not None:
-            center = reference.frameGeometry().center()
-        else:
-            screen = QGuiApplication.primaryScreen()
-            center = (
-                screen.availableGeometry().center()
-                if screen is not None
-                else self.rect().center()
-            )
-        self.move(
-            center.x() - self.width() // 2,
-            center.y() - self.height() // 2,
+    def _place_randomly(self) -> None:
+        """Pick a random on-screen spot that misses the main window."""
+        parent = self.parentWidget()
+        screen = self._target_screen(parent)
+        area = (
+            screen.availableGeometry()
+            if screen is not None
+            else QRect(0, 0, self.width(), self.height())
         )
+        width, height = self.width(), self.height()
+
+        blocked = None
+        if parent is not None:
+            # Keep a small visual gap between the bubble and the main window.
+            blocked = parent.frameGeometry().adjusted(-24, -24, 24, 24)
+            blocked = blocked.intersected(area)
+
+        # The free part of the screen is the union of the bands above, below,
+        # to the left and to the right of the blocked rectangle.
+        bands: list[QRect] = []
+        if blocked is None or blocked.isEmpty():
+            bands.append(area)
+        else:
+            if blocked.top() > area.top():
+                bands.append(
+                    QRect(
+                        area.left(),
+                        area.top(),
+                        area.width(),
+                        blocked.top() - area.top(),
+                    )
+                )
+            if blocked.bottom() < area.bottom():
+                bands.append(
+                    QRect(
+                        area.left(),
+                        blocked.bottom() + 1,
+                        area.width(),
+                        area.bottom() - blocked.bottom(),
+                    )
+                )
+            if blocked.left() > area.left():
+                bands.append(
+                    QRect(
+                        area.left(),
+                        area.top(),
+                        blocked.left() - area.left(),
+                        area.height(),
+                    )
+                )
+            if blocked.right() < area.right():
+                bands.append(
+                    QRect(
+                        blocked.right() + 1,
+                        area.top(),
+                        area.right() - blocked.right(),
+                        area.height(),
+                    )
+                )
+
+        bands = [b for b in bands if b.width() >= width and b.height() >= height]
+        if bands:
+            spans = [
+                (band, (band.width() - width + 1) * (band.height() - height + 1))
+                for band in bands
+            ]
+            choice = random.randrange(sum(span for _, span in spans))
+            for band, span in spans:
+                if choice < span:
+                    columns = band.width() - width + 1
+                    self.move(
+                        band.left() + choice % columns,
+                        band.top() + choice // columns,
+                    )
+                    return
+                choice -= span
+
+        # No fully free spot exists (e.g. the main window fills the screen):
+        # fall back to the position that overlaps it the least.
+        if blocked is not None and not blocked.isEmpty():
+            max_x = max(area.left(), area.right() - width + 1)
+            max_y = max(area.top(), area.bottom() - height + 1)
+            best = (area.left(), area.top())
+            least_overlap = None
+            for _ in range(200):
+                x = random.randint(area.left(), max_x)
+                y = random.randint(area.top(), max_y)
+                overlap = QRect(x, y, width, height).intersected(blocked)
+                overlap_area = overlap.width() * overlap.height()
+                if least_overlap is None or overlap_area < least_overlap:
+                    least_overlap = overlap_area
+                    best = (x, y)
+            self.move(*best)
+        else:
+            self.move(area.left(), area.top())
+
+    @staticmethod
+    def _target_screen(parent: QWidget | None) -> QScreen | None:
+        if parent is not None:
+            screen = parent.screen()
+            if screen is not None:
+                return screen
+        return QGuiApplication.primaryScreen()
 
 
 def show_text(
     text: str,
     parent: QWidget | None = None,
     *,
-    anchor: QWidget | None = None,
     chars_per_second: float = 40.0,
     hold_ms: int = 1200,
     max_width: int = _TEXT_WIDTH,
@@ -223,13 +314,12 @@ def show_text(
 
     ``chars_per_second`` controls the reveal speed, ``hold_ms`` is how long the
     fully revealed text stays on screen, and ``max_width`` caps the text width.
-    Pass ``anchor`` to centre the bubble on a specific widget of ``parent``
-    instead of the parent window itself.
+    The bubble is placed at a random position on the parent window's screen
+    without overlapping the parent window itself.
     """
     window = SpeechWindow(
         text,
         parent,
-        anchor=anchor,
         chars_per_second=chars_per_second,
         hold_ms=hold_ms,
         max_width=max_width,

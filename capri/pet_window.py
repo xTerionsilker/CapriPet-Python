@@ -148,7 +148,7 @@ class CapriWindow(QWidget):
             self._speech.close()
         # Give longer replies a little more reading time.
         hold_ms = min(5000, max(1200, len(text) * 45))
-        speech = show_text(text, parent=self, anchor=self.video, hold_ms=hold_ms)
+        speech = show_text(text, parent=self, hold_ms=hold_ms)
         self._speech = speech
         speech.destroyed.connect(
             lambda *_, window=speech: self._forget_speech(window)
