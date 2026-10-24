@@ -5,6 +5,7 @@ The app now lives in the ``capri`` package:
 - ``capri.pet_window.CapriWindow`` — video, input and wiring
 - ``capri.speech``                — reusable typewriter reply bubble
 - ``capri.glitch``                — full-screen click-through glitch overlay
+- ``capri.static_noise``          — background hiss driven by the glitch
 - ``capri.theme``                 — shared styles
 
 Run with:  .venv/bin/python main.py

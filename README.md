@@ -28,6 +28,7 @@ layer that occasionally goes haywire.
 - Built-in commands: `help` / `what u can?` lists everything Capri understands,
   and `glitch` / `turn glitch` toggles the glitch overlay.
 - Constant subtle scanlines/static with periodic, much stronger glitch spikes.
+- A quiet looping hiss under everything that swells with the visual glitch.
 - Glitch overlays are click-through, focus-less and cover every monitor.
 - Quit with `Ctrl+Q`.
 
@@ -62,6 +63,30 @@ The video is loaded from `capri.mp4` next to `main.py`; it loops indefinitely.
 You can replace it with another clip, though the window is sized for an
 800×450 video.
 
+## Starting with the system
+
+On Linux desktops that follow the XDG autostart specification (KDE Plasma,
+GNOME, Xfce, …), create `~/.config/autostart/capripet.desktop`:
+
+```ini
+[Desktop Entry]
+Type=Application
+Name=CapriPet
+Comment=Tamagotchi-style desktop pet
+Exec=/absolute/path/to/CapriPet/.venv/bin/python /absolute/path/to/CapriPet/main.py
+Path=/absolute/path/to/CapriPet
+Icon=video-television
+Terminal=false
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
+```
+
+Replace the paths with the project's real location and make sure the
+virtualenv is already set up. The entry starts Capri at login and can be
+enabled or disabled under *Autostart* in the desktop's system settings.
+`main.py` still switches to XWayland when needed, so this also works on
+Wayland sessions.
+
 ## Using Capri
 
 1. Type a message into the input field.
@@ -88,6 +113,7 @@ capri/
 ├── pet_window.py       # main window: video, input, greeting, wiring
 ├── speech.py           # reusable typewriter speech bubble
 ├── glitch.py           # full-screen click-through glitch overlays
+├── static_noise.py     # looping white noise that follows the glitch
 ├── commands.py         # command registry and help listing
 └── theme.py            # cyberpunk stylesheet
 requirements.txt
@@ -163,6 +189,25 @@ Tune `_BASE_INTERVAL_MS` and `_SPIKE_INTERVAL_MS` at the top of
 `capri/glitch.py`. The spike duration and frequency live in `_start_spike()`
 and `_tick()`; colours are in `_COLORS` / `_NOISE`. The overlay only draws —
 it never intercepts clicks or keyboard input.
+
+Every overlay also reports an amplitude between 0 and 1 each frame, which
+`GlitchManager.amplitude_changed` forwards to the sound layer.
+
+### Static noise
+
+`capri/static_noise.py` plays looping white noise for as long as Capri runs.
+`_BASE_LEVEL` and `_PEAK_LEVEL` at the top of the file control the idle and
+maximum volume; the rest is shaped automatically by the glitch amplitude, so
+the hiss swells during a spike and settles back to its quiet baseline
+afterwards. Volume changes are smoothed in `StaticNoise._smooth()` to avoid
+zipper noise. If no audio output is available the noise is skipped silently.
+
+```python
+from capri.static_noise import StaticNoise
+
+noise = StaticNoise(window)
+glitch_manager.amplitude_changed.connect(noise.set_amplitude)
+```
 
 ### Theme
 

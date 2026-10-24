@@ -3,6 +3,9 @@
 Creates one frameless, input-transparent window per screen. Artifacts are
 always present at a low, subtle level; every few seconds the amplitude spikes
 into a short, violent burst of tears, noise, flashes and colour fringing.
+Each overlay reports how intense its current frame is through the
+``amplitude_changed`` signal, which drives the background static in
+``capri.static_noise``.
 It is purely decorative: clicks, scrolling and keyboard input go straight
 through to the windows underneath.
 
@@ -14,7 +17,7 @@ from __future__ import annotations
 
 import random
 
-from PySide6.QtCore import QObject, Qt, QTimer
+from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPen, QScreen
 from PySide6.QtWidgets import QWidget
 
@@ -26,6 +29,8 @@ _SPIKE_INTERVAL_MS = 33  # ~30 fps while the amplitude spikes
 
 class GlitchOverlay(QWidget):
     """A transparent, click-through window that paints continuous glitches."""
+
+    amplitude_changed = Signal(float)
 
     def __init__(self, screen: QScreen) -> None:
         flags = (
@@ -48,6 +53,7 @@ class GlitchOverlay(QWidget):
 
         self._spike_frames = 0
         self._active = True
+        self._amplitude = 0.0
 
         self._frame_timer = QTimer(self)
         self._frame_timer.setInterval(_BASE_INTERVAL_MS)
@@ -75,12 +81,14 @@ class GlitchOverlay(QWidget):
             self._frame_timer.stop()
             self._spike_timer.stop()
             self._spike_frames = 0
+            self._set_amplitude(0.0)
             self.hide()
 
     def _sync_geometry(self, *_args) -> None:
         self.setGeometry(self._screen.geometry())
 
     def _tick(self) -> None:
+        self._update_amplitude()
         self.update()
         if self._spike_frames > 0:
             self._spike_frames -= 1
@@ -92,7 +100,29 @@ class GlitchOverlay(QWidget):
         duration_ms = random.randint(280, 850)
         self._spike_frames = max(1, round(duration_ms / _SPIKE_INTERVAL_MS))
         self._frame_timer.setInterval(_SPIKE_INTERVAL_MS)
+        self._set_amplitude(random.uniform(0.8, 1.0))
         self.update()
+
+    # --- intensity ---------------------------------------------------------
+    def _update_amplitude(self) -> None:
+        """Report how violent the current frame is, from 0.0 to 1.0.
+
+        The static audio layer listens to this. Even the calm layer flickers a
+        little so it never feels like a frozen sample.
+        """
+        if not self._active:
+            self._set_amplitude(0.0)
+        elif self._spike_frames > 0:
+            self._set_amplitude(random.uniform(0.55, 1.0))
+        else:
+            self._set_amplitude(random.uniform(0.0, 0.12))
+
+    def _set_amplitude(self, value: float) -> None:
+        value = max(0.0, min(1.0, value))
+        if abs(value - self._amplitude) < 0.02:
+            return
+        self._amplitude = value
+        self.amplitude_changed.emit(value)
 
     # --- painting ----------------------------------------------------------
     def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
@@ -260,9 +290,12 @@ class GlitchOverlay(QWidget):
 class GlitchManager(QObject):
     """Keeps one glitch overlay alive on every connected screen."""
 
+    amplitude_changed = Signal(float)
+
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._overlays: dict[QScreen, GlitchOverlay] = {}
+        self._amplitudes: dict[QScreen, float] = {}
         self._enabled = True
 
         app = QGuiApplication.instance()
@@ -293,17 +326,26 @@ class GlitchManager(QObject):
         if screen in self._overlays:
             return
         overlay = GlitchOverlay(screen)
+        overlay.amplitude_changed.connect(
+            lambda value, s=screen: self._on_amplitude(s, value)
+        )
         if self._enabled:
             overlay.show()
         else:
             overlay.set_active(False)
         self._overlays[screen] = overlay
 
+    def _on_amplitude(self, screen: QScreen, value: float) -> None:
+        self._amplitudes[screen] = value
+        self.amplitude_changed.emit(max(self._amplitudes.values(), default=0.0))
+
     def _remove_screen(self, screen: QScreen) -> None:
         overlay = self._overlays.pop(screen, None)
+        self._amplitudes.pop(screen, None)
         if overlay is not None:
             overlay.close()
             overlay.deleteLater()
+        self.amplitude_changed.emit(max(self._amplitudes.values(), default=0.0))
 
     def stop(self) -> None:
         """Close every overlay and stop painting."""
@@ -321,3 +363,4 @@ class GlitchManager(QObject):
             overlay.close()
             overlay.deleteLater()
         self._overlays.clear()
+        self._amplitudes.clear()

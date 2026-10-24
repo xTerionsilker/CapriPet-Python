@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from .commands import CommandRegistry
 from .glitch import GlitchManager
 from .speech import SpeechWindow, show_text
+from .static_noise import StaticNoise
 from .theme import APP_STYLE
 
 VIDEO = Path(__file__).resolve().parent.parent / "capri.mp4"
@@ -121,7 +122,9 @@ class CapriWindow(QWidget):
 
         QShortcut(QKeySequence("Ctrl+Q"), self, self.close)
 
+        self._static = StaticNoise(self)
         self._glitches = GlitchManager(self)
+        self._glitches.amplitude_changed.connect(self._static.set_amplitude)
 
         self.commands = CommandRegistry()
         self.commands.register(
@@ -187,5 +190,6 @@ class CapriWindow(QWidget):
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         self.player.stop()
+        self._static.stop()
         self._glitches.stop()
         super().closeEvent(event)
