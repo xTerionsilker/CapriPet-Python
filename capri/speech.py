@@ -44,14 +44,16 @@ _TEXT_WIDTH = 420
 _STYLE = """
 QFrame#bubble {
     background: #f708060c;
-    border: 1px solid #39ff6a;
-    border-radius: 14px;
+    border: 3px solid #39ff6a;
+    border-radius: 0;
 }
 QLabel#text {
     background: transparent;
     color: #eaffef;
-    font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+    font-family: "Press Start 2P", "Pixelify Sans", "VT323", "Terminus",
+        "JetBrains Mono", "DejaVu Sans Mono", monospace;
     font-size: 14px;
+    letter-spacing: 1px;
 }
 """
 
@@ -112,9 +114,10 @@ class SpeechWindow(QFrame):
         outer.addWidget(bubble)
 
         glow = QGraphicsDropShadowEffect(bubble)
-        glow.setBlurRadius(32)
-        glow.setOffset(0, 0)
-        glow.setColor(QColor(57, 255, 106, 130))
+        # Hard, unblurred offset shadow instead of a soft neon glow.
+        glow.setBlurRadius(0)
+        glow.setOffset(8, 8)
+        glow.setColor(QColor(57, 255, 106, 110))
         bubble.setGraphicsEffect(glow)
 
         self._clock = QElapsedTimer()

@@ -7,12 +7,11 @@ import random
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer, QUrl
-from PySide6.QtGui import QColor, QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QFrame,
-    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -28,6 +27,7 @@ from .static_noise import StaticNoise
 from .theme import APP_STYLE
 
 VIDEO = Path(__file__).resolve().parent.parent / "capri.mp4"
+PLAYBACK_RATE = 1.5
 
 STARTUP_LINES = (
     "Good boy, {user}",
@@ -64,6 +64,7 @@ class CapriWindow(QWidget):
 
         if VIDEO.is_file():
             self.player.setSource(QUrl.fromLocalFile(str(VIDEO)))
+            self.player.setPlaybackRate(PLAYBACK_RATE)
             self.player.play()
         else:
             self.video.hide()
@@ -91,12 +92,6 @@ class CapriWindow(QWidget):
         send.setCursor(Qt.CursorShape.PointingHandCursor)
         send.clicked.connect(self.submit)
 
-        glow = QGraphicsDropShadowEffect(send)
-        glow.setBlurRadius(28)
-        glow.setOffset(0, 0)
-        glow.setColor(QColor(57, 255, 106, 150))
-        send.setGraphicsEffect(glow)
-
         prompt = QLabel(">", panel)
         prompt.setObjectName("prompt")
 
@@ -111,7 +106,7 @@ class CapriWindow(QWidget):
 
         accent = QFrame(self)
         accent.setObjectName("accent")
-        accent.setFixedHeight(2)
+        accent.setFixedHeight(3)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -132,6 +127,12 @@ class CapriWindow(QWidget):
             "turn the screen glitches on or off.",
             self._toggle_glitches,
             aliases=("turn glitch",),
+        )
+        self.commands.register(
+            "noise",
+            "turn the static noise on or off.",
+            self._toggle_noise,
+            aliases=("toggle noise",),
         )
 
         self.input.setFocus()
@@ -174,6 +175,10 @@ class CapriWindow(QWidget):
     def _toggle_glitches(self) -> str:
         enabled = self._glitches.toggle()
         return "Glitches ON." if enabled else "Glitches OFF."
+
+    def _toggle_noise(self) -> str:
+        enabled = self._static.toggle()
+        return "Static noise ON." if enabled else "Static noise OFF."
 
     def _greet(self) -> None:
         if self._speech is not None:  # user already got a reply

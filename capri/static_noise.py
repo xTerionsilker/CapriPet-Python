@@ -15,6 +15,8 @@ Usage::
 
     noise = StaticNoise(window)
     glitch_manager.amplitude_changed.connect(noise.set_amplitude)
+    noise.set_enabled(False)   # mute while keeping the device open
+    noise.toggle()             # back on, returns True
 """
 
 from __future__ import annotations
@@ -79,6 +81,7 @@ class StaticNoise(QObject):
         self._source: _NoiseSource | None = None
         self._target = 0.0
         self._current = 0.0
+        self._enabled = True
 
         self._smooth_timer = QTimer(self)
         self._smooth_timer.setInterval(_SMOOTH_INTERVAL_MS)
@@ -90,6 +93,24 @@ class StaticNoise(QObject):
     def set_amplitude(self, amplitude: float) -> None:
         """Set the target loudness, where 0 is the constant idle level."""
         self._target = max(0.0, min(1.0, float(amplitude)))
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
+
+    def set_enabled(self, enabled: bool) -> None:
+        """Mute or unmute the static without releasing the audio device."""
+        self._enabled = bool(enabled)
+        if not self._enabled and self._sink is not None:
+            # Jump straight to silence; otherwise the idle hiss fades out and
+            # the sink is left at its non-zero base level.
+            self._current = 0.0
+            self._sink.setVolume(0.0)
+
+    def toggle(self) -> bool:
+        """Flip the noise on or off and return the new state."""
+        self.set_enabled(not self._enabled)
+        return self._enabled
 
     def stop(self) -> None:
         """Stop playback and release the audio device."""
@@ -124,16 +145,24 @@ class StaticNoise(QObject):
         self._source = _NoiseSource(noise, self)
         self._source.open(QIODevice.OpenModeFlag.ReadOnly)
         self._sink = QAudioSink(device, fmt, self)
-        self._sink.setVolume(self._level_for(self._current))
+        self._sink.setVolume(
+            self._level_for(self._current) if self._enabled else 0.0
+        )
         self._sink.start(self._source)
         self._smooth_timer.start()
 
     def _smooth(self) -> None:
         if self._sink is None:
             return
-        delta = self._target - self._current
+        if not self._enabled:
+            # Never leave the sink at the idle base level while muted.
+            self._current = 0.0
+            self._sink.setVolume(0.0)
+            return
+        target = self._target
+        delta = target - self._current
         if abs(delta) < 0.001:
-            self._current = self._target
+            self._current = target
         else:
             self._current += delta * _SMOOTH_FACTOR
         self._sink.setVolume(self._level_for(self._current))

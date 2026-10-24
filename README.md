@@ -2,9 +2,8 @@
 
 A small Tamagotchi-style desktop pet. Capri lives in a looping video, listens
 to whatever you type, and answers through a typewriter speech bubble that
-appears somewhere else on the screen. The interface is styled like a neon
-cyberpunk terminal, and the whole desktop is covered by a subtle CRT glitch
-layer that occasionally goes haywire.
+appears somewhere else on the screen. The interface is styled like a blocky pixel-art terminal, and the whole
+desktop is covered by a subtle CRT glitch layer that occasionally goes haywire.
 
 ```
 +--------------------------------------------------+
@@ -19,14 +18,17 @@ layer that occasionally goes haywire.
 
 ## Features
 
-- Loop the character video forever with QtMultimedia.
+- Loop the character video forever with QtMultimedia at 1.5× speed.
 - Text input with Enter or the **SEND** button.
 - Replies are typed out character by character in a frameless neon bubble.
 - The speech bubble appears at a random spot on screen and avoids the main
   window, then closes itself after the text has been read.
 - Random startup greetings, including one that uses your OS username.
 - Built-in commands: `help` / `what u can?` lists everything Capri understands,
-  and `glitch` / `turn glitch` toggles the glitch overlay.
+  `glitch` / `turn glitch` toggles the glitch overlay, and `noise` toggles the
+  background hiss on and off.
+- Commands are forgiving: casing, punctuation and small typos (like `gltich`
+  or `quie`) are still matched to the right command.
 - Constant subtle scanlines/static with periodic, much stronger glitch spikes.
 - A quiet looping hiss under everything that swells with the visual glitch.
 - Glitch overlays are click-through, focus-less and cover every monitor.
@@ -61,7 +63,8 @@ Or directly with the virtualenv interpreter:
 
 The video is loaded from `capri.mp4` next to `main.py`; it loops indefinitely.
 You can replace it with another clip, though the window is sized for an
-800×450 video.
+800×450 video. Playback speed is set by `PLAYBACK_RATE` at the top of
+`capri/pet_window.py` (default `1.5`; use `1.0` for normal speed).
 
 ## Starting with the system
 
@@ -101,8 +104,15 @@ Wayland sessions.
 | --- | --- | --- |
 | `help` | `what u can?`, `commands` | List every available command. |
 | `glitch` | `turn glitch` | Toggle the full-screen glitch overlay. |
+| `noise` | `toggle noise` | Toggle the background static noise on/off. |
 
 Anything else is passed through `process_input()` and echoed back by the demo.
+
+Command matching ignores case, surrounding punctuation and repeated spaces,
+and tolerates a few typos. The allowed edit distance grows with the command
+length (one edit up to five characters, up to three for long aliases), and
+transposed letters count as a single typo. The matching logic lives in
+`CommandRegistry.find()` / `_closest()` in `capri/commands.py`.
 
 ## Project structure
 
@@ -202,6 +212,11 @@ the hiss swells during a spike and settles back to its quiet baseline
 afterwards. Volume changes are smoothed in `StaticNoise._smooth()` to avoid
 zipper noise. If no audio output is available the noise is skipped silently.
 
+The noise can be muted without releasing the audio device via
+`set_enabled(False)`; `toggle()` flips it and returns the new state. Muting
+jumps straight to zero volume instead of fading down to the idle level, so it
+is fully silent. The `noise` command uses these methods.
+
 ```python
 from capri.static_noise import StaticNoise
 
@@ -213,7 +228,10 @@ glitch_manager.amplitude_changed.connect(noise.set_amplitude)
 
 All colours, fonts and widget styles for the main window are in
 `capri/theme.py`; the speech bubble keeps its own small matching stylesheet in
-`capri/speech.py` so it stays self-contained and reusable.
+`capri/speech.py` so it stays self-contained and reusable. The theme uses
+square corners, chunky 3 px bevels and stepped gradients to mimic pixel art.
+For a true bitmap look, install a pixel font such as *Press Start 2P* or
+*VT323* — `PIXEL_FONT` already lists them ahead of the monospace fallbacks.
 
 ## Platform notes
 
