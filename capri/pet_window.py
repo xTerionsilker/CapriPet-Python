@@ -54,6 +54,7 @@ if __package__ in (None, ""):
         VOICE_WAITING_STATUS,
         command_after_trigger,
     )
+    import capri.ollama as ollama
     import capri.spotify as spotify
 else:
     from .command_catalog import Handlers, register_commands
@@ -71,7 +72,7 @@ else:
         VOICE_WAITING_STATUS,
         command_after_trigger,
     )
-    from . import spotify
+    from . import ollama, spotify
 
 ROOT = Path(__file__).resolve().parent.parent
 FACES = ROOT / "faces"
@@ -114,11 +115,16 @@ GOODBYE_LINE = "пока пока чумба"
 # ответ Capri.
 LOCK_DELAY_MS = 800
 
+# Сколько реплик разговора с локальной моделью помнит Capri.
+OLLAMA_HISTORY_MESSAGES = 12
+
 
 class CapriWindow(QWidget):
     """Окно питомца. Напишите или скажите что-нибудь — Capri ответит."""
 
     spotify_reply = Signal(str)
+    ollama_reply = Signal(str)
+    ollama_failed = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -133,6 +139,11 @@ class CapriWindow(QWidget):
         self._greeted = False
         self._lock_pending: list[list[str]] | None = None
         self._voice_armed_until = 0.0
+        # Разговор с локальной моделью: реплики для контекста и флаг того,
+        # что запрос уже летит в Ollama.
+        self._ollama_history: list[dict[str, str]] = []
+        self._ollama_pending = ""
+        self._ollama_busy = False
         # Текущая фаза плеера: приветствие, цикл, прощание или закрытие.
         self._phase = PHASE_MAIN
         self._closing = False
@@ -156,6 +167,8 @@ class CapriWindow(QWidget):
         self._build_voice()
         self._register_commands()
         self.spotify_reply.connect(self.speak)
+        self.ollama_reply.connect(self._on_ollama_reply)
+        self.ollama_failed.connect(self._on_ollama_failed)
 
         self.input.setFocus()
 
@@ -345,6 +358,7 @@ class CapriWindow(QWidget):
                 toggle_glitches=self._toggle_glitches,
                 toggle_noise=self._toggle_noise,
                 toggle_voice=self._toggle_voice,
+                ask_ollama=self._ask_ollama,
                 search_google=self._search_google,
                 search_youtube=self._search_youtube,
                 spotify_play=self._spotify_play,
@@ -508,6 +522,61 @@ class CapriWindow(QWidget):
             f"search_query={quote_plus(query)}"
         )
         return f"Ищу на YouTube: {query}"
+
+    # --- локальная модель --------------------------------------------------
+    def _ask_ollama(self, prompt: str) -> str:
+        """Передать текст локальной модели Ollama (команда «слушай»)."""
+        prompt = prompt.strip()
+        if not prompt:
+            return "Скажи, о чём спросить: «слушай <текст>»."
+        if self._ollama_busy:
+            return "Ещё думаю над прошлым — подожди."
+        history = list(self._ollama_history)
+        self._ollama_pending = prompt
+        self._ollama_busy = True
+        threading.Thread(
+            target=self._ask_ollama_worker,
+            args=(prompt, history),
+            name="capri-ollama",
+            daemon=True,
+        ).start()
+        return "Думаю…"
+
+    def _ask_ollama_worker(
+        self, prompt: str, history: list[dict[str, str]]
+    ) -> None:
+        """Спросить модель вне потока GUI и вернуть результат сигналом."""
+        try:
+            answer = ollama.ask(prompt, history=history)
+        except ollama.OllamaError as error:
+            self.ollama_failed.emit(str(error))
+            return
+        except Exception:
+            self.ollama_failed.emit("Локальная модель не ответила.")
+            return
+        self.ollama_reply.emit(answer)
+
+    def _on_ollama_reply(self, answer: str) -> None:
+        """Запомнить успешный обмен репликами и показать ответ модели."""
+        prompt = self._ollama_pending
+        self._finish_ollama()
+        if prompt:
+            self._ollama_history.append({"role": "user", "content": prompt})
+            self._ollama_history.append(
+                {"role": "assistant", "content": answer}
+            )
+            # Контекст ограничен: старые реплики модели не нужны.
+            del self._ollama_history[:-OLLAMA_HISTORY_MESSAGES]
+        self.speak(answer)
+
+    def _on_ollama_failed(self, message: str) -> None:
+        """Сбой Ollama не попадает в контекст разговора, только в облачко."""
+        self._finish_ollama()
+        self.speak(message)
+
+    def _finish_ollama(self) -> None:
+        self._ollama_busy = False
+        self._ollama_pending = ""
 
     # --- Spotify -----------------------------------------------------------
     def _spotify_play(self, query: str) -> str:

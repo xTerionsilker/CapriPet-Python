@@ -34,6 +34,7 @@ class Handlers:
     toggle_glitches: Handler
     toggle_noise: Handler
     toggle_voice: Handler
+    ask_ollama: Handler
     search_google: Handler
     search_youtube: Handler
     spotify_play: Handler
@@ -263,4 +264,27 @@ def register_commands(registry: CommandRegistry, handlers: Handlers) -> None:
             "отойду",
         ),
         keywords=("блокир", "заблок", "экран", "лок", "lock"),
+    )
+    registry.register(
+        "слушай",
+        "спросить локальную модель Ollama.",
+        handlers.ask_ollama,
+        aliases=(
+            "спроси модель",
+            "спроси локально",
+            "локальная модель",
+            "ollama",
+            "оллама",
+            "qwen",
+        ),
+        takes_argument=True,
+        keywords=(
+            "слушай",
+            "ollama",
+            "оллам",
+            "qwen",
+            "модел",
+            "спроси",
+            "спросить",
+        ),
     )

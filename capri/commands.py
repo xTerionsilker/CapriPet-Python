@@ -48,6 +48,10 @@ HELP_ALIASES = (
     "меню",
 )
 
+# Пунктуация, которую можно отбросить между командой и её аргументом:
+# «слушай, привет» → «привет», «слушай: привет» — тоже.
+ARGUMENT_PUNCTUATION = " \t,.:;–-!?()[]{}«»…\""
+
 
 @dataclass(frozen=True)
 class Command:
@@ -175,15 +179,18 @@ class CommandRegistry:
             return None
 
         best: Command | None = None
-        best_score = -1.0
+        best_score: tuple[float, float] | None = None
         for command in (*self._commands, self._help):
             keys = (command.name, *command.aliases)
-            score = max(
+            closest = max(
                 similarity(normalized, self._normalize(key)) for key in keys
             )
-            score = max(score, keyword_score(normalized, command.keywords))
-            if score > best_score:
-                best_score = score
+            score = max(closest, keyword_score(normalized, command.keywords))
+            # При равной смысловой подсказке побеждает более похожая фраза:
+            # «меня слушай» ближе к команде «слушай», чем к «голос».
+            candidate = (score, closest)
+            if best_score is None or candidate > best_score:
+                best_score = candidate
                 best = command
         return best
 
@@ -207,7 +214,12 @@ class CommandRegistry:
 
     # --- внутреннее --------------------------------------------------------
     def _argument_match(self, normalized: str) -> tuple[Command, str] | None:
-        """Сопоставить команду с аргументом по самому длинному префиксу."""
+        """Сопоставить команду с аргументом по самому длинному префиксу.
+
+        Разделителем служит любой небуквенный символ, поэтому понимаются и
+        «слушай привет», и «слушай, привет». Слово, продолжаемое после имени
+        команды («гуглить» после «гугл»), аргументом не считается.
+        """
         keys = sorted(
             (
                 (key, command)
@@ -220,8 +232,12 @@ class CommandRegistry:
         for key, command in keys:
             if normalized == key:
                 return command, ""
-            if normalized.startswith(key + " "):
-                return command, normalized[len(key) :].strip()
+            if not normalized.startswith(key):
+                continue
+            rest = normalized[len(key) :]
+            if rest[:1].isalnum():
+                continue
+            return command, rest.lstrip(ARGUMENT_PUNCTUATION)
         return None
 
     def _closest(self, normalized: str) -> str | None:
