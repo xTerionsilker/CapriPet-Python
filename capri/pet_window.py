@@ -86,6 +86,11 @@ END_VIDEO = FACES / "end.mp4"
 # Все видео приложения (для проверки, что хоть что-то есть).
 VIDEOS = (START_VIDEO, VIDEO, END_VIDEO)
 
+# Служебные дорожки: звук к приветствию и прощанию.
+VOICES = ROOT / "voices"
+START_SOUND = VOICES / "start.mp3"
+END_SOUND = VOICES / "end.mp3"
+
 PLAYBACK_RATE = 1.5
 # Скорость служебных роликов: приветствия и прощания.
 SERVICE_PLAYBACK_RATE = 2.0
@@ -131,6 +136,9 @@ class CapriWindow(QWidget):
         # Текущая фаза плеера: приветствие, цикл, прощание или закрытие.
         self._phase = PHASE_MAIN
         self._closing = False
+        # Досмотрены ли части прощания (ролик и дорожка).
+        self._outro_video_done = True
+        self._outro_sound_done = True
         self._default_status = (
             "// CAPRI В СЕТИ"
             if VIDEO.is_file()
@@ -141,6 +149,7 @@ class CapriWindow(QWidget):
         self._flow = InputFlow(self.commands, self)
 
         self._build_video()
+        self._build_sound()
         self._build_controls()
         self._build_shortcuts()
         self._build_effects()
@@ -175,6 +184,28 @@ class CapriWindow(QWidget):
         else:
             self._play_main()
 
+    def _build_sound(self) -> None:
+        """Отдельный плеер для дорожек из ``voices/``.
+
+        В отличие от видео, озвучка не глушится: приветствие звучит
+        при запуске, прощание — при выходе из программы.
+        """
+        self.sound = QMediaPlayer(self)
+        self.sound_audio = QAudioOutput(self)
+        self.sound_audio.setVolume(0.6)
+        self.sound.setAudioOutput(self.sound_audio)
+        self.sound.errorOccurred.connect(self._on_sound_error)
+        self.sound.mediaStatusChanged.connect(self._on_sound_status)
+
+        if START_SOUND.is_file():
+            self._play_sound(START_SOUND)
+
+    def _play_sound(self, path: Path) -> None:
+        """Проиграть дорожку из ``voices/`` ровно один раз."""
+        self.sound.setLoops(QMediaPlayer.Loops.Once)
+        self.sound.setSource(QUrl.fromLocalFile(str(path)))
+        self.sound.play()
+
     def _play_source(
         self, path: Path, loops: QMediaPlayer.Loops, rate: float
     ) -> None:
@@ -202,15 +233,33 @@ class CapriWindow(QWidget):
         self._play_source(VIDEO, QMediaPlayer.Loops.Infinite, PLAYBACK_RATE)
 
     def _play_outro(self) -> None:
-        """Прощальное видео — ровно один раз при выходе из программы."""
-        if not END_VIDEO.is_file():
+        """Прощание: ролик и дорожка — каждый ровно один раз."""
+        have_video = END_VIDEO.is_file()
+        have_sound = END_SOUND.is_file()
+        # Чего нет, то считаем уже досмотренным.
+        self._outro_video_done = not have_video
+        self._outro_sound_done = not have_sound
+
+        if not have_video and not have_sound:
             self._finish_close()
             return
+
         self._phase = PHASE_END
-        self.video.show()
-        self._play_source(
-            END_VIDEO, QMediaPlayer.Loops.Once, SERVICE_PLAYBACK_RATE
-        )
+        if have_video:
+            self.video.show()
+            self._play_source(
+                END_VIDEO, QMediaPlayer.Loops.Once, SERVICE_PLAYBACK_RATE
+            )
+        if have_sound:
+            self._play_sound(END_SOUND)
+        self._maybe_finish_outro()
+
+    def _maybe_finish_outro(self) -> None:
+        """Закрыться, когда досмотрены и ролик, и дорожка прощания."""
+        if self._phase != PHASE_END:
+            return
+        if self._outro_video_done and self._outro_sound_done:
+            self._finish_close()
 
     def _build_controls(self) -> None:
         """Нижняя панель: статус, поле ввода и кнопки."""
@@ -531,7 +580,8 @@ class CapriWindow(QWidget):
         if self._phase == PHASE_START:
             QTimer.singleShot(0, self._play_main)
         elif self._phase == PHASE_END:
-            QTimer.singleShot(0, self._finish_close)
+            self._outro_video_done = True
+            QTimer.singleShot(0, self._maybe_finish_outro)
 
     def _on_media_status(self, status) -> None:
         """Перевести плеер на следующую фазу по мере окончания ролика."""
@@ -540,12 +590,28 @@ class CapriWindow(QWidget):
         if self._phase == PHASE_START:
             self._play_main()
         elif self._phase == PHASE_END:
-            self._finish_close()
+            self._outro_video_done = True
+            self._maybe_finish_outro()
+
+    def _on_sound_error(self, *_args) -> None:
+        """Сбой дорожки не должен ни зависнуть запуск, ни задержать выход."""
+        if self._phase == PHASE_END:
+            self._outro_sound_done = True
+            QTimer.singleShot(0, self._maybe_finish_outro)
+
+    def _on_sound_status(self, status) -> None:
+        """Пометить дорожку прощания досмотренной по её окончании."""
+        if status != QMediaPlayer.MediaStatus.EndOfMedia:
+            return
+        if self._phase == PHASE_END:
+            self._outro_sound_done = True
+            self._maybe_finish_outro()
 
     def _finish_close(self) -> None:
-        """Прощальное видео досмотрено — завершить закрытие окна."""
+        """Прощание досмотрено и дослушано — завершить закрытие окна."""
         self._phase = PHASE_CLOSED
         self.player.stop()
+        self.sound.stop()
         # Облачко больше не нужно: убираем его вместе с окном, чтобы
         # приложение не доживало само по себе.
         if self._speech is not None:
@@ -553,14 +619,16 @@ class CapriWindow(QWidget):
         QTimer.singleShot(0, self.close)
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        # Второй проход: служебные окна уже остановлены, прощальное видео
-        # досмотрено — закрываемось и даём приложению завершиться.
+        # Второй проход: служебные окна уже остановлены, прощание
+        # досмотрено и дослушано — закрываемось и даём приложению
+        # завершиться.
         if self._closing or self._phase == PHASE_CLOSED:
             self.player.stop()
+            self.sound.stop()
             super().closeEvent(event)
             return
-        # Первый проход: откладываем закрытие, чтобы попрощаться
-        # и показать end.mp4.
+        # Первый проход: откладываем закрытие, чтобы попрощаться —
+        # показать faces/end.mp4 и проиграть voices/end.mp3.
         self._closing = True
         event.ignore()
         self._voice.cancel()
