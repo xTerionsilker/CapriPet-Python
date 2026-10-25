@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import getpass
 import random
+import webbrowser
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QKeySequence, QShortcut
@@ -42,7 +44,7 @@ class CapriWindow(QWidget):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("CAPRI // ПИТОМЕЦ")
+        self.setWindowTitle("CAPRI")
         self.resize(800, 570)
         self.setMinimumSize(480, 400)
         self.setStyleSheet(APP_STYLE)
@@ -141,19 +143,97 @@ class CapriWindow(QWidget):
             "глитч",
             "включить или выключить экранные глитчи.",
             self._toggle_glitches,
-            aliases=("переключить глитч", "включить глитч", "выключить глитч"),
+            aliases=(
+                "переключить глитч",
+                "включить глитч",
+                "выключить глитч",
+                "глитчи",
+                "глюки",
+                "переключить глюки",
+                "включить глюки",
+                "выключить глюки",
+                "эффекты",
+                "переключить эффекты",
+            ),
         )
         self.commands.register(
             "шум",
             "включить или выключить фоновый шум.",
             self._toggle_noise,
-            aliases=("переключить шум", "включить шум", "выключить шум"),
+            aliases=(
+                "переключить шум",
+                "включить шум",
+                "выключить шум",
+                "шипение",
+                "переключить шипение",
+                "включить шипение",
+                "выключить шипение",
+                "статика",
+                "звук",
+                "включить звук",
+                "выключить звук",
+            ),
         )
         self.commands.register(
             "голос",
             "начать или остановить голосовой ввод.",
             self._toggle_voice,
-            aliases=("микрофон", "слушать"),
+            aliases=(
+                "микрофон",
+                "слушать",
+                "говорить",
+                "голосовой ввод",
+                "запись",
+                "включить голос",
+                "выключить голос",
+                "включить микрофон",
+                "выключить микрофон",
+            ),
+        )
+        self.commands.register(
+            "гугл",
+            "найти запрос в Google.",
+            self._search_google,
+            aliases=(
+                "загугли",
+                "погугли",
+                "гуглить",
+                "искать в гугле",
+                "найди в гугле",
+                "поищи в гугле",
+                "поискать в гугле",
+                "поиск в гугле",
+                "google",
+                "искать в google",
+                "найди в google",
+                "поищи в google",
+                "поиск в google",
+                "найди в интернете",
+                "поищи в интернете",
+            ),
+            takes_argument=True,
+        )
+        self.commands.register(
+            "ютуб",
+            "найти запрос на YouTube.",
+            self._search_youtube,
+            aliases=(
+                "ютьюб",
+                "youtube",
+                "искать на ютубе",
+                "найди на ютубе",
+                "найди в ютубе",
+                "поищи на ютубе",
+                "поищи в ютубе",
+                "поискать на ютубе",
+                "поиск на ютубе",
+                "поиск в ютубе",
+                "искать на youtube",
+                "найди на youtube",
+                "поищи на youtube",
+                "поиск на youtube",
+            ),
+            takes_argument=True,
         )
 
         self.input.setFocus()
@@ -222,6 +302,25 @@ class CapriWindow(QWidget):
     def _toggle_noise(self) -> str:
         enabled = self._static.toggle()
         return "Шум включён." if enabled else "Шум выключен."
+
+    def _search_google(self, query: str) -> str:
+        query = query.strip()
+        if not query:
+            return "Что искать в Google? Скажи: «гугл <запрос>»."
+        webbrowser.open(
+            f"https://www.google.com/search?q={quote_plus(query)}"
+        )
+        return f"Ищу в Google: {query}"
+
+    def _search_youtube(self, query: str) -> str:
+        query = query.strip()
+        if not query:
+            return "Что искать на YouTube? Скажи: «ютуб <запрос>»."
+        webbrowser.open(
+            "https://www.youtube.com/results?"
+            f"search_query={quote_plus(query)}"
+        )
+        return f"Ищу на YouTube: {query}"
 
     def _greet(self) -> None:
         if self._speech is not None:  # пользователь уже получил ответ

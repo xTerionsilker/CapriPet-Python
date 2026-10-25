@@ -32,9 +32,18 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
-Handler = Callable[[], str]
+Handler = Callable[..., str]
 
-HELP_ALIASES = ("помощь", "что ты умеешь?", "команды")
+HELP_ALIASES = (
+    "помощь",
+    "что ты умеешь?",
+    "что умеешь?",
+    "команды",
+    "справка",
+    "помоги",
+    "возможности",
+    "меню",
+)
 
 # Длинный ввод может содержать больше опечаток: одна правка до 5 символов,
 # затем ещё одна на каждые 5 символов, с ограничением, чтобы посторонние
@@ -48,6 +57,7 @@ class Command:
     description: str
     handler: Handler
     aliases: tuple[str, ...] = ()
+    takes_argument: bool = False
 
 
 class CommandRegistry:
@@ -72,8 +82,11 @@ class CommandRegistry:
         handler: Handler,
         *,
         aliases: tuple[str, ...] = (),
+        takes_argument: bool = False,
     ) -> Command:
-        command = Command(name, description, handler, tuple(aliases))
+        command = Command(
+            name, description, handler, tuple(aliases), takes_argument
+        )
         keys = (name, *aliases)
         for key in keys:
             normalized = self._normalize(key)
@@ -86,21 +99,42 @@ class CommandRegistry:
 
     def find(self, text: str) -> Command | None:
         """Вернуть подходящую команду, допуская небольшие опечатки."""
+        match = self.match(text)
+        return match[0] if match is not None else None
+
+    def dispatch(self, text: str) -> str | None:
+        """Выполнить подходящую команду и вернуть ответ, либо ``None``."""
+        match = self.match(text)
+        if match is None:
+            return None
+        command, argument = match
+        if command.takes_argument:
+            return command.handler(argument)
+        return command.handler()
+
+    def match(self, text: str) -> tuple[Command, str] | None:
+        """Найти команду и остаток строки, переданный как аргумент.
+
+        Команды без аргументов ищутся по всей строке, в том числе нечётко.
+        Команды с аргументом (поиск) срабатывают, если строка начинается с
+        имени или псевдонима, за которым идёт запрос.
+        """
         normalized = self._normalize(text)
         if not normalized:
             return None
 
         exact = self._lookup.get(normalized)
         if exact is not None:
-            return exact
+            return exact, ""
 
-        match = self._closest(normalized)
-        return self._lookup[match] if match is not None else None
+        argument_match = self._argument_match(normalized)
+        if argument_match is not None:
+            return argument_match
 
-    def dispatch(self, text: str) -> str | None:
-        """Выполнить подходящую команду и вернуть ответ, либо ``None``."""
-        command = self.find(text)
-        return command.handler() if command is not None else None
+        closest = self._closest(normalized)
+        if closest is not None:
+            return self._lookup[closest], ""
+        return None
 
     def help_text(self) -> str:
         """Вернуть понятный список всех доступных команд."""
@@ -109,17 +143,36 @@ class CommandRegistry:
             "• помощь (также: что ты умеешь?) — показать этот список.",
         ]
         for command in self._commands:
+            argument = " <запрос>" if command.takes_argument else ""
             aliases = (
                 f" (также: {', '.join(command.aliases)})"
                 if command.aliases
                 else ""
             )
             lines.append(
-                f"• {command.name}{aliases} — {command.description}"
+                f"• {command.name}{argument}{aliases} — {command.description}"
             )
         return "\n".join(lines)
 
     # --- внутреннее --------------------------------------------------------
+    def _argument_match(self, normalized: str) -> tuple[Command, str] | None:
+        """Сопоставить команду с аргументом по самому длинному префиксу."""
+        keys = sorted(
+            (
+                (key, command)
+                for key, command in self._lookup.items()
+                if command.takes_argument
+            ),
+            key=lambda item: len(item[0]),
+            reverse=True,
+        )
+        for key, command in keys:
+            if normalized == key:
+                return command, ""
+            if normalized.startswith(key + " "):
+                return command, normalized[len(key) :].strip()
+        return None
+
     def _closest(self, normalized: str) -> str | None:
         """Вернуть ближайший известный ключ, если он достаточно близок."""
         limit = min(
