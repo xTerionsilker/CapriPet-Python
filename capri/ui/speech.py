@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from html import escape
 
-from pathlib import Path
 from PySide6.QtCore import QElapsedTimer, QRect, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QGuiApplication, QPixmap, QScreen
+from PySide6.QtGui import QColor, QGuiApplication, QScreen
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
-    QHBoxLayout,
     QLabel,
     QVBoxLayout,
     QWidget,
@@ -85,30 +83,8 @@ class SpeechWindow(QFrame):
         bubble_layout.setContentsMargins(24, 20, 24, 20)
         bubble_layout.addWidget(self._label)
 
-        self._capri = QLabel(self)
-        asset = (
-            Path(__file__).resolve().parent.parent.parent
-            / "assets"
-            / "capri_sit.png"
-        )
-        if asset.is_file():
-            pixmap = QPixmap(str(asset))
-            pixmap = pixmap.scaled(
-                96,
-                96,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            self._capri.setPixmap(pixmap)
-        else:
-            self._capri.hide()
-
         outer = QVBoxLayout(self)
         outer.setContentsMargins(22, 22, 22, 22)
-        top = QHBoxLayout()
-        top.addStretch()
-        top.addWidget(self._capri, 0, Qt.AlignmentFlag.AlignTop)
-        outer.addLayout(top)
         outer.addWidget(bubble)
 
         glow = QGraphicsDropShadowEffect(bubble)
