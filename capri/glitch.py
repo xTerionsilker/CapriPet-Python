@@ -1,15 +1,15 @@
-"""Click-through full-screen glitch overlay.
+"""Полноэкранный сквозной глитч-оверлей.
 
-Creates one frameless, input-transparent window per screen. Artifacts are
-always present at a low, subtle level, with no periodic intensification.
-Each overlay reports how intense its current frame is through the
-``amplitude_changed`` signal, which drives the background static in
-``capri.static_noise``.
-It is purely decorative: clicks, scrolling and keyboard input go straight
-through to the windows underneath.
+Создаёт по одному окну без рамки, не принимающему ввод, на каждый экран.
+Артефакты присутствуют всегда на низком, едва заметном уровне, без
+периодического усиления. Каждый оверлей сообщает, насколько интенсивен
+текущий кадр, через сигнал ``amplitude_changed``, который управляет фоновым
+шумом в ``capri.static_noise``.
+Оверлей чисто декоративный: клики, прокрутка и клавиатурный ввод проходят
+напрямую в окна под ним.
 
-On platforms that do not support click-through/always-on-top windows (some
-Wayland compositors), the overlay may be limited or not appear at all.
+На платформах, не поддерживающих сквозные/поверх-всех окон (некоторые
+композиторы Wayland), оверлей может работать ограниченно или не появиться.
 """
 
 from __future__ import annotations
@@ -22,11 +22,11 @@ from PySide6.QtWidgets import QWidget
 
 _COLORS = ("#39ff6a", "#ff1e46", "#a259ff", "#eaffef")
 _NOISE = ("#39ff6a", "#ff1e46", "#ffffff", "#a259ff")
-_BASE_INTERVAL_MS = 66  # ~15 fps for the subtle layer
+_BASE_INTERVAL_MS = 66  # ~15 кадров/с для едва заметного слоя
 
 
 class GlitchOverlay(QWidget):
-    """A transparent, click-through window that paints continuous glitches."""
+    """Прозрачное сквозное окно, непрерывно рисующее глитчи."""
 
     amplitude_changed = Signal(float)
 
@@ -40,7 +40,7 @@ class GlitchOverlay(QWidget):
         )
         super().__init__(None, flags)
         self._screen = screen
-        self.setWindowTitle("Capri glitch overlay")
+        self.setWindowTitle("Глитч-оверлей Capri")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
@@ -57,9 +57,9 @@ class GlitchOverlay(QWidget):
         self._frame_timer.timeout.connect(self._tick)
         self._frame_timer.start()
 
-    # --- timing ------------------------------------------------------------
+    # --- тайминг -----------------------------------------------------------
     def set_active(self, active: bool) -> None:
-        """Show/hide the overlay and pause/resume its timers."""
+        """Показать/скрыть оверлей и приостановить/возобновить таймеры."""
         if active == self._active:
             return
         self._active = active
@@ -78,12 +78,12 @@ class GlitchOverlay(QWidget):
         self._update_amplitude()
         self.update()
 
-    # --- intensity ---------------------------------------------------------
+    # --- интенсивность -----------------------------------------------------
     def _update_amplitude(self) -> None:
-        """Report how violent the current frame is, from 0.0 to 1.0.
+        """Сообщить интенсивность текущего кадра, от 0.0 до 1.0.
 
-        The static audio layer listens to this. The subtle layer flickers a
-        little so it never feels like a frozen sample.
+        Слой фонового звука слушает это значение. Едва заметный слой слегка
+        мерцает, чтобы не казаться застывшим.
         """
         if not self._active:
             self._set_amplitude(0.0)
@@ -97,7 +97,7 @@ class GlitchOverlay(QWidget):
         self._amplitude = value
         self.amplitude_changed.emit(value)
 
-    # --- painting ----------------------------------------------------------
+    # --- отрисовка ---------------------------------------------------------
     def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
@@ -107,8 +107,8 @@ class GlitchOverlay(QWidget):
             painter.end()
             return
 
-        # Every frame starts from a clean transparent buffer so artifacts do
-        # not accumulate into an opaque mess.
+        # Каждый кадр начинается с чистого прозрачного буфера, чтобы артефакты
+        # не накапливались в непрозрачную массу.
         painter.setCompositionMode(
             QPainter.CompositionMode.CompositionMode_Clear
         )
@@ -190,7 +190,7 @@ class GlitchOverlay(QWidget):
 
 
 class GlitchManager(QObject):
-    """Keeps one glitch overlay alive on every connected screen."""
+    """Поддерживает один глитч-оверлей на каждом подключённом экране."""
 
     amplitude_changed = Signal(float)
 
@@ -212,7 +212,7 @@ class GlitchManager(QObject):
         return self._enabled
 
     def set_enabled(self, enabled: bool) -> None:
-        """Turn the overlays on or off without destroying them."""
+        """Включить или выключить оверлеи, не уничтожая их."""
         if enabled == self._enabled:
             return
         self._enabled = enabled
@@ -220,7 +220,7 @@ class GlitchManager(QObject):
             overlay.set_active(enabled)
 
     def toggle(self) -> bool:
-        """Flip the overlay state and return the new state."""
+        """Переключить состояние оверлея и вернуть новое состояние."""
         self.set_enabled(not self._enabled)
         return self._enabled
 
@@ -250,7 +250,7 @@ class GlitchManager(QObject):
         self.amplitude_changed.emit(max(self._amplitudes.values(), default=0.0))
 
     def stop(self) -> None:
-        """Close every overlay and stop painting."""
+        """Закрыть все оверлеи и прекратить отрисовку."""
         app = QGuiApplication.instance()
         if app is not None:
             for signal, slot in (

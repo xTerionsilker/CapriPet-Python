@@ -1,47 +1,57 @@
 # CapriPet
 
-A small Tamagotchi-style desktop pet. Capri lives in a looping video, listens
-to whatever you type, and answers through a typewriter speech bubble that
-appears somewhere else on the screen. The interface is styled like a blocky pixel-art terminal, and the whole
-desktop is covered by a subtle CRT glitch layer.
+Маленький питомец для рабочего стола в стиле тамагочи. Capri живёт в
+зацикленном видео, слушает то, что вы вводите текстом или говорите в
+микрофон, и отвечает через облачко с эффектом печатной машинки, которое
+появляется в другом месте экрана. Интерфейс оформлен как блочный
+пиксельный терминал, а весь рабочий стол покрыт лёгким CRT-глитчем.
 
 ```
 +--------------------------------------------------+
 |                                                  |
-|                 looping capri.mp4                |
+|                 зациклено capri.mp4              |
 |                                                  |
 +--------------------------------------------------+
-| // CAPRI ONLINE                                  |
-| > Say something to Capri…                [SEND]  |
+| // CAPRI В СЕТИ                                  |
+| > Скажи что-нибудь Capri…      [ГОЛОС] [ОТПРАВИТЬ] |
 +--------------------------------------------------+
 ```
 
-## Features
+## Возможности
 
-- Loop the character video forever with QtMultimedia at 1.5× speed.
-- Text input with Enter or the **SEND** button.
-- Replies are typed out character by character in a frameless neon bubble.
-- The speech bubble appears at a random spot on screen and avoids the main
-  window, then closes itself after the text has been read.
-- Random startup greetings, including one that uses your OS username.
-- Built-in commands: `help` / `what u can?` lists everything Capri understands,
-  `glitch` / `turn glitch` toggles the glitch overlay, and `noise` toggles the
-  background hiss on and off.
-- Commands are forgiving: casing, punctuation and small typos (like `gltich`
-  or `quie`) are still matched to the right command.
-- Constant subtle scanlines and static.
-- A quiet looping hiss under everything.
-- Glitch overlays are click-through, focus-less and cover every monitor.
-- Quit with `Ctrl+Q`.
+- Бесконечный цикл видео с питомцем через QtMultimedia на скорости 1.5×.
+- Текстовый ввод по Enter или кнопке **ОТПРАВИТЬ**.
+- Голосовой ввод: нажмите **ГОЛОС** или `Ctrl+Space`, скажите команду —
+  Capri распознает речь и выполнит её.
+- Ответы печатаются посимвольно в облачке без рамки с неоновой подсветкой.
+- Облачко появляется в случайном месте экрана, не перекрывает главное окно
+  и закрывается само после прочтения текста.
+- Случайные приветствия при запуске, одно из них использует имя
+  пользователя ОС.
+- Встроенные команды: `помощь` / `что ты умеешь?` перечисляет всё, что
+  понимает Capri; `глитч` / `переключить глитч` включает и выключает
+  глитч-оверлей; `шум` / `переключить шум` управляет фоновым шипением;
+  `голос` / `микрофон` запускает и останавливает голосовой ввод.
+- Команды прощают опечатки: регистр, пунктуация и небольшие ошибки вроде
+  `глтч` или `шумм` всё равно сопоставляются с нужной командой.
+- Постоянные едва заметные строчные развёртки и статический шум.
+- Тихое зацикленное шипение под всем остальным.
+- Глитч-оверлеи не перехватывают ввод, не забирают фокус и покрывают все
+  мониторы.
+- Выход по `Ctrl+Q`.
 
-## Requirements
+## Требования
 
-- Python 3.10+ (tested with 3.14)
-- PySide6 6.12+ (QtMultimedia and its FFmpeg backend ship with the wheel)
+- Python 3.10+ (проверено на 3.14)
+- PySide6 6.12+ (QtMultimedia и бэкенд FFmpeg идут в колесе)
+- `SpeechRecognition` для голосового ввода
+- Доступ в интернет для распознавания речи (используется Google Web Speech,
+  язык `ru-RU`)
+- Работающий микрофон и разрешение на запись звука
 
-Everything is pinned in `requirements.txt`.
+Всё закреплено в `requirements.txt`.
 
-## Installation
+## Установка
 
 ```bash
 python3 -m venv .venv
@@ -49,171 +59,201 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Running
+Отдельный пакет PyAudio не нужен: запись идёт через QtMultimedia, а
+`SpeechRecognition` получает уже готовый WAV.
+
+## Запуск
 
 ```bash
 python main.py
 ```
 
-Or directly with the virtualenv interpreter:
+Или напрямую интерпретатором виртуального окружения:
 
 ```bash
 .venv/bin/python main.py
 ```
 
-The video is loaded from `capri.mp4` next to `main.py`; it loops indefinitely.
-You can replace it with another clip, though the window is sized for an
-800×450 video. Playback speed is set by `PLAYBACK_RATE` at the top of
-`capri/pet_window.py` (default `1.5`; use `1.0` for normal speed).
+Видео загружается из `capri.mp4` рядом с `main.py` и повторяется бесконечно.
+Его можно заменить другим клипом, хотя окно рассчитано на видео 800×450.
+Скорость воспроизведения задаётся `PLAYBACK_RATE` в начале
+`capri/pet_window.py` (по умолчанию `1.5`; используйте `1.0` для обычной
+скорости).
 
-## Starting with the system
+Если `SpeechRecognition` не установлен или микрофон недоступен, приложение
+продолжает работать: голосовая кнопка просто покажет сообщение об ошибке,
+а текстовый ввод останется доступным.
 
-On Linux desktops that follow the XDG autostart specification (KDE Plasma,
-GNOME, Xfce, …), create `~/.config/autostart/capripet.desktop`:
+## Автозапуск с системой
+
+В Linux-окружениях, поддерживающих XDG autostart (KDE Plasma, GNOME,
+Xfce, …), создайте `~/.config/autostart/capripet.desktop`:
 
 ```ini
 [Desktop Entry]
 Type=Application
 Name=CapriPet
-Comment=Tamagotchi-style desktop pet
-Exec=/absolute/path/to/CapriPet/.venv/bin/python /absolute/path/to/CapriPet/main.py
-Path=/absolute/path/to/CapriPet
+Comment=Питомец для рабочего стола в стиле тамагочи
+Exec=/абсолютный/путь/к/CapriPet/.venv/bin/python /абсолютный/путь/к/CapriPet/main.py
+Path=/абсолютный/путь/к/CapriPet
 Icon=video-television
 Terminal=false
 StartupNotify=false
 X-GNOME-Autostart-enabled=true
 ```
 
-Replace the paths with the project's real location and make sure the
-virtualenv is already set up. The entry starts Capri at login and can be
-enabled or disabled under *Autostart* in the desktop's system settings.
-`main.py` still switches to XWayland when needed, so this also works on
-Wayland sessions.
+Замените пути на реальное расположение проекта и убедитесь, что виртуальное
+окружение уже настроено. Запись запускает Capri при входе в систему, а
+включать и выключать её можно в разделе *Автозапуск* системных настроек.
+`main.py` по-прежнему переключается на XWayland при необходимости, поэтому
+это работает и в сессиях Wayland.
 
-## Using Capri
+## Как пользоваться
 
-1. Type a message into the input field.
-2. Press **Enter** or click **SEND**.
-3. Capri's answer appears in a speech bubble somewhere on the screen. Click
-   the bubble to skip the typing animation; click again to close it early.
-4. `Ctrl+Q` closes the application and removes the glitch overlays.
+1. Введите сообщение в поле ввода **или** нажмите **ГОЛОС** (либо
+   `Ctrl+Space`) и произнесите команду.
+2. Нажмите **Enter** / **ОТПРАВИТЬ** для текста. Голосовая фраза
+   отправляется автоматически после того, как Capri определит конец речи.
+3. Ответ Capri появляется в облачке в случайном месте экрана. Нажмите на
+   облачко, чтобы пропустить анимацию печати; нажмите ещё раз, чтобы
+   закрыть его раньше.
+4. `Ctrl+Q` закрывает приложение и убирает глитч-оверлеи.
 
-### Commands
+### Голосовой ввод
 
-| Command | Aliases | Action |
+- Кнопка **ГОЛОС** начинает запись, повторное нажатие останавливает её
+  вручную. Текст `СТОП` на кнопке показывает, что идёт запись.
+- Запись автоматически прекращается после примерно 1.2 секунды тишины
+  (или через 8 секунд максимум) и отправляется на распознавание.
+- Распознанный текст сразу выполняется как обычная команда. Если это не
+  команда, Capri ответит `Ты сказал: …`.
+- Язык распознавания — русский (`ru-RU`). Его можно изменить в
+  `capri/voice.py` в вызове `recognize_google(..., language="ru-RU")`.
+- Порог громкости, время тишины и максимальная длительность записи — это
+  константы `_RMS_THRESHOLD`, `_SILENCE_MS` и `_MAX_RECORD_MS` в начале
+  `capri/voice.py`.
+
+### Команды
+
+| Команда | Псевдонимы | Действие |
 | --- | --- | --- |
-| `help` | `what u can?`, `commands` | List every available command. |
-| `glitch` | `turn glitch` | Toggle the full-screen glitch overlay. |
-| `noise` | `toggle noise` | Toggle the background static noise on/off. |
+| `помощь` | `что ты умеешь?`, `команды` | Показать список всех команд. |
+| `глитч` | `переключить глитч`, `включить глитч`, `выключить глитч` | Включить или выключить полноэкранный глитч. |
+| `шум` | `переключить шум`, `включить шум`, `выключить шум` | Включить или выключить фоновый шум. |
+| `голос` | `микрофон`, `слушать` | Начать или остановить голосовой ввод. |
 
-Anything else is passed through `process_input()` and echoed back by the demo.
+Всё остальное передаётся в `process_input()` и возвращается эхом в демо.
 
-Command matching ignores case, surrounding punctuation and repeated spaces,
-and tolerates a few typos. The allowed edit distance grows with the command
-length (one edit up to five characters, up to three for long aliases), and
-transposed letters count as a single typo. The matching logic lives in
-`CommandRegistry.find()` / `_closest()` in `capri/commands.py`.
+Сопоставление команд игнорирует регистр, окружающую пунктуацию и повторные
+пробелы, а также допускает несколько опечаток. Допустимое расстояние правок
+растёт с длиной команды (одна правка до пяти символов, до трёх для длинных
+псевдонимов), а переставленные буквы считаются одной опечаткой. Логика
+находится в `CommandRegistry.find()` / `_closest()` в `capri/commands.py`.
 
-## Project structure
+## Структура проекта
 
 ```
-main.py                 # application entry point
+main.py                 # точка входа приложения
 capri/
-├── __init__.py         # public exports
-├── pet_window.py       # main window: video, input, greeting, wiring
-├── speech.py           # reusable typewriter speech bubble
-├── glitch.py           # full-screen click-through glitch overlays
-├── static_noise.py     # looping white noise that follows the glitch
-├── commands.py         # command registry and help listing
-└── theme.py            # cyberpunk stylesheet
+├── __init__.py         # публичные экспорты
+├── pet_window.py       # главное окно: видео, ввод, приветствие, связи
+├── speech.py           # многоразовое облачко с печатной машинкой
+├── glitch.py           # полноэкранные сквозные глитч-оверлеи
+├── static_noise.py     # зацикленный белый шум, следующий за глитчем
+├── voice.py            # запись с микрофона и распознавание речи
+├── commands.py         # реестр команд и список помощи
+└── theme.py            # пиксельная таблица стилей
 requirements.txt
 capri.mp4
 ```
 
-## Customizing
+## Настройка
 
-### Replies
+### Ответы
 
-`CapriWindow.process_input()` in `capri/pet_window.py` receives the raw text
-and returns the reply string. Replace or extend it with your own logic — a
-state machine, an API call, a local model, etc.
+`CapriWindow.process_input()` в `capri/pet_window.py` получает исходный
+текст и возвращает строку ответа. Замените или расширьте его своей логикой —
+конечным автоматом, вызовом API, локальной моделью и т. п.
 
 ```python
 def process_input(self, text: str) -> str:
     reply = self.commands.dispatch(text)
     if reply is not None:
         return reply
-    return f"You said: {text}"
+    return f"Ты сказал: {text}"
 ```
 
-Commands are kept in `capri/commands.py` (`CommandRegistry`). Register your
-own in `CapriWindow.__init__`:
+Команды хранятся в `capri/commands.py` (`CommandRegistry`). Свою команду
+можно зарегистрировать в `CapriWindow.__init__`:
 
 ```python
 self.commands.register(
-    "dance",
-    "make Capri dance.",
-    lambda: "Capri wiggles!",
-    aliases=("start dance",),
+    "танец",
+    "заставить Capri танцевать.",
+    lambda: "Capri танцует!",
+    aliases=("начать танец",),
 )
 ```
 
-Registered commands appear automatically in `help` / `what u can?`.
+Зарегистрированные команды автоматически появляются в `помощь` /
+`что ты умеешь?`.
 
-### Startup lines
+### Приветствия
 
-Edit `STARTUP_LINES` in `capri/pet_window.py`. `{user}` is replaced with
-`getpass.getuser()`:
+Отредактируйте `STARTUP_LINES` в `capri/pet_window.py`. `{user}`
+заменяется на `getpass.getuser()`:
 
 ```python
 STARTUP_LINES = (
-    "Good boy, {user}",
-    "just call me Capri!!!",
+    "Молодец, {user}",
+    "зови меня просто Capri!!!",
     "...",
 )
 ```
 
-### Speech bubble
+### Облачко речи
 
-`capri.speech.show_text()` can be reused anywhere:
+`capri.speech.show_text()` можно использовать где угодно:
 
 ```python
 from capri.speech import show_text
 
 show_text(
-    "Hello there!",
-    parent=window,          # window to avoid overlapping
-    chars_per_second=40,    # reveal speed
-    hold_ms=1200,           # pause after the text is fully shown
-    max_width=420,          # wrapping width in pixels
+    "Привет!",
+    parent=window,          # окно, которое нужно не перекрывать
+    chars_per_second=40,    # скорость печати
+    hold_ms=1200,           # пауза после полного раскрытия
+    max_width=420,          # ширина переноса в пикселях
 )
 ```
 
-Placement uses the parent window's screen. A random free rectangle is chosen
-with a 24 px gap from the parent; if the parent fills the whole screen, the
-least-overlapping spot is used instead.
+Размещение использует экран родительского окна. Выбирается случайный
+свободный прямоугольник с отступом 24 px от родителя; если родитель
+занимает весь экран, используется место с наименьшим перекрытием.
 
-### Glitches
+### Глитчи
 
-Tune `_BASE_INTERVAL_MS` at the top of `capri/glitch.py`; colours are in
-`_COLORS` / `_NOISE`. The overlay only draws — it never intercepts clicks or
-keyboard input.
+Настройте `_BASE_INTERVAL_MS` в начале `capri/glitch.py`; цвета задаются в
+`_COLORS` / `_NOISE`. Оверлей только рисует — он никогда не перехватывает
+клики или клавиатурный ввод.
 
-Every overlay also reports an amplitude between 0 and 1 each frame, which
-`GlitchManager.amplitude_changed` forwards to the sound layer.
+Каждый оверлей также сообщает амплитуду от 0 до 1 на каждом кадре, которую
+`GlitchManager.amplitude_changed` передаёт звуковому слою.
 
-### Static noise
+### Фоновый шум
 
-`capri/static_noise.py` plays looping white noise for as long as Capri runs.
-`_BASE_LEVEL` and `_PEAK_LEVEL` at the top of the file control the idle and
-maximum volume; the rest is shaped automatically by the glitch amplitude, which
-stays low with the standard overlay. Volume changes are smoothed in
-`StaticNoise._smooth()` to avoid zipper noise. If no audio output is available the noise is skipped silently.
+`capri/static_noise.py` играет зацикленный белый шум всё время работы Capri.
+`_BASE_LEVEL` и `_PEAK_LEVEL` в начале файла задают фоновую и максимальную
+громкость; остальное автоматически формируется амплитудой глитча, которая
+остаётся низкой при стандартном оверлее. Изменения громкости сглаживаются в
+`StaticNoise._smooth()`, чтобы избежать «zipper»-шума. Если аудиовыход
+недоступен, шум молча пропускается.
 
-The noise can be muted without releasing the audio device via
-`set_enabled(False)`; `toggle()` flips it and returns the new state. Muting
-jumps straight to zero volume instead of fading down to the idle level, so it
-is fully silent. The `noise` command uses these methods.
+Шум можно выключить, не освобождая аудиоустройство, через
+`set_enabled(False)`; `toggle()` переключает его и возвращает новое
+состояние. Выключение сразу переходит к нулевой громкости, а не плавно
+затухает до фонового уровня, поэтому звук полностью пропадает. Команда
+`шум` использует эти методы.
 
 ```python
 from capri.static_noise import StaticNoise
@@ -222,24 +262,29 @@ noise = StaticNoise(window)
 glitch_manager.amplitude_changed.connect(noise.set_amplitude)
 ```
 
-### Theme
+### Тема
 
-All colours, fonts and widget styles for the main window are in
-`capri/theme.py`; the speech bubble keeps its own small matching stylesheet in
-`capri/speech.py` so it stays self-contained and reusable. The theme uses
-square corners, chunky 3 px bevels and stepped gradients to mimic pixel art.
-For a true bitmap look, install a pixel font such as *Press Start 2P* or
-*VT323* — `PIXEL_FONT` already lists them ahead of the monospace fallbacks.
+Все цвета, шрифты и стили виджетов главного окна находятся в
+`capri/theme.py`; облачко речи хранит свою небольшую совпадающую таблицу
+стилей в `capri/speech.py`, чтобы оставаться самодостаточным и
+многоразовым. Тема использует квадратные углы, массивные фаски 3 px и
+ступенчатые градиенты для имитации пиксель-арта. Для настоящего растрового
+вида установите пиксельный шрифт вроде *Press Start 2P* или *VT323* —
+`PIXEL_FONT` уже перечисляет их перед моноширинными запасными вариантами.
 
-## Platform notes
+## Примечания по платформам
 
-- Wayland does not allow applications to position their own top-level windows.
-  To make the random speech placement work, `main.py` automatically switches
-  to XWayland (`QT_QPA_PLATFORM=xcb`) when both a Wayland session and an X11
-  display are available. Set `QT_QPA_PLATFORM=wayland` explicitly to override
-  this; the speech bubble will then be placed by the compositor instead.
-- XWayland is also the most reliable backend for the always-on-top glitch
-  overlays. Some compositors may still restrict coverage across native Wayland
-  windows.
-- The glitch overlay is decorative and renders above other applications while
-  Capri is running.
+- Wayland не позволяет приложениям позиционировать собственные окна
+  верхнего уровня. Чтобы случайное размещение речи работало, `main.py`
+  автоматически переключается на XWayland (`QT_QPA_PLATFORM=xcb`), когда
+  доступны и сессия Wayland, и дисплей X11. Задайте
+  `QT_QPA_PLATFORM=wayland` явно, чтобы это отменить; тогда облачко будет
+  размещать композитор.
+- XWayland также наиболее надёжный бэкенд для глитч-оверлеев поверх всех
+  окон. Некоторые композиторы всё равно могут ограничивать покрытие
+  нативных окон Wayland.
+- Глитч-оверлей декоративный и отображается поверх других приложений, пока
+  Capri запущена.
+- Для голосового ввода Qt должен видеть устройство ввода через активный
+  аудиобэкенд (PulseAudio, PipeWire или ALSA). Если микрофон не найден,
+  проверьте системные настройки звука и права доступа к нему.

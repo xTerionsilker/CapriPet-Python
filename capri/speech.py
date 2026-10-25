@@ -1,26 +1,26 @@
-"""Reusable typewriter speech window.
+"""Многоразовое окно речи с эффектом печатной машинки.
 
-Shows a short message character by character, then closes itself after the
-text has been fully revealed. It is intentionally self-contained (PySide6
-only) so it can be reused outside Capri.
+Показывает короткое сообщение посимвольно, затем закрывается после полного
+раскрытия текста. Оно намеренно самодостаточно (только PySide6), поэтому
+его можно использовать и вне Capri.
 
-Usage::
+Использование::
 
     from capri.speech import show_text
 
-    show_text("Hello there!", parent=window)
-    show_text("Faster and shorter", chars_per_second=80, hold_ms=500)
+    show_text("Привет!", parent=window)
+    show_text("Быстрее и короче", chars_per_second=80, hold_ms=500)
 
-The bubble appears at a random spot on the screen that does not overlap the
-``parent`` window (which is treated as the main program window). This needs a
-platform that honours window moves: X11/XWayland works; plain Wayland lets the
-compositor decide where windows go.
+Облачко появляется в случайном месте экрана, не перекрывая окно ``parent``
+(которое считается главным окном программы). Для этого нужна платформа,
+уважающая перемещение окон: X11/XWayland подходит; в чистом Wayland место
+выбирает композитор.
 
-Clicking the window while text is appearing reveals the rest instantly;
-clicking again closes it. The window also closes after ``hold_ms``.
+Клик по окну во время появления текста сразу раскрывает остаток; повторный
+клик закрывает. Окно также закрывается через ``hold_ms``.
 
-The text is wrapped in a transparent span while hidden so the bubble does not
-resize or reflow while it is being typed out.
+Пока текст скрыт, он обёрнут в прозрачный фрагмент, чтобы облачко не
+меняло размер и не перестраивалось во время печати.
 """
 
 from __future__ import annotations
@@ -57,12 +57,12 @@ QLabel#text {
 }
 """
 
-# Keep fire-and-forget windows alive until Qt deletes them.
+# Держим окна «выстрелил и забыл» живыми, пока Qt их не удалит.
 _active_windows: set["SpeechWindow"] = set()
 
 
 class SpeechWindow(QFrame):
-    """A frameless bubble that types out ``text`` and closes itself."""
+    """Облачко без рамки, печатающее ``text`` и закрывающееся само."""
 
     revealed = Signal()
 
@@ -114,7 +114,7 @@ class SpeechWindow(QFrame):
         outer.addWidget(bubble)
 
         glow = QGraphicsDropShadowEffect(bubble)
-        # Hard, unblurred offset shadow instead of a soft neon glow.
+        # Жёсткая несмазанная тень со смещением вместо мягкого неонового свечения.
         glow.setBlurRadius(0)
         glow.setOffset(8, 8)
         glow.setColor(QColor(57, 255, 106, 110))
@@ -131,7 +131,7 @@ class SpeechWindow(QFrame):
 
         self._render(0)
 
-    # --- public API --------------------------------------------------------
+    # --- публичное API -----------------------------------------------------
     @property
     def text(self) -> str:
         return self._text
@@ -141,13 +141,13 @@ class SpeechWindow(QFrame):
         return self._finished
 
     def skip(self) -> None:
-        """Reveal everything now and start the auto-close countdown."""
+        """Раскрыть всё сразу и запустить обратный отсчёт закрытия."""
         if self._finished:
             self.close()
         else:
             self._finish()
 
-    # --- Qt events ---------------------------------------------------------
+    # --- события Qt --------------------------------------------------------
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().showEvent(event)
         if not self._clock.isValid():
@@ -167,7 +167,7 @@ class SpeechWindow(QFrame):
         self._hold_timer.stop()
         super().closeEvent(event)
 
-    # --- internals ---------------------------------------------------------
+    # --- внутреннее --------------------------------------------------------
     def _tick(self) -> None:
         if not self._clock.isValid():
             return
@@ -201,7 +201,7 @@ class SpeechWindow(QFrame):
         self._revealed_chars = count
 
     def _place_randomly(self) -> None:
-        """Pick a random on-screen spot that misses the main window."""
+        """Выбрать случайное место на экране вне главного окна."""
         parent = self.parentWidget()
         screen = self._target_screen(parent)
         area = (
@@ -213,12 +213,12 @@ class SpeechWindow(QFrame):
 
         blocked = None
         if parent is not None:
-            # Keep a small visual gap between the bubble and the main window.
+            # Небольшой визуальный зазор между облачком и главным окном.
             blocked = parent.frameGeometry().adjusted(-24, -24, 24, 24)
             blocked = blocked.intersected(area)
 
-        # The free part of the screen is the union of the bands above, below,
-        # to the left and to the right of the blocked rectangle.
+        # Свободная часть экрана — объединение полос сверху, снизу,
+        # слева и справа от заблокированного прямоугольника.
         bands: list[QRect] = []
         if blocked is None or blocked.isEmpty():
             bands.append(area)
@@ -277,8 +277,8 @@ class SpeechWindow(QFrame):
                     return
                 choice -= span
 
-        # No fully free spot exists (e.g. the main window fills the screen):
-        # fall back to the position that overlaps it the least.
+        # Полностью свободного места нет (например, главное окно занимает
+        # весь экран): выбираем позицию с наименьшим перекрытием.
         if blocked is not None and not blocked.isEmpty():
             max_x = max(area.left(), area.right() - width + 1)
             max_y = max(area.top(), area.bottom() - height + 1)
@@ -313,12 +313,12 @@ def show_text(
     hold_ms: int = 1200,
     max_width: int = _TEXT_WIDTH,
 ) -> SpeechWindow:
-    """Show ``text`` in a self-closing typewriter bubble and return the window.
+    """Показать ``text`` в самозакрывающемся облачке и вернуть окно.
 
-    ``chars_per_second`` controls the reveal speed, ``hold_ms`` is how long the
-    fully revealed text stays on screen, and ``max_width`` caps the text width.
-    The bubble is placed at a random position on the parent window's screen
-    without overlapping the parent window itself.
+    ``chars_per_second`` задаёт скорость раскрытия, ``hold_ms`` — сколько
+    полностью раскрытый текст остаётся на экране, а ``max_width``
+    ограничивает ширину текста. Облачко размещается в случайной точке на
+    экране родительского окна, не перекрывая его.
     """
     window = SpeechWindow(
         text,
