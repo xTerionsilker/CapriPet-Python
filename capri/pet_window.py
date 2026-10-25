@@ -73,14 +73,37 @@ else:
     )
     from . import spotify
 
-VIDEO = Path(__file__).resolve().parent.parent / "capri.mp4"
+ROOT = Path(__file__).resolve().parent.parent
+FACES = ROOT / "faces"
+
+# Приветственное видео — один раз при запуске.
+START_VIDEO = FACES / "start.mp4"
+# Основное видео — бесконечный цикл во время работы.
+VIDEO = FACES / "capri.mp4"
+# Прощальное видео — один раз при выходе из программы.
+END_VIDEO = FACES / "end.mp4"
+
+# Все видео приложения (для проверки, что хоть что-то есть).
+VIDEOS = (START_VIDEO, VIDEO, END_VIDEO)
+
 PLAYBACK_RATE = 1.5
+# Скорость служебных роликов: приветствия и прощания.
+SERVICE_PLAYBACK_RATE = 2.0
+
+# Фазы жизненного цикла плеера: приветствие → цикл → прощание.
+PHASE_START = "start"
+PHASE_MAIN = "main"
+PHASE_END = "end"
+PHASE_CLOSED = "closed"
 
 STARTUP_LINES = (
     "Молодец, {user}",
     "зови меня просто Capri!!!",
     "...",
 )
+
+# Прощание в облачке при выходе из программы.
+GOODBYE_LINE = "пока пока чумба"
 
 # Задержка перед блокировкой экрана, чтобы пользователь успел прочитать
 # ответ Capri.
@@ -105,10 +128,13 @@ class CapriWindow(QWidget):
         self._greeted = False
         self._lock_pending: list[list[str]] | None = None
         self._voice_armed_until = 0.0
+        # Текущая фаза плеера: приветствие, цикл, прощание или закрытие.
+        self._phase = PHASE_MAIN
+        self._closing = False
         self._default_status = (
             "// CAPRI В СЕТИ"
             if VIDEO.is_file()
-            else f"// ВИДЕО НЕ НАЙДЕНО: {VIDEO.name}"
+            else f"// ВИДЕО НЕ НАЙДЕНО: {VIDEO.relative_to(ROOT)}"
         )
 
         self.commands = CommandRegistry()
@@ -126,7 +152,7 @@ class CapriWindow(QWidget):
 
     # --- сборка интерфейса -------------------------------------------------
     def _build_video(self) -> None:
-        """Зацикленное видео питомца и его звук."""
+        """Видео питомца: приветствие, бесконечный цикл, прощание."""
         self.video = QVideoWidget(self)
         self.video.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatio)
         self.video.setMinimumSize(320, 180)
@@ -134,17 +160,57 @@ class CapriWindow(QWidget):
         self.player = QMediaPlayer(self)
         self.audio = QAudioOutput(self)
         self.audio.setVolume(0.6)
+        # Все ролики воспроизводятся без звука.
+        self.audio.setMuted(True)
         self.player.setAudioOutput(self.audio)
         self.player.setVideoOutput(self.video)
-        self.player.setLoops(QMediaPlayer.Loops.Infinite)
         self.player.errorOccurred.connect(self._on_media_error)
+        self.player.mediaStatusChanged.connect(self._on_media_status)
 
-        if VIDEO.is_file():
-            self.player.setSource(QUrl.fromLocalFile(str(VIDEO)))
-            self.player.setPlaybackRate(PLAYBACK_RATE)
-            self.player.play()
-        else:
+        if not any(path.is_file() for path in VIDEOS):
             self.video.hide()
+            return
+        if START_VIDEO.is_file():
+            self._play_intro()
+        else:
+            self._play_main()
+
+    def _play_source(
+        self, path: Path, loops: QMediaPlayer.Loops, rate: float
+    ) -> None:
+        """Переключить плеер на ``path`` и запустить воспроизведение."""
+        self.player.setLoops(loops)
+        self.player.setPlaybackRate(rate)
+        self.player.setSource(QUrl.fromLocalFile(str(path)))
+        self.player.play()
+
+    def _play_intro(self) -> None:
+        """Приветственное видео — ровно один раз при запуске."""
+        self._phase = PHASE_START
+        self.video.show()
+        self._play_source(
+            START_VIDEO, QMediaPlayer.Loops.Once, SERVICE_PLAYBACK_RATE
+        )
+
+    def _play_main(self) -> None:
+        """Основное видео — бесконечный цикл во время работы."""
+        self._phase = PHASE_MAIN
+        if not VIDEO.is_file():
+            self.video.hide()
+            return
+        self.video.show()
+        self._play_source(VIDEO, QMediaPlayer.Loops.Infinite, PLAYBACK_RATE)
+
+    def _play_outro(self) -> None:
+        """Прощальное видео — ровно один раз при выходе из программы."""
+        if not END_VIDEO.is_file():
+            self._finish_close()
+            return
+        self._phase = PHASE_END
+        self.video.show()
+        self._play_source(
+            END_VIDEO, QMediaPlayer.Loops.Once, SERVICE_PLAYBACK_RATE
+        )
 
     def _build_controls(self) -> None:
         """Нижняя панель: статус, поле ввода и кнопки."""
@@ -447,6 +513,8 @@ class CapriWindow(QWidget):
     def _greet(self) -> None:
         if self._speech is not None:  # пользователь уже получил ответ
             return
+        if self._closing:  # окно уже прощается — не мешаем
+            return
         line = random.choice(STARTUP_LINES).format(user=getpass.getuser())
         self.speak(line)
 
@@ -458,13 +526,48 @@ class CapriWindow(QWidget):
         self.status.setText(
             f"// ОШИБКА ВОСПРОИЗВЕДЕНИЯ: {self.player.errorString()}"
         )
+        # Сбой служебного ролика не должен ни зависнуть запуск,
+        # ни помешать выйти из программы.
+        if self._phase == PHASE_START:
+            QTimer.singleShot(0, self._play_main)
+        elif self._phase == PHASE_END:
+            QTimer.singleShot(0, self._finish_close)
+
+    def _on_media_status(self, status) -> None:
+        """Перевести плеер на следующую фазу по мере окончания ролика."""
+        if status != QMediaPlayer.MediaStatus.EndOfMedia:
+            return
+        if self._phase == PHASE_START:
+            self._play_main()
+        elif self._phase == PHASE_END:
+            self._finish_close()
+
+    def _finish_close(self) -> None:
+        """Прощальное видео досмотрено — завершить закрытие окна."""
+        self._phase = PHASE_CLOSED
+        self.player.stop()
+        # Облачко больше не нужно: убираем его вместе с окном, чтобы
+        # приложение не доживало само по себе.
+        if self._speech is not None:
+            self._speech.close()
+        QTimer.singleShot(0, self.close)
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        self.player.stop()
+        # Второй проход: служебные окна уже остановлены, прощальное видео
+        # досмотрено — закрываемось и даём приложению завершиться.
+        if self._closing or self._phase == PHASE_CLOSED:
+            self.player.stop()
+            super().closeEvent(event)
+            return
+        # Первый проход: откладываем закрытие, чтобы попрощаться
+        # и показать end.mp4.
+        self._closing = True
+        event.ignore()
         self._voice.cancel()
         self._static.stop()
         self._glitches.stop()
-        super().closeEvent(event)
+        self.speak(GOODBYE_LINE)
+        self._play_outro()
 
 
 if __name__ == "__main__":
