@@ -28,6 +28,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from difflib import SequenceMatcher
@@ -58,6 +59,9 @@ class Command:
     handler: Handler
     aliases: tuple[str, ...] = ()
     takes_argument: bool = False
+    # Основы слов, по которым фраза «притягивается» к команде, когда точного
+    # совпадения нет. Например, «цветастую» → «глитч» (цветные эффекты).
+    keywords: tuple[str, ...] = ()
 
 
 class CommandRegistry:
@@ -70,7 +74,11 @@ class CommandRegistry:
         # и точный, и нечёткий поиск, но в ``_commands`` её нет, чтобы она не
         # выводилась дважды.
         self._help = Command(
-            "помощь", "показать этот список.", self.help_text, HELP_ALIASES
+            "помощь",
+            "показать этот список.",
+            self.help_text,
+            HELP_ALIASES,
+            keywords=("помощ", "умеешь", "справк", "возможност", "команд"),
         )
         for key in HELP_ALIASES:
             self._lookup[self._normalize(key)] = self._help
@@ -83,9 +91,15 @@ class CommandRegistry:
         *,
         aliases: tuple[str, ...] = (),
         takes_argument: bool = False,
+        keywords: tuple[str, ...] = (),
     ) -> Command:
         command = Command(
-            name, description, handler, tuple(aliases), takes_argument
+            name,
+            description,
+            handler,
+            tuple(aliases),
+            takes_argument,
+            tuple(keywords),
         )
         keys = (name, *aliases)
         for key in keys:
@@ -135,6 +149,46 @@ class CommandRegistry:
         if closest is not None:
             return self._lookup[closest], ""
         return None
+
+    def exact_match(self, text: str) -> tuple[Command, str] | None:
+        """Сопоставить только точную команду или команду с аргументом.
+
+        Нечёткие совпадения здесь не принимаются: их нужно подтверждать,
+        чтобы случайная фраза не запускала команду.
+        """
+        normalized = self._normalize(text)
+        if not normalized:
+            return None
+
+        exact = self._lookup.get(normalized)
+        if exact is not None:
+            return exact, ""
+
+        return self._argument_match(normalized)
+
+    def suggest(self, text: str) -> Command | None:
+        """Вернуть самую похожую команду, даже если сходство слабое.
+
+        Метод всегда выбирает лучшего кандидата (если команды вообще есть),
+        чтобы вызывающая сторона могла спросить подтверждение. Семантические
+        подсказки задаются в ``keywords`` при регистрации команды.
+        """
+        normalized = self._normalize(text)
+        if not normalized:
+            return None
+
+        best: Command | None = None
+        best_score = -1.0
+        for command in (*self._commands, self._help):
+            keys = (command.name, *command.aliases)
+            score = max(
+                _similarity(normalized, self._normalize(key)) for key in keys
+            )
+            score = max(score, _keyword_score(normalized, command.keywords))
+            if score > best_score:
+                best_score = score
+                best = command
+        return best
 
     def help_text(self) -> str:
         """Вернуть понятный список всех доступных команд."""
@@ -196,6 +250,41 @@ class CommandRegistry:
     @staticmethod
     def _normalize(text: str) -> str:
         return " ".join(text.casefold().strip(" .!?«»\"").split())
+
+
+def _similarity(text: str, key: str) -> float:
+    """Насколько фраза похожа на команду или её псевдоним."""
+    if text == key:
+        return 1.0
+
+    whole = SequenceMatcher(None, text, key).ratio()
+    text_tokens = text.split()
+    key_tokens = key.split()
+    if not text_tokens or not key_tokens:
+        return whole
+
+    # Средняя похожесть каждого слова фразы на ближайшее слово команды:
+    # так «выруби глюки» уверенно тянется к «выключить глюки».
+    token_score = sum(
+        max(
+            SequenceMatcher(None, token, key_token).ratio()
+            for key_token in key_tokens
+        )
+        for token in text_tokens
+    ) / len(text_tokens)
+    return max(whole, token_score * 0.9)
+
+
+def _keyword_score(text: str, keywords: tuple[str, ...]) -> float:
+    """Оценка по смысловым основам слов (``цвет`` → глитч и т. п.)."""
+    if not keywords:
+        return 0.0
+    words = re.findall(r"[\w-]+", text)
+    for keyword in keywords:
+        for word in words:
+            if word.startswith(keyword) or keyword in word:
+                return 0.95
+    return 0.0
 
 
 def _edit_distance(left: str, right: str) -> int:

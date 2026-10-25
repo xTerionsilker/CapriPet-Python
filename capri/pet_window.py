@@ -32,7 +32,7 @@ if __package__ in (None, ""):
     import sys
 
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from capri.commands import CommandRegistry
+    from capri.commands import Command, CommandRegistry
     from capri.glitch import GlitchManager
     from capri.speech import SpeechWindow, show_text
     from capri.static_noise import StaticNoise
@@ -40,7 +40,7 @@ if __package__ in (None, ""):
     from capri.voice import VoiceInput
     import capri.spotify as spotify
 else:
-    from .commands import CommandRegistry
+    from .commands import Command, CommandRegistry
     from .glitch import GlitchManager
     from .speech import SpeechWindow, show_text
     from .static_noise import StaticNoise
@@ -71,6 +71,45 @@ VOICE_TRIGGER_RE = re.compile(
 VOICE_COMMAND_WINDOW_MS = 3_000
 VOICE_LISTENING_STATUS = "СЛУШАЮ «КАПРИ»…"
 VOICE_WAITING_STATUS = "ЖДУ КОМАНДУ…"
+
+# Сколько ждём ответ «да» / «нет» на предложенную команду.
+CONFIRM_TIMEOUT_MS = 15_000
+AFFIRMATIVE_WORDS = frozenset(
+    {
+        "да",
+        "ага",
+        "верно",
+        "точно",
+        "конечно",
+        "давай",
+        "подтверждаю",
+        "запускай",
+        "выполняй",
+        "включай",
+        "yes",
+        "y",
+        "ok",
+        "окей",
+        "ок",
+    }
+)
+NEGATIVE_WORDS = frozenset(
+    {
+        "нет",
+        "не",
+        "неа",
+        "нету",
+        "отмена",
+        "отменить",
+        "отменяй",
+        "no",
+        "nope",
+    }
+)
+
+
+def _answer_words(text: str) -> set[str]:
+    return set(re.findall(r"[\w-]+", text.casefold()))
 
 
 def _voice_normalized(text: str) -> str:
@@ -191,6 +230,13 @@ class CapriWindow(QWidget):
         self._voice_window_timer.setSingleShot(True)
         self._voice_window_timer.timeout.connect(self._on_voice_window_expired)
 
+        # Команда, предложенная для нераспознанной фразы. Пока она ждёт
+        # ответа «да» / «нет», следующая фраза считается подтверждением.
+        self._pending_command: tuple[Command, str] | None = None
+        self._confirm_timer = QTimer(self)
+        self._confirm_timer.setSingleShot(True)
+        self._confirm_timer.timeout.connect(self._clear_pending_command)
+
         self.commands = CommandRegistry()
         self.commands.register(
             "глитч",
@@ -207,6 +253,16 @@ class CapriWindow(QWidget):
                 "выключить глюки",
                 "эффекты",
                 "переключить эффекты",
+            ),
+            keywords=(
+                "глитч",
+                "глюк",
+                "эффект",
+                "цвет",
+                "радуг",
+                "визуал",
+                "помех",
+                "искажен",
             ),
         )
         self.commands.register(
@@ -226,6 +282,7 @@ class CapriWindow(QWidget):
                 "включить звук",
                 "выключить звук",
             ),
+            keywords=("шум", "шип", "статик", "треск", "звук"),
         )
         self.commands.register(
             "голос",
@@ -242,6 +299,7 @@ class CapriWindow(QWidget):
                 "включить микрофон",
                 "выключить микрофон",
             ),
+            keywords=("голос", "микрофон", "слуша", "говори", "запис"),
         )
         self.commands.register(
             "гугл",
@@ -265,6 +323,15 @@ class CapriWindow(QWidget):
                 "поищи в интернете",
             ),
             takes_argument=True,
+            keywords=(
+                "гугл",
+                "google",
+                "поиск",
+                "интернет",
+                "найди",
+                "загугл",
+                "погугл",
+            ),
         )
         self.commands.register(
             "ютуб",
@@ -287,6 +354,7 @@ class CapriWindow(QWidget):
                 "поиск на youtube",
             ),
             takes_argument=True,
+            keywords=("ютуб", "youtube", "видео", "ролик", "ютюб"),
         )
         self.commands.register(
             "спотифай",
@@ -305,6 +373,17 @@ class CapriWindow(QWidget):
                 "поставь песню",
             ),
             takes_argument=True,
+            keywords=(
+                "музык",
+                "песн",
+                "трек",
+                "спотиф",
+                "spotify",
+                "плейлист",
+                "альбом",
+                "исполнител",
+                "мелоди",
+            ),
         )
         self.commands.register(
             "пауза",
@@ -316,6 +395,7 @@ class CapriWindow(QWidget):
                 "приостанови музыку",
                 "приостанови",
             ),
+            keywords=("пауз", "останов", "стоп", "тихо", "приглуш"),
         )
         self.commands.register(
             "продолжить",
@@ -328,6 +408,7 @@ class CapriWindow(QWidget):
                 "возобнови",
                 "возобнови музыку",
             ),
+            keywords=("продолж", "играй", "возобнов", "плей", "громче"),
         )
         self.commands.register(
             "следующий трек",
@@ -340,6 +421,7 @@ class CapriWindow(QWidget):
                 "переключи трек",
                 "следующая песня",
             ),
+            keywords=("следующ", "дальше", "переключ", "next"),
         )
         self.commands.register(
             "предыдущий трек",
@@ -351,6 +433,7 @@ class CapriWindow(QWidget):
                 "previous",
                 "предыдущая песня",
             ),
+            keywords=("предыдущ", "назад", "prev", "верни"),
         )
         self.commands.register(
             "блокировка",
@@ -371,6 +454,7 @@ class CapriWindow(QWidget):
                 "я отойду",
                 "отойду",
             ),
+            keywords=("блокир", "заблок", "экран", "лок", "lock"),
         )
 
         self.input.setFocus()
@@ -400,10 +484,45 @@ class CapriWindow(QWidget):
 
     def process_input(self, text: str) -> str:
         """Обработать строку пользователя. Здесь можно расширять «мозг» Capri."""
-        reply = self.commands.dispatch(text)
-        if reply is not None:
-            return reply
+        # Сначала проверяем ответ на предложенную команду.
+        if self._pending_command is not None:
+            words = _answer_words(text)
+            if words & NEGATIVE_WORDS:
+                self._clear_pending_command()
+                return "Отменено."
+            if words & AFFIRMATIVE_WORDS:
+                command, original = self._pending_command
+                self._clear_pending_command()
+                return self._run_suggested(command, original)
+            # Не «да» и не «нет» — считаем это новой фразой.
+            self._clear_pending_command()
+
+        # Точные команды (включая команды с аргументом) выполняются сразу.
+        if self.commands.exact_match(text) is not None:
+            reply = self.commands.dispatch(text)
+            if reply is not None:
+                return reply
+
+        # Любую другую фразу «притягиваем» к самой похожей команде и
+        # обязательно спрашиваем подтверждение.
+        suggestion = self.commands.suggest(text)
+        if suggestion is not None:
+            self._pending_command = (suggestion, text)
+            self._confirm_timer.start(CONFIRM_TIMEOUT_MS)
+            return f"Ты имел в виду: «{suggestion.name}»? (да / нет)"
         return f"Ты сказал: {text}"
+
+    def _run_suggested(self, command: Command, original: str) -> str:
+        """Выполнить подтверждённую команду."""
+        if command.takes_argument:
+            reply = self.commands.dispatch(f"{command.name} {original}")
+        else:
+            reply = self.commands.dispatch(command.name)
+        return reply if reply is not None else "Готово."
+
+    def _clear_pending_command(self) -> None:
+        self._pending_command = None
+        self._confirm_timer.stop()
 
     def speak(self, text: str) -> SpeechWindow:
         """Показать ``text`` в облачке Capri."""
@@ -458,6 +577,9 @@ class CapriWindow(QWidget):
             before = len(normalized[: match.start()].split())
             # «Дальше уже команда»: всё после ключевого слова.
             return " ".join(tokens[before + consumed:]).strip()
+        # Пока ждём «да» / «нет», отвечать можно без ключевого слова.
+        if self._pending_command is not None:
+            return text.strip()
         if self._voice_armed_until > time.monotonic():
             return text.strip()
         return None
