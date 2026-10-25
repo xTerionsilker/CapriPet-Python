@@ -55,7 +55,6 @@ skipped, so the app still starts.
 | `помощь` | `что ты умеешь?`, `команды`, `справка` и др. | Show all commands |
 | `комплимент` | `ты красивая`, `ты самая лучшая`, `ты прекрасна` и др. | Trigger wild glitches for 5 seconds |
 | `глитч` | `глюки`, `эффекты`, `переключить глитч` и др. | Toggle glitch overlay |
-| `шум` | `шипение`, `статика`, `звук` и др. | Toggle background noise |
 | `голос` | `микрофон`, `слушать`, `запись` и др. | Toggle voice input |
 | `гугл <запрос>` | `загугли`, `погугли`, `google` и др. | Search Google |
 | `ютуб <запрос>` | `youtube`, `найди на ютубе` и др. | Search YouTube |

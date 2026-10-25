@@ -32,7 +32,6 @@ if __package__ in (None, ""):
     from capri.core.input_flow import InputFlow
     from capri.integrations.screen_lock import lock_commands, run_lock
     from capri.ui.speech import SpeechWindow, show_text
-    from capri.effects.static_noise import StaticNoise
     from capri.integrations.system_power import power_commands, run_power
     from capri.ui.theme import APP_STYLE
     from capri.audio.voice import VoiceInput
@@ -51,7 +50,6 @@ else:
     from ..core.input_flow import InputFlow
     from ..integrations.screen_lock import lock_commands, run_lock
     from .speech import SpeechWindow, show_text
-    from ..effects.static_noise import StaticNoise
     from ..integrations.system_power import power_commands, run_power
     from .theme import APP_STYLE
     from ..audio.voice import VoiceInput
@@ -292,9 +290,7 @@ class CapriWindow(QWidget):
         QShortcut(QKeySequence("Ctrl+Space"), self, self._toggle_voice)
 
     def _build_effects(self) -> None:
-        self._static = StaticNoise(self)
         self._glitches = GlitchManager(self)
-        self._glitches.amplitude_changed.connect(self._static.set_amplitude)
 
     def _build_voice(self) -> None:
         self._voice = VoiceInput(self)
@@ -312,7 +308,6 @@ class CapriWindow(QWidget):
             self.commands,
             Handlers(
                 toggle_glitches=self._toggle_glitches,
-                toggle_noise=self._toggle_noise,
                 toggle_voice=self._toggle_voice,
                 wild_glitch=self._wild_glitch,
                 ask_ollama=self._ask_ollama,
@@ -469,10 +464,6 @@ class CapriWindow(QWidget):
     def _wild_glitch(self) -> str:
         self._glitches.wild_glitch(5000)
         return "Капри в восторге! Весь экран глитчит 5 секунд."
-
-    def _toggle_noise(self) -> str:
-        enabled = self._static.toggle()
-        return "Шум включён." if enabled else "Шум выключен."
 
     def _search_google(self, query: str) -> str:
         query = query.strip()
@@ -682,7 +673,6 @@ class CapriWindow(QWidget):
         self._closing = True
         event.ignore()
         self._voice.cancel()
-        self._static.stop()
         self._glitches.stop()
         self.speak(GOODBYE_LINE)
         self._play_outro()

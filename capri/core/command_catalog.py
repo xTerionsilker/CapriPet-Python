@@ -9,7 +9,6 @@ from .commands import CommandRegistry, Handler
 class Handlers:
 
     toggle_glitches: Handler
-    toggle_noise: Handler
     toggle_voice: Handler
     wild_glitch: Handler
     ask_ollama: Handler
@@ -66,25 +65,6 @@ def register_commands(registry: CommandRegistry, handlers: Handlers) -> None:
             "помех",
             "искажен",
         ),
-    )
-    registry.register(
-        "шум",
-        "включить или выключить фоновый шум.",
-        handlers.toggle_noise,
-        aliases=(
-            "переключить шум",
-            "включить шум",
-            "выключить шум",
-            "шипение",
-            "переключить шипение",
-            "включить шипение",
-            "выключить шипение",
-            "статика",
-            "звук",
-            "включить звук",
-            "выключить звук",
-        ),
-        keywords=("шум", "шип", "статик", "треск", "звук"),
     )
     registry.register(
         "голос",
