@@ -14,7 +14,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from PySide6.QtCore import Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QEvent, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
@@ -85,8 +85,10 @@ class CapriWindow(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("CAPRI")
-        self.resize(800, 570)
-        self.setMinimumSize(480, 400)
+        # Окно фиксированного размера: его нельзя растянуть, развернуть
+        # на весь экран или открыть в полноэкранном режиме.
+        self.setFixedSize(800, 540)
+        self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
         self.setStyleSheet(APP_STYLE)
 
         self._speech: SpeechWindow | None = None
@@ -378,6 +380,15 @@ class CapriWindow(QWidget):
         if not self._greeted:
             self._greeted = True
             QTimer.singleShot(600, self._greet)
+
+    def changeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        super().changeEvent(event)
+        # Оконный менеджер может развернуть окно двойным кликом по заголовку
+        # или горячей клавишей — возвращаем фиксированный размер.
+        if event.type() == QEvent.Type.WindowStateChange and (
+            self.isMaximized() or self.isFullScreen()
+        ):
+            QTimer.singleShot(0, self.showNormal)
 
     # --- ввод --------------------------------------------------------------
     def submit(self) -> None:
