@@ -82,19 +82,18 @@ def paint_noise(painter: QPainter, width: int, height: int) -> None:
 
 def paint_wild_frame(painter: QPainter, width: int, height: int) -> None:
     painter.setCompositionMode(
-        QPainter.CompositionMode.CompositionMode_Clear
-    )
-    painter.fillRect(0, 0, width, height, Qt.GlobalColor.transparent)
-    painter.setCompositionMode(
         QPainter.CompositionMode.CompositionMode_SourceOver
     )
+    painter.fillRect(
+        0, 0, width, height, QColor(0, 0, 0, 220)
+    )
 
-    for _ in range(8):
+    for _ in range(40):
         paint_tears(painter, width, height)
-    for _ in range(6):
+    for _ in range(30):
         paint_slices(painter, width, height)
     paint_scanlines(painter, width, height)
-    for _ in range(4):
+    for _ in range(10):
         paint_noise(painter, width, height)
-    for _ in range(12):
+    for _ in range(40):
         paint_bars(painter, width, height)
