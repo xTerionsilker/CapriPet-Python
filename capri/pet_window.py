@@ -1,17 +1,3 @@
-"""Главное окно Capri: зацикленное видео питомца и ввод команд.
-
-Окно собирает интерфейс и связывает части приложения воедино, а всё, что
-можно описать отдельно, вынесено в соседние модули:
-
-* ``capri.command_catalog`` — встроенные команды и их обработчики;
-* ``capri.input_flow``     — разбор ввода и подтверждение «да» / «нет»;
-* ``capri.wake_word``       — ключевое слово «Капри» и окно ожидания;
-* ``capri.screen_lock``     — блокировка экрана;
-* ``capri.system_power``    — выключение, спящий режим, перезагрузка;
-* ``capri.glitch``, ``capri.static_noise``, ``capri.voice``, ``capri.speech``
-  — эффекты и служебные окна.
-"""
-
 from __future__ import annotations
 
 import getpass
@@ -80,26 +66,19 @@ else:
 ROOT = Path(__file__).resolve().parent.parent
 FACES = ROOT / "faces"
 
-# Приветственное видео — один раз при запуске.
 START_VIDEO = FACES / "start.mp4"
-# Основное видео — бесконечный цикл во время работы.
 VIDEO = FACES / "capri.mp4"
-# Прощальное видео — один раз при выходе из программы.
 END_VIDEO = FACES / "end.mp4"
 
-# Все видео приложения (для проверки, что хоть что-то есть).
 VIDEOS = (START_VIDEO, VIDEO, END_VIDEO)
 
-# Служебные дорожки: звук к приветствию и прощанию.
 VOICES = ROOT / "voices"
 START_SOUND = VOICES / "start.mp3"
 END_SOUND = VOICES / "end.mp3"
 
 PLAYBACK_RATE = 1.5
-# Скорость служебных роликов: приветствия и прощания.
 SERVICE_PLAYBACK_RATE = 2.0
 
-# Фазы жизненного цикла плеера: приветствие → цикл → прощание.
 PHASE_START = "start"
 PHASE_MAIN = "main"
 PHASE_END = "end"
@@ -111,23 +90,16 @@ STARTUP_LINES = (
     "...",
 )
 
-# Прощание в облачке при выходе из программы.
 GOODBYE_LINE = "пока пока чумба"
 
-# Задержка перед блокировкой экрана, чтобы пользователь успел прочитать
-# ответ Capri.
 LOCK_DELAY_MS = 800
 
-# Задержка перед выключением / сном / перезагрузкой: команды питания
-# необратимы, поэтому облачко с подтверждением показывается дольше.
 POWER_DELAY_MS = 2000
 
-# Сколько реплик разговора с локальной моделью помнит Capri.
 OLLAMA_HISTORY_MESSAGES = 12
 
 
 class CapriWindow(QWidget):
-    """Окно питомца. Напишите или скажите что-нибудь — Capri ответит."""
 
     spotify_reply = Signal(str)
     ollama_reply = Signal(str)
@@ -137,8 +109,6 @@ class CapriWindow(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("CAPRI")
-        # Окно фиксированного размера: его нельзя растянуть, развернуть
-        # на весь экран или открыть в полноэкранном режиме.
         self.setFixedSize(800, 540)
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
         self.setStyleSheet(APP_STYLE)
@@ -148,15 +118,11 @@ class CapriWindow(QWidget):
         self._lock_pending: list[list[str]] | None = None
         self._power_pending: list[list[str]] | None = None
         self._voice_armed_until = 0.0
-        # Разговор с локальной моделью: реплики для контекста и флаг того,
-        # что запрос уже летит в Ollama.
         self._ollama_history: list[dict[str, str]] = []
         self._ollama_pending = ""
         self._ollama_busy = False
-        # Текущая фаза плеера: приветствие, цикл, прощание или закрытие.
         self._phase = PHASE_MAIN
         self._closing = False
-        # Досмотрены ли части прощания (ролик и дорожка).
         self._outro_video_done = True
         self._outro_sound_done = True
         self._default_status = (
@@ -182,9 +148,7 @@ class CapriWindow(QWidget):
 
         self.input.setFocus()
 
-    # --- сборка интерфейса -------------------------------------------------
     def _build_video(self) -> None:
-        """Видео питомца: приветствие, бесконечный цикл, прощание."""
         self.video = QVideoWidget(self)
         self.video.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatio)
         self.video.setMinimumSize(320, 180)
@@ -192,7 +156,6 @@ class CapriWindow(QWidget):
         self.player = QMediaPlayer(self)
         self.audio = QAudioOutput(self)
         self.audio.setVolume(0.6)
-        # Все ролики воспроизводятся без звука.
         self.audio.setMuted(True)
         self.player.setAudioOutput(self.audio)
         self.player.setVideoOutput(self.video)
@@ -208,11 +171,6 @@ class CapriWindow(QWidget):
             self._play_main()
 
     def _build_sound(self) -> None:
-        """Отдельный плеер для дорожек из ``voices/``.
-
-        В отличие от видео, озвучка не глушится: приветствие звучит
-        при запуске, прощание — при выходе из программы.
-        """
         self.sound = QMediaPlayer(self)
         self.sound_audio = QAudioOutput(self)
         self.sound_audio.setVolume(0.6)
@@ -224,7 +182,6 @@ class CapriWindow(QWidget):
             self._play_sound(START_SOUND)
 
     def _play_sound(self, path: Path) -> None:
-        """Проиграть дорожку из ``voices/`` ровно один раз."""
         self.sound.setLoops(QMediaPlayer.Loops.Once)
         self.sound.setSource(QUrl.fromLocalFile(str(path)))
         self.sound.play()
@@ -232,14 +189,12 @@ class CapriWindow(QWidget):
     def _play_source(
         self, path: Path, loops: QMediaPlayer.Loops, rate: float
     ) -> None:
-        """Переключить плеер на ``path`` и запустить воспроизведение."""
         self.player.setLoops(loops)
         self.player.setPlaybackRate(rate)
         self.player.setSource(QUrl.fromLocalFile(str(path)))
         self.player.play()
 
     def _play_intro(self) -> None:
-        """Приветственное видео — ровно один раз при запуске."""
         self._phase = PHASE_START
         self.video.show()
         self._play_source(
@@ -247,7 +202,6 @@ class CapriWindow(QWidget):
         )
 
     def _play_main(self) -> None:
-        """Основное видео — бесконечный цикл во время работы."""
         self._phase = PHASE_MAIN
         if not VIDEO.is_file():
             self.video.hide()
@@ -256,10 +210,8 @@ class CapriWindow(QWidget):
         self._play_source(VIDEO, QMediaPlayer.Loops.Infinite, PLAYBACK_RATE)
 
     def _play_outro(self) -> None:
-        """Прощание: ролик и дорожка — каждый ровно один раз."""
         have_video = END_VIDEO.is_file()
         have_sound = END_SOUND.is_file()
-        # Чего нет, то считаем уже досмотренным.
         self._outro_video_done = not have_video
         self._outro_sound_done = not have_sound
 
@@ -278,14 +230,12 @@ class CapriWindow(QWidget):
         self._maybe_finish_outro()
 
     def _maybe_finish_outro(self) -> None:
-        """Закрыться, когда досмотрены и ролик, и дорожка прощания."""
         if self._phase != PHASE_END:
             return
         if self._outro_video_done and self._outro_sound_done:
             self._finish_close()
 
     def _build_controls(self) -> None:
-        """Нижняя панель: статус, поле ввода и кнопки."""
         panel = QWidget(self)
         panel.setObjectName("panel")
         panel_layout = QVBoxLayout(panel)
@@ -336,32 +286,26 @@ class CapriWindow(QWidget):
         root.addWidget(panel)
 
     def _build_shortcuts(self) -> None:
-        """Горячие клавиши окна."""
         QShortcut(QKeySequence("Ctrl+Q"), self, self.close)
         QShortcut(QKeySequence("Ctrl+Space"), self, self._toggle_voice)
 
     def _build_effects(self) -> None:
-        """Глитч-оверлей, управляющий фоновым шумом."""
         self._static = StaticNoise(self)
         self._glitches = GlitchManager(self)
         self._glitches.amplitude_changed.connect(self._static.set_amplitude)
 
     def _build_voice(self) -> None:
-        """Голосовой ввод и окно ожидания команды после «Капри»."""
         self._voice = VoiceInput(self)
         self._voice.listening_changed.connect(self._on_voice_listening)
         self._voice.status_changed.connect(self._on_voice_status)
         self._voice.recognized.connect(self._on_voice_text)
         self._voice.failed.connect(self.speak)
 
-        # Окно, в течение которого команду можно произнести отдельно от
-        # ключевого слова.
         self._voice_window_timer = QTimer(self)
         self._voice_window_timer.setSingleShot(True)
         self._voice_window_timer.timeout.connect(self._on_voice_window_expired)
 
     def _register_commands(self) -> None:
-        """Подключить встроенные команды к обработчикам этого окна."""
         register_commands(
             self.commands,
             Handlers(
@@ -383,7 +327,6 @@ class CapriWindow(QWidget):
             ),
         )
 
-    # --- события Qt --------------------------------------------------------
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().showEvent(event)
         if not self._greeted:
@@ -392,14 +335,11 @@ class CapriWindow(QWidget):
 
     def changeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().changeEvent(event)
-        # Оконный менеджер может развернуть окно двойным кликом по заголовку
-        # или горячей клавишей — возвращаем фиксированный размер.
         if event.type() == QEvent.Type.WindowStateChange and (
             self.isMaximized() or self.isFullScreen()
         ):
             QTimer.singleShot(0, self.showNormal)
 
-    # --- ввод --------------------------------------------------------------
     def submit(self) -> None:
         text = self.input.text().strip()
         if not text:
@@ -408,18 +348,11 @@ class CapriWindow(QWidget):
         self.speak(self.process_input(text))
 
     def process_input(self, text: str) -> str:
-        """Обработать строку пользователя. Здесь можно расширять «мозг» Capri.
-
-        По умолчанию текст уходит в ``capri.input_flow``: сначала проверяется
-        ответ на предложенную команду, затем точные совпадения и подсказка.
-        """
         return self._flow.handle(text)
 
     def speak(self, text: str) -> SpeechWindow:
-        """Показать ``text`` в облачке Capri."""
         if self._speech is not None:
             self._speech.close()
-        # Длинным ответам даём чуть больше времени на прочтение.
         hold_ms = min(5000, max(1200, len(text) * 45))
         speech = show_text(text, parent=self, hold_ms=hold_ms)
         self._speech = speech
@@ -428,7 +361,6 @@ class CapriWindow(QWidget):
         )
         return speech
 
-    # --- голос -------------------------------------------------------------
     def _toggle_voice(self) -> str:
         if self._voice.is_listening:
             self._voice.stop()
@@ -450,20 +382,12 @@ class CapriWindow(QWidget):
             self._update_voice_status()
             self.speak(self.process_input(command))
             return
-        # Прозвучало только ключевое слово — ждём команду в течение окна.
         self._arm_voice_command()
 
     def _voice_command(self, text: str) -> str | None:
-        """Вернуть команду из фразы либо ``None``, если её не было.
-
-        Команда может идти сразу за ключевым словом («капри открой гугл»)
-        или прозвучать отдельной фразой в течение ``VOICE_COMMAND_WINDOW_MS``
-        после ключевого слова (см. ``capri.wake_word``).
-        """
         command = command_after_trigger(text)
         if command is not None:
             return command
-        # Пока ждём «да» / «нет», отвечать можно без ключевого слова.
         if self._flow.awaiting_reply:
             return text.strip()
         if self._voice_armed_until > time.monotonic():
@@ -507,7 +431,6 @@ class CapriWindow(QWidget):
         else:
             self.status.setText(f"// {text.upper()}")
 
-    # --- эффекты -----------------------------------------------------------
     def _toggle_glitches(self) -> str:
         enabled = self._glitches.toggle()
         return "Глитчи включены." if enabled else "Глитчи выключены."
@@ -516,7 +439,6 @@ class CapriWindow(QWidget):
         enabled = self._static.toggle()
         return "Шум включён." if enabled else "Шум выключен."
 
-    # --- поиск в интернете -------------------------------------------------
     def _search_google(self, query: str) -> str:
         query = query.strip()
         if not query:
@@ -536,9 +458,7 @@ class CapriWindow(QWidget):
         )
         return f"Ищу на YouTube: {query}"
 
-    # --- локальная модель --------------------------------------------------
     def _ask_ollama(self, prompt: str) -> str:
-        """Передать текст локальной модели Ollama (команда «слушай»)."""
         prompt = prompt.strip()
         if not prompt:
             return "Скажи, о чём спросить: «слушай <текст>»."
@@ -558,7 +478,6 @@ class CapriWindow(QWidget):
     def _ask_ollama_worker(
         self, prompt: str, history: list[dict[str, str]]
     ) -> None:
-        """Спросить модель вне потока GUI и вернуть результат сигналом."""
         try:
             answer = ollama.ask(prompt, history=history)
         except ollama.OllamaError as error:
@@ -570,7 +489,6 @@ class CapriWindow(QWidget):
         self.ollama_reply.emit(answer)
 
     def _on_ollama_reply(self, answer: str) -> None:
-        """Запомнить успешный обмен репликами и показать ответ модели."""
         prompt = self._ollama_pending
         self._finish_ollama()
         if prompt:
@@ -578,12 +496,10 @@ class CapriWindow(QWidget):
             self._ollama_history.append(
                 {"role": "assistant", "content": answer}
             )
-            # Контекст ограничен: старые реплики модели не нужны.
             del self._ollama_history[:-OLLAMA_HISTORY_MESSAGES]
         self.speak(answer)
 
     def _on_ollama_failed(self, message: str) -> None:
-        """Сбой Ollama не попадает в контекст разговора, только в облачко."""
         self._finish_ollama()
         self.speak(message)
 
@@ -591,7 +507,6 @@ class CapriWindow(QWidget):
         self._ollama_busy = False
         self._ollama_pending = ""
 
-    # --- Spotify -----------------------------------------------------------
     def _spotify_play(self, query: str) -> str:
         query = query.strip()
         if not query:
@@ -623,7 +538,6 @@ class CapriWindow(QWidget):
     def _spotify_previous(self) -> str:
         return spotify.previous_track()
 
-    # --- блокировка экрана -------------------------------------------------
     def _lock_screen(self) -> str:
         commands = lock_commands()
         if not commands:
@@ -640,7 +554,6 @@ class CapriWindow(QWidget):
         if not run_lock(commands):
             self.speak("Не удалось заблокировать экран.")
 
-    # --- питание системы ---------------------------------------------------
     def _power_off(self) -> str:
         return self._queue_power("poweroff", "Выключаю ПК.")
 
@@ -651,7 +564,6 @@ class CapriWindow(QWidget):
         return self._queue_power("reboot", "Перезагружаю ПК.")
 
     def _queue_power(self, action: str, message: str) -> str:
-        """Отложить действие питания, чтобы облачко успело показаться."""
         commands = power_commands(action)
         if not commands:
             return "Не удалось найти способ выполнить это действие."
@@ -660,7 +572,6 @@ class CapriWindow(QWidget):
         return message
 
     def _perform_power(self) -> None:
-        """Запустить действие фоном: команда может ждать ответа polkit."""
         commands = self._power_pending
         if not commands:
             return
@@ -676,11 +587,10 @@ class CapriWindow(QWidget):
         if not run_power(commands):
             self.power_failed.emit("Не удалось выполнить действие.")
 
-    # --- внутреннее --------------------------------------------------------
     def _greet(self) -> None:
-        if self._speech is not None:  # пользователь уже получил ответ
+        if self._speech is not None:
             return
-        if self._closing:  # окно уже прощается — не мешаем
+        if self._closing:
             return
         line = random.choice(STARTUP_LINES).format(user=getpass.getuser())
         self.speak(line)
@@ -693,8 +603,6 @@ class CapriWindow(QWidget):
         self.status.setText(
             f"// ОШИБКА ВОСПРОИЗВЕДЕНИЯ: {self.player.errorString()}"
         )
-        # Сбой служебного ролика не должен ни зависнуть запуск,
-        # ни помешать выйти из программы.
         if self._phase == PHASE_START:
             QTimer.singleShot(0, self._play_main)
         elif self._phase == PHASE_END:
@@ -702,7 +610,6 @@ class CapriWindow(QWidget):
             QTimer.singleShot(0, self._maybe_finish_outro)
 
     def _on_media_status(self, status) -> None:
-        """Перевести плеер на следующую фазу по мере окончания ролика."""
         if status != QMediaPlayer.MediaStatus.EndOfMedia:
             return
         if self._phase == PHASE_START:
@@ -712,13 +619,11 @@ class CapriWindow(QWidget):
             self._maybe_finish_outro()
 
     def _on_sound_error(self, *_args) -> None:
-        """Сбой дорожки не должен ни зависнуть запуск, ни задержать выход."""
         if self._phase == PHASE_END:
             self._outro_sound_done = True
             QTimer.singleShot(0, self._maybe_finish_outro)
 
     def _on_sound_status(self, status) -> None:
-        """Пометить дорожку прощания досмотренной по её окончании."""
         if status != QMediaPlayer.MediaStatus.EndOfMedia:
             return
         if self._phase == PHASE_END:
@@ -726,27 +631,19 @@ class CapriWindow(QWidget):
             self._maybe_finish_outro()
 
     def _finish_close(self) -> None:
-        """Прощание досмотрено и дослушано — завершить закрытие окна."""
         self._phase = PHASE_CLOSED
         self.player.stop()
         self.sound.stop()
-        # Облачко больше не нужно: убираем его вместе с окном, чтобы
-        # приложение не доживало само по себе.
         if self._speech is not None:
             self._speech.close()
         QTimer.singleShot(0, self.close)
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        # Второй проход: служебные окна уже остановлены, прощание
-        # досмотрено и дослушано — закрываемось и даём приложению
-        # завершиться.
         if self._closing or self._phase == PHASE_CLOSED:
             self.player.stop()
             self.sound.stop()
             super().closeEvent(event)
             return
-        # Первый проход: откладываем закрытие, чтобы попрощаться —
-        # показать faces/end.mp4 и проиграть voices/end.mp3.
         self._closing = True
         event.ignore()
         self._voice.cancel()

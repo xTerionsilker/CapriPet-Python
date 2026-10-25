@@ -1,32 +1,15 @@
-"""Случайное размещение окна на экране вне заданного прямоугольника.
-
-Геометрия для облачка речи (``capri.speech``), вынесенная в чистые
-функции: экран делится на полосы свободного места вокруг ``blocked``,
-в них выбирается случайная точка, а если свободного места нет — точка
-с наименьшим перекрытием.
-
-Все прямоугольники — в координатах одного экрана.
-"""
-
 from __future__ import annotations
 
 import random
 
 from PySide6.QtCore import QRect
 
-#: Визуальный зазор между облачком и главным окном.
 GAP = 24
 
-#: Сколько раз перебирать точку, когда свободного места нет.
 OVERLAP_ATTEMPTS = 200
 
 
 def free_bands(area: QRect, blocked: QRect | None) -> list[QRect]:
-    """Полосы экрана ``area``, свободные от ``blocked``.
-
-    Это объединение полос сверху, снизу, слева и справа от заблокированного
-    прямоугольника; если его нет, свободен весь экран.
-    """
     if blocked is None or blocked.isEmpty():
         return [area]
 
@@ -73,11 +56,6 @@ def free_bands(area: QRect, blocked: QRect | None) -> list[QRect]:
 def random_free_point(
     bands: list[QRect], width: int, height: int
 ) -> tuple[int, int] | None:
-    """Случайная точка, где окно ``width``×``height`` помещается в полосе.
-
-    Точки взвешиваются по площади, поэтому большие полосы выбираются
-    чаще. ``None`` — ни одна полоса не подходит по размеру.
-    """
     fitting = [
         band
         for band in bands
@@ -105,7 +83,6 @@ def random_free_point(
 def least_overlap_point(
     area: QRect, blocked: QRect, width: int, height: int
 ) -> tuple[int, int]:
-    """Точка в ``area`` с наименьшим перекрытием с ``blocked``."""
     max_x = max(area.left(), area.right() - width + 1)
     max_y = max(area.top(), area.bottom() - height + 1)
     best = (area.left(), area.top())
@@ -124,12 +101,6 @@ def least_overlap_point(
 def pick_position(
     area: QRect, blocked: QRect | None, width: int, height: int
 ) -> tuple[int, int]:
-    """Выбрать точку для окна ``width``×``height`` на экране ``area``.
-
-    Сначала — случайная точка в свободной полосе; если свободного места
-    нет вовсе (например, главное окно занимает весь экран) — точка с
-    наименьшим перекрытием с ``blocked``.
-    """
     point = random_free_point(free_bands(area, blocked), width, height)
     if point is not None:
         return point

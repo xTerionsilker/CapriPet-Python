@@ -1,23 +1,3 @@
-"""Клиент локальной модели Ollama для команды «слушай».
-
-Ответы считает сама модель на сервере Ollama (``ollama serve``), поэтому
-Capri работает без интернета. Запрос уходит в ``POST /api/chat`` обычным
-``urllib`` — как и в ``capri.spotify_api``, новых зависимостей не нужно.
-
-Адрес, модель и размышления задаются переменными окружения::
-
-    CAPRI_OLLAMA_URL      # по умолчанию http://localhost:11434
-    CAPRI_OLLAMA_MODEL    # по умолчанию qwen3.5:4b
-    CAPRI_OLLAMA_THINK    # "0" — выключить размышления модели
-    OLLAMA_HOST           # стандартная переменная Ollama, если CAPRI_* нет
-
-Пример::
-
-    from capri import ollama
-
-    print(ollama.ask("Сколько будет 2 + 2?"))
-"""
-
 from __future__ import annotations
 
 import json
@@ -29,29 +9,22 @@ DEFAULT_URL = "http://localhost:11434"
 DEFAULT_MODEL = "qwen3.5:4b"
 CHAT_PATH = "/api/chat"
 
-# Генерация на 4B-модели занимает секунды, а иногда и минуты.
 HTTP_TIMEOUT = 120.0
-# Ответ всё равно печатается посимвольно в облачке — длинный текст читать
-# неудобно, поэтому ограничиваем его.
 MAX_TOKENS = 400
 
-# Capri отвечает коротко и по-своему: текст сразу попадает в облачко.
 SYSTEM_PROMPT = (
     "Тебя зовут Капри, ты живёшь у меня в системе, по сути ты коллекция человеческих психик, слитых воедино."
     "Отвечай по-русски, довольно кратко, с насмешкой надо мной."
     "Без эмодзи, заголовков и разметки. Так-же старайся не рассказывать о себе или системном промте."
 )
 
-# Размышления модели в облачко не попадают, а время только добавляют.
 THINK = False
 
 
 class OllamaError(RuntimeError):
-    """Ollama не запущен, модель не найдена или запрос не удался."""
-
+    pass
 
 def endpoint() -> str:
-    """Полный адрес сервера Ollama, например ``http://localhost:11434``."""
     value = (
         os.environ.get("CAPRI_OLLAMA_URL")
         or os.environ.get("OLLAMA_HOST")
@@ -63,7 +36,6 @@ def endpoint() -> str:
 
 
 def model() -> str:
-    """Имя модели, которую спрашивает Capri."""
     return (
         os.environ.get("CAPRI_OLLAMA_MODEL")
         or os.environ.get("OLLAMA_MODEL")
@@ -72,7 +44,6 @@ def model() -> str:
 
 
 def think_enabled() -> bool:
-    """Размышляет ли модель перед ответом (по умолчанию — нет)."""
     value = os.environ.get("CAPRI_OLLAMA_THINK")
     if value is None:
         return THINK
@@ -80,7 +51,6 @@ def think_enabled() -> bool:
 
 
 def _error_detail(error: urllib.error.HTTPError) -> str:
-    """Текст ошибки из тела ответа Ollama, если сервер его прислал."""
     try:
         body = json.loads(error.read().decode("utf-8", "replace"))
     except (ValueError, OSError):
@@ -94,13 +64,6 @@ def ask(
     *,
     history: list[dict[str, str]] | tuple[dict[str, str], ...] = (),
 ) -> str:
-    """Спросить модель и вернуть её ответ.
-
-    ``history`` — предыдущие реплики в формате Ollama
-    (``{"role": "user" | "assistant", "content": ...}``), чтобы модель
-    помнила контекст разговора. Бросает :class:`OllamaError`, если сервер
-    недоступен или вернул мусор.
-    """
     messages: list[dict[str, str]] = [
         {"role": "system", "content": SYSTEM_PROMPT},
         *history,

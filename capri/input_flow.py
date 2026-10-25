@@ -1,22 +1,3 @@
-"""Разбор ввода пользователя: подтверждение, команды, эхо.
-
-Пока Capri ждёт ответа «да» / «нет» на предложенную команду, следующая
-фраза считается ответом (``CONFIRM_TIMEOUT_MS``). В остальных случаях
-фраза проходит через реестр: точное совпадение выполняется сразу, опасные
-команды (``requires_confirmation`` — питание системы, блокировка) сначала
-спрашивают подтверждение, а всё остальное «притягивается» к самой похожей
-команде и требует подтверждения.
-
-Это весь «мозг» Capri: окно ``capri.pet_window`` лишь передаёт сюда текст
-и показывает возвращённую строку. Свою логику можно подставить вместо
-``InputFlow.handle`` в ``CapriWindow.process_input``.
-
-Использование::
-
-    flow = InputFlow(CommandRegistry(), parent=window)
-    reply = flow.handle("загугли котиков")
-"""
-
 from __future__ import annotations
 
 import re
@@ -25,7 +6,6 @@ from PySide6.QtCore import QObject, QTimer
 
 from .commands import Command, CommandRegistry
 
-# Сколько ждём ответ «да» / «нет» на предложенную команду.
 CONFIRM_TIMEOUT_MS = 15_000
 AFFIRMATIVE_WORDS = frozenset(
     {
@@ -62,27 +42,21 @@ NEGATIVE_WORDS = frozenset(
 
 
 def _answer_words(text: str) -> set[str]:
-    """Слова фразы, чтобы распознать «да» / «нет» среди других слов."""
     return set(re.findall(r"[\w-]+", text.casefold()))
 
 
 def _confirm_prompt(command: Command) -> str:
-    """Вопрос перед выполнением команды, требующей подтверждения."""
     description = command.description.rstrip(". ")
     return f"Подтверди: «{command.name}» — {description}. (да / нет)"
 
 
 class InputFlow(QObject):
-    """Превращает строку пользователя в ответ, при необходимости спрашивая."""
 
     def __init__(
         self, registry: CommandRegistry, parent: QObject | None = None
     ) -> None:
         super().__init__(parent)
         self._registry = registry
-        # Команда, предложенная для нераспознанной фразы или требующая
-        # подтверждения. Пока она ждёт ответа «да» / «нет», следующая
-        # фраза считается подтверждением.
         self._pending: tuple[Command, str] | None = None
 
         self._confirm_timer = QTimer(self)
@@ -91,12 +65,9 @@ class InputFlow(QObject):
 
     @property
     def awaiting_reply(self) -> bool:
-        """Ждёт ли Capri «да» / «нет» на предложенную команду."""
         return self._pending is not None
 
     def handle(self, text: str) -> str:
-        """Обработать строку пользователя и вернуть ответ Capri."""
-        # Сначала проверяем ответ на предложенную команду.
         if self._pending is not None:
             words = _answer_words(text)
             if words & NEGATIVE_WORDS:
@@ -106,15 +77,11 @@ class InputFlow(QObject):
                 command, original = self._pending
                 self.clear()
                 return self._run(command, original)
-            # Не «да» и не «нет» — считаем это новой фразой.
             self.clear()
 
-        # Точные команды (включая команды с аргументом) выполняются сразу.
         exact = self._registry.exact_match(text)
         if exact is not None:
             command, _argument = exact
-            # Опасные команды (питание системы, блокировка) выполняются
-            # только после явного «да» / «нет».
             if command.requires_confirmation:
                 self._pending = (command, text)
                 self._confirm_timer.start(CONFIRM_TIMEOUT_MS)
@@ -123,8 +90,6 @@ class InputFlow(QObject):
             if reply is not None:
                 return reply
 
-        # Любую другую фразу «притягиваем» к самой похожей команде и
-        # обязательно спрашиваем подтверждение.
         suggestion = self._registry.suggest(text)
         if suggestion is not None:
             self._pending = (suggestion, text)
@@ -133,13 +98,10 @@ class InputFlow(QObject):
         return f"Ты сказал: {text}"
 
     def clear(self) -> None:
-        """Забыть предложенную команду и остановить таймер ожидания."""
         self._pending = None
         self._confirm_timer.stop()
 
-    # --- внутреннее --------------------------------------------------------
     def _run(self, command: Command, original: str) -> str:
-        """Выполнить подтверждённую команду."""
         if command.takes_argument:
             reply = self._registry.dispatch(f"{command.name} {original}")
         else:

@@ -1,11 +1,3 @@
-"""Общая пиксельная таблица стилей главного интерфейса Capri.
-
-Внешний вид намеренно «блочный»: без скруглений, с массивными фасками,
-жёсткими полосатыми фонами и набором пиксельных/моноширинных шрифтов.
-Для полного эффекта установите растровый шрифт вроде «Press Start 2P» или
-«VT323»; запасные шрифты сохранят раскладку и без него.
-"""
-
 PIXEL_FONT = (
     '"Press Start 2P", "Pixelify Sans", "VT323", "Terminus", '
     '"DejaVu Sans Mono", monospace'
@@ -24,7 +16,6 @@ QVideoWidget {{
     border-bottom: 3px solid #1c2a20;
 }}
 #panel {{
-    /* Жёсткие полосы по 4 px читаются как низкобитный дизеринг. */
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
         stop:0 #0d0a14, stop:0.49 #0d0a14,
         stop:0.5 #0a0810, stop:0.99 #0a0810,
@@ -34,7 +25,6 @@ QVideoWidget {{
 #panel QLabel {{ background: transparent; }}
 #accent {{
     border: none;
-    /* Ступенчатые остановки создают массивную попиксельную радугу. */
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
         stop:0 #39ff6a, stop:0.19 #39ff6a,
         stop:0.2 #a259ff, stop:0.39 #a259ff,

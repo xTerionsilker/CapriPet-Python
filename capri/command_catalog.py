@@ -1,25 +1,3 @@
-"""Каталог встроенных команд Capri.
-
-Здесь описано, какие команды есть, как их распознавать (псевдонимы и
-смысловые подсказки ``keywords``) и каким обработчикам они соответствуют.
-Сами обработчики — методы окна из ``capri.pet_window``: окно собирает их в
-:class:`Handlers` и передаёт в :func:`register_commands`, поэтому каталог
-не знает ничего о виджетах.
-
-Чтобы добавить свою команду, трогать этот модуль не обязательно —
-зарегистрируйте её через ``registry.register(...)`` в ``CapriWindow.__init__``
-(см. README).
-
-Пример::
-
-    from capri.command_catalog import Handlers, register_commands
-    from capri.commands import CommandRegistry
-
-    handlers = Handlers(toggle_glitches=lambda: "Готово.", ...)
-    registry = CommandRegistry()
-    register_commands(registry, handlers)
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,7 +7,6 @@ from .commands import CommandRegistry, Handler
 
 @dataclass(frozen=True)
 class Handlers:
-    """Обработчики встроенных команд, предоставляемые главным окном."""
 
     toggle_glitches: Handler
     toggle_noise: Handler
@@ -49,7 +26,6 @@ class Handlers:
 
 
 def register_commands(registry: CommandRegistry, handlers: Handlers) -> None:
-    """Зарегистрировать все встроенные команды в ``registry``."""
     registry.register(
         "глитч",
         "включить или выключить экранные глитчи.",

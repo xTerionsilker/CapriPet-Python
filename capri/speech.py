@@ -1,31 +1,3 @@
-"""Многоразовое окно речи с эффектом печатной машинки.
-
-Показывает короткое сообщение посимвольно, затем закрывается после полного
-раскрытия текста. Оно намеренно самодостаточно (только PySide6), поэтому
-его можно использовать и вне Capri.
-
-Использование::
-
-    from capri.speech import show_text
-
-    show_text("Привет!", parent=window)
-    show_text("Быстрее и короче", chars_per_second=80, hold_ms=500)
-
-Облачко появляется в случайном месте экрана, не перекрывая окно ``parent``
-(которое считается главным окном программы). Для этого нужна платформа,
-уважающая перемещение окон: X11/XWayland подходит; в чистом Wayland место
-выбирает композитор.
-
-Клик по окну во время появления текста сразу раскрывает остаток; повторный
-клик закрывает. Окно также закрывается через ``hold_ms``.
-
-Пока текст скрыт, он обёрнут в прозрачный фрагмент, чтобы облачко не
-меняло размер и не перестраивалось во время печати.
-
-Геометрия случайного места (полосы свободного экрана, наименьшее
-перекрытие) вынесена в ``capri.placement``.
-"""
-
 from __future__ import annotations
 
 from html import escape
@@ -61,12 +33,10 @@ QLabel#text {
 }
 """
 
-# Держим окна «выстрелил и забыл» живыми, пока Qt их не удалит.
 _active_windows: set["SpeechWindow"] = set()
 
 
 class SpeechWindow(QFrame):
-    """Облачко без рамки, печатающее ``text`` и закрывающееся само."""
 
     revealed = Signal()
 
@@ -118,7 +88,6 @@ class SpeechWindow(QFrame):
         outer.addWidget(bubble)
 
         glow = QGraphicsDropShadowEffect(bubble)
-        # Жёсткая несмазанная тень со смещением вместо мягкого неонового свечения.
         glow.setBlurRadius(0)
         glow.setOffset(8, 8)
         glow.setColor(QColor(57, 255, 106, 110))
@@ -135,7 +104,6 @@ class SpeechWindow(QFrame):
 
         self._render(0)
 
-    # --- публичное API -----------------------------------------------------
     @property
     def text(self) -> str:
         return self._text
@@ -145,13 +113,11 @@ class SpeechWindow(QFrame):
         return self._finished
 
     def skip(self) -> None:
-        """Раскрыть всё сразу и запустить обратный отсчёт закрытия."""
         if self._finished:
             self.close()
         else:
             self._finish()
 
-    # --- события Qt --------------------------------------------------------
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().showEvent(event)
         if not self._clock.isValid():
@@ -171,7 +137,6 @@ class SpeechWindow(QFrame):
         self._hold_timer.stop()
         super().closeEvent(event)
 
-    # --- внутреннее --------------------------------------------------------
     def _tick(self) -> None:
         if not self._clock.isValid():
             return
@@ -205,7 +170,6 @@ class SpeechWindow(QFrame):
         self._revealed_chars = count
 
     def _place_randomly(self) -> None:
-        """Выбрать случайное место на экране вне главного окна."""
         parent = self.parentWidget()
         screen = self._target_screen(parent)
         area = (
@@ -214,7 +178,6 @@ class SpeechWindow(QFrame):
             else QRect(0, 0, self.width(), self.height())
         )
 
-        # Небольшой визуальный зазор между облачком и главным окном.
         blocked = None
         if parent is not None:
             blocked = parent.frameGeometry().adjusted(-GAP, -GAP, GAP, GAP)
@@ -241,13 +204,6 @@ def show_text(
     hold_ms: int = 1200,
     max_width: int = _TEXT_WIDTH,
 ) -> SpeechWindow:
-    """Показать ``text`` в самозакрывающемся облачке и вернуть окно.
-
-    ``chars_per_second`` задаёт скорость раскрытия, ``hold_ms`` — сколько
-    полностью раскрытый текст остаётся на экране, а ``max_width``
-    ограничивает ширину текста. Облачко размещается в случайной точке на
-    экране родительского окна, не перекрывая его.
-    """
     window = SpeechWindow(
         text,
         parent,

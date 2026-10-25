@@ -1,20 +1,3 @@
-"""Полноэкранный сквозной глитч-оверлей.
-
-Создаёт по одному окну без рамки, не принимающему ввод, на каждый экран.
-Артефакты присутствуют всегда на низком, едва заметном уровне, без
-периодического усиления. Каждый оверлей сообщает, насколько интенсивен
-текущий кадр, через сигнал ``amplitude_changed``, который управляет фоновым
-шумом в ``capri.static_noise``.
-Оверлей чисто декоративный: клики, прокрутка и клавиатурный ввод проходят
-напрямую в окна под ним.
-
-Внешний вид кадра описан отдельно — в ``capri.glitch_paint``; здесь только
-окна, таймеры и амплитуда.
-
-На платформах, не поддерживающих сквозные/поверх-всех окон (некоторые
-композиторы Wayland), оверлей может работать ограниченно или не появиться.
-"""
-
 from __future__ import annotations
 
 import random
@@ -25,11 +8,10 @@ from PySide6.QtWidgets import QWidget
 
 from .glitch_paint import paint_frame
 
-_BASE_INTERVAL_MS = 66  # ~15 кадров/с для едва заметного слоя
+_BASE_INTERVAL_MS = 66
 
 
 class GlitchOverlay(QWidget):
-    """Прозрачное сквозное окно, непрерывно рисующее глитчи."""
 
     amplitude_changed = Signal(float)
 
@@ -60,9 +42,7 @@ class GlitchOverlay(QWidget):
         self._frame_timer.timeout.connect(self._tick)
         self._frame_timer.start()
 
-    # --- тайминг -----------------------------------------------------------
     def set_active(self, active: bool) -> None:
-        """Показать/скрыть оверлей и приостановить/возобновить таймеры."""
         if active == self._active:
             return
         self._active = active
@@ -81,13 +61,7 @@ class GlitchOverlay(QWidget):
         self._update_amplitude()
         self.update()
 
-    # --- интенсивность -----------------------------------------------------
     def _update_amplitude(self) -> None:
-        """Сообщить интенсивность текущего кадра, от 0.0 до 1.0.
-
-        Слой фонового звука слушает это значение. Едва заметный слой слегка
-        мерцает, чтобы не казаться застывшим.
-        """
         if not self._active:
             self._set_amplitude(0.0)
         else:
@@ -100,7 +74,6 @@ class GlitchOverlay(QWidget):
         self._amplitude = value
         self.amplitude_changed.emit(value)
 
-    # --- отрисовка ---------------------------------------------------------
     def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
@@ -110,7 +83,6 @@ class GlitchOverlay(QWidget):
 
 
 class GlitchManager(QObject):
-    """Поддерживает один глитч-оверлей на каждом подключённом экране."""
 
     amplitude_changed = Signal(float)
 
@@ -132,7 +104,6 @@ class GlitchManager(QObject):
         return self._enabled
 
     def set_enabled(self, enabled: bool) -> None:
-        """Включить или выключить оверлеи, не уничтожая их."""
         if enabled == self._enabled:
             return
         self._enabled = enabled
@@ -140,7 +111,6 @@ class GlitchManager(QObject):
             overlay.set_active(enabled)
 
     def toggle(self) -> bool:
-        """Переключить состояние оверлея и вернуть новое состояние."""
         self.set_enabled(not self._enabled)
         return self._enabled
 
@@ -170,7 +140,6 @@ class GlitchManager(QObject):
         self.amplitude_changed.emit(max(self._amplitudes.values(), default=0.0))
 
     def stop(self) -> None:
-        """Закрыть все оверлеи и прекратить отрисовку."""
         app = QGuiApplication.instance()
         if app is not None:
             for signal, slot in (

@@ -1,31 +1,13 @@
-"""Блокировка экрана: подбор и запуск системных команд.
-
-Capri не реализует блокировку сама — она вызывает штатные средства
-окружения и пробует их по очереди, пока какая-нибудь не сработает.
-Модуль не зависит от Qt: окно только запускает :func:`run_lock` через
-таймер, чтобы пользователь успел увидеть ответ.
-
-Использование::
-
-    from capri.screen_lock import lock_commands, run_lock
-
-    commands = lock_commands()
-    if commands:
-        run_lock(commands)
-"""
-
 from __future__ import annotations
 
 import os
 import shutil
 import subprocess
 
-#: Сколько секунд ждать одну команду блокировки.
 PER_COMMAND_TIMEOUT_S = 3
 
 
 def lock_commands() -> list[list[str]]:
-    """Подобрать команды блокировки экрана текущего окружения."""
     desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
     candidates: list[list[str]] = []
 
@@ -47,8 +29,6 @@ def lock_commands() -> list[list[str]]:
                 ]
             )
 
-    # Универсальный способ через systemd-logind; без ID блокируется
-    # сессия вызывающего процесса. Это аналог Super+L.
     candidates.append(["loginctl", "lock-session"])
     candidates.append(["xdg-screensaver", "lock"])
     candidates.append(["gnome-screensaver-command", "-l"])
@@ -60,7 +40,6 @@ def lock_commands() -> list[list[str]]:
 
 
 def run_lock(commands: list[list[str]]) -> bool:
-    """Попробовать команды блокировки по очереди, пока одна не сработает."""
     for command in commands:
         try:
             result = subprocess.run(
@@ -70,7 +49,6 @@ def run_lock(commands: list[list[str]]) -> bool:
                 timeout=PER_COMMAND_TIMEOUT_S,
             )
         except subprocess.TimeoutExpired:
-            # Блокировщик может работать до разблокировки — считаем успехом.
             return True
         except OSError:
             continue
