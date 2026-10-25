@@ -32,6 +32,7 @@ if __package__ in (None, ""):
     from capri.core.input_flow import InputFlow
     from capri.integrations.screen_lock import lock_commands, run_lock
     from capri.ui.speech import SpeechWindow, show_text
+    from capri.ui.transition import TransitionOverlay
     from capri.integrations.system_power import power_commands, run_power
     from capri.ui.theme import APP_STYLE
     from capri.audio.voice import VoiceInput
@@ -50,6 +51,7 @@ else:
     from ..core.input_flow import InputFlow
     from ..integrations.screen_lock import lock_commands, run_lock
     from .speech import SpeechWindow, show_text
+    from .transition import TransitionOverlay
     from ..integrations.system_power import power_commands, run_power
     from .theme import APP_STYLE
     from ..audio.voice import VoiceInput
@@ -92,6 +94,8 @@ GOODBYE_LINE = "пока пока чумба"
 
 LOCK_DELAY_MS = 800
 
+INACTIVITY_TIMEOUT_MS = 10_000
+
 POWER_DELAY_MS = 2000
 
 OLLAMA_HISTORY_MESSAGES = 12
@@ -123,6 +127,9 @@ class CapriWindow(QWidget):
         self._ollama_busy = False
         self._phase = PHASE_MAIN
         self._closing = False
+        self._transitioning = False
+        self._transition_overlay = None
+        self._voice_was_listening = False
         self._outro_video_done = True
         self._outro_sound_done = True
         self._default_status = (
@@ -148,6 +155,7 @@ class CapriWindow(QWidget):
 
         self.input.setFocus()
 
+        self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
     def _build_video(self) -> None:
         self.video = QVideoWidget(self)
         self.video.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatio)
@@ -293,7 +301,7 @@ class CapriWindow(QWidget):
         self._glitches = GlitchManager(self)
 
     def _build_voice(self) -> None:
-        self._voice = VoiceInput(self)
+        self._voice = VoiceInput()
         self._voice.listening_changed.connect(self._on_voice_listening)
         self._voice.status_changed.connect(self._on_voice_status)
         self._voice.recognized.connect(self._on_voice_text)
@@ -303,6 +311,9 @@ class CapriWindow(QWidget):
         self._voice_window_timer.setSingleShot(True)
         self._voice_window_timer.timeout.connect(self._on_voice_window_expired)
 
+        self._inactivity_timer = QTimer(self)
+        self._inactivity_timer.setSingleShot(True)
+        self._inactivity_timer.timeout.connect(self._hide_for_inactivity)
     def _register_commands(self) -> None:
         register_commands(
             self.commands,
@@ -371,8 +382,8 @@ class CapriWindow(QWidget):
         if not text:
             return
         self.input.clear()
+        self._reset_inactivity_timer()
         self.speak(self.process_input(text))
-
     def process_input(self, text: str) -> str:
         return self._flow.handle(text)
 
@@ -403,13 +414,13 @@ class CapriWindow(QWidget):
         command = self._voice_command(text)
         if command is None:
             return
+        self._reset_inactivity_timer()
         if command:
             self._disarm_voice_command()
             self._update_voice_status()
             self.speak(self.process_input(command))
             return
         self._arm_voice_command()
-
     def _voice_command(self, text: str) -> str | None:
         command = command_after_trigger(text)
         if command is not None:
@@ -441,6 +452,59 @@ class CapriWindow(QWidget):
         else:
             self.status.setText(self._default_status)
 
+    def _reset_inactivity_timer(self) -> None:
+        if self._closing or self._phase == PHASE_CLOSED:
+            return
+        if self._transitioning:
+            return
+        if not self.isVisible():
+            self._start_show_transition()
+            return
+        self._inactivity_timer.stop()
+        self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
+
+    def _hide_for_inactivity(self) -> None:
+        if self._closing or self._phase == PHASE_CLOSED:
+            return
+        if self._transitioning:
+            return
+        if not self.isVisible():
+            return
+        self._voice_was_listening = self._voice.is_listening
+        self._transitioning = True
+        self._inactivity_timer.stop()
+        screen = self.screen()
+        screen_rect = screen.geometry() if screen is not None else self.geometry()
+        overlay = TransitionOverlay(screen_rect, self.geometry(), "out")
+        overlay.finished.connect(self._finish_hide_transition)
+        self._transition_overlay = overlay
+        overlay.start()
+        self.raise_()
+
+    def _start_show_transition(self) -> None:
+        self._transitioning = True
+        screen = self.screen()
+        screen_rect = screen.geometry() if screen is not None else self.geometry()
+        overlay = TransitionOverlay(screen_rect, self.geometry(), "in")
+        overlay.finished.connect(self._finish_show_transition)
+        self._transition_overlay = overlay
+        overlay.start()
+
+    def _finish_hide_transition(self) -> None:
+        self._transitioning = False
+        self._transition_overlay = None
+        self.hide()
+
+    def _finish_show_transition(self) -> None:
+        self._transitioning = False
+        self._transition_overlay = None
+        self.show()
+        if self._voice_was_listening and not self._voice.is_listening:
+            if not self._voice.is_busy:
+                self._voice.start()
+        self._voice_was_listening = False
+        self._inactivity_timer.stop()
+        self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
     def _on_voice_listening(self, listening: bool) -> None:
         self.mic.setText("СТОП" if listening else "ГОЛОС")
         if not listening:

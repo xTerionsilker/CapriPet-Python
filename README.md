@@ -10,6 +10,9 @@ the whole desktop gets a light CRT glitch overlay while Capri is running.
 - Frameless 800×540 window; drag it by the video area.
 - Text input and continuous voice input with the wake word “Капри”.
 - Random startup greeting and a goodbye sequence on exit.
+- Auto-hide after 10 seconds of inactivity: the main window disappears with a
+  fast red-pink lightning transition; speaking a command brings it back. The
+  glitch overlay stays visible the whole time.
 - Floating speech bubbles that appear away from the main window.
 - Built-in commands: glitch, noise, voice, Google/YouTube search, Spotify,
   screen lock, power actions, and local Ollama chat.

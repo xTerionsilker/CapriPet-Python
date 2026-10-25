@@ -10,7 +10,7 @@ DEFAULT_MODEL = "qwen3.5:4b"
 CHAT_PATH = "/api/chat"
 
 HTTP_TIMEOUT = 120.0
-MAX_TOKENS = 400
+MAX_TOKENS = 256
 
 SYSTEM_PROMPT = (
     "Тебя зовут Капри, ты живёшь у меня в системе, по сути ты коллекция человеческих психик, слитых воедино."
