@@ -25,45 +25,45 @@ from PySide6.QtWidgets import (
 if __package__ in (None, ""):
     import sys
 
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from capri.command_catalog import Handlers, register_commands
-    from capri.commands import CommandRegistry
-    from capri.glitch import GlitchManager
-    from capri.input_flow import InputFlow
-    from capri.screen_lock import lock_commands, run_lock
-    from capri.speech import SpeechWindow, show_text
-    from capri.static_noise import StaticNoise
-    from capri.system_power import power_commands, run_power
-    from capri.theme import APP_STYLE
-    from capri.voice import VoiceInput
-    from capri.wake_word import (
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+    from capri.core.command_catalog import Handlers, register_commands
+    from capri.core.commands import CommandRegistry
+    from capri.effects.glitch import GlitchManager
+    from capri.core.input_flow import InputFlow
+    from capri.integrations.screen_lock import lock_commands, run_lock
+    from capri.ui.speech import SpeechWindow, show_text
+    from capri.effects.static_noise import StaticNoise
+    from capri.integrations.system_power import power_commands, run_power
+    from capri.ui.theme import APP_STYLE
+    from capri.audio.voice import VoiceInput
+    from capri.core.wake_word import (
         VOICE_COMMAND_WINDOW_MS,
         VOICE_LISTENING_STATUS,
         VOICE_WAITING_STATUS,
         command_after_trigger,
     )
-    import capri.ollama as ollama
-    import capri.spotify as spotify
+    import capri.integrations.ollama as ollama
+    import capri.integrations.spotify as spotify
 else:
-    from .command_catalog import Handlers, register_commands
-    from .commands import CommandRegistry
-    from .glitch import GlitchManager
-    from .input_flow import InputFlow
-    from .screen_lock import lock_commands, run_lock
+    from ..core.command_catalog import Handlers, register_commands
+    from ..core.commands import CommandRegistry
+    from ..effects.glitch import GlitchManager
+    from ..core.input_flow import InputFlow
+    from ..integrations.screen_lock import lock_commands, run_lock
     from .speech import SpeechWindow, show_text
-    from .static_noise import StaticNoise
-    from .system_power import power_commands, run_power
+    from ..effects.static_noise import StaticNoise
+    from ..integrations.system_power import power_commands, run_power
     from .theme import APP_STYLE
-    from .voice import VoiceInput
-    from .wake_word import (
+    from ..audio.voice import VoiceInput
+    from ..core.wake_word import (
         VOICE_COMMAND_WINDOW_MS,
         VOICE_LISTENING_STATUS,
         VOICE_WAITING_STATUS,
         command_after_trigger,
     )
-    from . import ollama, spotify
+    from ..integrations import ollama, spotify
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 FACES = ROOT / "faces"
 
 START_VIDEO = FACES / "start.mp4"
@@ -686,7 +686,7 @@ class CapriWindow(QWidget):
 if __name__ == "__main__":
     import sys
 
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
     from main import main
 
     raise SystemExit(main())
