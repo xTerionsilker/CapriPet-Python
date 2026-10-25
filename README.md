@@ -151,11 +151,11 @@ X-GNOME-Autostart-enabled=true
 - Распознанный текст выполняется как обычная команда. Если это не команда,
   Capri ответит `Ты сказал: …`.
 - Язык распознавания — русский (`ru-RU`). Его можно изменить в
-  `capri/voice.py` в вызове `recognize_google(..., language="ru-RU")`.
+  `capri/recognizer.py` — константа `LANGUAGE`.
 - Порог громкости, время тишины и максимальная длительность записи — это
   константы `_RMS_THRESHOLD`, `_SILENCE_MS` и `_MAX_RECORD_MS` в начале
   `capri/voice.py`; ключевые слова и окно ожидания — `VOICE_TRIGGER_RE` и
-  `VOICE_COMMAND_WINDOW_MS` в `capri/pet_window.py`.
+  `VOICE_COMMAND_WINDOW_MS` в `capri/wake_word.py`.
 
 ### Команды
 
@@ -191,7 +191,7 @@ X-GNOME-Autostart-enabled=true
 сообщение и блокирует экран через 0,8 секунды. Для KDE используется
 `org.freedesktop.ScreenSaver`, затем универсальный
 `loginctl lock-session`; предусмотрены запасные варианты для GNOME, Cinnamon,
-Xfce и Light Locker.
+Xfce и Light Locker. Подбор и запуск этих команд — `capri/screen_lock.py`.
 
 Всё остальное передаётся в `process_input()`: Capri подбирает самую похожую
 команду и спрашивает подтверждение.
@@ -209,8 +209,10 @@ Capri «притягивает» её к самой подходящей ком�
 Ответ `да` (или `ага`, `верно`, `давай`, `запускай`, …) выполняет команду,
 `нет` — отменяет. Ответ можно дать текстом или голосом; голосом — без
 ключевого слова «Капри», но только в течение 15 секунд (`CONFIRM_TIMEOUT_MS`).
-Любая другая фраза в это время считается новой попыткой. Логика находится в
-`CommandRegistry.exact_match()` / `suggest()` в `capri/commands.py`.
+Любая другая фраза в это время считается новой попыткой. Окно подтверждения
+и порядок разбора фраз живут в `capri/input_flow.py`
+(`InputFlow.handle()`), а само сопоставление — в `CommandRegistry.exact_match()`
+/ `suggest()` из `capri/commands.py`.
 
 ### Spotify
 
@@ -239,7 +241,8 @@ Client Credentials):
 Без ключей команда не ломается: Capri открывает поиск Spotify с запросом, а
 трек можно нажать вручную. Поиск выполняется через Web API, а запуск — через
 URI `spotify:track:…`, поэтому воспроизведение идёт в обычном клиенте.
-Логика находится в `capri/spotify.py`.
+Запуск и MPRIS-команды находятся в `capri/spotify.py`, а ключи, токен и
+сам запрос к Web API — в `capri/spotify_api.py`.
 
 ## Структура проекта
 
@@ -248,12 +251,21 @@ main.py                 # точка входа приложения
 capri/
 ├── __init__.py         # публичные экспорты
 ├── pet_window.py       # главное окно: видео, ввод, приветствие, связи
-├── speech.py           # многоразовое облачко с печатной машинкой
-├── glitch.py           # полноэкранные сквозные глитч-оверлеи
-├── static_noise.py     # зацикленный белый шум, следующий за глитчем
-├── voice.py            # постоянное прослушивание и распознавание речи
-├── spotify.py          # поиск и воспроизведение музыки в Spotify
+├── command_catalog.py  # встроенные команды и их обработчики
 ├── commands.py         # реестр команд и список помощи
+├── fuzzy.py            # нечёткое сопоставление: опечатки и keywords
+├── input_flow.py       # разбор ввода и подтверждение «да» / «нет»
+├── wake_word.py        # ключевое слово «Капри» и окно ожидания
+├── screen_lock.py      # подбор и запуск команд блокировки экрана
+├── speech.py           # многоразовое облачко с печатной машинкой
+├── placement.py        # геометрия случайного размещения облачка
+├── glitch.py           # полноэкранные сквозные глитч-оверлеи
+├── glitch_paint.py     # отрисовка кадров глитча
+├── static_noise.py     # зацикленный белый шум, следующий за глитчем
+├── voice.py            # постоянное прослушивание микрофона
+├── recognizer.py       # распознавание речи: WAV и Google Web Speech
+├── spotify.py          # запуск треков и MPRIS-управление
+├── spotify_api.py      # ключи, токен и поиск в Spotify Web API
 └── theme.py            # пиксельная таблица стилей
 requirements.txt
 capri.mp4
@@ -265,7 +277,8 @@ capri.mp4
 
 `CapriWindow.process_input()` в `capri/pet_window.py` получает исходный
 текст и возвращает строку ответа. Замените или расширьте его своей логикой —
-конечным автоматом, вызовом API, локальной моделью и т. п.
+конечным автоматом, вызовом API, локальной моделью и т. п. По умолчанию он
+просто передаёт текст в `InputFlow` из `capri/input_flow.py`.
 
 ```python
 def process_input(self, text: str) -> str:
@@ -275,8 +288,9 @@ def process_input(self, text: str) -> str:
     return f"Ты сказал: {text}"
 ```
 
-Команды хранятся в `capri/commands.py` (`CommandRegistry`). Свою команду
-можно зарегистрировать в `CapriWindow.__init__`:
+Встроенные команды описаны в `capri/command_catalog.py`, а сам реестр —
+`capri/commands.py` (`CommandRegistry`). Свою команду можно добавить там же
+или прямо в `CapriWindow.__init__`:
 
 ```python
 self.commands.register(
@@ -339,7 +353,8 @@ show_text(
 ### Глитчи
 
 Настройте `_BASE_INTERVAL_MS` в начале `capri/glitch.py`; цвета задаются в
-`_COLORS` / `_NOISE`. Оверлей только рисует — он никогда не перехватывает
+`COLORS` / `NOISE` модуля `capri/glitch_paint.py`, где описан и порядок
+отрисовки слоёв кадра. Оверлей только рисует — он никогда не перехватывает
 клики или клавиатурный ввод.
 
 Каждый оверлей также сообщает амплитуду от 0 до 1 на каждом кадре, которую

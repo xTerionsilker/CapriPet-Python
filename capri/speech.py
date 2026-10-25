@@ -21,11 +21,13 @@
 
 Пока текст скрыт, он обёрнут в прозрачный фрагмент, чтобы облачко не
 меняло размер и не перестраивалось во время печати.
+
+Геометрия случайного места (полосы свободного экрана, наименьшее
+перекрытие) вынесена в ``capri.placement``.
 """
 
 from __future__ import annotations
 
-import random
 from html import escape
 
 from PySide6.QtCore import QElapsedTimer, QRect, Qt, QTimer, Signal
@@ -37,6 +39,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from .placement import GAP, pick_position
 
 _TEXT_COLOR = "#eaffef"
 _TEXT_WIDTH = 420
@@ -209,92 +213,16 @@ class SpeechWindow(QFrame):
             if screen is not None
             else QRect(0, 0, self.width(), self.height())
         )
-        width, height = self.width(), self.height()
 
+        # Небольшой визуальный зазор между облачком и главным окном.
         blocked = None
         if parent is not None:
-            # Небольшой визуальный зазор между облачком и главным окном.
-            blocked = parent.frameGeometry().adjusted(-24, -24, 24, 24)
+            blocked = parent.frameGeometry().adjusted(-GAP, -GAP, GAP, GAP)
             blocked = blocked.intersected(area)
 
-        # Свободная часть экрана — объединение полос сверху, снизу,
-        # слева и справа от заблокированного прямоугольника.
-        bands: list[QRect] = []
-        if blocked is None or blocked.isEmpty():
-            bands.append(area)
-        else:
-            if blocked.top() > area.top():
-                bands.append(
-                    QRect(
-                        area.left(),
-                        area.top(),
-                        area.width(),
-                        blocked.top() - area.top(),
-                    )
-                )
-            if blocked.bottom() < area.bottom():
-                bands.append(
-                    QRect(
-                        area.left(),
-                        blocked.bottom() + 1,
-                        area.width(),
-                        area.bottom() - blocked.bottom(),
-                    )
-                )
-            if blocked.left() > area.left():
-                bands.append(
-                    QRect(
-                        area.left(),
-                        area.top(),
-                        blocked.left() - area.left(),
-                        area.height(),
-                    )
-                )
-            if blocked.right() < area.right():
-                bands.append(
-                    QRect(
-                        blocked.right() + 1,
-                        area.top(),
-                        area.right() - blocked.right(),
-                        area.height(),
-                    )
-                )
-
-        bands = [b for b in bands if b.width() >= width and b.height() >= height]
-        if bands:
-            spans = [
-                (band, (band.width() - width + 1) * (band.height() - height + 1))
-                for band in bands
-            ]
-            choice = random.randrange(sum(span for _, span in spans))
-            for band, span in spans:
-                if choice < span:
-                    columns = band.width() - width + 1
-                    self.move(
-                        band.left() + choice % columns,
-                        band.top() + choice // columns,
-                    )
-                    return
-                choice -= span
-
-        # Полностью свободного места нет (например, главное окно занимает
-        # весь экран): выбираем позицию с наименьшим перекрытием.
-        if blocked is not None and not blocked.isEmpty():
-            max_x = max(area.left(), area.right() - width + 1)
-            max_y = max(area.top(), area.bottom() - height + 1)
-            best = (area.left(), area.top())
-            least_overlap = None
-            for _ in range(200):
-                x = random.randint(area.left(), max_x)
-                y = random.randint(area.top(), max_y)
-                overlap = QRect(x, y, width, height).intersected(blocked)
-                overlap_area = overlap.width() * overlap.height()
-                if least_overlap is None or overlap_area < least_overlap:
-                    least_overlap = overlap_area
-                    best = (x, y)
-            self.move(*best)
-        else:
-            self.move(area.left(), area.top())
+        self.move(
+            *pick_position(area, blocked, self.width(), self.height())
+        )
 
     @staticmethod
     def _target_screen(parent: QWidget | None) -> QScreen | None:

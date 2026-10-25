@@ -1,13 +1,20 @@
-"""Главное окно Capri: зацикленное видео питомца и ввод команд."""
+"""Главное окно Capri: зацикленное видео питомца и ввод команд.
+
+Окно собирает интерфейс и связывает части приложения воедино, а всё, что
+можно описать отдельно, вынесено в соседние модули:
+
+* ``capri.command_catalog`` — встроенные команды и их обработчики;
+* ``capri.input_flow``     — разбор ввода и подтверждение «да» / «нет»;
+* ``capri.wake_word``       — ключевое слово «Капри» и окно ожидания;
+* ``capri.screen_lock``     — блокировка экрана;
+* ``capri.glitch``, ``capri.static_noise``, ``capri.voice``, ``capri.speech``
+  — эффекты и служебные окна.
+"""
 
 from __future__ import annotations
 
 import getpass
-import os
 import random
-import re
-import shutil
-import subprocess
 import threading
 import time
 import webbrowser
@@ -32,20 +39,38 @@ if __package__ in (None, ""):
     import sys
 
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from capri.commands import Command, CommandRegistry
+    from capri.command_catalog import Handlers, register_commands
+    from capri.commands import CommandRegistry
     from capri.glitch import GlitchManager
+    from capri.input_flow import InputFlow
+    from capri.screen_lock import lock_commands, run_lock
     from capri.speech import SpeechWindow, show_text
     from capri.static_noise import StaticNoise
     from capri.theme import APP_STYLE
     from capri.voice import VoiceInput
+    from capri.wake_word import (
+        VOICE_COMMAND_WINDOW_MS,
+        VOICE_LISTENING_STATUS,
+        VOICE_WAITING_STATUS,
+        command_after_trigger,
+    )
     import capri.spotify as spotify
 else:
-    from .commands import Command, CommandRegistry
+    from .command_catalog import Handlers, register_commands
+    from .commands import CommandRegistry
     from .glitch import GlitchManager
+    from .input_flow import InputFlow
+    from .screen_lock import lock_commands, run_lock
     from .speech import SpeechWindow, show_text
     from .static_noise import StaticNoise
     from .theme import APP_STYLE
     from .voice import VoiceInput
+    from .wake_word import (
+        VOICE_COMMAND_WINDOW_MS,
+        VOICE_LISTENING_STATUS,
+        VOICE_WAITING_STATUS,
+        command_after_trigger,
+    )
     from . import spotify
 
 VIDEO = Path(__file__).resolve().parent.parent / "capri.mp4"
@@ -57,63 +82,9 @@ STARTUP_LINES = (
     "...",
 )
 
-# Capri выполняет услышанное только после ключевого слова. «Каприкорд»
-# распознавание иногда выдаёт как «капри корд», «капри-корд», «Capricorn»
-# и т. п.
-VOICE_TRIGGER_RE = re.compile(
-    r"(?<!\w)(?:"
-    r"капри(?:\s*[-–—]?\s*(?:корд|корт|кард|корн|кор))?"
-    r"|кэпри"
-    r"|capri(?:\s*[-–—]?\s*(?:corn|kord|cord|card|kor))?"
-    r")(?!\w)"
-)
-# Сколько ждать команду после отдельно произнесённого ключевого слова.
-VOICE_COMMAND_WINDOW_MS = 3_000
-VOICE_LISTENING_STATUS = "СЛУШАЮ «КАПРИ»…"
-VOICE_WAITING_STATUS = "ЖДУ КОМАНДУ…"
-
-# Сколько ждём ответ «да» / «нет» на предложенную команду.
-CONFIRM_TIMEOUT_MS = 15_000
-AFFIRMATIVE_WORDS = frozenset(
-    {
-        "да",
-        "ага",
-        "верно",
-        "точно",
-        "конечно",
-        "давай",
-        "подтверждаю",
-        "запускай",
-        "выполняй",
-        "включай",
-        "yes",
-        "y",
-        "ok",
-        "окей",
-        "ок",
-    }
-)
-NEGATIVE_WORDS = frozenset(
-    {
-        "нет",
-        "не",
-        "неа",
-        "нету",
-        "отмена",
-        "отменить",
-        "отменяй",
-        "no",
-        "nope",
-    }
-)
-
-
-def _answer_words(text: str) -> set[str]:
-    return set(re.findall(r"[\w-]+", text.casefold()))
-
-
-def _voice_normalized(text: str) -> str:
-    return " ".join(text.casefold().split())
+# Задержка перед блокировкой экрана, чтобы пользователь успел прочитать
+# ответ Capri.
+LOCK_DELAY_MS = 800
 
 
 class CapriWindow(QWidget):
@@ -140,7 +111,22 @@ class CapriWindow(QWidget):
             else f"// ВИДЕО НЕ НАЙДЕНО: {VIDEO.name}"
         )
 
-        # --- видео ---------------------------------------------------------
+        self.commands = CommandRegistry()
+        self._flow = InputFlow(self.commands, self)
+
+        self._build_video()
+        self._build_controls()
+        self._build_shortcuts()
+        self._build_effects()
+        self._build_voice()
+        self._register_commands()
+        self.spotify_reply.connect(self.speak)
+
+        self.input.setFocus()
+
+    # --- сборка интерфейса -------------------------------------------------
+    def _build_video(self) -> None:
+        """Зацикленное видео питомца и его звук."""
         self.video = QVideoWidget(self)
         self.video.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatio)
         self.video.setMinimumSize(320, 180)
@@ -160,7 +146,8 @@ class CapriWindow(QWidget):
         else:
             self.video.hide()
 
-        # --- панель --------------------------------------------------------
+    def _build_controls(self) -> None:
+        """Нижняя панель: статус, поле ввода и кнопки."""
         panel = QWidget(self)
         panel.setObjectName("panel")
         panel_layout = QVBoxLayout(panel)
@@ -210,19 +197,24 @@ class CapriWindow(QWidget):
         root.addWidget(accent)
         root.addWidget(panel)
 
+    def _build_shortcuts(self) -> None:
+        """Горячие клавиши окна."""
         QShortcut(QKeySequence("Ctrl+Q"), self, self.close)
         QShortcut(QKeySequence("Ctrl+Space"), self, self._toggle_voice)
 
+    def _build_effects(self) -> None:
+        """Глитч-оверлей, управляющий фоновым шумом."""
         self._static = StaticNoise(self)
         self._glitches = GlitchManager(self)
         self._glitches.amplitude_changed.connect(self._static.set_amplitude)
 
+    def _build_voice(self) -> None:
+        """Голосовой ввод и окно ожидания команды после «Капри»."""
         self._voice = VoiceInput(self)
         self._voice.listening_changed.connect(self._on_voice_listening)
         self._voice.status_changed.connect(self._on_voice_status)
         self._voice.recognized.connect(self._on_voice_text)
         self._voice.failed.connect(self.speak)
-        self.spotify_reply.connect(self.speak)
 
         # Окно, в течение которого команду можно произнести отдельно от
         # ключевого слова.
@@ -230,235 +222,26 @@ class CapriWindow(QWidget):
         self._voice_window_timer.setSingleShot(True)
         self._voice_window_timer.timeout.connect(self._on_voice_window_expired)
 
-        # Команда, предложенная для нераспознанной фразы. Пока она ждёт
-        # ответа «да» / «нет», следующая фраза считается подтверждением.
-        self._pending_command: tuple[Command, str] | None = None
-        self._confirm_timer = QTimer(self)
-        self._confirm_timer.setSingleShot(True)
-        self._confirm_timer.timeout.connect(self._clear_pending_command)
-
-        self.commands = CommandRegistry()
-        self.commands.register(
-            "глитч",
-            "включить или выключить экранные глитчи.",
-            self._toggle_glitches,
-            aliases=(
-                "переключить глитч",
-                "включить глитч",
-                "выключить глитч",
-                "глитчи",
-                "глюки",
-                "переключить глюки",
-                "включить глюки",
-                "выключить глюки",
-                "эффекты",
-                "переключить эффекты",
+    def _register_commands(self) -> None:
+        """Подключить встроенные команды к обработчикам этого окна."""
+        register_commands(
+            self.commands,
+            Handlers(
+                toggle_glitches=self._toggle_glitches,
+                toggle_noise=self._toggle_noise,
+                toggle_voice=self._toggle_voice,
+                search_google=self._search_google,
+                search_youtube=self._search_youtube,
+                spotify_play=self._spotify_play,
+                spotify_pause=self._spotify_pause,
+                spotify_resume=self._spotify_resume,
+                spotify_next=self._spotify_next,
+                spotify_previous=self._spotify_previous,
+                lock_screen=self._lock_screen,
             ),
-            keywords=(
-                "глитч",
-                "глюк",
-                "эффект",
-                "цвет",
-                "радуг",
-                "визуал",
-                "помех",
-                "искажен",
-            ),
-        )
-        self.commands.register(
-            "шум",
-            "включить или выключить фоновый шум.",
-            self._toggle_noise,
-            aliases=(
-                "переключить шум",
-                "включить шум",
-                "выключить шум",
-                "шипение",
-                "переключить шипение",
-                "включить шипение",
-                "выключить шипение",
-                "статика",
-                "звук",
-                "включить звук",
-                "выключить звук",
-            ),
-            keywords=("шум", "шип", "статик", "треск", "звук"),
-        )
-        self.commands.register(
-            "голос",
-            "начать или остановить голосовой ввод.",
-            self._toggle_voice,
-            aliases=(
-                "микрофон",
-                "слушать",
-                "говорить",
-                "голосовой ввод",
-                "запись",
-                "включить голос",
-                "выключить голос",
-                "включить микрофон",
-                "выключить микрофон",
-            ),
-            keywords=("голос", "микрофон", "слуша", "говори", "запис"),
-        )
-        self.commands.register(
-            "гугл",
-            "найти запрос в Google.",
-            self._search_google,
-            aliases=(
-                "загугли",
-                "погугли",
-                "гуглить",
-                "искать в гугле",
-                "найди в гугле",
-                "поищи в гугле",
-                "поискать в гугле",
-                "поиск в гугле",
-                "google",
-                "искать в google",
-                "найди в google",
-                "поищи в google",
-                "поиск в google",
-                "найди в интернете",
-                "поищи в интернете",
-            ),
-            takes_argument=True,
-            keywords=(
-                "гугл",
-                "google",
-                "поиск",
-                "интернет",
-                "найди",
-                "загугл",
-                "погугл",
-            ),
-        )
-        self.commands.register(
-            "ютуб",
-            "найти запрос на YouTube.",
-            self._search_youtube,
-            aliases=(
-                "ютьюб",
-                "youtube",
-                "искать на ютубе",
-                "найди на ютубе",
-                "найди в ютубе",
-                "поищи на ютубе",
-                "поищи в ютубе",
-                "поискать на ютубе",
-                "поиск на ютубе",
-                "поиск в ютубе",
-                "искать на youtube",
-                "найди на youtube",
-                "поищи на youtube",
-                "поиск на youtube",
-            ),
-            takes_argument=True,
-            keywords=("ютуб", "youtube", "видео", "ролик", "ютюб"),
-        )
-        self.commands.register(
-            "спотифай",
-            "найти и включить музыку в Spotify.",
-            self._spotify_play,
-            aliases=(
-                "spotify",
-                "спотик",
-                "включи музыку",
-                "поставь музыку",
-                "включи спотифай",
-                "включи в спотифае",
-                "найди музыку",
-                "найди песню",
-                "включи песню",
-                "поставь песню",
-            ),
-            takes_argument=True,
-            keywords=(
-                "музык",
-                "песн",
-                "трек",
-                "спотиф",
-                "spotify",
-                "плейлист",
-                "альбом",
-                "исполнител",
-                "мелоди",
-            ),
-        )
-        self.commands.register(
-            "пауза",
-            "поставить музыку в Spotify на паузу.",
-            self._spotify_pause,
-            aliases=(
-                "поставь на паузу",
-                "паузу",
-                "приостанови музыку",
-                "приостанови",
-            ),
-            keywords=("пауз", "останов", "стоп", "тихо", "приглуш"),
-        )
-        self.commands.register(
-            "продолжить",
-            "продолжить воспроизведение в Spotify.",
-            self._spotify_resume,
-            aliases=(
-                "плей",
-                "играй",
-                "продолжи музыку",
-                "возобнови",
-                "возобнови музыку",
-            ),
-            keywords=("продолж", "играй", "возобнов", "плей", "громче"),
-        )
-        self.commands.register(
-            "следующий трек",
-            "включить следующий трек в Spotify.",
-            self._spotify_next,
-            aliases=(
-                "следующий",
-                "след",
-                "next",
-                "переключи трек",
-                "следующая песня",
-            ),
-            keywords=("следующ", "дальше", "переключ", "next"),
-        )
-        self.commands.register(
-            "предыдущий трек",
-            "вернуться к предыдущему треку в Spotify.",
-            self._spotify_previous,
-            aliases=(
-                "предыдущий",
-                "prev",
-                "previous",
-                "предыдущая песня",
-            ),
-            keywords=("предыдущ", "назад", "prev", "верни"),
-        )
-        self.commands.register(
-            "блокировка",
-            "заблокировать экран (аналог Super+L).",
-            self._lock_screen,
-            aliases=(
-                "заблокировать",
-                "заблокируй",
-                "блокировать",
-                "заблокировать экран",
-                "заблокируй экран",
-                "экран блокировки",
-                "блокировка экрана",
-                "лок",
-                "lock",
-                "lock screen",
-                "super+l",
-                "я отойду",
-                "отойду",
-            ),
-            keywords=("блокир", "заблок", "экран", "лок", "lock"),
         )
 
-        self.input.setFocus()
-
+    # --- события Qt --------------------------------------------------------
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().showEvent(event)
         if not self._greeted:
@@ -483,46 +266,12 @@ class CapriWindow(QWidget):
         self.speak(self.process_input(text))
 
     def process_input(self, text: str) -> str:
-        """Обработать строку пользователя. Здесь можно расширять «мозг» Capri."""
-        # Сначала проверяем ответ на предложенную команду.
-        if self._pending_command is not None:
-            words = _answer_words(text)
-            if words & NEGATIVE_WORDS:
-                self._clear_pending_command()
-                return "Отменено."
-            if words & AFFIRMATIVE_WORDS:
-                command, original = self._pending_command
-                self._clear_pending_command()
-                return self._run_suggested(command, original)
-            # Не «да» и не «нет» — считаем это новой фразой.
-            self._clear_pending_command()
+        """Обработать строку пользователя. Здесь можно расширять «мозг» Capri.
 
-        # Точные команды (включая команды с аргументом) выполняются сразу.
-        if self.commands.exact_match(text) is not None:
-            reply = self.commands.dispatch(text)
-            if reply is not None:
-                return reply
-
-        # Любую другую фразу «притягиваем» к самой похожей команде и
-        # обязательно спрашиваем подтверждение.
-        suggestion = self.commands.suggest(text)
-        if suggestion is not None:
-            self._pending_command = (suggestion, text)
-            self._confirm_timer.start(CONFIRM_TIMEOUT_MS)
-            return f"Ты имел в виду: «{suggestion.name}»? (да / нет)"
-        return f"Ты сказал: {text}"
-
-    def _run_suggested(self, command: Command, original: str) -> str:
-        """Выполнить подтверждённую команду."""
-        if command.takes_argument:
-            reply = self.commands.dispatch(f"{command.name} {original}")
-        else:
-            reply = self.commands.dispatch(command.name)
-        return reply if reply is not None else "Готово."
-
-    def _clear_pending_command(self) -> None:
-        self._pending_command = None
-        self._confirm_timer.stop()
+        По умолчанию текст уходит в ``capri.input_flow``: сначала проверяется
+        ответ на предложенную команду, затем точные совпадения и подсказка.
+        """
+        return self._flow.handle(text)
 
     def speak(self, text: str) -> SpeechWindow:
         """Показать ``text`` в облачке Capri."""
@@ -567,18 +316,13 @@ class CapriWindow(QWidget):
 
         Команда может идти сразу за ключевым словом («капри открой гугл»)
         или прозвучать отдельной фразой в течение ``VOICE_COMMAND_WINDOW_MS``
-        после ключевого слова.
+        после ключевого слова (см. ``capri.wake_word``).
         """
-        normalized = _voice_normalized(text)
-        match = VOICE_TRIGGER_RE.search(normalized)
-        if match is not None:
-            tokens = text.split()
-            consumed = max(1, len(match.group(0).split()))
-            before = len(normalized[: match.start()].split())
-            # «Дальше уже команда»: всё после ключевого слова.
-            return " ".join(tokens[before + consumed:]).strip()
+        command = command_after_trigger(text)
+        if command is not None:
+            return command
         # Пока ждём «да» / «нет», отвечать можно без ключевого слова.
-        if self._pending_command is not None:
+        if self._flow.awaiting_reply:
             return text.strip()
         if self._voice_armed_until > time.monotonic():
             return text.strip()
@@ -621,7 +365,7 @@ class CapriWindow(QWidget):
         else:
             self.status.setText(f"// {text.upper()}")
 
-    # --- внутреннее --------------------------------------------------------
+    # --- эффекты -----------------------------------------------------------
     def _toggle_glitches(self) -> str:
         enabled = self._glitches.toggle()
         return "Глитчи включены." if enabled else "Глитчи выключены."
@@ -630,6 +374,7 @@ class CapriWindow(QWidget):
         enabled = self._static.toggle()
         return "Шум включён." if enabled else "Шум выключен."
 
+    # --- поиск в интернете -------------------------------------------------
     def _search_google(self, query: str) -> str:
         query = query.strip()
         if not query:
@@ -683,11 +428,11 @@ class CapriWindow(QWidget):
 
     # --- блокировка экрана -------------------------------------------------
     def _lock_screen(self) -> str:
-        commands = self._lock_commands()
+        commands = lock_commands()
         if not commands:
             return "Не удалось найти способ заблокировать экран."
         self._lock_pending = commands
-        QTimer.singleShot(800, self._perform_lock)
+        QTimer.singleShot(LOCK_DELAY_MS, self._perform_lock)
         return "Блокирую экран."
 
     def _perform_lock(self) -> None:
@@ -695,64 +440,10 @@ class CapriWindow(QWidget):
         if not commands:
             return
         self._lock_pending = None
-        if not self._run_lock(commands):
+        if not run_lock(commands):
             self.speak("Не удалось заблокировать экран.")
 
-    @staticmethod
-    def _run_lock(commands: list[list[str]]) -> bool:
-        """Попробовать команды блокировки по очереди, пока одна не сработает."""
-        for command in commands:
-            try:
-                result = subprocess.run(
-                    command,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=3,
-                )
-            except subprocess.TimeoutExpired:
-                # Блокировщик может работать до разблокировки — считаем успехом.
-                return True
-            except OSError:
-                continue
-            if result.returncode == 0:
-                return True
-        return False
-
-    @staticmethod
-    def _lock_commands() -> list[list[str]]:
-        """Подобрать команды блокировки экрана текущего окружения."""
-        desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
-        candidates: list[list[str]] = []
-
-        if any(name in desktop for name in ("KDE", "PLASMA")):
-            qdbus = (
-                "qdbus6"
-                if shutil.which("qdbus6")
-                else "qdbus"
-                if shutil.which("qdbus")
-                else None
-            )
-            if qdbus:
-                candidates.append(
-                    [
-                        qdbus,
-                        "org.freedesktop.ScreenSaver",
-                        "/ScreenSaver",
-                        "Lock",
-                    ]
-                )
-
-        # Универсальный способ через systemd-logind; без ID блокируется
-        # сессия вызывающего процесса. Это аналог Super+L.
-        candidates.append(["loginctl", "lock-session"])
-        candidates.append(["xdg-screensaver", "lock"])
-        candidates.append(["gnome-screensaver-command", "-l"])
-        candidates.append(["cinnamon-screensaver-command", "-l"])
-        candidates.append(["xfce4-screensaver-command", "-l"])
-        candidates.append(["light-locker-command", "-l"])
-
-        return [command for command in candidates if shutil.which(command[0])]
-
+    # --- внутреннее --------------------------------------------------------
     def _greet(self) -> None:
         if self._speech is not None:  # пользователь уже получил ответ
             return

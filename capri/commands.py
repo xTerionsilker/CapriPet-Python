@@ -7,7 +7,8 @@
 Сопоставление снисходительное: пунктуация, регистр и лишние пробелы
 игнорируются, а небольшие опечатки принимаются, если ввод отличается от
 известной команды на несколько правок. Число допустимых правок растёт с
-длиной команды.
+длиной команды. Сама «математика» нечёткого сравнения живёт в
+``capri.fuzzy``; реестр отвечает только за хранение и вызов.
 
 Пример::
 
@@ -28,10 +29,11 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from difflib import SequenceMatcher
+
+from .fuzzy import MAX_TYPO_DISTANCE, edit_distance, keyword_score, similarity
 
 Handler = Callable[..., str]
 
@@ -45,11 +47,6 @@ HELP_ALIASES = (
     "возможности",
     "меню",
 )
-
-# Длинный ввод может содержать больше опечаток: одна правка до 5 символов,
-# затем ещё одна на каждые 5 символов, с ограничением, чтобы посторонние
-# фразы никогда не совпадали с командой.
-_MAX_TYPO_DISTANCE = 3
 
 
 @dataclass(frozen=True)
@@ -182,9 +179,9 @@ class CommandRegistry:
         for command in (*self._commands, self._help):
             keys = (command.name, *command.aliases)
             score = max(
-                _similarity(normalized, self._normalize(key)) for key in keys
+                similarity(normalized, self._normalize(key)) for key in keys
             )
-            score = max(score, _keyword_score(normalized, command.keywords))
+            score = max(score, keyword_score(normalized, command.keywords))
             if score > best_score:
                 best_score = score
                 best = command
@@ -230,13 +227,13 @@ class CommandRegistry:
     def _closest(self, normalized: str) -> str | None:
         """Вернуть ближайший известный ключ, если он достаточно близок."""
         limit = min(
-            _MAX_TYPO_DISTANCE, max(1, len(normalized) // 5)
+            MAX_TYPO_DISTANCE, max(1, len(normalized) // 5)
         )
         best_key: str | None = None
         best_score: tuple[int, float] | None = None
 
         for key in self._lookup:
-            distance = _edit_distance(normalized, key)
+            distance = edit_distance(normalized, key)
             if distance > limit:
                 continue
             ratio = SequenceMatcher(None, normalized, key).ratio()
@@ -250,72 +247,3 @@ class CommandRegistry:
     @staticmethod
     def _normalize(text: str) -> str:
         return " ".join(text.casefold().strip(" .!?«»\"").split())
-
-
-def _similarity(text: str, key: str) -> float:
-    """Насколько фраза похожа на команду или её псевдоним."""
-    if text == key:
-        return 1.0
-
-    whole = SequenceMatcher(None, text, key).ratio()
-    text_tokens = text.split()
-    key_tokens = key.split()
-    if not text_tokens or not key_tokens:
-        return whole
-
-    # Средняя похожесть каждого слова фразы на ближайшее слово команды:
-    # так «выруби глюки» уверенно тянется к «выключить глюки».
-    token_score = sum(
-        max(
-            SequenceMatcher(None, token, key_token).ratio()
-            for key_token in key_tokens
-        )
-        for token in text_tokens
-    ) / len(text_tokens)
-    return max(whole, token_score * 0.9)
-
-
-def _keyword_score(text: str, keywords: tuple[str, ...]) -> float:
-    """Оценка по смысловым основам слов (``цвет`` → глитч и т. п.)."""
-    if not keywords:
-        return 0.0
-    words = re.findall(r"[\w-]+", text)
-    for keyword in keywords:
-        for word in words:
-            if word.startswith(keyword) or keyword in word:
-                return 0.95
-    return 0.0
-
-
-def _edit_distance(left: str, right: str) -> int:
-    """Расстояние оптимального выравнивания (Левенштейн + перестановки)."""
-    if left == right:
-        return 0
-    if not left:
-        return len(right)
-    if not right:
-        return len(left)
-
-    # Три скользящих ряда: [i-2], [i-1], [i].
-    prev_prev = [0] * (len(right) + 1)
-    prev = list(range(len(right) + 1))
-
-    for i, left_char in enumerate(left, start=1):
-        current = [i] + [0] * len(right)
-        for j, right_char in enumerate(right, start=1):
-            cost = 0 if left_char == right_char else 1
-            current[j] = min(
-                prev[j] + 1,          # удаление
-                current[j - 1] + 1,   # вставка
-                prev[j - 1] + cost,   # замена
-            )
-            if (
-                i > 1
-                and j > 1
-                and left_char == right[j - 2]
-                and left[i - 2] == right_char
-            ):
-                current[j] = min(current[j], prev_prev[j - 2] + 1)
-        prev_prev, prev = prev, current
-
-    return prev[-1]

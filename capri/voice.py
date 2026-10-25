@@ -9,6 +9,7 @@
 
 Модуль сообщает только распознанный текст; ключевые слова («капри»,
 «каприкорд») и окно ожидания команды разбирает вызывающая сторона.
+Само распознавание — в ``capri.recognizer``.
 
 Использование::
 
@@ -22,15 +23,15 @@
 
 from __future__ import annotations
 
-import io
 import math
 import threading
 import time
-import wave
 from array import array
 
 from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtMultimedia import QAudioFormat, QAudioSource, QMediaDevices
+
+from .recognizer import RecognitionError, recognize
 
 _SAMPLE_RATE = 16_000
 _CHANNELS = 1
@@ -265,7 +266,7 @@ class VoiceInput(QObject):
             self._source = None
         self._io = None
 
-    # --- распознавание -----------------------------------------------------
+    # --- завершение отрезка ------------------------------------------------
     def _finish_round(self) -> None:
         """Закрыть текущий отрезок и отправить его на распознавание."""
         if not self._capturing:
@@ -321,36 +322,17 @@ class VoiceInput(QObject):
         self._busy = False
         self._schedule_next()
 
+    # --- распознавание в фоновом потоке ------------------------------------
     def _recognize(self, data: bytes, audio_format: QAudioFormat) -> None:
+        """Распознать отрезок в фоновом потоке и вернуть результат в Qt."""
         try:
-            import speech_recognition as sr
-        except ImportError:
-            self._round_failed.emit(
-                "Для голосового ввода установите SpeechRecognition."
+            text = recognize(
+                data,
+                channels=audio_format.channelCount(),
+                sample_rate=audio_format.sampleRate(),
             )
-            return
-
-        try:
-            wav = io.BytesIO()
-            with wave.open(wav, "wb") as stream:
-                stream.setnchannels(audio_format.channelCount())
-                stream.setsampwidth(2)
-                stream.setframerate(audio_format.sampleRate())
-                stream.writeframes(data)
-            wav.seek(0)
-
-            recognizer = sr.Recognizer()
-            with sr.AudioFile(wav) as source:
-                audio = recognizer.record(source)
-            text = recognizer.recognize_google(audio, language="ru-RU").strip()
-        except sr.UnknownValueError:
-            # Обычное дело при постоянном прослушивании — не мешаем шумом.
-            self._round_empty.emit()
-            return
-        except sr.RequestError:
-            self._round_failed.emit(
-                "Сервис распознавания недоступен. Проверьте интернет."
-            )
+        except RecognitionError as error:
+            self._round_failed.emit(str(error))
             return
         except Exception:
             self._round_failed.emit("Ошибка распознавания речи.")
