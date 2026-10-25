@@ -8,7 +8,7 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from PySide6.QtCore import QEvent, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QEvent, QPoint, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
@@ -110,8 +110,10 @@ class CapriWindow(QWidget):
         super().__init__()
         self.setWindowTitle("CAPRI")
         self.setFixedSize(800, 540)
-        self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.setStyleSheet(APP_STYLE)
+
+        self._drag_offset: QPoint | None = None
 
         self._speech: SpeechWindow | None = None
         self._greeted = False
@@ -332,6 +334,34 @@ class CapriWindow(QWidget):
         if not self._greeted:
             self._greeted = True
             QTimer.singleShot(600, self._greet)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        if event.button() == Qt.MouseButton.LeftButton:
+            child = self.childAt(event.pos())
+            if child is None or isinstance(child, QVideoWidget):
+                handle = self.windowHandle()
+                if handle is not None and hasattr(handle, "startSystemMove"):
+                    handle.startSystemMove(event)
+                    event.accept()
+                    return
+                self._drag_offset = (
+                    event.globalPosition().toPoint()
+                    - self.frameGeometry().topLeft()
+                )
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        if self._drag_offset is not None:
+            self.move(event.globalPosition().toPoint() - self._drag_offset)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        self._drag_offset = None
+        super().mouseReleaseEvent(event)
 
     def changeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().changeEvent(event)
