@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import getpass
+import os
 import random
+import shutil
+import subprocess
 import webbrowser
 from pathlib import Path
 from urllib.parse import quote_plus
@@ -22,12 +25,23 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .commands import CommandRegistry
-from .glitch import GlitchManager
-from .speech import SpeechWindow, show_text
-from .static_noise import StaticNoise
-from .theme import APP_STYLE
-from .voice import VoiceInput
+if __package__ in (None, ""):
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from capri.commands import CommandRegistry
+    from capri.glitch import GlitchManager
+    from capri.speech import SpeechWindow, show_text
+    from capri.static_noise import StaticNoise
+    from capri.theme import APP_STYLE
+    from capri.voice import VoiceInput
+else:
+    from .commands import CommandRegistry
+    from .glitch import GlitchManager
+    from .speech import SpeechWindow, show_text
+    from .static_noise import StaticNoise
+    from .theme import APP_STYLE
+    from .voice import VoiceInput
 
 VIDEO = Path(__file__).resolve().parent.parent / "capri.mp4"
 PLAYBACK_RATE = 1.5
@@ -51,6 +65,7 @@ class CapriWindow(QWidget):
 
         self._speech: SpeechWindow | None = None
         self._greeted = False
+        self._lock_pending: list[list[str]] | None = None
         self._default_status = (
             "// CAPRI В СЕТИ"
             if VIDEO.is_file()
@@ -235,6 +250,26 @@ class CapriWindow(QWidget):
             ),
             takes_argument=True,
         )
+        self.commands.register(
+            "блокировка",
+            "заблокировать экран (аналог Super+L).",
+            self._lock_screen,
+            aliases=(
+                "заблокировать",
+                "заблокируй",
+                "блокировать",
+                "заблокировать экран",
+                "заблокируй экран",
+                "экран блокировки",
+                "блокировка экрана",
+                "лок",
+                "lock",
+                "lock screen",
+                "super+l",
+                "я отойду",
+                "отойду",
+            ),
+        )
 
         self.input.setFocus()
 
@@ -322,6 +357,78 @@ class CapriWindow(QWidget):
         )
         return f"Ищу на YouTube: {query}"
 
+    # --- блокировка экрана -------------------------------------------------
+    def _lock_screen(self) -> str:
+        commands = self._lock_commands()
+        if not commands:
+            return "Не удалось найти способ заблокировать экран."
+        self._lock_pending = commands
+        QTimer.singleShot(800, self._perform_lock)
+        return "Блокирую экран."
+
+    def _perform_lock(self) -> None:
+        commands = self._lock_pending
+        if not commands:
+            return
+        self._lock_pending = None
+        if not self._run_lock(commands):
+            self.speak("Не удалось заблокировать экран.")
+
+    @staticmethod
+    def _run_lock(commands: list[list[str]]) -> bool:
+        """Попробовать команды блокировки по очереди, пока одна не сработает."""
+        for command in commands:
+            try:
+                result = subprocess.run(
+                    command,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=3,
+                )
+            except subprocess.TimeoutExpired:
+                # Блокировщик может работать до разблокировки — считаем успехом.
+                return True
+            except OSError:
+                continue
+            if result.returncode == 0:
+                return True
+        return False
+
+    @staticmethod
+    def _lock_commands() -> list[list[str]]:
+        """Подобрать команды блокировки экрана текущего окружения."""
+        desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
+        candidates: list[list[str]] = []
+
+        if any(name in desktop for name in ("KDE", "PLASMA")):
+            qdbus = (
+                "qdbus6"
+                if shutil.which("qdbus6")
+                else "qdbus"
+                if shutil.which("qdbus")
+                else None
+            )
+            if qdbus:
+                candidates.append(
+                    [
+                        qdbus,
+                        "org.freedesktop.ScreenSaver",
+                        "/ScreenSaver",
+                        "Lock",
+                    ]
+                )
+
+        # Универсальный способ через systemd-logind; без ID блокируется
+        # сессия вызывающего процесса. Это аналог Super+L.
+        candidates.append(["loginctl", "lock-session"])
+        candidates.append(["xdg-screensaver", "lock"])
+        candidates.append(["gnome-screensaver-command", "-l"])
+        candidates.append(["cinnamon-screensaver-command", "-l"])
+        candidates.append(["xfce4-screensaver-command", "-l"])
+        candidates.append(["light-locker-command", "-l"])
+
+        return [command for command in candidates if shutil.which(command[0])]
+
     def _greet(self) -> None:
         if self._speech is not None:  # пользователь уже получил ответ
             return
@@ -343,3 +450,12 @@ class CapriWindow(QWidget):
         self._static.stop()
         self._glitches.stop()
         super().closeEvent(event)
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from main import main
+
+    raise SystemExit(main())
