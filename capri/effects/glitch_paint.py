@@ -80,14 +80,21 @@ def paint_noise(painter: QPainter, width: int, height: int) -> None:
         painter.fillRect(x, y, 1, 1, fleck)
 
 
-def paint_bars(painter: QPainter, width: int, height: int) -> None:
-    if random.random() >= 0.06:
-        return
-    y = random.randint(0, height - 1)
-    main = QColor(random.choice(COLORS[:3]))
-    main.setAlpha(60)
-    painter.fillRect(0, y, width, 1, main)
-    fringe = QColor(random.choice(COLORS[:3]))
-    fringe.setAlpha(35)
-    painter.fillRect(0, y + 1, width, 1, fringe)
-    painter.fillRect(0, max(0, y - 1), width, 1, fringe)
+def paint_wild_frame(painter: QPainter, width: int, height: int) -> None:
+    painter.setCompositionMode(
+        QPainter.CompositionMode.CompositionMode_Clear
+    )
+    painter.fillRect(0, 0, width, height, Qt.GlobalColor.transparent)
+    painter.setCompositionMode(
+        QPainter.CompositionMode.CompositionMode_SourceOver
+    )
+
+    for _ in range(8):
+        paint_tears(painter, width, height)
+    for _ in range(6):
+        paint_slices(painter, width, height)
+    paint_scanlines(painter, width, height)
+    for _ in range(4):
+        paint_noise(painter, width, height)
+    for _ in range(12):
+        paint_bars(painter, width, height)

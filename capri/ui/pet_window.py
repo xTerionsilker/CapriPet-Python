@@ -314,6 +314,7 @@ class CapriWindow(QWidget):
                 toggle_glitches=self._toggle_glitches,
                 toggle_noise=self._toggle_noise,
                 toggle_voice=self._toggle_voice,
+                wild_glitch=self._wild_glitch,
                 ask_ollama=self._ask_ollama,
                 search_google=self._search_google,
                 search_youtube=self._search_youtube,
@@ -464,6 +465,10 @@ class CapriWindow(QWidget):
     def _toggle_glitches(self) -> str:
         enabled = self._glitches.toggle()
         return "Глитчи включены." if enabled else "Глитчи выключены."
+
+    def _wild_glitch(self) -> str:
+        self._glitches.wild_glitch(5000)
+        return "Капри в восторге! Весь экран глитчит 5 секунд."
 
     def _toggle_noise(self) -> str:
         enabled = self._static.toggle()

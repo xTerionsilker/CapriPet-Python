@@ -11,6 +11,7 @@ class Handlers:
     toggle_glitches: Handler
     toggle_noise: Handler
     toggle_voice: Handler
+    wild_glitch: Handler
     ask_ollama: Handler
     search_google: Handler
     search_youtube: Handler
@@ -26,6 +27,19 @@ class Handlers:
 
 
 def register_commands(registry: CommandRegistry, handlers: Handlers) -> None:
+    registry.register(
+        "комплимент",
+        "устроить дикие глитчи на 5 секунд.",
+        handlers.wild_glitch,
+        aliases=(
+            "ты красивая",
+            "капри ты красивая",
+            "ты самая лучшая",
+            "ты прекрасна",
+            "комплимент капри",
+        ),
+        keywords=("комплимент", "красив", "лучш", "прекрасн", "восторг"),
+    )
     registry.register(
         "глитч",
         "включить или выключить экранные глитчи.",

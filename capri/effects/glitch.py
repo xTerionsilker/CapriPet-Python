@@ -6,7 +6,7 @@ from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QGuiApplication, QPainter, QScreen
 from PySide6.QtWidgets import QWidget
 
-from .glitch_paint import paint_frame
+from .glitch_paint import paint_frame, paint_wild_frame
 
 _BASE_INTERVAL_MS = 66
 
@@ -36,6 +36,7 @@ class GlitchOverlay(QWidget):
 
         self._active = True
         self._amplitude = 0.0
+        self._wild = False
 
         self._frame_timer = QTimer(self)
         self._frame_timer.setInterval(_BASE_INTERVAL_MS)
@@ -54,6 +55,17 @@ class GlitchOverlay(QWidget):
             self._set_amplitude(0.0)
             self.hide()
 
+    def set_wild(self, wild: bool) -> None:
+        if wild == self._wild:
+            return
+        self._wild = wild
+        self._frame_timer.setInterval(16 if wild else _BASE_INTERVAL_MS)
+        if wild:
+            self._set_amplitude(1.0)
+        else:
+            self._set_amplitude(0.0)
+        self.update()
+
     def _sync_geometry(self, *_args) -> None:
         self.setGeometry(self._screen.geometry())
 
@@ -62,7 +74,9 @@ class GlitchOverlay(QWidget):
         self.update()
 
     def _update_amplitude(self) -> None:
-        if not self._active:
+        if self._wild:
+            self._set_amplitude(1.0)
+        elif not self._active:
             self._set_amplitude(0.0)
         else:
             self._set_amplitude(random.uniform(0.0, 0.12))
@@ -78,7 +92,10 @@ class GlitchOverlay(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         if self.width() > 0 and self.height() > 0:
-            paint_frame(painter, self.width(), self.height())
+            if self._wild:
+                paint_wild_frame(painter, self.width(), self.height())
+            else:
+                paint_frame(painter, self.width(), self.height())
         painter.end()
 
 
@@ -113,6 +130,17 @@ class GlitchManager(QObject):
     def toggle(self) -> bool:
         self.set_enabled(not self._enabled)
         return self._enabled
+
+    def wild_glitch(self, duration_ms: int = 5000) -> None:
+        if not self._enabled:
+            self.set_enabled(True)
+        for overlay in self._overlays.values():
+            overlay.set_wild(True)
+        QTimer.singleShot(duration_ms, self._end_wild)
+
+    def _end_wild(self) -> None:
+        for overlay in self._overlays.values():
+            overlay.set_wild(False)
 
     def _add_screen(self, screen: QScreen) -> None:
         if screen in self._overlays:
