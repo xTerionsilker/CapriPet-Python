@@ -43,6 +43,9 @@ class Handlers:
     spotify_next: Handler
     spotify_previous: Handler
     lock_screen: Handler
+    power_off: Handler
+    suspend: Handler
+    reboot: Handler
 
 
 def register_commands(registry: CommandRegistry, handlers: Handlers) -> None:
@@ -264,6 +267,65 @@ def register_commands(registry: CommandRegistry, handlers: Handlers) -> None:
             "отойду",
         ),
         keywords=("блокир", "заблок", "экран", "лок", "lock"),
+        requires_confirmation=True,
+    )
+    registry.register(
+        "я спать",
+        "выключить компьютер.",
+        handlers.power_off,
+        aliases=(
+            "выключи пк",
+            "выключить пк",
+            "выключи компьютер",
+            "выключить компьютер",
+            "выруби пк",
+            "выруби компьютер",
+            "выключись",
+            "спокойной ночи",
+            "shutdown",
+            "poweroff",
+            "выключение пк",
+            "выключить",
+        ),
+        keywords=("спат", "спят", "выключ", "shutdown", "poweroff", "питан"),
+        requires_confirmation=True,
+    )
+    registry.register(
+        "я гулять",
+        "перевести компьютер в спящий режим.",
+        handlers.suspend,
+        aliases=(
+            "спящий режим",
+            "перевести в спящий режим",
+            "переведи в спящий режим",
+            "режим сна",
+            "усни",
+            "уснуть",
+            "сон",
+            "замри",
+            "приостанови компьютер",
+            "sleep",
+        ),
+        keywords=("спящ", "сон", "усн", "suspend", "замр", "гуля"),
+        requires_confirmation=True,
+    )
+    registry.register(
+        "я заебался",
+        "перезагрузить компьютер.",
+        handlers.reboot,
+        aliases=(
+            "перезагрузи",
+            "перезагрузить",
+            "перезагрузи пк",
+            "выключить и включить",
+            "перезагрузи компьютер",
+            "перезагрузка",
+            "рестарт",
+            "restart",
+            "reboot",
+        ),
+        keywords=("перезагруз", "рестарт", "restart", "reboot", "заебал"),
+        requires_confirmation=True,
     )
     registry.register(
         "слушай",

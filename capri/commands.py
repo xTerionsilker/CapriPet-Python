@@ -63,6 +63,9 @@ class Command:
     # Основы слов, по которым фраза «притягивается» к команде, когда точного
     # совпадения нет. Например, «цветастую» → «глитч» (цветные эффекты).
     keywords: tuple[str, ...] = ()
+    # Опасные команды (питание системы, блокировка) не выполняются сразу:
+    # Capri сначала спрашивает «да» / «нет» — см. ``capri.input_flow``.
+    requires_confirmation: bool = False
 
 
 class CommandRegistry:
@@ -93,6 +96,7 @@ class CommandRegistry:
         aliases: tuple[str, ...] = (),
         takes_argument: bool = False,
         keywords: tuple[str, ...] = (),
+        requires_confirmation: bool = False,
     ) -> Command:
         command = Command(
             name,
@@ -101,6 +105,7 @@ class CommandRegistry:
             tuple(aliases),
             takes_argument,
             tuple(keywords),
+            requires_confirmation,
         )
         keys = (name, *aliases)
         for key in keys:

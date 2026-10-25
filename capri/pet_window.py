@@ -7,6 +7,7 @@
 * ``capri.input_flow``     — разбор ввода и подтверждение «да» / «нет»;
 * ``capri.wake_word``       — ключевое слово «Капри» и окно ожидания;
 * ``capri.screen_lock``     — блокировка экрана;
+* ``capri.system_power``    — выключение, спящий режим, перезагрузка;
 * ``capri.glitch``, ``capri.static_noise``, ``capri.voice``, ``capri.speech``
   — эффекты и служебные окна.
 """
@@ -46,6 +47,7 @@ if __package__ in (None, ""):
     from capri.screen_lock import lock_commands, run_lock
     from capri.speech import SpeechWindow, show_text
     from capri.static_noise import StaticNoise
+    from capri.system_power import power_commands, run_power
     from capri.theme import APP_STYLE
     from capri.voice import VoiceInput
     from capri.wake_word import (
@@ -64,6 +66,7 @@ else:
     from .screen_lock import lock_commands, run_lock
     from .speech import SpeechWindow, show_text
     from .static_noise import StaticNoise
+    from .system_power import power_commands, run_power
     from .theme import APP_STYLE
     from .voice import VoiceInput
     from .wake_word import (
@@ -115,6 +118,10 @@ GOODBYE_LINE = "пока пока чумба"
 # ответ Capri.
 LOCK_DELAY_MS = 800
 
+# Задержка перед выключением / сном / перезагрузкой: команды питания
+# необратимы, поэтому облачко с подтверждением показывается дольше.
+POWER_DELAY_MS = 2000
+
 # Сколько реплик разговора с локальной моделью помнит Capri.
 OLLAMA_HISTORY_MESSAGES = 12
 
@@ -125,6 +132,7 @@ class CapriWindow(QWidget):
     spotify_reply = Signal(str)
     ollama_reply = Signal(str)
     ollama_failed = Signal(str)
+    power_failed = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -138,6 +146,7 @@ class CapriWindow(QWidget):
         self._speech: SpeechWindow | None = None
         self._greeted = False
         self._lock_pending: list[list[str]] | None = None
+        self._power_pending: list[list[str]] | None = None
         self._voice_armed_until = 0.0
         # Разговор с локальной моделью: реплики для контекста и флаг того,
         # что запрос уже летит в Ollama.
@@ -169,6 +178,7 @@ class CapriWindow(QWidget):
         self.spotify_reply.connect(self.speak)
         self.ollama_reply.connect(self._on_ollama_reply)
         self.ollama_failed.connect(self._on_ollama_failed)
+        self.power_failed.connect(self.speak)
 
         self.input.setFocus()
 
@@ -367,6 +377,9 @@ class CapriWindow(QWidget):
                 spotify_next=self._spotify_next,
                 spotify_previous=self._spotify_previous,
                 lock_screen=self._lock_screen,
+                power_off=self._power_off,
+                suspend=self._suspend,
+                reboot=self._reboot,
             ),
         )
 
@@ -626,6 +639,42 @@ class CapriWindow(QWidget):
         self._lock_pending = None
         if not run_lock(commands):
             self.speak("Не удалось заблокировать экран.")
+
+    # --- питание системы ---------------------------------------------------
+    def _power_off(self) -> str:
+        return self._queue_power("poweroff", "Выключаю ПК.")
+
+    def _suspend(self) -> str:
+        return self._queue_power("suspend", "Ухожу в спящий режим.")
+
+    def _reboot(self) -> str:
+        return self._queue_power("reboot", "Перезагружаю ПК.")
+
+    def _queue_power(self, action: str, message: str) -> str:
+        """Отложить действие питания, чтобы облачко успело показаться."""
+        commands = power_commands(action)
+        if not commands:
+            return "Не удалось найти способ выполнить это действие."
+        self._power_pending = commands
+        QTimer.singleShot(POWER_DELAY_MS, self._perform_power)
+        return message
+
+    def _perform_power(self) -> None:
+        """Запустить действие фоном: команда может ждать ответа polkit."""
+        commands = self._power_pending
+        if not commands:
+            return
+        self._power_pending = None
+        threading.Thread(
+            target=self._power_worker,
+            args=(commands,),
+            name="capri-power",
+            daemon=True,
+        ).start()
+
+    def _power_worker(self, commands: list[list[str]]) -> None:
+        if not run_power(commands):
+            self.power_failed.emit("Не удалось выполнить действие.")
 
     # --- внутреннее --------------------------------------------------------
     def _greet(self) -> None:
