@@ -8,12 +8,13 @@ import random
 import re
 import shutil
 import subprocess
+import threading
 import time
 import webbrowser
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtCore import Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
@@ -37,6 +38,7 @@ if __package__ in (None, ""):
     from capri.static_noise import StaticNoise
     from capri.theme import APP_STYLE
     from capri.voice import VoiceInput
+    import capri.spotify as spotify
 else:
     from .commands import CommandRegistry
     from .glitch import GlitchManager
@@ -44,6 +46,7 @@ else:
     from .static_noise import StaticNoise
     from .theme import APP_STYLE
     from .voice import VoiceInput
+    from . import spotify
 
 VIDEO = Path(__file__).resolve().parent.parent / "capri.mp4"
 PLAYBACK_RATE = 1.5
@@ -76,6 +79,8 @@ def _voice_normalized(text: str) -> str:
 
 class CapriWindow(QWidget):
     """Окно питомца. Напишите или скажите что-нибудь — Capri ответит."""
+
+    spotify_reply = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -176,6 +181,7 @@ class CapriWindow(QWidget):
         self._voice.status_changed.connect(self._on_voice_status)
         self._voice.recognized.connect(self._on_voice_text)
         self._voice.failed.connect(self.speak)
+        self.spotify_reply.connect(self.speak)
 
         # Окно, в течение которого команду можно произнести отдельно от
         # ключевого слова.
@@ -279,6 +285,70 @@ class CapriWindow(QWidget):
                 "поиск на youtube",
             ),
             takes_argument=True,
+        )
+        self.commands.register(
+            "спотифай",
+            "найти и включить музыку в Spotify.",
+            self._spotify_play,
+            aliases=(
+                "spotify",
+                "спотик",
+                "включи музыку",
+                "поставь музыку",
+                "включи спотифай",
+                "включи в спотифае",
+                "найди музыку",
+                "найди песню",
+                "включи песню",
+                "поставь песню",
+            ),
+            takes_argument=True,
+        )
+        self.commands.register(
+            "пауза",
+            "поставить музыку в Spotify на паузу.",
+            self._spotify_pause,
+            aliases=(
+                "поставь на паузу",
+                "паузу",
+                "приостанови музыку",
+                "приостанови",
+            ),
+        )
+        self.commands.register(
+            "продолжить",
+            "продолжить воспроизведение в Spotify.",
+            self._spotify_resume,
+            aliases=(
+                "плей",
+                "играй",
+                "продолжи музыку",
+                "возобнови",
+                "возобнови музыку",
+            ),
+        )
+        self.commands.register(
+            "следующий трек",
+            "включить следующий трек в Spotify.",
+            self._spotify_next,
+            aliases=(
+                "следующий",
+                "след",
+                "next",
+                "переключи трек",
+                "следующая песня",
+            ),
+        )
+        self.commands.register(
+            "предыдущий трек",
+            "вернуться к предыдущему треку в Spotify.",
+            self._spotify_previous,
+            aliases=(
+                "предыдущий",
+                "prev",
+                "previous",
+                "предыдущая песня",
+            ),
         )
         self.commands.register(
             "блокировка",
@@ -445,6 +515,38 @@ class CapriWindow(QWidget):
             f"search_query={quote_plus(query)}"
         )
         return f"Ищу на YouTube: {query}"
+
+    # --- Spotify -----------------------------------------------------------
+    def _spotify_play(self, query: str) -> str:
+        query = query.strip()
+        if not query:
+            return "Что включить? Скажи: «спотифай <запрос>»."
+        threading.Thread(
+            target=self._spotify_play_worker,
+            args=(query,),
+            name="capri-spotify",
+            daemon=True,
+        ).start()
+        return "Ищу в Spotify…"
+
+    def _spotify_play_worker(self, query: str) -> None:
+        try:
+            message = spotify.play(query)
+        except Exception:
+            message = "Не удалось обратиться к Spotify."
+        self.spotify_reply.emit(message)
+
+    def _spotify_pause(self) -> str:
+        return spotify.pause()
+
+    def _spotify_resume(self) -> str:
+        return spotify.resume()
+
+    def _spotify_next(self) -> str:
+        return spotify.next_track()
+
+    def _spotify_previous(self) -> str:
+        return spotify.previous_track()
 
     # --- блокировка экрана -------------------------------------------------
     def _lock_screen(self) -> str:
