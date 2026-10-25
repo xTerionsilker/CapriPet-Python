@@ -5,8 +5,10 @@ from __future__ import annotations
 import getpass
 import os
 import random
+import re
 import shutil
 import subprocess
+import time
 import webbrowser
 from pathlib import Path
 from urllib.parse import quote_plus
@@ -52,6 +54,25 @@ STARTUP_LINES = (
     "...",
 )
 
+# Capri выполняет услышанное только после ключевого слова. «Каприкорд»
+# распознавание иногда выдаёт как «капри корд», «капри-корд», «Capricorn»
+# и т. п.
+VOICE_TRIGGER_RE = re.compile(
+    r"(?<!\w)(?:"
+    r"капри(?:\s*[-–—]?\s*(?:корд|корт|кард|корн|кор))?"
+    r"|кэпри"
+    r"|capri(?:\s*[-–—]?\s*(?:corn|kord|cord|card|kor))?"
+    r")(?!\w)"
+)
+# Сколько ждать команду после отдельно произнесённого ключевого слова.
+VOICE_COMMAND_WINDOW_MS = 3_000
+VOICE_LISTENING_STATUS = "СЛУШАЮ «КАПРИ»…"
+VOICE_WAITING_STATUS = "ЖДУ КОМАНДУ…"
+
+
+def _voice_normalized(text: str) -> str:
+    return " ".join(text.casefold().split())
+
 
 class CapriWindow(QWidget):
     """Окно питомца. Напишите или скажите что-нибудь — Capri ответит."""
@@ -66,6 +87,7 @@ class CapriWindow(QWidget):
         self._speech: SpeechWindow | None = None
         self._greeted = False
         self._lock_pending: list[list[str]] | None = None
+        self._voice_armed_until = 0.0
         self._default_status = (
             "// CAPRI В СЕТИ"
             if VIDEO.is_file()
@@ -109,7 +131,9 @@ class CapriWindow(QWidget):
 
         self.mic = QPushButton("ГОЛОС", panel)
         self.mic.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.mic.setToolTip("Голосовая команда (Ctrl+Space)")
+        self.mic.setToolTip(
+            "Голосовой ввод (Ctrl+Space). Команда — после слова «Капри»"
+        )
         self.mic.clicked.connect(self._toggle_voice)
 
         send = QPushButton("ОТПРАВИТЬ", panel)
@@ -152,6 +176,12 @@ class CapriWindow(QWidget):
         self._voice.status_changed.connect(self._on_voice_status)
         self._voice.recognized.connect(self._on_voice_text)
         self._voice.failed.connect(self.speak)
+
+        # Окно, в течение которого команду можно произнести отдельно от
+        # ключевого слова.
+        self._voice_window_timer = QTimer(self)
+        self._voice_window_timer.setSingleShot(True)
+        self._voice_window_timer.timeout.connect(self._on_voice_window_expired)
 
         self.commands = CommandRegistry()
         self.commands.register(
@@ -309,25 +339,84 @@ class CapriWindow(QWidget):
 
     # --- голос -------------------------------------------------------------
     def _toggle_voice(self) -> str:
+        if self._voice.is_listening:
+            self._voice.stop()
+            self._disarm_voice_command()
+            return "Голосовой ввод выключен."
         if self._voice.is_busy:
             return "Подождите, идёт распознавание."
-        was_listening = self._voice.is_listening
-        self._voice.toggle()
+        self._voice.start()
         if self._voice.is_listening:
-            return "Слушаю…"
-        if was_listening:
-            return "Запись остановлена."
+            return "Слушаю. Скажи «Капри» и команду."
         return "Микрофон недоступен."
 
     def _on_voice_text(self, text: str) -> None:
-        self.input.setText(text)
-        self.submit()
+        command = self._voice_command(text)
+        if command is None:
+            return
+        if command:
+            self._disarm_voice_command()
+            self._update_voice_status()
+            self.speak(self.process_input(command))
+            return
+        # Прозвучало только ключевое слово — ждём команду в течение окна.
+        self._arm_voice_command()
+
+    def _voice_command(self, text: str) -> str | None:
+        """Вернуть команду из фразы либо ``None``, если её не было.
+
+        Команда может идти сразу за ключевым словом («капри открой гугл»)
+        или прозвучать отдельной фразой в течение ``VOICE_COMMAND_WINDOW_MS``
+        после ключевого слова.
+        """
+        normalized = _voice_normalized(text)
+        match = VOICE_TRIGGER_RE.search(normalized)
+        if match is not None:
+            tokens = text.split()
+            consumed = max(1, len(match.group(0).split()))
+            before = len(normalized[: match.start()].split())
+            # «Дальше уже команда»: всё после ключевого слова.
+            return " ".join(tokens[before + consumed:]).strip()
+        if self._voice_armed_until > time.monotonic():
+            return text.strip()
+        return None
+
+    def _arm_voice_command(self) -> None:
+        self._voice_armed_until = time.monotonic() + (
+            VOICE_COMMAND_WINDOW_MS / 1000
+        )
+        self.status.setText(f"// {VOICE_WAITING_STATUS}")
+        self._voice_window_timer.start(VOICE_COMMAND_WINDOW_MS)
+
+    def _disarm_voice_command(self) -> None:
+        self._voice_armed_until = 0.0
+        self._voice_window_timer.stop()
+
+    def _on_voice_window_expired(self) -> None:
+        self._voice_armed_until = 0.0
+        self._update_voice_status()
+
+    def _update_voice_status(self) -> None:
+        if self._voice.is_listening:
+            self.status.setText(f"// {VOICE_LISTENING_STATUS}")
+        else:
+            self.status.setText(self._default_status)
 
     def _on_voice_listening(self, listening: bool) -> None:
         self.mic.setText("СТОП" if listening else "ГОЛОС")
+        if not listening:
+            self._disarm_voice_command()
 
     def _on_voice_status(self, text: str) -> None:
-        self.status.setText(f"// {text.upper()}" if text else self._default_status)
+        if not text:
+            self.status.setText(self._default_status)
+        elif text == "Слушаю…":
+            if self._voice_armed_until > time.monotonic():
+                self.status.setText(f"// {VOICE_WAITING_STATUS}")
+            else:
+                self.status.setText(f"// {VOICE_LISTENING_STATUS}")
+        else:
+            self.status.setText(f"// {text.upper()}")
 
     # --- внутреннее --------------------------------------------------------
     def _toggle_glitches(self) -> str:
