@@ -1,12 +1,13 @@
 """Constant background static that follows the glitch amplitude.
 
-A looping white-noise stream plays quietly all the time and gets louder as the
-visual glitch intensifies. The noise is generated once at startup and fed to a
+A looping white-noise stream plays quietly all the time. Its volume follows
+the visual glitch amplitude, which stays low with the standard overlay. The
+noise is generated once at startup and fed to a
 ``QAudioSink`` through a tiny looping ``QIODevice``, so the audio thread only
 copies bytes.
 
 Volume changes are smoothed over a few frames: the glitch reports a new
-amplitude every repaint (up to ~30 times per second), which would otherwise
+amplitude every repaint (~15 times per second), which would otherwise
 produce audible zipper noise.
 
 Usage::

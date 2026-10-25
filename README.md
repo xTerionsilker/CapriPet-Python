@@ -3,7 +3,7 @@
 A small Tamagotchi-style desktop pet. Capri lives in a looping video, listens
 to whatever you type, and answers through a typewriter speech bubble that
 appears somewhere else on the screen. The interface is styled like a blocky pixel-art terminal, and the whole
-desktop is covered by a subtle CRT glitch layer that occasionally goes haywire.
+desktop is covered by a subtle CRT glitch layer.
 
 ```
 +--------------------------------------------------+
@@ -29,8 +29,8 @@ desktop is covered by a subtle CRT glitch layer that occasionally goes haywire.
   background hiss on and off.
 - Commands are forgiving: casing, punctuation and small typos (like `gltich`
   or `quie`) are still matched to the right command.
-- Constant subtle scanlines/static with periodic, much stronger glitch spikes.
-- A quiet looping hiss under everything that swells with the visual glitch.
+- Constant subtle scanlines and static.
+- A quiet looping hiss under everything.
 - Glitch overlays are click-through, focus-less and cover every monitor.
 - Quit with `Ctrl+Q`.
 
@@ -195,10 +195,9 @@ least-overlapping spot is used instead.
 
 ### Glitches
 
-Tune `_BASE_INTERVAL_MS` and `_SPIKE_INTERVAL_MS` at the top of
-`capri/glitch.py`. The spike duration and frequency live in `_start_spike()`
-and `_tick()`; colours are in `_COLORS` / `_NOISE`. The overlay only draws —
-it never intercepts clicks or keyboard input.
+Tune `_BASE_INTERVAL_MS` at the top of `capri/glitch.py`; colours are in
+`_COLORS` / `_NOISE`. The overlay only draws — it never intercepts clicks or
+keyboard input.
 
 Every overlay also reports an amplitude between 0 and 1 each frame, which
 `GlitchManager.amplitude_changed` forwards to the sound layer.
@@ -207,10 +206,9 @@ Every overlay also reports an amplitude between 0 and 1 each frame, which
 
 `capri/static_noise.py` plays looping white noise for as long as Capri runs.
 `_BASE_LEVEL` and `_PEAK_LEVEL` at the top of the file control the idle and
-maximum volume; the rest is shaped automatically by the glitch amplitude, so
-the hiss swells during a spike and settles back to its quiet baseline
-afterwards. Volume changes are smoothed in `StaticNoise._smooth()` to avoid
-zipper noise. If no audio output is available the noise is skipped silently.
+maximum volume; the rest is shaped automatically by the glitch amplitude, which
+stays low with the standard overlay. Volume changes are smoothed in
+`StaticNoise._smooth()` to avoid zipper noise. If no audio output is available the noise is skipped silently.
 
 The noise can be muted without releasing the audio device via
 `set_enabled(False)`; `toggle()` flips it and returns the new state. Muting
