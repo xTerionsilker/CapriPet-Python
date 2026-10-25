@@ -4,7 +4,8 @@
 управление воспроизведением. Поиск идёт через Web API по Client
 Credentials, без входа в аккаунт; ключи читаются из переменных окружения
 ``SPOTIFY_CLIENT_ID`` / ``SPOTIFY_CLIENT_SECRET`` или из файла
-``~/.config/capri/spotify.json``::
+``%APPDATA%\capri\spotify.json`` (например,
+``C:\Users\имя\AppData\Roaming\capri\spotify.json``)::
 
     {"client_id": "...", "client_secret": "..."}
 
@@ -127,8 +128,13 @@ def load_credentials() -> tuple[str, str] | None:
 
 
 def config_path() -> Path:
-    """Путь к файлу с ключами ``~/.config/capri/spotify.json``."""
-    base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    r"""Путь к файлу с ключами ``%APPDATA%\capri\spotify.json``.
+
+    В Linux Capri читала ``XDG_CONFIG_HOME``; в Windows штатное место
+    пользовательских настроек — каталог ``%APPDATA%`` (переменная
+    ``APPDATA`` в окружении).
+    """
+    base = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
     return Path(base) / "capri" / "spotify.json"
 
 

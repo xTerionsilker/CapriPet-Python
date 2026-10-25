@@ -123,6 +123,11 @@ class SpeechWindow(QFrame):
         glow.setOffset(8, 8)
         glow.setColor(QColor(57, 255, 106, 110))
         bubble.setGraphicsEffect(glow)
+        if sys.platform.startswith("win"):
+            # На Windows QGraphicsEffect включает для окна режим UpdateLayeredWindow
+            # (per-pixel alpha). Без него WA_TranslucentBackground даёт лишь
+            # chroma-key — вокруг облачка проступает чужой «зелёный» экран.
+            self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, False)
 
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)

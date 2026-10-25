@@ -1,9 +1,15 @@
-"""Блокировка экрана: подбор и запуск системных команд.
+"""Блокировка экрана: штатное средство Windows 11 (аналог Win+L).
 
-Capri не реализует блокировку сама — она вызывает штатные средства
-окружения и пробует их по очереди, пока какая-нибудь не сработает.
+В Linux Capri подбирала команды окружения — ``loginctl``, ``qdbus`` с
+ freedesktop ScreenSaver, ``xdg-screensaver`` и другие. В Windows блокировка
+рабочего стола — это один экспорт ``user32.dll``: :func:`LockWorkStation`,
+ровно тот же вызов, который выполняет сочетание `Win+L`. Прав
+администратора не требуется, работает в любой сессии.
+
 Модуль не зависит от Qt: окно только запускает :func:`run_lock` через
-таймер, чтобы пользователь успел увидеть ответ.
+таймер, чтобы пользователь успел увидеть ответ. Интерфейс функций
+совпадает с прежним подбором CLI-команд, поэтому ``capri.pet_window``
+работает без изменений.
 
 Использование::
 
@@ -16,64 +22,59 @@ Capri не реализует блокировку сама — она вызы�
 
 from __future__ import annotations
 
-import os
-import shutil
-import subprocess
+import ctypes
+import sys
 
-#: Сколько секунд ждать одну команду блокировки.
+#: Сколько секунд ждать команду блокировки (оставлено для совместимости API).
 PER_COMMAND_TIMEOUT_S = 3
+
+#: Экспорт ``user32.dll``, блокирующий рабочий стол (то же, что Win+L).
+LOCK_EXPORT = "LockWorkStation"
+
+#: Метка нативного вызова в списке «команд» — вместо пути к утилите.
+LOCK_COMMAND = f"api:{LOCK_EXPORT}"
+
+
+def is_windows() -> bool:
+    return sys.platform.startswith("win")
+
+
+def _user32() -> ctypes.WinDLL | None:
+    """Загрузить ``user32.dll`` и проверить наличие нужного экспорта."""
+    if not is_windows():
+        return None
+    try:
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        getattr(user32, LOCK_EXPORT)
+    except (AttributeError, OSError):
+        return None
+    return user32
 
 
 def lock_commands() -> list[list[str]]:
-    """Подобрать команды блокировки экрана текущего окружения."""
-    desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
-    candidates: list[list[str]] = []
+    """Подобрать способы блокировки экрана текущего окружения.
 
-    if any(name in desktop for name in ("KDE", "PLASMA")):
-        qdbus = (
-            "qdbus6"
-            if shutil.which("qdbus6")
-            else "qdbus"
-            if shutil.which("qdbus")
-            else None
-        )
-        if qdbus:
-            candidates.append(
-                [
-                    qdbus,
-                    "org.freedesktop.ScreenSaver",
-                    "/ScreenSaver",
-                    "Lock",
-                ]
-            )
-
-    # Универсальный способ через systemd-logind; без ID блокируется
-    # сессия вызывающего процесса. Это аналог Super+L.
-    candidates.append(["loginctl", "lock-session"])
-    candidates.append(["xdg-screensaver", "lock"])
-    candidates.append(["gnome-screensaver-command", "-l"])
-    candidates.append(["cinnamon-screensaver-command", "-l"])
-    candidates.append(["xfce4-screensaver-command", "-l"])
-    candidates.append(["light-locker-command", "-l"])
-
-    return [command for command in candidates if shutil.which(command[0])]
+    На Windows возвращается список из одной метки нативного вызова —
+    интерфейс совпадает с подбором CLI-команд прежней версии. Вне Windows
+    список пуст: Capri честно сообщает, что блокировка недоступна.
+    """
+    if _user32() is None:
+        return []
+    return [[LOCK_COMMAND]]
 
 
 def run_lock(commands: list[list[str]]) -> bool:
-    """Попробовать команды блокировки по очереди, пока одна не сработает."""
+    """Попробовать способы блокировки по очереди, пока один не сработает."""
+    user32 = _user32()
+    if user32 is None:
+        return False
     for command in commands:
-        try:
-            result = subprocess.run(
-                command,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=PER_COMMAND_TIMEOUT_S,
-            )
-        except subprocess.TimeoutExpired:
-            # Блокировщик может работать до разблокировки — считаем успехом.
-            return True
-        except OSError:
-            continue
-        if result.returncode == 0:
-            return True
+        if command and command[0] == LOCK_COMMAND:
+            # LockWorkStation возвращает nonzero, когда запрос блокировки
+            # поставлен в очередь; сама блокировка происходит сразу после.
+            try:
+                if user32.LockWorkStation():
+                    return True
+            except OSError:
+                continue
     return False
