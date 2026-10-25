@@ -50,19 +50,24 @@ skipped, so the app still starts.
 
 ## Commands
 
-| Command | Action |
-| --- | --- |
-| `помощь` | Show all commands |
-| `глитч` | Toggle glitch overlay |
-| `шум` | Toggle background noise |
-| `голос` | Toggle voice input |
-| `гугл <запрос>` | Search Google |
-| `ютуб <запрос>` | Search YouTube |
-| `спотифай <запрос>` | Play a Spotify track |
-| `пауза` / `продолжить` | Pause or resume Spotify |
-| `блокировка` | Lock the screen |
-| `я спать` / `я гулять` / `я заебался` | Power actions |
-| `слушай <запрос>` | Ask the local Ollama model |
+| Command | Aliases | Action |
+| --- | --- | --- |
+| `помощь` | `что ты умеешь?`, `команды`, `справка` и др. | Show all commands |
+| `глитч` | `глюки`, `эффекты`, `переключить глитч` и др. | Toggle glitch overlay |
+| `шум` | `шипение`, `статика`, `звук` и др. | Toggle background noise |
+| `голос` | `микрофон`, `слушать`, `запись` и др. | Toggle voice input |
+| `гугл <запрос>` | `загугли`, `погугли`, `google` и др. | Search Google |
+| `ютуб <запрос>` | `youtube`, `найди на ютубе` и др. | Search YouTube |
+| `спотифай <запрос>` | `spotify`, `спотик`, `включи музыку` и др. | Play a Spotify track |
+| `пауза` | `поставь на паузу`, `приостанови` и др. | Pause Spotify |
+| `продолжить` | `плей`, `играй`, `возобнови` и др. | Resume Spotify |
+| `следующий трек` | `следующий`, `next` и др. | Next Spotify track |
+| `предыдущий трек` | `предыдущий`, `prev` и др. | Previous Spotify track |
+| `блокировка` | `заблокировать`, `я отойду`, `lock` и др. | Lock the screen |
+| `я спать` | `выключи пк`, `shutdown` и др. | Power off |
+| `я гулять` | `спящий режим`, `sleep` и др. | Suspend |
+| `я заебался` | `перезагрузи`, `restart` и др. | Reboot |
+| `слушай <запрос>` | `спроси модель`, `ollama`, `qwen` и др. | Ask the local Ollama model |
 
 Use `Ctrl+Q` to quit.
 
