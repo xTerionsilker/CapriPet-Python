@@ -382,12 +382,11 @@ class CapriWindow(QWidget):
     def _show_help(self) -> None:
         close_all_speech()
         hold_ms = 6000
-        show_text(
+        delay = 400
+        texts = [
             "помощь (также: что ты умеешь?, команды, справка…) — "
             "показать этот список.",
-            parent=self,
-            hold_ms=hold_ms,
-        )
+        ]
         for command in self.commands._commands:
             argument = " <запрос>" if command.takes_argument else ""
             aliases = (
@@ -395,11 +394,15 @@ class CapriWindow(QWidget):
                 if command.aliases
                 else ""
             )
-            show_text(
-                f"{command.name}{argument}{aliases} — {command.description}",
-                parent=self,
-                hold_ms=hold_ms,
+            texts.append(
+                f"{command.name}{argument}{aliases} — {command.description}"
             )
+
+        def show_one(text: str) -> None:
+            show_text(text, parent=self, hold_ms=hold_ms)
+
+        for index, text in enumerate(texts):
+            QTimer.singleShot(index * delay, lambda t=text: show_one(t))
 
     def speak(self, text: str) -> SpeechWindow:
         if self._speech is not None:
