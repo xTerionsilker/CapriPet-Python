@@ -100,13 +100,14 @@ OLLAMA_HISTORY_MESSAGES = 12
 
 class CapriOverlayWindow(QWidget):
 
-    def __init__(self, image_path: Path) -> None:
+    def __init__(self, image_path: Path, on_interact=None) -> None:
         super().__init__(
             None,
             Qt.WindowType.Tool
             | Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint,
         )
+        self._on_interact = on_interact
         self.setWindowTitle("Капри")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
@@ -130,6 +131,8 @@ class CapriOverlayWindow(QWidget):
         self._drag_offset: QPoint | None = None
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        if callable(self._on_interact):
+            self._on_interact()
         if event.button() == Qt.MouseButton.LeftButton:
             handle = self.windowHandle()
             if handle is not None and hasattr(handle, "startSystemMove"):
@@ -373,7 +376,7 @@ class CapriWindow(QWidget):
             if child is None or isinstance(child, QVideoWidget):
                 handle = self.windowHandle()
                 if handle is not None and hasattr(handle, "startSystemMove"):
-                    handle.startSystemMove(event)
+                    handle.startSystemMove()
                     event.accept()
                     return
                 self._drag_offset = (
@@ -508,44 +511,48 @@ class CapriWindow(QWidget):
         else:
             self.status.setText(self._default_status)
 
+    def _current_target_widget(self) -> QWidget:
+        if self._overlay_mode and self._overlay_window is not None:
+            return self._overlay_window
+        return self
+
     def _reset_inactivity_timer(self) -> None:
-        if self._overlay_mode:
-            return
         if self._closing or self._phase == PHASE_CLOSED:
             return
         if self._transitioning:
             return
-        if not self.isVisible():
+        target = self._current_target_widget()
+        if not target.isVisible():
             self._start_show_transition()
             return
         self._inactivity_timer.stop()
         self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
 
     def _hide_for_inactivity(self) -> None:
-        if self._overlay_mode:
-            return
         if self._closing or self._phase == PHASE_CLOSED:
             return
         if self._transitioning:
             return
-        if not self.isVisible():
+        target = self._current_target_widget()
+        if not target.isVisible():
             return
         self._voice_was_listening = self._voice.is_listening
         self._transitioning = True
         self._inactivity_timer.stop()
-        screen = self.screen()
-        screen_rect = screen.geometry() if screen is not None else self.geometry()
-        overlay = TransitionOverlay(screen_rect, self.geometry(), "out")
+        screen = target.screen()
+        screen_rect = screen.geometry() if screen is not None else target.geometry()
+        overlay = TransitionOverlay(screen_rect, target.geometry(), "out")
         overlay.finished.connect(self._finish_hide_transition)
         self._transition_overlay = overlay
         overlay.start()
-        self.raise_()
+        target.raise_()
 
     def _start_show_transition(self) -> None:
         self._transitioning = True
-        screen = self.screen()
-        screen_rect = screen.geometry() if screen is not None else self.geometry()
-        overlay = TransitionOverlay(screen_rect, self.geometry(), "in")
+        target = self._current_target_widget()
+        screen = target.screen()
+        screen_rect = screen.geometry() if screen is not None else target.geometry()
+        overlay = TransitionOverlay(screen_rect, target.geometry(), "in")
         overlay.finished.connect(self._finish_show_transition)
         self._transition_overlay = overlay
         overlay.start()
@@ -553,12 +560,22 @@ class CapriWindow(QWidget):
     def _finish_hide_transition(self) -> None:
         self._transitioning = False
         self._transition_overlay = None
-        self.hide()
+        target = self._current_target_widget()
+        target.hide()
 
     def _finish_show_transition(self) -> None:
         self._transitioning = False
         self._transition_overlay = None
-        self.show()
+        if self._overlay_mode:
+            self.hide()
+            if self._overlay_window is not None:
+                self._overlay_window.show()
+                self._overlay_window.raise_()
+        else:
+            if self._overlay_window is not None:
+                self._overlay_window.hide()
+            self.show()
+            self.raise_()
         if self._voice_was_listening and not self._voice.is_listening:
             if not self._voice.is_busy:
                 self._voice.start()
@@ -739,7 +756,9 @@ class CapriWindow(QWidget):
         asset = ROOT / "assets" / "capri_pet.png"
         if not self._overlay_mode:
             if self._overlay_window is None:
-                self._overlay_window = CapriOverlayWindow(asset)
+                self._overlay_window = CapriOverlayWindow(
+                    asset, on_interact=self._reset_inactivity_timer
+                )
             overlay = self._overlay_window
             center = self.frameGeometry().center()
             overlay.move(
@@ -748,9 +767,9 @@ class CapriWindow(QWidget):
             )
             overlay.show()
             overlay.raise_()
-            self._inactivity_timer.stop()
-            self.hide()
             self._overlay_mode = True
+            self.hide()
+            self._reset_inactivity_timer()
             return "Капри в нормальном облике."
         if self._overlay_window is not None:
             self._overlay_window.hide()
