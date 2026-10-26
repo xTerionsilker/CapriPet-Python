@@ -84,8 +84,8 @@ PHASE_END = "end"
 PHASE_CLOSED = "closed"
 
 STARTUP_LINES = (
-    "Молодец, {user}",
-    "зови меня просто Capri!!!",
+    "Хороший мальчик, {user}",
+    "зови меня просто Капри!!!",
     "...",
 )
 
