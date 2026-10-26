@@ -34,6 +34,7 @@ class TransitionOverlay(QWidget):
         parent: QWidget | None = None,
         target: QWidget | None = None,
         on_peak: Callable[[], None] | None = None,
+        target_point: QPoint | None = None,
     ) -> None:
         flags = (
             Qt.WindowType.Tool
@@ -45,9 +46,10 @@ class TransitionOverlay(QWidget):
         super().__init__(None, flags)
         self._screen_rect = QRect(screen_rect)
         self._window_rect = QRect(window_rect)
-        self._mode = mode  # "out" (пропадание) или "in" (появление)
+        self._mode = mode  # "out", "in", или "lightning_to_point"
         self._target = target
         self._on_peak = on_peak
+        self._target_point = target_point
         self._peak_called = False
 
         self._duration_ms = DURATION_OUT_MS if mode == "out" else DURATION_IN_MS
@@ -73,15 +75,21 @@ class TransitionOverlay(QWidget):
         # Создаем пиксельные молнии
         self._bolts: List[PixelLightningBolt] = []
         bolt_count = 46
-        if mode == "out":
+        if mode == "lightning_to_point" and target_point is not None:
+            # Молнии от контура курсора/окна к целевой точке в центре
+            starts = perimeter_points(self._window_rect, 12)
+            for s in starts:
+                self._bolts.append(PixelLightningBolt(s, target_point))
+        elif mode == "out":
             starts = perimeter_points(self._window_rect, bolt_count)
             ends = edge_points(self._screen_rect, bolt_count)
+            for s, e in zip(starts, ends):
+                self._bolts.append(PixelLightningBolt(s, e))
         else:
             starts = edge_points(self._screen_rect, bolt_count)
             ends = perimeter_points(self._window_rect, bolt_count)
-
-        for s, e in zip(starts, ends):
-            self._bolts.append(PixelLightningBolt(s, e))
+            for s, e in zip(starts, ends):
+                self._bolts.append(PixelLightningBolt(s, e))
 
         self._sparks: List[PixelSpark] = []
 
@@ -172,10 +180,32 @@ class TransitionOverlay(QWidget):
 
         if self._mode == "out":
             self._paint_out(painter, p, wr)
+        elif self._mode == "lightning_to_point":
+            self._paint_lightning_to_point(painter, p, wr)
         else:
             self._paint_in(painter, p, wr)
 
         painter.end()
+
+    def _paint_lightning_to_point(self, painter: QPainter, p: float, wr: QRect) -> None:
+        """Вспышка около мыши и молнии, вытягивающиеся от мыши к центру."""
+        # 1. Вспышка на месте курсора (0.0 -> 0.70)
+        if p <= 0.70:
+            flash_p = p / 0.70
+            self._paint_red_pixel_flash(painter, wr, flash_p)
+
+        # 2. Несколько молний тянутся от курсора в центр экрана
+        bolt_t = min(1.0, p / 0.75)
+        if p > 0.85:
+            fade_alpha = max(0, int(255 * (1.0 - (p - 0.85) / 0.15)))
+            painter.setOpacity(fade_alpha / 255.0)
+        for bolt in self._bolts:
+            bolt.draw(painter, bolt_t)
+        painter.setOpacity(1.0)
+
+        # Искры
+        for spark in self._sparks:
+            spark.draw(painter)
 
     def _paint_out(self, painter: QPainter, p: float, wr: QRect) -> None:
         if p < 0.55:

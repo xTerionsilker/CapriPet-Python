@@ -406,11 +406,11 @@ class CapriWindow(QWidget):
             self._overlay_window.set_pose_image("sit", OVERLAY_SIT)
 
     def _locate_mouse(self) -> str:
-        """Появляется прямо на курсоре мыши и телепортируется с ним в центр экрана."""
+        """Вспышка у курсора, молнии в центр, и появление Капри с курсором."""
         cursor_pos = get_mouse_position()
         target = self._inactivity.current_target_widget
 
-        # Включаем позу приседания / охоты (crouch) при переносе курсора
+        # Включаем позу приседания / охоты (crouch)
         if self._overlay_window is not None:
             self._overlay_window.set_pose_image("crouch", OVERLAY_CROUCH)
 
@@ -425,15 +425,16 @@ class CapriWindow(QWidget):
 
         geo = screen.availableGeometry() if screen is not None else target.geometry()
 
-        # 1. Позиция прямо в курсоре мыши (центрируем виджет относительно курсора)
-        mouse_rect = QRect(
-            cursor_pos.x() - target.width() // 2,
-            cursor_pos.y() - target.height() // 2,
-            target.width(),
-            target.height(),
+        # Зона вспышки вокруг мыши
+        flash_size = 140
+        cursor_rect = QRect(
+            cursor_pos.x() - flash_size // 2,
+            cursor_pos.y() - flash_size // 2,
+            flash_size,
+            flash_size,
         )
 
-        # 2. Позиция в центре экрана
+        # Позиция Капри в центре экрана
         center_x = geo.left() + (geo.width() - target.width()) // 2
         center_y = geo.top() + (geo.height() - target.height()) // 2
         center_rect = QRect(center_x, center_y, target.width(), target.height())
@@ -446,21 +447,16 @@ class CapriWindow(QWidget):
 
         def on_teleport_finished() -> None:
             move_mouse()
-            # Возвращаем стандартную позу sit после завершения телепортации
+            # Возвращаем стандартную позу sit после завершения появления
             if self._overlay_window is not None:
                 self._overlay_window.set_pose_image("sit", OVERLAY_SIT)
 
-        # Если питомец уже виден в другом месте, мгновенно перемещаем в точку мыши
-        target.setGeometry(mouse_rect)
-        target.show()
-        target.raise_()
-
-        # Запускаем телепортацию из позиции мыши в центр экрана вместе с курсором
-        self._inactivity.teleport_target(
+        # Запускаем: 1. Вспышка у мыши + молнии в центр -> 2. Появление Капри и курсора в центре
+        self._inactivity.teleport_from_cursor_to_center(
             target=target,
-            from_rect=mouse_rect,
-            to_rect=center_rect,
-            on_peak_in=move_mouse,
+            cursor_rect=cursor_rect,
+            center_rect=center_rect,
+            on_materialize=move_mouse,
             on_finished=on_teleport_finished,
         )
 

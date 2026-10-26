@@ -218,6 +218,77 @@ class InactivityManager(QObject):
         self._transition_overlay = overlay_out
         overlay_out.start()
 
+    def teleport_from_cursor_to_center(
+        self,
+        target: QWidget,
+        cursor_rect: QRect,
+        center_rect: QRect,
+        on_materialize: Callable[[], None] | None = None,
+        on_finished: Callable[[], None] | None = None,
+    ) -> None:
+        """Вспышка у курсора, молнии тянутся в центр, затем материализация Капри с курсором."""
+        if self._transition_overlay is not None:
+            try:
+                self._transition_overlay.close()
+            except Exception:
+                pass
+            self._transition_overlay = None
+
+        self._transitioning = True
+        self._inactivity_timer.stop()
+
+        screen = target.screen() or QGuiApplication.primaryScreen()
+        screen_rect = (
+            screen.geometry() if screen is not None else center_rect
+        )
+
+        center_point = center_rect.center()
+
+        # Капри скрыта до появления в центре
+        target.hide()
+
+        def on_lightning_finished() -> None:
+            # Молнии дотянулись до центра -> перемещаем Капри в центр и запускаем материализацию
+            target.setGeometry(center_rect)
+
+            def on_in_peak() -> None:
+                target.show()
+                target.raise_()
+                if on_materialize is not None:
+                    on_materialize()
+
+            def on_in_finished() -> None:
+                self._transitioning = False
+                self._transition_overlay = None
+                target.show()
+                target.raise_()
+                self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
+                if on_finished is not None:
+                    on_finished()
+
+            overlay_in = TransitionOverlay(
+                screen_rect,
+                center_rect,
+                "in",
+                target=target,
+                on_peak=on_in_peak,
+            )
+            overlay_in.finished.connect(on_in_finished)
+            self._transition_overlay = overlay_in
+            overlay_in.start()
+
+        # Шаг 1: Вспышка около курсора и молнии, вытягивающиеся в центр экрана
+        overlay_lightning = TransitionOverlay(
+            screen_rect,
+            cursor_rect,
+            "lightning_to_point",
+            target=None,
+            target_point=center_point,
+        )
+        overlay_lightning.finished.connect(on_lightning_finished)
+        self._transition_overlay = overlay_lightning
+        overlay_lightning.start()
+
     def teleport_target(
         self,
         target: QWidget,
