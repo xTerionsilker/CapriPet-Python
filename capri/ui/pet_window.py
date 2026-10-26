@@ -131,11 +131,7 @@ class CapriWindow(QWidget):
         self._voice_was_listening = False
         self._outro_video_done = True
         self._outro_sound_done = True
-        self._default_status = (
-            "// CAPRI В СЕТИ"
-            if VIDEO.is_file()
-            else f"// ВИДЕО НЕ НАЙДЕНО: {VIDEO.relative_to(ROOT)}"
-        )
+        self._default_status = "Капри // Слушает"
 
         self.commands = CommandRegistry()
         self._flow = InputFlow(self.commands, self)
@@ -370,7 +366,10 @@ class CapriWindow(QWidget):
             return
         self.input.clear()
         self._reset_inactivity_timer()
-        self.speak(self.process_input(text))
+        self.status.setText("Капри // Выполняет")
+        result = self.process_input(text)
+        self.status.setText("Капри // Слушает")
+        self.speak(result)
     def process_input(self, text: str) -> str:
         return self._flow.handle(text)
 
@@ -402,8 +401,10 @@ class CapriWindow(QWidget):
         self._reset_inactivity_timer()
         if command:
             self._disarm_voice_command()
-            self._update_voice_status()
-            self.speak(self.process_input(command))
+            self.status.setText("Капри // Выполняет")
+            result = self.process_input(command)
+            self.status.setText("Капри // Слушает")
+            self.speak(result)
             return
         self._arm_voice_command()
     def _voice_command(self, text: str) -> str | None:
@@ -420,7 +421,7 @@ class CapriWindow(QWidget):
         self._voice_armed_until = time.monotonic() + (
             VOICE_COMMAND_WINDOW_MS / 1000
         )
-        self.status.setText(f"// {VOICE_WAITING_STATUS}")
+        self.status.setText("Капри // Слушает")
         self._voice_window_timer.start(VOICE_COMMAND_WINDOW_MS)
 
     def _disarm_voice_command(self) -> None:
@@ -433,7 +434,7 @@ class CapriWindow(QWidget):
 
     def _update_voice_status(self) -> None:
         if self._voice.is_listening:
-            self.status.setText(f"// {VOICE_LISTENING_STATUS}")
+            self.status.setText("Капри // Слушает")
         else:
             self.status.setText(self._default_status)
 
@@ -498,12 +499,11 @@ class CapriWindow(QWidget):
         if not text:
             self.status.setText(self._default_status)
         elif text == "Слушаю…":
-            if self._voice_armed_until > time.monotonic():
-                self.status.setText(f"// {VOICE_WAITING_STATUS}")
-            else:
-                self.status.setText(f"// {VOICE_LISTENING_STATUS}")
+            self.status.setText("Капри // Слушает")
+        elif text == "Распознаю…":
+            self.status.setText("Капри // Думает")
         else:
-            self.status.setText(f"// {text.upper()}")
+            self.status.setText(f"Капри // {text.upper()}")
 
     def _toggle_glitches(self) -> str:
         enabled = self._glitches.toggle()
@@ -675,7 +675,7 @@ class CapriWindow(QWidget):
 
     def _on_media_error(self, *_args) -> None:
         self.status.setText(
-            f"// ОШИБКА ВОСПРОИЗВЕДЕНИЯ: {self.player.errorString()}"
+            f"Капри // ОШИБКА ВОСПРОИЗВЕДЕНИЯ: {self.player.errorString()}"
         )
         if self._phase == PHASE_START:
             QTimer.singleShot(0, self._play_main)
