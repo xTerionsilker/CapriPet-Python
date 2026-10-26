@@ -33,7 +33,9 @@ class VoiceInput(QObject):
     _round_failed = Signal(str)
     _round_empty = Signal()
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(
+        self, parent: QObject | None = None, *, always_on: bool = False
+    ) -> None:
         super().__init__(parent)
         self._source: QAudioSource | None = None
         self._io = None
@@ -42,6 +44,7 @@ class VoiceInput(QObject):
         self._enabled = False
         self._capturing = False
         self._busy = False
+        self._always_on = always_on
         self._elapsed_ms = 0
         self._silent_ms = 0
         self._speech_ms = 0
@@ -70,6 +73,11 @@ class VoiceInput(QObject):
         return self._busy
 
     def toggle(self) -> None:
+        if self._always_on:
+            # Голосовой режим никогда не отключается.
+            if not self._enabled and not self._busy:
+                self.start()
+            return
         if self._enabled:
             self.stop()
         elif not self._busy:
@@ -87,6 +95,9 @@ class VoiceInput(QObject):
         self._begin_round()
 
     def stop(self) -> None:
+        if self._always_on:
+            # Никогда не отключаемся: игнорируем попытки остановки.
+            return
         self._restart_timer.stop()
         if self._capturing:
             self._poll_timer.stop()
@@ -171,6 +182,17 @@ class VoiceInput(QObject):
 
     def _abort(self, message: str) -> None:
         self._restart_timer.stop()
+        if self._capturing:
+            self._poll_timer.stop()
+            self._release_source()
+            self._capturing = False
+            self._buffer.clear()
+        if self._always_on:
+            # Не отключаем режим: планируем повторную попытку.
+            self._set_status("")
+            self.failed.emit(message)
+            self._restart_timer.start(1000)
+            return
         if self._enabled:
             self._enabled = False
             self.listening_changed.emit(False)

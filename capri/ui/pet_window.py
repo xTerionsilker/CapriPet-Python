@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -94,7 +93,7 @@ GOODBYE_LINE = "пока пока чумба"
 
 LOCK_DELAY_MS = 800
 
-INACTIVITY_TIMEOUT_MS = 10_000
+INACTIVITY_TIMEOUT_MS = 5_000
 
 POWER_DELAY_MS = 2000
 
@@ -147,6 +146,7 @@ class CapriWindow(QWidget):
         self._build_shortcuts()
         self._build_effects()
         self._build_voice()
+        self._voice.start()
         self._register_commands()
         self.spotify_reply.connect(self.speak)
         self.ollama_reply.connect(self._on_ollama_reply)
@@ -258,17 +258,6 @@ class CapriWindow(QWidget):
         self.input.setClearButtonEnabled(True)
         self.input.returnPressed.connect(self.submit)
 
-        self.mic = QPushButton("ГОЛОС", panel)
-        self.mic.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.mic.setToolTip(
-            "Голосовой ввод (Ctrl+Space). Команда — после слова «Капри»"
-        )
-        self.mic.clicked.connect(self._toggle_voice)
-
-        send = QPushButton("ОТПРАВИТЬ", panel)
-        send.setCursor(Qt.CursorShape.PointingHandCursor)
-        send.clicked.connect(self.submit)
-
         prompt = QLabel(">", panel)
         prompt.setObjectName("prompt")
 
@@ -276,8 +265,6 @@ class CapriWindow(QWidget):
         row.setSpacing(8)
         row.addWidget(prompt)
         row.addWidget(self.input, 1)
-        row.addWidget(self.mic)
-        row.addWidget(send)
 
         panel_layout.addWidget(self.status)
         panel_layout.addLayout(row)
@@ -301,7 +288,7 @@ class CapriWindow(QWidget):
         self._glitches = GlitchManager(self)
 
     def _build_voice(self) -> None:
-        self._voice = VoiceInput()
+        self._voice = VoiceInput(always_on=True)
         self._voice.listening_changed.connect(self._on_voice_listening)
         self._voice.status_changed.connect(self._on_voice_status)
         self._voice.recognized.connect(self._on_voice_text)
@@ -399,13 +386,11 @@ class CapriWindow(QWidget):
         return speech
 
     def _toggle_voice(self) -> str:
-        if self._voice.is_listening:
-            self._voice.stop()
-            self._disarm_voice_command()
-            return "Голосовой ввод выключен."
+        # Голосовой режим всегда включён и не отключается.
         if self._voice.is_busy:
             return "Подождите, идёт распознавание."
-        self._voice.start()
+        if not self._voice.is_listening:
+            self._voice.start()
         if self._voice.is_listening:
             return "Слушаю. Скажи «Капри» и команду."
         return "Микрофон недоступен."
@@ -506,7 +491,6 @@ class CapriWindow(QWidget):
         self._inactivity_timer.stop()
         self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
     def _on_voice_listening(self, listening: bool) -> None:
-        self.mic.setText("СТОП" if listening else "ГОЛОС")
         if not listening:
             self._disarm_voice_command()
 
