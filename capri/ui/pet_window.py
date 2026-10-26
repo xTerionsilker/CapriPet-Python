@@ -8,8 +8,15 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from PySide6.QtCore import QEvent, QPoint, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QGuiApplication, QKeySequence, QPixmap, QShortcut
+from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer, QUrl, Signal
+from PySide6.QtGui import (
+    QColor,
+    QGuiApplication,
+    QKeySequence,
+    QPainter,
+    QPixmap,
+    QShortcut,
+)
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
@@ -129,14 +136,125 @@ class CapriOverlayWindow(QWidget):
         self._pixmap = pixmap
         self.setFixedSize(pixmap.size())
 
-        label = QLabel(self)
-        label.setPixmap(pixmap)
-        label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        label.setAutoFillBackground(False)
-        label.setGeometry(0, 0, pixmap.width(), pixmap.height())
-        label.show()
-
         self._drag_offset: QPoint | None = None
+
+        # Таймер для постоянной анимации небольших пиксельных глитчей
+        self._glitch_timer = QTimer(self)
+        self._glitch_timer.setInterval(80)
+        self._glitch_timer.timeout.connect(self._on_glitch_tick)
+
+    def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        super().showEvent(event)
+        self._glitch_timer.start()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        self._glitch_timer.stop()
+        super().hideEvent(event)
+
+    def _on_glitch_tick(self) -> None:
+        # Случайный интервал для органичного мерцания глитчей
+        self._glitch_timer.setInterval(random.randint(60, 110))
+        self.update()
+
+    def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
+
+        w = self._pixmap.width()
+        h = self._pixmap.height()
+        if w <= 0 or h <= 0:
+            painter.end()
+            return
+
+        # Шанс активного импульса в текущем кадре
+        active_glitch = random.random() < 0.55
+
+        # 1. Отрисовка базового спрайта облика (с крупными сдвигами полос)
+        if active_glitch and random.random() < 0.50:
+            sy = (random.randint(0, max(0, h - 16)) // 4) * 4
+            sh = random.choice((6, 8, 12, 16))
+            dx = random.choice((-16, -12, -8, 8, 12, 16))
+            if sy > 0:
+                painter.drawPixmap(0, 0, self._pixmap, 0, 0, w, sy)
+            painter.drawPixmap(dx, sy, self._pixmap, 0, sy, w, sh)
+            bottom_y = sy + sh
+            if bottom_y < h:
+                painter.drawPixmap(
+                    0, bottom_y, self._pixmap, 0, bottom_y, w, h - bottom_y
+                )
+        else:
+            painter.drawPixmap(0, 0, self._pixmap)
+
+        # 2. Наложение крупных глитчей красного и чёрного цвета
+        # Применяем CompositionMode_SourceAtop, чтобы глитчи рисовались по силуэту облика
+        painter.setCompositionMode(
+            QPainter.CompositionMode.CompositionMode_SourceAtop
+        )
+
+        red_colors = (
+            QColor(255, 0, 45, random.randint(200, 255)),
+            QColor(255, 30, 75, random.randint(180, 245)),
+            QColor(215, 0, 30, random.randint(210, 255)),
+            QColor(255, 50, 90, random.randint(190, 240)),
+        )
+        black_colors = (
+            QColor(0, 0, 0, random.randint(200, 255)),
+            QColor(8, 8, 12, random.randint(190, 250)),
+            QColor(16, 0, 8, random.randint(180, 240)),
+        )
+        glitch_colors = red_colors + black_colors
+
+        # а) Крупные горизонтальные глитч-полосы
+        bar_count = (
+            random.randint(2, 5)
+            if active_glitch
+            else (random.randint(1, 2) if random.random() < 0.5 else 0)
+        )
+        for _ in range(bar_count):
+            by = (random.randint(0, max(0, h - 8)) // 4) * 4
+            bh = random.choice((4, 6, 8, 12))
+            bw = (random.randint(w // 4, w) // 4) * 4
+            bx = (random.randint(0, max(0, w - bw)) // 4) * 4
+            color = random.choice(glitch_colors)
+            painter.fillRect(bx, by, bw, bh, color)
+
+        # б) Крупные пиксельные блоки (8x8, 12x8, 16x8, 20x12, 28x12 px)
+        block_count = (
+            random.randint(4, 9) if active_glitch else random.randint(1, 4)
+        )
+        for _ in range(block_count):
+            bw = random.choice((8, 12, 16, 20, 28))
+            bh = random.choice((6, 8, 12, 16))
+            bx = (random.randint(0, max(0, w - bw)) // 4) * 4
+            by = (random.randint(0, max(0, h - bh)) // 4) * 4
+            color = random.choice(glitch_colors)
+            painter.fillRect(bx, by, bw, bh, color)
+
+        # в) Пиксельные шумовые квадраты красного и черного цвета (4x4 px)
+        noise_count = (
+            random.randint(6, 16) if active_glitch else random.randint(2, 6)
+        )
+        for _ in range(noise_count):
+            nx = (random.randint(0, max(0, w - 4)) // 4) * 4
+            ny = (random.randint(0, max(0, h - 4)) // 4) * 4
+            color = random.choice(glitch_colors)
+            painter.fillRect(nx, ny, 4, 4, color)
+
+        # 3. Выступающие за силуэт красные и черные пиксельные блоки
+        painter.setCompositionMode(
+            QPainter.CompositionMode.CompositionMode_SourceOver
+        )
+        if active_glitch and random.random() < 0.65:
+            for _ in range(random.randint(2, 4)):
+                ex = (random.randint(0, max(0, w - 8)) // 4) * 4
+                ey = (random.randint(0, max(0, h - 8)) // 4) * 4
+                ew = random.choice((4, 8))
+                eh = random.choice((4, 6))
+                spark_color = random.choice(glitch_colors)
+                painter.fillRect(ex, ey, ew, eh, spark_color)
+
+        painter.end()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         if callable(self._on_interact):
