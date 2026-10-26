@@ -7,8 +7,8 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from PySide6.QtCore import QEvent, QPoint, Qt, QTimer
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
+from PySide6.QtGui import QCursor, QGuiApplication, QKeySequence, QShortcut
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QFrame,
@@ -27,6 +27,7 @@ from ..core.wake_word import (
 )
 from ..effects.glitch import GlitchManager
 from .action_bridge import ActionBridge
+from .cursor_manager import get_mouse_position, move_mouse_to_center
 from .inactivity_manager import InactivityManager
 from .media_controller import MediaController, PHASE_CLOSED
 from .overlay_window import CapriOverlayWindow
@@ -153,6 +154,7 @@ class CapriWindow(QWidget):
                 suspend=self._actions.suspend,
                 reboot=self._actions.reboot,
                 toggle_overlay=self._toggle_capri_overlay,
+                locate_mouse=self._locate_mouse,
             ),
         )
 
@@ -386,6 +388,59 @@ class CapriWindow(QWidget):
         self._inactivity.switch_target(old_target, new_target)
         self._inactivity.reset_timer()
         return msg
+
+    def _locate_mouse(self) -> str:
+        """Появляется прямо на курсоре мыши и телепортируется с ним в центр экрана."""
+        cursor_pos = get_mouse_position()
+        target = self._inactivity.current_target_widget
+
+        # Определяем экран, на котором находится курсор мыши
+        screen = None
+        for scr in QGuiApplication.screens():
+            if scr.geometry().contains(cursor_pos):
+                screen = scr
+                break
+        if screen is None:
+            screen = target.screen() or QGuiApplication.primaryScreen()
+
+        geo = screen.availableGeometry() if screen is not None else target.geometry()
+
+        # 1. Позиция прямо в курсоре мыши (центрируем виджет относительно курсора)
+        mouse_rect = QRect(
+            cursor_pos.x() - target.width() // 2,
+            cursor_pos.y() - target.height() // 2,
+            target.width(),
+            target.height(),
+        )
+
+        # 2. Позиция в центре экрана
+        center_x = geo.left() + (geo.width() - target.width()) // 2
+        center_y = geo.top() + (geo.height() - target.height()) // 2
+        center_rect = QRect(center_x, center_y, target.width(), target.height())
+
+        def move_mouse() -> None:
+            try:
+                move_mouse_to_center()
+            except Exception:
+                pass
+
+        # Если питомец уже виден в другом месте, мгновенно перемещаем в точку мыши
+        target.setGeometry(mouse_rect)
+        target.show()
+        target.raise_()
+
+        # Запускаем телепортацию из позиции мыши в центр экрана вместе с курсором
+        self._inactivity.teleport_target(
+            target=target,
+            from_rect=mouse_rect,
+            to_rect=center_rect,
+            on_peak_in=move_mouse,
+            on_finished=move_mouse,
+        )
+
+        self._inactivity.reset_timer()
+        return "Поймала мышку!"
+
 
     def _greet(self) -> None:
         if self._speech is not None:

@@ -24,6 +24,7 @@ class Handlers:
     suspend: Handler
     reboot: Handler
     toggle_overlay: Handler
+    locate_mouse: Handler
 
 
 def register_commands(registry: CommandRegistry, handlers: Handlers) -> None:

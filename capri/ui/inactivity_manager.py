@@ -217,3 +217,72 @@ class InactivityManager(QObject):
         overlay_out.finished.connect(on_out_finished)
         self._transition_overlay = overlay_out
         overlay_out.start()
+
+    def teleport_target(
+        self,
+        target: QWidget,
+        from_rect: QRect,
+        to_rect: QRect,
+        on_peak_in: Callable[[], None] | None = None,
+        on_finished: Callable[[], None] | None = None,
+    ) -> None:
+        """Телепортация виджета из from_rect в to_rect с пиксельными глитчами и молниями."""
+        if self._transition_overlay is not None:
+            try:
+                self._transition_overlay.close()
+            except Exception:
+                pass
+            self._transition_overlay = None
+
+        self._transitioning = True
+        self._inactivity_timer.stop()
+
+        screen = target.screen() or QGuiApplication.primaryScreen()
+        screen_rect = (
+            screen.geometry() if screen is not None else from_rect
+        )
+
+        def on_out_peak() -> None:
+            target.hide()
+
+        def on_out_finished() -> None:
+            # Перемещаем виджет в целевую точку
+            target.setGeometry(to_rect)
+
+            def on_in_peak() -> None:
+                target.show()
+                target.raise_()
+                if on_peak_in is not None:
+                    on_peak_in()
+
+            def on_in_finished() -> None:
+                self._transitioning = False
+                self._transition_overlay = None
+                target.show()
+                target.raise_()
+                self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
+                if on_finished is not None:
+                    on_finished()
+
+            overlay_in = TransitionOverlay(
+                screen_rect,
+                to_rect,
+                "in",
+                target=target,
+                on_peak=on_in_peak,
+            )
+            overlay_in.finished.connect(on_in_finished)
+            self._transition_overlay = overlay_in
+            overlay_in.start()
+
+        overlay_out = TransitionOverlay(
+            screen_rect,
+            from_rect,
+            "out",
+            target=target,
+            on_peak=on_out_peak,
+        )
+        overlay_out.finished.connect(on_out_finished)
+        self._transition_overlay = overlay_out
+        overlay_out.start()
+
