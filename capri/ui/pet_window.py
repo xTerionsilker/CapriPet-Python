@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import quote_plus
 
 from PySide6.QtCore import QEvent, QPoint, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
+from PySide6.QtGui import QGuiApplication, QKeySequence, QPixmap, QShortcut
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
@@ -118,6 +118,14 @@ class CapriOverlayWindow(QWidget):
         pixmap = QPixmap(str(image_path))
         if pixmap.isNull():
             pixmap = QPixmap(420, 420)
+        target_width = max(1, int(pixmap.width() / 1.5))
+        target_height = max(1, int(pixmap.height() / 1.5))
+        pixmap = pixmap.scaled(
+            target_width,
+            target_height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
         self._pixmap = pixmap
         self.setFixedSize(pixmap.size())
 
@@ -547,8 +555,27 @@ class CapriWindow(QWidget):
         overlay.start()
         target.raise_()
 
+    def _relocate_overlay_randomly(self) -> None:
+        if self._overlay_window is None:
+            return
+        screen = self._overlay_window.screen()
+        if screen is None:
+            screen = QGuiApplication.primaryScreen()
+        if screen is None:
+            return
+        geo = screen.availableGeometry()
+        w = self._overlay_window.width()
+        h = self._overlay_window.height()
+        max_x = max(geo.left(), geo.right() - w)
+        max_y = max(geo.top(), geo.bottom() - h)
+        rand_x = random.randint(geo.left(), max_x)
+        rand_y = random.randint(geo.top(), max_y)
+        self._overlay_window.move(rand_x, rand_y)
+
     def _start_show_transition(self) -> None:
         self._transitioning = True
+        if self._overlay_mode and self._overlay_window is not None:
+            self._relocate_overlay_randomly()
         target = self._current_target_widget()
         screen = target.screen()
         screen_rect = screen.geometry() if screen is not None else target.geometry()
