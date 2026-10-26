@@ -14,9 +14,7 @@ from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QFrame,
-    QHBoxLayout,
     QLabel,
-    QLineEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -149,8 +147,6 @@ class CapriWindow(QWidget):
         self.ollama_failed.connect(self._on_ollama_failed)
         self.power_failed.connect(self.speak)
 
-        self.input.setFocus()
-
         self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
     def _build_video(self) -> None:
         self.video = QVideoWidget(self)
@@ -249,21 +245,7 @@ class CapriWindow(QWidget):
         self.status = QLabel(self._default_status, panel)
         self.status.setObjectName("status")
 
-        self.input = QLineEdit(panel)
-        self.input.setPlaceholderText("Скажи что-нибудь Capri…")
-        self.input.setClearButtonEnabled(True)
-        self.input.returnPressed.connect(self.submit)
-
-        prompt = QLabel(">", panel)
-        prompt.setObjectName("prompt")
-
-        row = QHBoxLayout()
-        row.setSpacing(8)
-        row.addWidget(prompt)
-        row.addWidget(self.input, 1)
-
         panel_layout.addWidget(self.status)
-        panel_layout.addLayout(row)
 
         accent = QFrame(self)
         accent.setObjectName("accent")
@@ -360,22 +342,6 @@ class CapriWindow(QWidget):
         ):
             QTimer.singleShot(0, self.showNormal)
 
-    def submit(self) -> None:
-        text = self.input.text().strip()
-        if not text:
-            return
-        self.input.clear()
-        self._reset_inactivity_timer()
-        command = self.commands.find(text)
-        if command is not None and command is self.commands._help:
-            self.status.setText("Капри // Выполняет")
-            self._show_help()
-            self.status.setText("Капри // Слушает")
-            return
-        self.status.setText("Капри // Выполняет")
-        result = self.process_input(text)
-        self.status.setText("Капри // Слушает")
-        self.speak(result)
     def process_input(self, text: str) -> str:
         return self._flow.handle(text)
 
