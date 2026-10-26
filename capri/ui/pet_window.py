@@ -2,22 +2,13 @@ from __future__ import annotations
 
 import getpass
 import random
-import threading
 import time
 import webbrowser
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import (
-    QColor,
-    QGuiApplication,
-    QKeySequence,
-    QPainter,
-    QPixmap,
-    QShortcut,
-)
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+from PySide6.QtCore import QEvent, QPoint, Qt, QTimer
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QFrame,
@@ -26,67 +17,25 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-if __package__ in (None, ""):
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from capri.core.command_catalog import Handlers, register_commands
-    from capri.core.commands import CommandRegistry
-    from capri.effects.glitch import GlitchManager
-    from capri.core.input_flow import InputFlow
-    from capri.integrations.screen_lock import lock_commands, run_lock
-    from capri.ui.speech import SpeechWindow, show_text
-    from capri.ui.transition import TransitionOverlay
-    from capri.integrations.system_power import power_commands, run_power
-    from capri.ui.theme import APP_STYLE
-    from capri.audio.voice import VoiceInput
-    from capri.core.wake_word import (
-        VOICE_COMMAND_WINDOW_MS,
-        VOICE_LISTENING_STATUS,
-        VOICE_WAITING_STATUS,
-        command_after_trigger,
-    )
-    import capri.integrations.ollama as ollama
-    import capri.integrations.spotify as spotify
-else:
-    from ..core.command_catalog import Handlers, register_commands
-    from ..core.commands import CommandRegistry
-    from ..effects.glitch import GlitchManager
-    from ..core.input_flow import InputFlow
-    from ..integrations.screen_lock import lock_commands, run_lock
-    from .speech import SpeechWindow, close_all as close_all_speech, show_text
-    from .transition import TransitionOverlay
-    from ..integrations.system_power import power_commands, run_power
-    from .theme import APP_STYLE
-    from ..audio.voice import VoiceInput
-    from ..core.wake_word import (
-        VOICE_COMMAND_WINDOW_MS,
-        VOICE_LISTENING_STATUS,
-        VOICE_WAITING_STATUS,
-        command_after_trigger,
-    )
-    from ..integrations import ollama, spotify
+from ..audio.voice import VoiceInput
+from ..core.command_catalog import Handlers, register_commands
+from ..core.commands import CommandRegistry
+from ..core.input_flow import InputFlow
+from ..core.wake_word import (
+    VOICE_COMMAND_WINDOW_MS,
+    command_after_trigger,
+)
+from ..effects.glitch import GlitchManager
+from .action_bridge import ActionBridge
+from .inactivity_manager import InactivityManager
+from .media_controller import MediaController, PHASE_CLOSED
+from .overlay_window import CapriOverlayWindow
+from .speech import SpeechWindow, close_all as close_all_speech, show_text
+from .theme import APP_STYLE
+from .transition import TransitionOverlay
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-FACES = ROOT / "faces"
-
-START_VIDEO = FACES / "start.mp4"
-VIDEO = FACES / "capri.mp4"
-END_VIDEO = FACES / "end.mp4"
-
-VIDEOS = (START_VIDEO, VIDEO, END_VIDEO)
-
-VOICES = ROOT / "voices"
-START_SOUND = VOICES / "start.mp3"
-END_SOUND = VOICES / "end.mp3"
-
-PLAYBACK_RATE = 1.5
-SERVICE_PLAYBACK_RATE = 2.0
-
-PHASE_START = "start"
-PHASE_MAIN = "main"
-PHASE_END = "end"
-PHASE_CLOSED = "closed"
+OVERLAY_ASSET = ROOT / "assets" / "capri_pet.png"
 
 STARTUP_LINES = (
     "Хороший мальчик, {user}",
@@ -96,200 +45,9 @@ STARTUP_LINES = (
 
 GOODBYE_LINE = "пока пока чумба"
 
-LOCK_DELAY_MS = 800
-
-INACTIVITY_TIMEOUT_MS = 5_000
-
-POWER_DELAY_MS = 2000
-
-OLLAMA_HISTORY_MESSAGES = 12
-
-
-class CapriOverlayWindow(QWidget):
-
-    def __init__(self, image_path: Path, on_interact=None) -> None:
-        super().__init__(
-            None,
-            Qt.WindowType.Tool
-            | Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint,
-        )
-        self._on_interact = on_interact
-        self.setWindowTitle("Капри")
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
-        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
-        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.setAutoFillBackground(False)
-
-        pixmap = QPixmap(str(image_path))
-        if pixmap.isNull():
-            pixmap = QPixmap(420, 420)
-        target_width = max(1, int(pixmap.width() / 1.5))
-        target_height = max(1, int(pixmap.height() / 1.5))
-        pixmap = pixmap.scaled(
-            target_width,
-            target_height,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self._pixmap = pixmap
-        self.setFixedSize(pixmap.size())
-
-        self._drag_offset: QPoint | None = None
-
-        # Таймер для постоянной анимации небольших пиксельных глитчей
-        self._glitch_timer = QTimer(self)
-        self._glitch_timer.setInterval(80)
-        self._glitch_timer.timeout.connect(self._on_glitch_tick)
-
-    def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        super().showEvent(event)
-        self._glitch_timer.start()
-
-    def hideEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        self._glitch_timer.stop()
-        super().hideEvent(event)
-
-    def _on_glitch_tick(self) -> None:
-        # Случайный интервал для органичного мерцания глитчей
-        self._glitch_timer.setInterval(random.randint(60, 110))
-        self.update()
-
-    def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
-        painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
-
-        w = self._pixmap.width()
-        h = self._pixmap.height()
-        if w <= 0 or h <= 0:
-            painter.end()
-            return
-
-        # Шанс активного импульса в текущем кадре
-        active_glitch = random.random() < 0.55
-
-        # 1. Отрисовка базового спрайта облика (с крупными сдвигами полос)
-        if active_glitch and random.random() < 0.50:
-            sy = (random.randint(0, max(0, h - 16)) // 4) * 4
-            sh = random.choice((6, 8, 12, 16))
-            dx = random.choice((-16, -12, -8, 8, 12, 16))
-            if sy > 0:
-                painter.drawPixmap(0, 0, self._pixmap, 0, 0, w, sy)
-            painter.drawPixmap(dx, sy, self._pixmap, 0, sy, w, sh)
-            bottom_y = sy + sh
-            if bottom_y < h:
-                painter.drawPixmap(
-                    0, bottom_y, self._pixmap, 0, bottom_y, w, h - bottom_y
-                )
-        else:
-            painter.drawPixmap(0, 0, self._pixmap)
-
-        # 2. Наложение крупных глитчей красного и чёрного цвета
-        # Применяем CompositionMode_SourceAtop, чтобы глитчи рисовались по силуэту облика
-        painter.setCompositionMode(
-            QPainter.CompositionMode.CompositionMode_SourceAtop
-        )
-
-        red_colors = (
-            QColor(255, 0, 45, random.randint(200, 255)),
-            QColor(255, 30, 75, random.randint(180, 245)),
-            QColor(215, 0, 30, random.randint(210, 255)),
-            QColor(255, 50, 90, random.randint(190, 240)),
-        )
-        black_colors = (
-            QColor(0, 0, 0, random.randint(200, 255)),
-            QColor(8, 8, 12, random.randint(190, 250)),
-            QColor(16, 0, 8, random.randint(180, 240)),
-        )
-        glitch_colors = red_colors + black_colors
-
-        # а) Крупные горизонтальные глитч-полосы
-        bar_count = (
-            random.randint(2, 5)
-            if active_glitch
-            else (random.randint(1, 2) if random.random() < 0.5 else 0)
-        )
-        for _ in range(bar_count):
-            by = (random.randint(0, max(0, h - 8)) // 4) * 4
-            bh = random.choice((4, 6, 8, 12))
-            bw = (random.randint(w // 4, w) // 4) * 4
-            bx = (random.randint(0, max(0, w - bw)) // 4) * 4
-            color = random.choice(glitch_colors)
-            painter.fillRect(bx, by, bw, bh, color)
-
-        # б) Крупные пиксельные блоки (8x8, 12x8, 16x8, 20x12, 28x12 px)
-        block_count = (
-            random.randint(4, 9) if active_glitch else random.randint(1, 4)
-        )
-        for _ in range(block_count):
-            bw = random.choice((8, 12, 16, 20, 28))
-            bh = random.choice((6, 8, 12, 16))
-            bx = (random.randint(0, max(0, w - bw)) // 4) * 4
-            by = (random.randint(0, max(0, h - bh)) // 4) * 4
-            color = random.choice(glitch_colors)
-            painter.fillRect(bx, by, bw, bh, color)
-
-        # в) Пиксельные шумовые квадраты красного и черного цвета (4x4 px)
-        noise_count = (
-            random.randint(6, 16) if active_glitch else random.randint(2, 6)
-        )
-        for _ in range(noise_count):
-            nx = (random.randint(0, max(0, w - 4)) // 4) * 4
-            ny = (random.randint(0, max(0, h - 4)) // 4) * 4
-            color = random.choice(glitch_colors)
-            painter.fillRect(nx, ny, 4, 4, color)
-
-        # 3. Выступающие за силуэт красные и черные пиксельные блоки
-        painter.setCompositionMode(
-            QPainter.CompositionMode.CompositionMode_SourceOver
-        )
-        if active_glitch and random.random() < 0.65:
-            for _ in range(random.randint(2, 4)):
-                ex = (random.randint(0, max(0, w - 8)) // 4) * 4
-                ey = (random.randint(0, max(0, h - 8)) // 4) * 4
-                ew = random.choice((4, 8))
-                eh = random.choice((4, 6))
-                spark_color = random.choice(glitch_colors)
-                painter.fillRect(ex, ey, ew, eh, spark_color)
-
-        painter.end()
-
-    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        if callable(self._on_interact):
-            self._on_interact()
-        if event.button() == Qt.MouseButton.LeftButton:
-            handle = self.windowHandle()
-            if handle is not None and hasattr(handle, "startSystemMove"):
-                handle.startSystemMove()
-                event.accept()
-                return
-            self._drag_offset = (
-                event.globalPosition().toPoint() - self.frameGeometry().topLeft()
-            )
-            event.accept()
-            return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        if self._drag_offset is not None:
-            self.move(event.globalPosition().toPoint() - self._drag_offset)
-            event.accept()
-            return
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        self._drag_offset = None
-        super().mouseReleaseEvent(event)
-
 
 class CapriWindow(QWidget):
-
-    spotify_reply = Signal(str)
-    ollama_reply = Signal(str)
-    ollama_failed = Signal(str)
-    power_failed = Signal(str)
+    """Главное окно интерактивного питомца Капри."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -299,131 +57,46 @@ class CapriWindow(QWidget):
         self.setStyleSheet(APP_STYLE)
 
         self._drag_offset: QPoint | None = None
-
         self._speech: SpeechWindow | None = None
         self._greeted = False
-        self._lock_pending: list[list[str]] | None = None
-        self._power_pending: list[list[str]] | None = None
         self._voice_armed_until = 0.0
-        self._ollama_history: list[dict[str, str]] = []
-        self._ollama_pending = ""
-        self._ollama_busy = False
-        self._phase = PHASE_MAIN
         self._closing = False
-        self._transitioning = False
-        self._transition_overlay = None
-        self._voice_was_listening = False
-        self._outro_video_done = True
-        self._outro_sound_done = True
         self._default_status = "Капри // Слушает"
         self._overlay_mode = False
         self._overlay_window: CapriOverlayWindow | None = None
 
         self.commands = CommandRegistry()
         self._flow = InputFlow(self.commands, self)
+        self._actions = ActionBridge(self)
+        self._actions.speech_requested.connect(self.speak)
 
-        self._build_video()
-        self._build_sound()
-        self._build_controls()
+        self._build_ui()
+        self._media = MediaController(self, self.video)
+        self._media.error_occurred.connect(self._on_media_error)
+        self._media.outro_completed.connect(self._finish_close)
+
         self._build_shortcuts()
-        self._build_effects()
+        self._glitches = GlitchManager(self)
         self._build_voice()
-        self._voice.start()
         self._register_commands()
-        self.spotify_reply.connect(self.speak)
-        self.ollama_reply.connect(self._on_ollama_reply)
-        self.ollama_failed.connect(self._on_ollama_failed)
-        self.power_failed.connect(self.speak)
 
-        self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
-    def _build_video(self) -> None:
+        self._inactivity = InactivityManager(
+            main_window=self,
+            get_overlay=lambda: self._overlay_window,
+            is_overlay_mode=lambda: self._overlay_mode,
+            is_closing=lambda: self._closing or self._media.phase == PHASE_CLOSED,
+            on_wake_voice=self._wake_voice_if_needed,
+        )
+
+        self._media.start_playback()
+        self._voice.start()
+        self._inactivity.start()
+
+    def _build_ui(self) -> None:
         self.video = QVideoWidget(self)
         self.video.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatio)
         self.video.setMinimumSize(320, 180)
 
-        self.player = QMediaPlayer(self)
-        self.audio = QAudioOutput(self)
-        self.audio.setVolume(0.6)
-        self.audio.setMuted(True)
-        self.player.setAudioOutput(self.audio)
-        self.player.setVideoOutput(self.video)
-        self.player.errorOccurred.connect(self._on_media_error)
-        self.player.mediaStatusChanged.connect(self._on_media_status)
-
-        if not any(path.is_file() for path in VIDEOS):
-            self.video.hide()
-            return
-        if START_VIDEO.is_file():
-            self._play_intro()
-        else:
-            self._play_main()
-
-    def _build_sound(self) -> None:
-        self.sound = QMediaPlayer(self)
-        self.sound_audio = QAudioOutput(self)
-        self.sound_audio.setVolume(0.6)
-        self.sound.setAudioOutput(self.sound_audio)
-        self.sound.errorOccurred.connect(self._on_sound_error)
-        self.sound.mediaStatusChanged.connect(self._on_sound_status)
-
-        if START_SOUND.is_file():
-            self._play_sound(START_SOUND)
-
-    def _play_sound(self, path: Path) -> None:
-        self.sound.setLoops(QMediaPlayer.Loops.Once)
-        self.sound.setSource(QUrl.fromLocalFile(str(path)))
-        self.sound.play()
-
-    def _play_source(
-        self, path: Path, loops: QMediaPlayer.Loops, rate: float
-    ) -> None:
-        self.player.setLoops(loops)
-        self.player.setPlaybackRate(rate)
-        self.player.setSource(QUrl.fromLocalFile(str(path)))
-        self.player.play()
-
-    def _play_intro(self) -> None:
-        self._phase = PHASE_START
-        self.video.show()
-        self._play_source(
-            START_VIDEO, QMediaPlayer.Loops.Once, SERVICE_PLAYBACK_RATE
-        )
-
-    def _play_main(self) -> None:
-        self._phase = PHASE_MAIN
-        if not VIDEO.is_file():
-            self.video.hide()
-            return
-        self.video.show()
-        self._play_source(VIDEO, QMediaPlayer.Loops.Infinite, PLAYBACK_RATE)
-
-    def _play_outro(self) -> None:
-        have_video = END_VIDEO.is_file()
-        have_sound = END_SOUND.is_file()
-        self._outro_video_done = not have_video
-        self._outro_sound_done = not have_sound
-
-        if not have_video and not have_sound:
-            self._finish_close()
-            return
-
-        self._phase = PHASE_END
-        if have_video:
-            self.video.show()
-            self._play_source(
-                END_VIDEO, QMediaPlayer.Loops.Once, SERVICE_PLAYBACK_RATE
-            )
-        if have_sound:
-            self._play_sound(END_SOUND)
-        self._maybe_finish_outro()
-
-    def _maybe_finish_outro(self) -> None:
-        if self._phase != PHASE_END:
-            return
-        if self._outro_video_done and self._outro_sound_done:
-            self._finish_close()
-
-    def _build_controls(self) -> None:
         panel = QWidget(self)
         panel.setObjectName("panel")
         panel_layout = QVBoxLayout(panel)
@@ -432,26 +105,22 @@ class CapriWindow(QWidget):
 
         self.status = QLabel(self._default_status, panel)
         self.status.setObjectName("status")
-
         panel_layout.addWidget(self.status)
 
         accent = QFrame(self)
         accent.setObjectName("accent")
         accent.setFixedHeight(3)
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
-        root.addWidget(self.video, 1)
-        root.addWidget(accent)
-        root.addWidget(panel)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.video, 1)
+        layout.addWidget(accent)
+        layout.addWidget(panel)
 
     def _build_shortcuts(self) -> None:
         QShortcut(QKeySequence("Ctrl+Q"), self, self.close)
         QShortcut(QKeySequence("Ctrl+Space"), self, self._toggle_voice)
-
-    def _build_effects(self) -> None:
-        self._glitches = GlitchManager(self)
 
     def _build_voice(self) -> None:
         self._voice = VoiceInput(always_on=True)
@@ -464,9 +133,6 @@ class CapriWindow(QWidget):
         self._voice_window_timer.setSingleShot(True)
         self._voice_window_timer.timeout.connect(self._on_voice_window_expired)
 
-        self._inactivity_timer = QTimer(self)
-        self._inactivity_timer.setSingleShot(True)
-        self._inactivity_timer.timeout.connect(self._hide_for_inactivity)
     def _register_commands(self) -> None:
         register_commands(
             self.commands,
@@ -474,18 +140,18 @@ class CapriWindow(QWidget):
                 toggle_glitches=self._toggle_glitches,
                 toggle_voice=self._toggle_voice,
                 wild_glitch=self._wild_glitch,
-                ask_ollama=self._ask_ollama,
+                ask_ollama=self._actions.ask_ollama,
                 search_google=self._search_google,
                 search_youtube=self._search_youtube,
-                spotify_play=self._spotify_play,
-                spotify_pause=self._spotify_pause,
-                spotify_resume=self._spotify_resume,
-                spotify_next=self._spotify_next,
-                spotify_previous=self._spotify_previous,
-                lock_screen=self._lock_screen,
-                power_off=self._power_off,
-                suspend=self._suspend,
-                reboot=self._reboot,
+                spotify_play=self._actions.spotify_play,
+                spotify_pause=self._actions.spotify_pause,
+                spotify_resume=self._actions.spotify_resume,
+                spotify_next=self._actions.spotify_next,
+                spotify_previous=self._actions.spotify_previous,
+                lock_screen=self._actions.lock_screen,
+                power_off=self._actions.power_off,
+                suspend=self._actions.suspend,
+                reboot=self._actions.reboot,
                 toggle_overlay=self._toggle_capri_overlay,
             ),
         )
@@ -495,9 +161,12 @@ class CapriWindow(QWidget):
         if not self._greeted:
             self._greeted = True
             screen = self.screen()
-            screen_rect = screen.geometry() if screen is not None else self.geometry()
-            overlay = TransitionOverlay(screen_rect, self.geometry(), "in", target=self)
-            self._transition_overlay = overlay
+            screen_rect = (
+                screen.geometry() if screen is not None else self.geometry()
+            )
+            overlay = TransitionOverlay(
+                screen_rect, self.geometry(), "in", target=self
+            )
             overlay.start()
             QTimer.singleShot(600, self._greet)
 
@@ -583,7 +252,6 @@ class CapriWindow(QWidget):
         return speech
 
     def _toggle_voice(self) -> str:
-        # Голосовой режим всегда включён и не отключается.
         if self._voice.is_busy:
             return "Подождите, идёт распознавание."
         if not self._voice.is_listening:
@@ -596,7 +264,7 @@ class CapriWindow(QWidget):
         command = self._voice_command(text)
         if command is None:
             return
-        self._reset_inactivity_timer()
+        self._inactivity.reset_timer()
         if command:
             self._disarm_voice_command()
             found = self.commands.find(command)
@@ -611,6 +279,7 @@ class CapriWindow(QWidget):
             self.speak(result)
             return
         self._arm_voice_command()
+
     def _voice_command(self, text: str) -> str | None:
         command = command_after_trigger(text)
         if command is not None:
@@ -642,107 +311,15 @@ class CapriWindow(QWidget):
         else:
             self.status.setText(self._default_status)
 
-    def _current_target_widget(self) -> QWidget:
-        if self._overlay_mode and self._overlay_window is not None:
-            return self._overlay_window
-        return self
+    def _wake_voice_if_needed(self) -> None:
+        if not self._voice.is_listening and not self._voice.is_busy:
+            self._voice.start()
 
-    def _reset_inactivity_timer(self) -> None:
-        if self._closing or self._phase == PHASE_CLOSED:
-            return
-        if self._transitioning:
-            return
-        target = self._current_target_widget()
-        if not target.isVisible():
-            self._start_show_transition()
-            return
-        self._inactivity_timer.stop()
-        self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
-
-    def _hide_for_inactivity(self) -> None:
-        if self._closing or self._phase == PHASE_CLOSED:
-            return
-        if self._transitioning:
-            return
-        target = self._current_target_widget()
-        if not target.isVisible():
-            return
-        self._voice_was_listening = self._voice.is_listening
-        self._transitioning = True
-        self._inactivity_timer.stop()
-        screen = target.screen()
-        screen_rect = screen.geometry() if screen is not None else target.geometry()
-        overlay = TransitionOverlay(screen_rect, target.geometry(), "out", target=target)
-        overlay.finished.connect(self._finish_hide_transition)
-        self._transition_overlay = overlay
-        overlay.start()
-
-    def _relocate_overlay_randomly(self) -> None:
-        if self._overlay_window is None:
-            return
-        screen = self._overlay_window.screen()
-        if screen is None:
-            screen = QGuiApplication.primaryScreen()
-        if screen is None:
-            return
-        geo = screen.availableGeometry()
-        w = self._overlay_window.width()
-        h = self._overlay_window.height()
-        max_x = max(geo.left(), geo.right() - w)
-        max_y = max(geo.top(), geo.bottom() - h)
-        rand_x = random.randint(geo.left(), max_x)
-        rand_y = random.randint(geo.top(), max_y)
-        self._overlay_window.move(rand_x, rand_y)
-
-    def _start_show_transition(self) -> None:
-        self._transitioning = True
-        if self._overlay_mode and self._overlay_window is not None:
-            self._relocate_overlay_randomly()
-        target = self._current_target_widget()
-        screen = target.screen()
-        screen_rect = screen.geometry() if screen is not None else target.geometry()
-        overlay = TransitionOverlay(
-            screen_rect,
-            target.geometry(),
-            "in",
-            target=target,
-            on_peak=self._reveal_target_on_show_peak,
-        )
-        overlay.finished.connect(self._finish_show_transition)
-        self._transition_overlay = overlay
-        overlay.start()
-
-    def _reveal_target_on_show_peak(self) -> None:
-        if self._overlay_mode:
-            self.hide()
-            if self._overlay_window is not None:
-                self._overlay_window.show()
-                self._overlay_window.raise_()
-        else:
-            if self._overlay_window is not None:
-                self._overlay_window.hide()
-            self.show()
-            self.raise_()
-
-    def _finish_hide_transition(self) -> None:
-        self._transitioning = False
-        self._transition_overlay = None
-        target = self._current_target_widget()
-        target.hide()
-
-    def _finish_show_transition(self) -> None:
-        self._transitioning = False
-        self._transition_overlay = None
-        self._reveal_target_on_show_peak()
-        if self._voice_was_listening and not self._voice.is_listening:
-            if not self._voice.is_busy:
-                self._voice.start()
-        self._voice_was_listening = False
-        self._inactivity_timer.stop()
-        self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
     def _on_voice_listening(self, listening: bool) -> None:
         if not listening:
-            self._disarm_voice_command()
+            self.status.setText(self._default_status)
+        else:
+            self.status.setText("Капри // Слушает")
 
     def _on_voice_status(self, text: str) -> None:
         if not text:
@@ -781,141 +358,11 @@ class CapriWindow(QWidget):
         )
         return f"Ищу на YouTube: {query}"
 
-    def _ask_ollama(self, prompt: str) -> str:
-        prompt = prompt.strip()
-        if not prompt:
-            return "Скажи, о чём спросить: «слушай <текст>»."
-        if self._ollama_busy:
-            return "Ещё думаю над прошлым — подожди."
-        history = list(self._ollama_history)
-        self._ollama_pending = prompt
-        self._ollama_busy = True
-        threading.Thread(
-            target=self._ask_ollama_worker,
-            args=(prompt, history),
-            name="capri-ollama",
-            daemon=True,
-        ).start()
-        return "Думаю…"
-
-    def _ask_ollama_worker(
-        self, prompt: str, history: list[dict[str, str]]
-    ) -> None:
-        try:
-            answer = ollama.ask(prompt, history=history)
-        except ollama.OllamaError as error:
-            self.ollama_failed.emit(str(error))
-            return
-        except Exception:
-            self.ollama_failed.emit("Локальная модель не ответила.")
-            return
-        self.ollama_reply.emit(answer)
-
-    def _on_ollama_reply(self, answer: str) -> None:
-        prompt = self._ollama_pending
-        self._finish_ollama()
-        if prompt:
-            self._ollama_history.append({"role": "user", "content": prompt})
-            self._ollama_history.append(
-                {"role": "assistant", "content": answer}
-            )
-            del self._ollama_history[:-OLLAMA_HISTORY_MESSAGES]
-        self.speak(answer)
-
-    def _on_ollama_failed(self, message: str) -> None:
-        self._finish_ollama()
-        self.speak(message)
-
-    def _finish_ollama(self) -> None:
-        self._ollama_busy = False
-        self._ollama_pending = ""
-
-    def _spotify_play(self, query: str) -> str:
-        query = query.strip()
-        if not query:
-            return "Что включить? Скажи: «спотифай <запрос>»."
-        threading.Thread(
-            target=self._spotify_play_worker,
-            args=(query,),
-            name="capri-spotify",
-            daemon=True,
-        ).start()
-        return "Ищу в Spotify…"
-
-    def _spotify_play_worker(self, query: str) -> None:
-        try:
-            message = spotify.play(query)
-        except Exception:
-            message = "Не удалось обратиться к Spotify."
-        self.spotify_reply.emit(message)
-
-    def _spotify_pause(self) -> str:
-        return spotify.pause()
-
-    def _spotify_resume(self) -> str:
-        return spotify.resume()
-
-    def _spotify_next(self) -> str:
-        return spotify.next_track()
-
-    def _spotify_previous(self) -> str:
-        return spotify.previous_track()
-
-    def _lock_screen(self) -> str:
-        commands = lock_commands()
-        if not commands:
-            return "Не удалось найти способ заблокировать экран."
-        self._lock_pending = commands
-        QTimer.singleShot(LOCK_DELAY_MS, self._perform_lock)
-        return "Блокирую экран."
-
-    def _perform_lock(self) -> None:
-        commands = self._lock_pending
-        if not commands:
-            return
-        self._lock_pending = None
-        if not run_lock(commands):
-            self.speak("Не удалось заблокировать экран.")
-
-    def _power_off(self) -> str:
-        return self._queue_power("poweroff", "Выключаю ПК.")
-
-    def _suspend(self) -> str:
-        return self._queue_power("suspend", "Ухожу в спящий режим.")
-
-    def _reboot(self) -> str:
-        return self._queue_power("reboot", "Перезагружаю ПК.")
-
-    def _queue_power(self, action: str, message: str) -> str:
-        commands = power_commands(action)
-        if not commands:
-            return "Не удалось найти способ выполнить это действие."
-        self._power_pending = commands
-        QTimer.singleShot(POWER_DELAY_MS, self._perform_power)
-        return message
-
-    def _perform_power(self) -> None:
-        commands = self._power_pending
-        if not commands:
-            return
-        self._power_pending = None
-        threading.Thread(
-            target=self._power_worker,
-            args=(commands,),
-            name="capri-power",
-            daemon=True,
-        ).start()
-
-    def _power_worker(self, commands: list[list[str]]) -> None:
-        if not run_power(commands):
-            self.power_failed.emit("Не удалось выполнить действие.")
-
     def _toggle_capri_overlay(self) -> str:
-        asset = ROOT / "assets" / "capri_pet.png"
         if not self._overlay_mode:
             if self._overlay_window is None:
                 self._overlay_window = CapriOverlayWindow(
-                    asset, on_interact=self._reset_inactivity_timer
+                    OVERLAY_ASSET, on_interact=self._inactivity.reset_timer
                 )
             old_target = self
             center = self.frameGeometry().center()
@@ -928,77 +375,17 @@ class CapriWindow(QWidget):
             msg = "Капри в нормальном облике."
         else:
             old_target = (
-                self._overlay_window if self._overlay_window is not None else self
+                self._overlay_window
+                if self._overlay_window is not None
+                else self
             )
             new_target = self
             self._overlay_mode = False
             msg = "Капри снова в окне."
 
-        self._start_switch_transition(old_target, new_target)
-        self._reset_inactivity_timer()
+        self._inactivity.switch_target(old_target, new_target)
+        self._inactivity.reset_timer()
         return msg
-
-    def _start_switch_transition(
-        self, old_target: QWidget, new_target: QWidget
-    ) -> None:
-        if self._transition_overlay is not None:
-            try:
-                self._transition_overlay.close()
-            except Exception:
-                pass
-            self._transition_overlay = None
-
-        self._transitioning = True
-        self._inactivity_timer.stop()
-
-        old_screen = old_target.screen() or new_target.screen()
-        old_screen_rect = (
-            old_screen.geometry() if old_screen is not None else old_target.geometry()
-        )
-
-        def on_out_peak() -> None:
-            old_target.hide()
-
-        def on_out_finished() -> None:
-            new_screen = new_target.screen()
-            new_screen_rect = (
-                new_screen.geometry()
-                if new_screen is not None
-                else new_target.geometry()
-            )
-
-            def on_in_peak() -> None:
-                new_target.show()
-                new_target.raise_()
-
-            def on_in_finished() -> None:
-                self._transitioning = False
-                self._transition_overlay = None
-                new_target.show()
-                new_target.raise_()
-                self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
-
-            overlay_in = TransitionOverlay(
-                new_screen_rect,
-                new_target.geometry(),
-                "in",
-                target=new_target,
-                on_peak=on_in_peak,
-            )
-            overlay_in.finished.connect(on_in_finished)
-            self._transition_overlay = overlay_in
-            overlay_in.start()
-
-        overlay_out = TransitionOverlay(
-            old_screen_rect,
-            old_target.geometry(),
-            "out",
-            target=old_target,
-            on_peak=on_out_peak,
-        )
-        overlay_out.finished.connect(on_out_finished)
-        self._transition_overlay = overlay_out
-        overlay_out.start()
 
     def _greet(self) -> None:
         if self._speech is not None:
@@ -1012,44 +399,14 @@ class CapriWindow(QWidget):
         if self._speech is window:
             self._speech = None
 
-    def _on_media_error(self, *_args) -> None:
-        self.status.setText(
-            f"Капри // ОШИБКА ВОСПРОИЗВЕДЕНИЯ: {self.player.errorString()}"
-        )
-        if self._phase == PHASE_START:
-            QTimer.singleShot(0, self._play_main)
-        elif self._phase == PHASE_END:
-            self._outro_video_done = True
-            QTimer.singleShot(0, self._maybe_finish_outro)
-
-    def _on_media_status(self, status) -> None:
-        if status != QMediaPlayer.MediaStatus.EndOfMedia:
-            return
-        if self._phase == PHASE_START:
-            self._play_main()
-        elif self._phase == PHASE_END:
-            self._outro_video_done = True
-            self._maybe_finish_outro()
-
-    def _on_sound_error(self, *_args) -> None:
-        if self._phase == PHASE_END:
-            self._outro_sound_done = True
-            QTimer.singleShot(0, self._maybe_finish_outro)
-
-    def _on_sound_status(self, status) -> None:
-        if status != QMediaPlayer.MediaStatus.EndOfMedia:
-            return
-        if self._phase == PHASE_END:
-            self._outro_sound_done = True
-            self._maybe_finish_outro()
+    def _on_media_error(self, error_str: str) -> None:
+        self.status.setText(f"Капри // ОШИБКА ВОСПРОИЗВЕДЕНИЯ: {error_str}")
 
     def _finish_close(self) -> None:
-        self._phase = PHASE_CLOSED
-        self.player.stop()
-        self.sound.stop()
+        self._media.stop()
         if self._speech is not None:
             self._speech.close()
-        target = self._current_target_widget()
+        target = self._inactivity.current_target_widget
         if target.isVisible():
             screen = target.screen()
             screen_rect = (
@@ -1064,9 +421,8 @@ class CapriWindow(QWidget):
             QTimer.singleShot(0, self.close)
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        if self._closing or self._phase == PHASE_CLOSED:
-            self.player.stop()
-            self.sound.stop()
+        if self._closing or self._media.phase == PHASE_CLOSED:
+            self._media.stop()
             super().closeEvent(event)
             return
         if self._overlay_mode:
@@ -1079,7 +435,7 @@ class CapriWindow(QWidget):
         if self._overlay_window is not None:
             self._overlay_window.close()
         self.speak(GOODBYE_LINE)
-        self._play_outro()
+        self._media.play_outro()
 
 
 if __name__ == "__main__":
