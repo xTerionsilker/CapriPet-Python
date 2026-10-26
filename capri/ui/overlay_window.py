@@ -31,19 +31,11 @@ class CapriOverlayWindow(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setAutoFillBackground(False)
 
-        pixmap = QPixmap(str(image_path))
-        if pixmap.isNull():
-            pixmap = QPixmap(420, 420)
-        target_width = max(1, int(pixmap.width() / 1.5))
-        target_height = max(1, int(pixmap.height() / 1.5))
-        pixmap = pixmap.scaled(
-            target_width,
-            target_height,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self._pixmap = pixmap
-        self.setFixedSize(pixmap.size())
+        self._pixmaps: dict[str, QPixmap] = {}
+        self._load_pixmap("default", image_path)
+        self._current_pose = "default"
+        self._pixmap = self._pixmaps["default"]
+        self.setFixedSize(self._pixmap.size())
 
         self._drag_offset: QPoint | None = None
 
@@ -51,6 +43,30 @@ class CapriOverlayWindow(QWidget):
         self._glitch_timer = QTimer(self)
         self._glitch_timer.setInterval(80)
         self._glitch_timer.timeout.connect(self._on_glitch_tick)
+
+    def _load_pixmap(self, name: str, path: Path) -> QPixmap:
+        pixmap = QPixmap(str(path))
+        if pixmap.isNull():
+            pixmap = QPixmap(420, 420)
+        target_width = max(1, int(pixmap.width() / 1.5))
+        target_height = max(1, int(pixmap.height() / 1.5))
+        scaled = pixmap.scaled(
+            target_width,
+            target_height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self._pixmaps[name] = scaled
+        return scaled
+
+    def set_pose_image(self, pose_name: str, path: Path) -> None:
+        """Переключает спрайт позы по пути к изображению."""
+        if pose_name not in self._pixmaps:
+            self._load_pixmap(pose_name, path)
+        self._current_pose = pose_name
+        self._pixmap = self._pixmaps[pose_name]
+        self.update()
+
 
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().showEvent(event)

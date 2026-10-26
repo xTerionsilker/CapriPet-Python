@@ -18,6 +18,8 @@ class ActionBridge(QObject):
     """Мост для выполнения длительных и системных действий (Ollama, Spotify, Power, Lock)."""
 
     speech_requested = Signal(str)
+    ollama_started = Signal()
+    ollama_finished = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -39,6 +41,7 @@ class ActionBridge(QObject):
         history = list(self._ollama_history)
         self._ollama_pending = prompt
         self._ollama_busy = True
+        self.ollama_started.emit()
         threading.Thread(
             target=self._ask_ollama_worker,
             args=(prompt, history),
@@ -78,6 +81,7 @@ class ActionBridge(QObject):
     def _finish_ollama(self) -> None:
         self._ollama_busy = False
         self._ollama_pending = ""
+        self.ollama_finished.emit()
 
     # --- Spotify ---
 

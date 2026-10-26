@@ -36,7 +36,11 @@ from .theme import APP_STYLE
 from .transition import TransitionOverlay
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-OVERLAY_ASSET = ROOT / "assets" / "capri_pet.png"
+ASSETS = ROOT / "assets"
+VAR_ASSETS = ASSETS / "var"
+OVERLAY_SIT = VAR_ASSETS / "capri_sit.png"
+OVERLAY_STAY = VAR_ASSETS / "capri_stay.png"
+OVERLAY_CROUCH = VAR_ASSETS / "capri_crouch.png"
 
 STARTUP_LINES = (
     "Хороший мальчик, {user}",
@@ -70,6 +74,8 @@ class CapriWindow(QWidget):
         self._flow = InputFlow(self.commands, self)
         self._actions = ActionBridge(self)
         self._actions.speech_requested.connect(self.speak)
+        self._actions.ollama_started.connect(self._on_ollama_talking_start)
+        self._actions.ollama_finished.connect(self._on_ollama_talking_end)
 
         self._build_ui()
         self._media = MediaController(self, self.video)
@@ -364,7 +370,7 @@ class CapriWindow(QWidget):
         if not self._overlay_mode:
             if self._overlay_window is None:
                 self._overlay_window = CapriOverlayWindow(
-                    OVERLAY_ASSET, on_interact=self._inactivity.reset_timer
+                    OVERLAY_SIT, on_interact=self._inactivity.reset_timer
                 )
             old_target = self
             center = self.frameGeometry().center()
@@ -389,10 +395,24 @@ class CapriWindow(QWidget):
         self._inactivity.reset_timer()
         return msg
 
+    def _on_ollama_talking_start(self) -> None:
+        """Переключает Капри в позу stay при общении через локальную модель."""
+        if self._overlay_window is not None:
+            self._overlay_window.set_pose_image("stay", OVERLAY_STAY)
+
+    def _on_ollama_talking_end(self) -> None:
+        """Возвращает Капри в обычную позу sit после завершения ответа модели."""
+        if self._overlay_window is not None:
+            self._overlay_window.set_pose_image("sit", OVERLAY_SIT)
+
     def _locate_mouse(self) -> str:
         """Появляется прямо на курсоре мыши и телепортируется с ним в центр экрана."""
         cursor_pos = get_mouse_position()
         target = self._inactivity.current_target_widget
+
+        # Включаем позу приседания / охоты (crouch) при переносе курсора
+        if self._overlay_window is not None:
+            self._overlay_window.set_pose_image("crouch", OVERLAY_CROUCH)
 
         # Определяем экран, на котором находится курсор мыши
         screen = None
@@ -424,6 +444,12 @@ class CapriWindow(QWidget):
             except Exception:
                 pass
 
+        def on_teleport_finished() -> None:
+            move_mouse()
+            # Возвращаем стандартную позу sit после завершения телепортации
+            if self._overlay_window is not None:
+                self._overlay_window.set_pose_image("sit", OVERLAY_SIT)
+
         # Если питомец уже виден в другом месте, мгновенно перемещаем в точку мыши
         target.setGeometry(mouse_rect)
         target.show()
@@ -435,7 +461,7 @@ class CapriWindow(QWidget):
             from_rect=mouse_rect,
             to_rect=center_rect,
             on_peak_in=move_mouse,
-            on_finished=move_mouse,
+            on_finished=on_teleport_finished,
         )
 
         self._inactivity.reset_timer()
