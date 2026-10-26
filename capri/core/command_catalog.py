@@ -23,6 +23,7 @@ class Handlers:
     power_off: Handler
     suspend: Handler
     reboot: Handler
+    toggle_overlay: Handler
 
 
 def register_commands(registry: CommandRegistry, handlers: Handlers) -> None:
@@ -318,5 +319,41 @@ def register_commands(registry: CommandRegistry, handlers: Handlers) -> None:
             "модел",
             "спроси",
             "спросить",
+        ),
+    )
+
+    registry.register(
+        "Нормальный облик",
+        "переключить между окном Капри и оверлеем-картинкой поверх окон.",
+        handlers.toggle_overlay,
+        aliases=(
+            "нормальный облик",
+            "нормальный вид",
+            "капри оверлей",
+            "оверлей капри",
+            "режим оверлея",
+            "режим капри",
+            "покажи капри",
+            "капри на экран",
+            "капри поверх окон",
+            "капри картинка",
+            "облик капри",
+            "переключить облик",
+            "переключить оверлей",
+            "капри pet",
+            "capri overlay",
+            "overlay mode",
+            "normal form",
+            "покажи облик",
+            "режим картинки",
+        ),
+        keywords=(
+            "облик",
+            "оверлей",
+            "overlay",
+            "картинк",
+            "поверх",
+            "режим",
+            "нормальн",
         ),
     )

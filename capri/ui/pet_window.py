@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import quote_plus
 
 from PySide6.QtCore import QEvent, QPoint, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
@@ -98,6 +98,63 @@ POWER_DELAY_MS = 2000
 OLLAMA_HISTORY_MESSAGES = 12
 
 
+class CapriOverlayWindow(QWidget):
+
+    def __init__(self, image_path: Path) -> None:
+        super().__init__(
+            None,
+            Qt.WindowType.Tool
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint,
+        )
+        self.setWindowTitle("Капри")
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setAutoFillBackground(False)
+
+        pixmap = QPixmap(str(image_path))
+        if pixmap.isNull():
+            pixmap = QPixmap(420, 420)
+        self._pixmap = pixmap
+        self.setFixedSize(pixmap.size())
+
+        label = QLabel(self)
+        label.setPixmap(pixmap)
+        label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        label.setAutoFillBackground(False)
+        label.setGeometry(0, 0, pixmap.width(), pixmap.height())
+        label.show()
+
+        self._drag_offset: QPoint | None = None
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        if event.button() == Qt.MouseButton.LeftButton:
+            handle = self.windowHandle()
+            if handle is not None and hasattr(handle, "startSystemMove"):
+                handle.startSystemMove(event)
+                event.accept()
+                return
+            self._drag_offset = (
+                event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            )
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        if self._drag_offset is not None:
+            self.move(event.globalPosition().toPoint() - self._drag_offset)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        self._drag_offset = None
+        super().mouseReleaseEvent(event)
+
+
 class CapriWindow(QWidget):
 
     spotify_reply = Signal(str)
@@ -130,6 +187,8 @@ class CapriWindow(QWidget):
         self._outro_video_done = True
         self._outro_sound_done = True
         self._default_status = "Капри // Слушает"
+        self._overlay_mode = False
+        self._overlay_window: CapriOverlayWindow | None = None
 
         self.commands = CommandRegistry()
         self._flow = InputFlow(self.commands, self)
@@ -298,6 +357,7 @@ class CapriWindow(QWidget):
                 power_off=self._power_off,
                 suspend=self._suspend,
                 reboot=self._reboot,
+                toggle_overlay=self._toggle_capri_overlay,
             ),
         )
 
@@ -374,7 +434,14 @@ class CapriWindow(QWidget):
         if self._speech is not None:
             self._speech.close()
         hold_ms = min(5000, max(1200, len(text) * 45))
-        speech = show_text(text, parent=self, hold_ms=hold_ms)
+        parent = self
+        if (
+            self._overlay_mode
+            and self._overlay_window is not None
+            and self._overlay_window.isVisible()
+        ):
+            parent = self._overlay_window
+        speech = show_text(text, parent=parent, hold_ms=hold_ms)
         self._speech = speech
         speech.destroyed.connect(
             lambda *_, window=speech: self._forget_speech(window)
@@ -442,6 +509,8 @@ class CapriWindow(QWidget):
             self.status.setText(self._default_status)
 
     def _reset_inactivity_timer(self) -> None:
+        if self._overlay_mode:
+            return
         if self._closing or self._phase == PHASE_CLOSED:
             return
         if self._transitioning:
@@ -453,6 +522,8 @@ class CapriWindow(QWidget):
         self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
 
     def _hide_for_inactivity(self) -> None:
+        if self._overlay_mode:
+            return
         if self._closing or self._phase == PHASE_CLOSED:
             return
         if self._transitioning:
@@ -664,6 +735,31 @@ class CapriWindow(QWidget):
         if not run_power(commands):
             self.power_failed.emit("Не удалось выполнить действие.")
 
+    def _toggle_capri_overlay(self) -> str:
+        asset = ROOT / "assets" / "capri_pet.png"
+        if not self._overlay_mode:
+            if self._overlay_window is None:
+                self._overlay_window = CapriOverlayWindow(asset)
+            overlay = self._overlay_window
+            center = self.frameGeometry().center()
+            overlay.move(
+                center.x() - overlay.width() // 2,
+                center.y() - overlay.height() // 2,
+            )
+            overlay.show()
+            overlay.raise_()
+            self._inactivity_timer.stop()
+            self.hide()
+            self._overlay_mode = True
+            return "Капри в нормальном облике."
+        if self._overlay_window is not None:
+            self._overlay_window.hide()
+        self._overlay_mode = False
+        self.show()
+        self.raise_()
+        self._reset_inactivity_timer()
+        return "Капри снова в окне."
+
     def _greet(self) -> None:
         if self._speech is not None:
             return
@@ -721,11 +817,15 @@ class CapriWindow(QWidget):
             self.sound.stop()
             super().closeEvent(event)
             return
+        if self._overlay_mode:
+            self._toggle_capri_overlay()
         self._closing = True
         event.ignore()
         self._voice.cancel()
         self._glitches.stop()
         close_all_speech()
+        if self._overlay_window is not None:
+            self._overlay_window.close()
         self.speak(GOODBYE_LINE)
         self._play_outro()
 
