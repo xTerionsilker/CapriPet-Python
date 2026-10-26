@@ -376,6 +376,11 @@ class CapriWindow(QWidget):
         super().showEvent(event)
         if not self._greeted:
             self._greeted = True
+            screen = self.screen()
+            screen_rect = screen.geometry() if screen is not None else self.geometry()
+            overlay = TransitionOverlay(screen_rect, self.geometry(), "in", target=self)
+            self._transition_overlay = overlay
+            overlay.start()
             QTimer.singleShot(600, self._greet)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
@@ -549,11 +554,10 @@ class CapriWindow(QWidget):
         self._inactivity_timer.stop()
         screen = target.screen()
         screen_rect = screen.geometry() if screen is not None else target.geometry()
-        overlay = TransitionOverlay(screen_rect, target.geometry(), "out")
+        overlay = TransitionOverlay(screen_rect, target.geometry(), "out", target=target)
         overlay.finished.connect(self._finish_hide_transition)
         self._transition_overlay = overlay
         overlay.start()
-        target.raise_()
 
     def _relocate_overlay_randomly(self) -> None:
         if self._overlay_window is None:
@@ -579,20 +583,18 @@ class CapriWindow(QWidget):
         target = self._current_target_widget()
         screen = target.screen()
         screen_rect = screen.geometry() if screen is not None else target.geometry()
-        overlay = TransitionOverlay(screen_rect, target.geometry(), "in")
+        overlay = TransitionOverlay(
+            screen_rect,
+            target.geometry(),
+            "in",
+            target=target,
+            on_peak=self._reveal_target_on_show_peak,
+        )
         overlay.finished.connect(self._finish_show_transition)
         self._transition_overlay = overlay
         overlay.start()
 
-    def _finish_hide_transition(self) -> None:
-        self._transitioning = False
-        self._transition_overlay = None
-        target = self._current_target_widget()
-        target.hide()
-
-    def _finish_show_transition(self) -> None:
-        self._transitioning = False
-        self._transition_overlay = None
+    def _reveal_target_on_show_peak(self) -> None:
         if self._overlay_mode:
             self.hide()
             if self._overlay_window is not None:
@@ -603,6 +605,17 @@ class CapriWindow(QWidget):
                 self._overlay_window.hide()
             self.show()
             self.raise_()
+
+    def _finish_hide_transition(self) -> None:
+        self._transitioning = False
+        self._transition_overlay = None
+        target = self._current_target_widget()
+        target.hide()
+
+    def _finish_show_transition(self) -> None:
+        self._transitioning = False
+        self._transition_overlay = None
+        self._reveal_target_on_show_peak()
         if self._voice_was_listening and not self._voice.is_listening:
             if not self._voice.is_busy:
                 self._voice.start()
@@ -786,25 +799,88 @@ class CapriWindow(QWidget):
                 self._overlay_window = CapriOverlayWindow(
                     asset, on_interact=self._reset_inactivity_timer
                 )
-            overlay = self._overlay_window
+            old_target = self
             center = self.frameGeometry().center()
-            overlay.move(
-                center.x() - overlay.width() // 2,
-                center.y() - overlay.height() // 2,
+            self._overlay_window.move(
+                center.x() - self._overlay_window.width() // 2,
+                center.y() - self._overlay_window.height() // 2,
             )
-            overlay.show()
-            overlay.raise_()
+            new_target = self._overlay_window
             self._overlay_mode = True
-            self.hide()
-            self._reset_inactivity_timer()
-            return "Капри в нормальном облике."
-        if self._overlay_window is not None:
-            self._overlay_window.hide()
-        self._overlay_mode = False
-        self.show()
-        self.raise_()
+            msg = "Капри в нормальном облике."
+        else:
+            old_target = (
+                self._overlay_window if self._overlay_window is not None else self
+            )
+            new_target = self
+            self._overlay_mode = False
+            msg = "Капри снова в окне."
+
+        self._start_switch_transition(old_target, new_target)
         self._reset_inactivity_timer()
-        return "Капри снова в окне."
+        return msg
+
+    def _start_switch_transition(
+        self, old_target: QWidget, new_target: QWidget
+    ) -> None:
+        if self._transition_overlay is not None:
+            try:
+                self._transition_overlay.close()
+            except Exception:
+                pass
+            self._transition_overlay = None
+
+        self._transitioning = True
+        self._inactivity_timer.stop()
+
+        old_screen = old_target.screen() or new_target.screen()
+        old_screen_rect = (
+            old_screen.geometry() if old_screen is not None else old_target.geometry()
+        )
+
+        def on_out_peak() -> None:
+            old_target.hide()
+
+        def on_out_finished() -> None:
+            new_screen = new_target.screen()
+            new_screen_rect = (
+                new_screen.geometry()
+                if new_screen is not None
+                else new_target.geometry()
+            )
+
+            def on_in_peak() -> None:
+                new_target.show()
+                new_target.raise_()
+
+            def on_in_finished() -> None:
+                self._transitioning = False
+                self._transition_overlay = None
+                new_target.show()
+                new_target.raise_()
+                self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
+
+            overlay_in = TransitionOverlay(
+                new_screen_rect,
+                new_target.geometry(),
+                "in",
+                target=new_target,
+                on_peak=on_in_peak,
+            )
+            overlay_in.finished.connect(on_in_finished)
+            self._transition_overlay = overlay_in
+            overlay_in.start()
+
+        overlay_out = TransitionOverlay(
+            old_screen_rect,
+            old_target.geometry(),
+            "out",
+            target=old_target,
+            on_peak=on_out_peak,
+        )
+        overlay_out.finished.connect(on_out_finished)
+        self._transition_overlay = overlay_out
+        overlay_out.start()
 
     def _greet(self) -> None:
         if self._speech is not None:
@@ -855,7 +931,19 @@ class CapriWindow(QWidget):
         self.sound.stop()
         if self._speech is not None:
             self._speech.close()
-        QTimer.singleShot(0, self.close)
+        target = self._current_target_widget()
+        if target.isVisible():
+            screen = target.screen()
+            screen_rect = (
+                screen.geometry() if screen is not None else target.geometry()
+            )
+            overlay = TransitionOverlay(
+                screen_rect, target.geometry(), "out", target=target
+            )
+            overlay.finished.connect(self.close)
+            overlay.start()
+        else:
+            QTimer.singleShot(0, self.close)
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         if self._closing or self._phase == PHASE_CLOSED:
