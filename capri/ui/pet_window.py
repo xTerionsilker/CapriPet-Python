@@ -49,7 +49,7 @@ else:
     from ..effects.glitch import GlitchManager
     from ..core.input_flow import InputFlow
     from ..integrations.screen_lock import lock_commands, run_lock
-    from .speech import SpeechWindow, show_text
+    from .speech import SpeechWindow, close_all as close_all_speech, show_text
     from .transition import TransitionOverlay
     from ..integrations.system_power import power_commands, run_power
     from .theme import APP_STYLE
@@ -366,12 +366,40 @@ class CapriWindow(QWidget):
             return
         self.input.clear()
         self._reset_inactivity_timer()
+        command = self.commands.find(text)
+        if command is not None and command is self.commands._help:
+            self.status.setText("Капри // Выполняет")
+            self._show_help()
+            self.status.setText("Капри // Слушает")
+            return
         self.status.setText("Капри // Выполняет")
         result = self.process_input(text)
         self.status.setText("Капри // Слушает")
         self.speak(result)
     def process_input(self, text: str) -> str:
         return self._flow.handle(text)
+
+    def _show_help(self) -> None:
+        close_all_speech()
+        hold_ms = 6000
+        show_text(
+            "помощь (также: что ты умеешь?, команды, справка…) — "
+            "показать этот список.",
+            parent=self,
+            hold_ms=hold_ms,
+        )
+        for command in self.commands._commands:
+            argument = " <запрос>" if command.takes_argument else ""
+            aliases = (
+                f" (также: {', '.join(command.aliases)})"
+                if command.aliases
+                else ""
+            )
+            show_text(
+                f"{command.name}{argument}{aliases} — {command.description}",
+                parent=self,
+                hold_ms=hold_ms,
+            )
 
     def speak(self, text: str) -> SpeechWindow:
         if self._speech is not None:
@@ -401,6 +429,12 @@ class CapriWindow(QWidget):
         self._reset_inactivity_timer()
         if command:
             self._disarm_voice_command()
+            found = self.commands.find(command)
+            if found is not None and found is self.commands._help:
+                self.status.setText("Капри // Выполняет")
+                self._show_help()
+                self.status.setText("Капри // Слушает")
+                return
             self.status.setText("Капри // Выполняет")
             result = self.process_input(command)
             self.status.setText("Капри // Слушает")
@@ -722,6 +756,7 @@ class CapriWindow(QWidget):
         event.ignore()
         self._voice.cancel()
         self._glitches.stop()
+        close_all_speech()
         self.speak(GOODBYE_LINE)
         self._play_outro()
 

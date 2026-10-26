@@ -215,3 +215,8 @@ def show_text(
     window.destroyed.connect(lambda *_: _active_windows.discard(window))
     window.show()
     return window
+
+
+def close_all() -> None:
+    for window in list(_active_windows):
+        window.close()
