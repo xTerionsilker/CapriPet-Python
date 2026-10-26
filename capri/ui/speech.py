@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .placement import GAP, pick_position
+from .placement import GAP, pick_position, pick_side_position
 
 _TEXT_COLOR = "#eaffef"
 _TEXT_WIDTH = 420
@@ -178,10 +178,19 @@ class SpeechWindow(QFrame):
             else QRect(0, 0, self.width(), self.height())
         )
 
-        blocked = None
         if parent is not None:
+            # Для оверлея облика (CapriOverlayWindow) облачко всегда слева или справа
+            if parent.__class__.__name__ == "CapriOverlayWindow":
+                x, y = pick_side_position(
+                    area, parent.frameGeometry(), self.width(), self.height()
+                )
+                self.move(x, y)
+                return
+
             blocked = parent.frameGeometry().adjusted(-GAP, -GAP, GAP, GAP)
             blocked = blocked.intersected(area)
+        else:
+            blocked = None
 
         self.move(
             *pick_position(area, blocked, self.width(), self.height())

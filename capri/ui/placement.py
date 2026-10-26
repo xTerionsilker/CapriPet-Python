@@ -107,3 +107,42 @@ def pick_position(
     if blocked is not None and not blocked.isEmpty():
         return least_overlap_point(area, blocked, width, height)
     return area.left(), area.top()
+
+
+def pick_side_position(
+    area: QRect, target: QRect, width: int, height: int, gap: int = GAP
+) -> tuple[int, int]:
+    """Размещает окно строго справа или слева от целевого прямоугольника target."""
+    # Возможные позиции по горизонтали
+    right_x = target.right() + gap
+    left_x = target.left() - gap - width
+
+    # Проверяем, помещается ли справа и слева на экране
+    fits_right = right_x + width <= area.right()
+    fits_left = left_x >= area.left()
+
+    # Выбираем сторону
+    if fits_right and fits_left:
+        # Если помещается с обеих сторон, выбираем случайную
+        chosen_x = random.choice((right_x, left_x))
+    elif fits_right:
+        chosen_x = right_x
+    elif fits_left:
+        chosen_x = left_x
+    else:
+        # Если окно шире оставшегося пространства с обеих сторон,
+        # выбираем ту сторону, где места объективно больше
+        space_right = max(0, area.right() - target.right() - gap)
+        space_left = max(0, target.left() - area.left() - gap)
+        if space_right >= space_left:
+            chosen_x = max(area.left(), min(right_x, area.right() - width))
+        else:
+            chosen_x = max(area.left(), min(left_x, area.right() - width))
+
+    # Вертикальное выравнивание: центрируем относительно target с ограничением границ экрана
+    ideal_y = target.center().y() - height // 2
+    max_y = max(area.top(), area.bottom() - height)
+    chosen_y = max(area.top(), min(ideal_y, max_y))
+
+    return chosen_x, chosen_y
+
