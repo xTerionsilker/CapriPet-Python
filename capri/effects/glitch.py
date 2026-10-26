@@ -59,11 +59,15 @@ class GlitchOverlay(QWidget):
         if wild == self._wild:
             return
         self._wild = wild
-        self._frame_timer.setInterval(16 if wild else _BASE_INTERVAL_MS)
+        self._frame_timer.setInterval(24 if wild else _BASE_INTERVAL_MS)
         if wild:
             self._set_amplitude(1.0)
+            self.show()
+            self.raise_()
         else:
             self._set_amplitude(0.0)
+            if not self._active:
+                self.hide()
         self.update()
 
     def _sync_geometry(self, *_args) -> None:
