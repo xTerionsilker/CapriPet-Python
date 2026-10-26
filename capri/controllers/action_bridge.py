@@ -5,7 +5,7 @@ from typing import Callable
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from ..integrations import ollama, spotify
+from ..integrations import ollama, spotify, web_search
 from ..integrations.screen_lock import lock_commands, run_lock
 from ..integrations.system_power import power_commands, run_power
 
@@ -144,6 +144,14 @@ class ActionBridge(QObject):
 
     def reboot(self) -> str:
         return self._queue_power("reboot", "Перезагружаю ПК.")
+
+    # --- Web Search ---
+
+    def search_google(self, query: str) -> str:
+        return web_search.search_google(query)
+
+    def search_youtube(self, query: str) -> str:
+        return web_search.search_youtube(query)
 
     def _queue_power(self, action: str, message: str) -> str:
         commands = power_commands(action)

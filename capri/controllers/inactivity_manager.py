@@ -3,12 +3,13 @@ from __future__ import annotations
 import random
 from typing import Callable
 
-from PySide6.QtCore import QObject, QTimer
+from PySide6.QtCore import QObject, QRect, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QWidget
 
-from .overlay_window import CapriOverlayWindow
-from .transition import TransitionOverlay
+from ..effects.transition import TransitionOverlay
+from ..integrations.cursor import get_mouse_position, move_mouse_to_center
+from ..ui.overlay_window import CapriOverlayWindow
 
 INACTIVITY_TIMEOUT_MS = 5_000
 
@@ -217,6 +218,60 @@ class InactivityManager(QObject):
         overlay_out.finished.connect(on_out_finished)
         self._transition_overlay = overlay_out
         overlay_out.start()
+
+    def catch_mouse(
+        self, on_pose_change: Callable[[str], None] | None = None
+    ) -> str:
+        """Вспышка у курсора, молнии в центр и появление Капри с курсором."""
+        cursor_pos = get_mouse_position()
+        target = self.current_target_widget
+
+        if on_pose_change is not None:
+            on_pose_change("crouch")
+
+        screen = None
+        for scr in QGuiApplication.screens():
+            if scr.geometry().contains(cursor_pos):
+                screen = scr
+                break
+        if screen is None:
+            screen = target.screen() or QGuiApplication.primaryScreen()
+
+        geo = screen.availableGeometry() if screen is not None else target.geometry()
+
+        flash_size = 140
+        cursor_rect = QRect(
+            cursor_pos.x() - flash_size // 2,
+            cursor_pos.y() - flash_size // 2,
+            flash_size,
+            flash_size,
+        )
+
+        center_x = geo.left() + (geo.width() - target.width()) // 2
+        center_y = geo.top() + (geo.height() - target.height()) // 2
+        center_rect = QRect(center_x, center_y, target.width(), target.height())
+
+        def move_mouse() -> None:
+            try:
+                move_mouse_to_center()
+            except Exception:
+                pass
+
+        def on_teleport_finished() -> None:
+            move_mouse()
+            if on_pose_change is not None:
+                on_pose_change("sit")
+
+        self.teleport_from_cursor_to_center(
+            target=target,
+            cursor_rect=cursor_rect,
+            center_rect=center_rect,
+            on_materialize=move_mouse,
+            on_finished=on_teleport_finished,
+        )
+
+        self.reset_timer()
+        return "Поймала мышку!"
 
     def teleport_from_cursor_to_center(
         self,

@@ -4,7 +4,6 @@ import os
 import shutil
 import subprocess
 import uuid
-from typing import Tuple
 
 from PySide6.QtCore import QPoint
 from PySide6.QtGui import QCursor

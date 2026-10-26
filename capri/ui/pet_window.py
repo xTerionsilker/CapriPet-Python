@@ -3,12 +3,10 @@ from __future__ import annotations
 import getpass
 import random
 import time
-import webbrowser
 from pathlib import Path
-from urllib.parse import quote_plus
 
-from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
-from PySide6.QtGui import QCursor, QGuiApplication, QKeySequence, QShortcut
+from PySide6.QtCore import QEvent, QPoint, Qt, QTimer
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QFrame,
@@ -18,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..audio.voice import VoiceInput
+from ..controllers import ActionBridge, InactivityManager, MediaController, PHASE_CLOSED
 from ..core.command_catalog import Handlers, register_commands
 from ..core.commands import CommandRegistry
 from ..core.input_flow import InputFlow
@@ -26,14 +25,10 @@ from ..core.wake_word import (
     command_after_trigger,
 )
 from ..effects.glitch import GlitchManager
-from .action_bridge import ActionBridge
-from .cursor_manager import get_mouse_position, move_mouse_to_center
-from .inactivity_manager import InactivityManager
-from .media_controller import MediaController, PHASE_CLOSED
+from ..effects.transition import TransitionOverlay
 from .overlay_window import CapriOverlayWindow
 from .speech import SpeechWindow, close_all as close_all_speech, show_text
 from .theme import APP_STYLE
-from .transition import TransitionOverlay
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 ASSETS = ROOT / "assets"
@@ -148,8 +143,8 @@ class CapriWindow(QWidget):
                 toggle_voice=self._toggle_voice,
                 wild_glitch=self._wild_glitch,
                 ask_ollama=self._actions.ask_ollama,
-                search_google=self._search_google,
-                search_youtube=self._search_youtube,
+                search_google=self._actions.search_google,
+                search_youtube=self._actions.search_youtube,
                 spotify_play=self._actions.spotify_play,
                 spotify_pause=self._actions.spotify_pause,
                 spotify_resume=self._actions.spotify_resume,
@@ -347,25 +342,6 @@ class CapriWindow(QWidget):
         self._glitches.wild_glitch(5000)
         return "Капри в восторге! Весь экран глитчит 5 секунд."
 
-    def _search_google(self, query: str) -> str:
-        query = query.strip()
-        if not query:
-            return "Что искать в Google? Скажи: «гугл <запрос>»."
-        webbrowser.open(
-            f"https://www.google.com/search?q={quote_plus(query)}"
-        )
-        return f"Ищу в Google: {query}"
-
-    def _search_youtube(self, query: str) -> str:
-        query = query.strip()
-        if not query:
-            return "Что искать на YouTube? Скажи: «ютуб <запрос>»."
-        webbrowser.open(
-            "https://www.youtube.com/results?"
-            f"search_query={quote_plus(query)}"
-        )
-        return f"Ищу на YouTube: {query}"
-
     def _toggle_capri_overlay(self) -> str:
         if not self._overlay_mode:
             if self._overlay_window is None:
@@ -395,73 +371,30 @@ class CapriWindow(QWidget):
         self._inactivity.reset_timer()
         return msg
 
+    def _set_overlay_pose(self, pose: str) -> None:
+        """Переключает спрайт оверлея питомца при наличии окна оверлея."""
+        if self._overlay_window is not None:
+            path = {
+                "sit": OVERLAY_SIT,
+                "stay": OVERLAY_STAY,
+                "crouch": OVERLAY_CROUCH,
+            }.get(pose)
+            if path is not None:
+                self._overlay_window.set_pose_image(pose, path)
+
     def _on_ollama_talking_start(self) -> None:
         """Переключает Капри в позу stay при общении через локальную модель."""
-        if self._overlay_window is not None:
-            self._overlay_window.set_pose_image("stay", OVERLAY_STAY)
+        self._set_overlay_pose("stay")
 
     def _on_ollama_talking_end(self) -> None:
         """Возвращает Капри в обычную позу sit после завершения ответа модели."""
-        if self._overlay_window is not None:
-            self._overlay_window.set_pose_image("sit", OVERLAY_SIT)
+        self._set_overlay_pose("sit")
 
     def _locate_mouse(self) -> str:
         """Вспышка у курсора, молнии в центр, и появление Капри с курсором."""
-        cursor_pos = get_mouse_position()
-        target = self._inactivity.current_target_widget
-
-        # Включаем позу приседания / охоты (crouch)
-        if self._overlay_window is not None:
-            self._overlay_window.set_pose_image("crouch", OVERLAY_CROUCH)
-
-        # Определяем экран, на котором находится курсор мыши
-        screen = None
-        for scr in QGuiApplication.screens():
-            if scr.geometry().contains(cursor_pos):
-                screen = scr
-                break
-        if screen is None:
-            screen = target.screen() or QGuiApplication.primaryScreen()
-
-        geo = screen.availableGeometry() if screen is not None else target.geometry()
-
-        # Зона вспышки вокруг мыши
-        flash_size = 140
-        cursor_rect = QRect(
-            cursor_pos.x() - flash_size // 2,
-            cursor_pos.y() - flash_size // 2,
-            flash_size,
-            flash_size,
+        return self._inactivity.catch_mouse(
+            on_pose_change=self._set_overlay_pose
         )
-
-        # Позиция Капри в центре экрана
-        center_x = geo.left() + (geo.width() - target.width()) // 2
-        center_y = geo.top() + (geo.height() - target.height()) // 2
-        center_rect = QRect(center_x, center_y, target.width(), target.height())
-
-        def move_mouse() -> None:
-            try:
-                move_mouse_to_center()
-            except Exception:
-                pass
-
-        def on_teleport_finished() -> None:
-            move_mouse()
-            # Возвращаем стандартную позу sit после завершения появления
-            if self._overlay_window is not None:
-                self._overlay_window.set_pose_image("sit", OVERLAY_SIT)
-
-        # Запускаем: 1. Вспышка у мыши + молнии в центр -> 2. Появление Капри и курсора в центре
-        self._inactivity.teleport_from_cursor_to_center(
-            target=target,
-            cursor_rect=cursor_rect,
-            center_rect=center_rect,
-            on_materialize=move_mouse,
-            on_finished=on_teleport_finished,
-        )
-
-        self._inactivity.reset_timer()
-        return "Поймала мышку!"
 
 
     def _greet(self) -> None:

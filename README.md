@@ -95,6 +95,7 @@ main.py
 capri/
 ├── __init__.py
 ├── ui/
+├── controllers/
 ├── core/
 ├── effects/
 ├── audio/
