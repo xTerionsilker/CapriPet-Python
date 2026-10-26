@@ -133,7 +133,7 @@ class CapriOverlayWindow(QWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             handle = self.windowHandle()
             if handle is not None and hasattr(handle, "startSystemMove"):
-                handle.startSystemMove(event)
+                handle.startSystemMove()
                 event.accept()
                 return
             self._drag_offset = (
