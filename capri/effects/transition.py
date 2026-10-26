@@ -3,8 +3,8 @@ from __future__ import annotations
 import random
 from typing import Callable, List
 
-from PySide6.QtCore import QElapsedTimer, QRect, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
+from PySide6.QtCore import QElapsedTimer, QPoint, QRect, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
 from .transition_fx import (
@@ -72,22 +72,28 @@ class TransitionOverlay(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setGeometry(self._screen_rect)
 
-        # Создаем пиксельные молнии
+        # Переводим геометрию окна и экрана в локальные координаты оверлея
+        offset = self._screen_rect.topLeft()
+        local_window = self._window_rect.translated(-offset)
+        local_screen = QRect(0, 0, self._screen_rect.width(), self._screen_rect.height())
+        local_target_point = (target_point - offset) if target_point is not None else None
+
+        # Создаем пиксельные молнии в локальных координатах
         self._bolts: List[PixelLightningBolt] = []
         bolt_count = 46
-        if mode == "lightning_to_point" and target_point is not None:
+        if mode == "lightning_to_point" and local_target_point is not None:
             # Молнии от контура курсора/окна к целевой точке в центре
-            starts = perimeter_points(self._window_rect, 12)
+            starts = perimeter_points(local_window, 12)
             for s in starts:
-                self._bolts.append(PixelLightningBolt(s, target_point))
+                self._bolts.append(PixelLightningBolt(s, local_target_point))
         elif mode == "out":
-            starts = perimeter_points(self._window_rect, bolt_count)
-            ends = edge_points(self._screen_rect, bolt_count)
+            starts = perimeter_points(local_window, bolt_count)
+            ends = edge_points(local_screen, bolt_count)
             for s, e in zip(starts, ends):
                 self._bolts.append(PixelLightningBolt(s, e))
         else:
-            starts = edge_points(self._screen_rect, bolt_count)
-            ends = perimeter_points(self._window_rect, bolt_count)
+            starts = edge_points(local_screen, bolt_count)
+            ends = perimeter_points(local_window, bolt_count)
             for s, e in zip(starts, ends):
                 self._bolts.append(PixelLightningBolt(s, e))
 
@@ -96,6 +102,16 @@ class TransitionOverlay(QWidget):
         self._timer = QTimer(self)
         self._timer.setInterval(16)
         self._timer.timeout.connect(self._tick)
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        wh = self.windowHandle()
+        if wh is not None:
+            center = self._screen_rect.center()
+            for scr in QGuiApplication.screens():
+                if scr.geometry() == self._screen_rect or scr.geometry().contains(center):
+                    wh.setScreen(scr)
+                    break
 
     def start(self) -> None:
         self._clock = QElapsedTimer()

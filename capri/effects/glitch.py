@@ -70,8 +70,17 @@ class GlitchOverlay(QWidget):
                 self.hide()
         self.update()
 
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        wh = self.windowHandle()
+        if wh is not None:
+            wh.setScreen(self._screen)
+
     def _sync_geometry(self, *_args) -> None:
         self.setGeometry(self._screen.geometry())
+        wh = self.windowHandle()
+        if wh is not None:
+            wh.setScreen(self._screen)
 
     def _tick(self) -> None:
         self._update_amplitude()

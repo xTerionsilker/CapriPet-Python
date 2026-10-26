@@ -25,22 +25,91 @@ def get_mouse_position() -> QPoint:
     return pos
 
 
-def move_mouse_to_center() -> bool:
-    """Перемещает курсор мыши в центр экрана с поддержкой Wayland и X11."""
-    # 1. В KDE Plasma Wayland вызываем шорткат KWin MoveMouseToCenter
-    if _invoke_kwin_shortcut("MoveMouseToCenter"):
-        return True
-
-    # 2. Фолбэк на xdotool / ydotool, если они установлены
-    if shutil.which("ydotool"):
-        try:
-            # ydotool mousemove
-            subprocess.run(["ydotool", "mousemove", "--absolute", "960", "540"], check=False)
+def move_mouse_to(x: int, y: int) -> bool:
+    """Перемещает курсор мыши в точку (x, y) с поддержкой X11, Wayland, ydotool и xdotool."""
+    # 1. Стандартный Qt QCursor.setPos (отлично работает в X11/XWayland)
+    try:
+        QCursor.setPos(x, y)
+        pos = QCursor.pos()
+        if abs(pos.x() - x) < 10 and abs(pos.y() - y) < 10:
             return True
+    except Exception:
+        pass
+
+    # 2. xdotool (если доступен в X11/XWayland)
+    if shutil.which("xdotool"):
+        try:
+            res = subprocess.run(
+                ["xdotool", "mousemove", str(x), str(y)],
+                check=False,
+                timeout=0.3,
+            )
+            if res.returncode == 0:
+                return True
         except Exception:
             pass
 
+    # 3. ydotool (Wayland uinput)
+    if shutil.which("ydotool"):
+        try:
+            res = subprocess.run(
+                ["ydotool", "mousemove", "--absolute", str(x), str(y)],
+                check=False,
+                timeout=0.3,
+            )
+            if res.returncode == 0:
+                return True
+        except Exception:
+            pass
+
+    # 4. KWin Scripting для KDE Wayland
+    if _set_kwin_mouse_position(x, y):
+        return True
+
+    # 5. Фолбэк на KWin шорткат
+    _invoke_kwin_shortcut("MoveMouseToCenter")
     return False
+
+
+def move_mouse_to_center(screen_center: QPoint | None = None) -> bool:
+    """Перемещает курсор мыши в центр экрана с поддержкой нескольких мониторов."""
+    if screen_center is not None:
+        return move_mouse_to(screen_center.x(), screen_center.y())
+    return move_mouse_to(960, 540)
+
+
+def _set_kwin_mouse_position(x: int, y: int) -> bool:
+    """Пытается установить координаты курсора через KWin Scripting в KDE Wayland."""
+    qdbus = shutil.which("qdbus6") or shutil.which("qdbus")
+    if not qdbus:
+        return False
+
+    tag = "CP_SET_" + uuid.uuid4().hex[:8]
+    script_content = f'workspace.cursorPos = Qt.point({x}, {y});'
+    tmp_path = f"/tmp/kwin_set_{tag}.js"
+
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            f.write(script_content)
+
+        res = subprocess.check_output(
+            [qdbus, "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.loadScript", tmp_path],
+            text=True,
+            timeout=0.3,
+        ).strip()
+
+        script_num = res
+        subprocess.run([qdbus, "org.kde.KWin", f"/Scripting/Script{script_num}", "org.kde.kwin.Script.run"], timeout=0.3, check=False)
+        subprocess.run([qdbus, "org.kde.KWin", f"/Scripting/Script{script_num}", "org.kde.kwin.Script.stop"], timeout=0.3, check=False)
+        return True
+    except Exception:
+        return False
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
 
 
 def _get_kwin_mouse_position() -> QPoint | None:

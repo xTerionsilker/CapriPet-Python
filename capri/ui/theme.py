@@ -86,4 +86,42 @@ QPushButton:pressed {{
     border-bottom-color: #a6ffbe;
     padding: 10px 20px 6px;
 }}
+QMenu {{
+    background-color: #0d0a14;
+    border: 2px solid #39ff6a;
+    padding: 6px;
+    color: #e7f9ea;
+    font-family: {PIXEL_FONT};
+    font-size: 11px;
+}}
+QMenu::item {{
+    background: transparent;
+    padding: 6px 28px 6px 20px;
+    border: 1px solid transparent;
+}}
+QMenu::item:selected {{
+    background-color: #1a1628;
+    color: #39ff6a;
+    border: 1px solid #39ff6a;
+}}
+QMenu::item:disabled {{
+    color: #555268;
+}}
+QMenu::separator {{
+    height: 2px;
+    background: #2a2140;
+    margin: 6px 2px;
+}}
+QMenu::indicator {{
+    width: 12px;
+    height: 12px;
+}}
+QMenu::indicator:checked {{
+    background-color: #39ff6a;
+    border: 1px solid #a6ffbe;
+}}
+QMenu::indicator:unchecked {{
+    background-color: #0c0a12;
+    border: 1px solid #4a3e6a;
+}}
 """

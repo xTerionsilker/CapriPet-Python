@@ -6,7 +6,7 @@ import time
 from array import array
 
 from PySide6.QtCore import QObject, QTimer, Signal
-from PySide6.QtMultimedia import QAudioFormat, QAudioSource, QMediaDevices
+from PySide6.QtMultimedia import QAudioDevice, QAudioFormat, QAudioSource, QMediaDevices
 
 from .recognizer import RecognitionError, recognize
 
@@ -28,6 +28,7 @@ class VoiceInput(QObject):
     status_changed = Signal(str)
     recognized = Signal(str)
     failed = Signal(str)
+    device_changed = Signal(str)
 
     _text_ready = Signal(str)
     _round_failed = Signal(str)
@@ -40,6 +41,7 @@ class VoiceInput(QObject):
         self._source: QAudioSource | None = None
         self._io = None
         self._format: QAudioFormat | None = None
+        self._selected_device: QAudioDevice | None = None
         self._buffer = bytearray()
         self._enabled = False
         self._capturing = False
@@ -71,6 +73,34 @@ class VoiceInput(QObject):
     @property
     def is_busy(self) -> bool:
         return self._busy
+
+    @property
+    def current_device(self) -> QAudioDevice:
+        """Возвращает текущее активное аудиоустройство (выбранное или системное по умолчанию)."""
+        if self._selected_device is not None and not self._selected_device.isNull():
+            return self._selected_device
+        return QMediaDevices.defaultAudioInput()
+
+    @property
+    def selected_device(self) -> QAudioDevice | None:
+        return self._selected_device
+
+    def set_device(self, device: QAudioDevice | None) -> None:
+        """Переключает используемый микрофон. None сбрасывает на системный по умолчанию."""
+        self._selected_device = device
+        desc = (
+            device.description()
+            if device is not None and not device.isNull()
+            else "По умолчанию"
+        )
+        self.device_changed.emit(desc)
+        # Если в данный момент шла запись, перезапускаем её с новым источником
+        if self._capturing:
+            self._poll_timer.stop()
+            self._release_source()
+            self._capturing = False
+            self._buffer.clear()
+            self._begin_round()
 
     def toggle(self) -> None:
         if self._always_on:
@@ -152,7 +182,7 @@ class VoiceInput(QObject):
             self._abort("Для голосового ввода установите SpeechRecognition.")
             return
 
-        device = QMediaDevices.defaultAudioInput()
+        device = self.current_device
         if device.isNull():
             self._abort("Микрофон не найден.")
             return

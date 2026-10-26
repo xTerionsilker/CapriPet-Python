@@ -4,7 +4,7 @@ import random
 from typing import Callable
 
 from PySide6.QtCore import QObject, QRect, QTimer
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QScreen
 from PySide6.QtWidgets import QWidget
 
 from ..effects.transition import TransitionOverlay
@@ -24,6 +24,7 @@ class InactivityManager(QObject):
         is_overlay_mode: Callable[[], bool],
         is_closing: Callable[[], bool],
         on_wake_voice: Callable[[], None],
+        get_designated_screen: Callable[[], QScreen | None] | None = None,
     ) -> None:
         super().__init__(main_window)
         self._main_window = main_window
@@ -31,6 +32,7 @@ class InactivityManager(QObject):
         self._is_overlay_mode = is_overlay_mode
         self._is_closing = is_closing
         self._on_wake_voice = on_wake_voice
+        self._get_designated_screen = get_designated_screen
 
         self._transitioning = False
         self._transition_overlay: TransitionOverlay | None = None
@@ -50,6 +52,29 @@ class InactivityManager(QObject):
         if self._is_overlay_mode() and overlay is not None:
             return overlay
         return self._main_window
+
+    def get_target_screen(self) -> QScreen:
+        """Возвращает целевой экран (выбранный пользователем или текущий экран окна)."""
+        if self._get_designated_screen is not None:
+            scr = self._get_designated_screen()
+            if scr is not None:
+                return scr
+
+        target = self.current_target_widget
+        wh = target.windowHandle()
+        if wh is not None and wh.screen() is not None:
+            return wh.screen()
+
+        scr = target.screen()
+        if scr is not None:
+            return scr
+
+        center = target.frameGeometry().center()
+        for s in QGuiApplication.screens():
+            if s.geometry().contains(center):
+                return s
+
+        return QGuiApplication.primaryScreen()
 
     def start(self) -> None:
         self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
@@ -73,9 +98,7 @@ class InactivityManager(QObject):
         overlay = self._get_overlay()
         if overlay is None:
             return
-        screen = overlay.screen()
-        if screen is None:
-            screen = QGuiApplication.primaryScreen()
+        screen = self.get_target_screen()
         if screen is None:
             return
         geo = screen.availableGeometry()
@@ -97,7 +120,7 @@ class InactivityManager(QObject):
             return
         self._transitioning = True
         self._inactivity_timer.stop()
-        screen = target.screen()
+        screen = self.get_target_screen()
         screen_rect = (
             screen.geometry() if screen is not None else target.geometry()
         )
@@ -110,10 +133,19 @@ class InactivityManager(QObject):
 
     def _start_show_transition(self) -> None:
         self._transitioning = True
+        screen = self.get_target_screen()
+        geo = screen.availableGeometry()
+        target = self.current_target_widget
+
         if self._is_overlay_mode() and self._get_overlay() is not None:
             self.relocate_overlay_randomly()
-        target = self.current_target_widget
-        screen = target.screen()
+        else:
+            # Убеждаемся, что главное окно находится в пределах выбранного монитора
+            if not geo.contains(target.frameGeometry().center()):
+                cx = geo.left() + (geo.width() - target.width()) // 2
+                cy = geo.top() + (geo.height() - target.height()) // 2
+                target.move(cx, cy)
+
         screen_rect = (
             screen.geometry() if screen is not None else target.geometry()
         )
@@ -222,22 +254,25 @@ class InactivityManager(QObject):
     def catch_mouse(
         self, on_pose_change: Callable[[str], None] | None = None
     ) -> str:
-        """Вспышка у курсора, молнии в центр и появление Капри с курсором."""
+        """Вспышка у курсора, молнии в центр и появление Капри с курсором на выбранном мониторе."""
         cursor_pos = get_mouse_position()
         target = self.current_target_widget
 
         if on_pose_change is not None:
             on_pose_change("crouch")
 
-        screen = None
+        # 1. Экран, где сейчас физически находится курсор
+        cursor_screen = None
         for scr in QGuiApplication.screens():
             if scr.geometry().contains(cursor_pos):
-                screen = scr
+                cursor_screen = scr
                 break
-        if screen is None:
-            screen = target.screen() or QGuiApplication.primaryScreen()
+        if cursor_screen is None:
+            cursor_screen = self.get_target_screen()
 
-        geo = screen.availableGeometry() if screen is not None else target.geometry()
+        # 2. Целевой экран, куда перемещаем Капри и курсор
+        target_screen = self.get_target_screen()
+        geo = target_screen.availableGeometry()
 
         flash_size = 140
         cursor_rect = QRect(
@@ -250,10 +285,11 @@ class InactivityManager(QObject):
         center_x = geo.left() + (geo.width() - target.width()) // 2
         center_y = geo.top() + (geo.height() - target.height()) // 2
         center_rect = QRect(center_x, center_y, target.width(), target.height())
+        target_center = center_rect.center()
 
         def move_mouse() -> None:
             try:
-                move_mouse_to_center()
+                move_mouse_to_center(target_center)
             except Exception:
                 pass
 
@@ -266,6 +302,8 @@ class InactivityManager(QObject):
             target=target,
             cursor_rect=cursor_rect,
             center_rect=center_rect,
+            cursor_screen_rect=cursor_screen.geometry(),
+            target_screen_rect=target_screen.geometry(),
             on_materialize=move_mouse,
             on_finished=on_teleport_finished,
         )
@@ -278,6 +316,8 @@ class InactivityManager(QObject):
         target: QWidget,
         cursor_rect: QRect,
         center_rect: QRect,
+        cursor_screen_rect: QRect | None = None,
+        target_screen_rect: QRect | None = None,
         on_materialize: Callable[[], None] | None = None,
         on_finished: Callable[[], None] | None = None,
     ) -> None:
@@ -292,9 +332,16 @@ class InactivityManager(QObject):
         self._transitioning = True
         self._inactivity_timer.stop()
 
-        screen = target.screen() or QGuiApplication.primaryScreen()
-        screen_rect = (
-            screen.geometry() if screen is not None else center_rect
+        target_screen = self.get_target_screen()
+        final_target_screen_rect = (
+            target_screen_rect
+            if target_screen_rect is not None
+            else (target_screen.geometry() if target_screen is not None else center_rect)
+        )
+        final_cursor_screen_rect = (
+            cursor_screen_rect
+            if cursor_screen_rect is not None
+            else final_target_screen_rect
         )
 
         center_point = center_rect.center()
@@ -322,7 +369,7 @@ class InactivityManager(QObject):
                     on_finished()
 
             overlay_in = TransitionOverlay(
-                screen_rect,
+                final_target_screen_rect,
                 center_rect,
                 "in",
                 target=target,
@@ -334,7 +381,7 @@ class InactivityManager(QObject):
 
         # Шаг 1: Вспышка около курсора и молнии, вытягивающиеся в центр экрана
         overlay_lightning = TransitionOverlay(
-            screen_rect,
+            final_cursor_screen_rect,
             cursor_rect,
             "lightning_to_point",
             target=None,

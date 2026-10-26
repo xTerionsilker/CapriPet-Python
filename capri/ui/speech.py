@@ -177,6 +177,9 @@ class SpeechWindow(QFrame):
             if screen is not None
             else QRect(0, 0, self.width(), self.height())
         )
+        wh = self.windowHandle()
+        if wh is not None and screen is not None:
+            wh.setScreen(screen)
 
         if parent is not None:
             # Для оверлея облика (CapriOverlayWindow) облачко всегда слева или справа
@@ -199,9 +202,23 @@ class SpeechWindow(QFrame):
     @staticmethod
     def _target_screen(parent: QWidget | None) -> QScreen | None:
         if parent is not None:
+            if hasattr(parent, "get_designated_screen"):
+                try:
+                    scr = parent.get_designated_screen()
+                    if scr is not None:
+                        return scr
+                except Exception:
+                    pass
+            wh = parent.windowHandle()
+            if wh is not None and wh.screen() is not None:
+                return wh.screen()
             screen = parent.screen()
             if screen is not None:
                 return screen
+            center = parent.frameGeometry().center()
+            for s in QGuiApplication.screens():
+                if s.geometry().contains(center):
+                    return s
         return QGuiApplication.primaryScreen()
 
 

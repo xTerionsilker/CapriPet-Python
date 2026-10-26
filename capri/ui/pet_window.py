@@ -6,11 +6,13 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QPoint, Qt, QTimer
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QActionGroup, QGuiApplication, QKeySequence, QScreen, QShortcut
+from PySide6.QtMultimedia import QAudioDevice, QMediaDevices
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,
+    QMenu,
     QVBoxLayout,
     QWidget,
 )
@@ -20,6 +22,7 @@ from ..controllers import ActionBridge, InactivityManager, MediaController, PHAS
 from ..core.command_catalog import Handlers, register_commands
 from ..core.commands import CommandRegistry
 from ..core.input_flow import InputFlow
+from ..core.settings import get_setting, set_setting
 from ..core.wake_word import (
     VOICE_COMMAND_WINDOW_MS,
     command_after_trigger,
@@ -64,6 +67,7 @@ class CapriWindow(QWidget):
         self._default_status = "Капри // Слушает"
         self._overlay_mode = False
         self._overlay_window: CapriOverlayWindow | None = None
+        self._designated_screen_name: str | None = None
 
         self.commands = CommandRegistry()
         self._flow = InputFlow(self.commands, self)
@@ -80,6 +84,7 @@ class CapriWindow(QWidget):
         self._build_shortcuts()
         self._glitches = GlitchManager(self)
         self._build_voice()
+        self._load_initial_settings()
         self._register_commands()
 
         self._inactivity = InactivityManager(
@@ -88,6 +93,7 @@ class CapriWindow(QWidget):
             is_overlay_mode=lambda: self._overlay_mode,
             is_closing=lambda: self._closing or self._media.phase == PHASE_CLOSED,
             on_wake_voice=self._wake_voice_if_needed,
+            get_designated_screen=self.get_designated_screen,
         )
 
         self._media.start_playback()
@@ -163,7 +169,15 @@ class CapriWindow(QWidget):
         super().showEvent(event)
         if not self._greeted:
             self._greeted = True
-            screen = self.screen()
+            screen = self.get_designated_screen() or self.screen() or QGuiApplication.primaryScreen()
+            if screen is not None:
+                wh = self.windowHandle()
+                if wh is not None:
+                    wh.setScreen(screen)
+                geo = screen.availableGeometry()
+                cx = geo.left() + (geo.width() - self.width()) // 2
+                cy = geo.top() + (geo.height() - self.height()) // 2
+                self.move(cx, cy)
             screen_rect = (
                 screen.geometry() if screen is not None else self.geometry()
             )
@@ -174,6 +188,10 @@ class CapriWindow(QWidget):
             QTimer.singleShot(600, self._greet)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        if event.button() == Qt.MouseButton.RightButton:
+            self.show_context_menu(event.globalPosition().toPoint())
+            event.accept()
+            return
         if event.button() == Qt.MouseButton.LeftButton:
             child = self.childAt(event.pos())
             if child is None or isinstance(child, QVideoWidget):
@@ -346,7 +364,9 @@ class CapriWindow(QWidget):
         if not self._overlay_mode:
             if self._overlay_window is None:
                 self._overlay_window = CapriOverlayWindow(
-                    OVERLAY_SIT, on_interact=self._inactivity.reset_timer
+                    OVERLAY_SIT,
+                    on_interact=self._inactivity.reset_timer,
+                    on_context_menu=self.show_context_menu,
                 )
             old_target = self
             center = self.frameGeometry().center()
@@ -395,6 +415,150 @@ class CapriWindow(QWidget):
         return self._inactivity.catch_mouse(
             on_pose_change=self._set_overlay_pose
         )
+
+    def _load_initial_settings(self) -> None:
+        """Загружает сохраненные предпочтения монитора и микрофона."""
+        screen_name = get_setting("designated_screen", "")
+        if screen_name:
+            for scr in QGuiApplication.screens():
+                if scr.name() == screen_name:
+                    self._designated_screen_name = screen_name
+                    break
+
+        mic_desc = get_setting("designated_microphone", "")
+        if mic_desc:
+            for dev in QMediaDevices.audioInputs():
+                if dev.description() == mic_desc:
+                    self._voice.set_device(dev)
+                    break
+
+    def get_designated_screen(self) -> QScreen | None:
+        """Возвращает основной выбранный монитор или экран окна."""
+        if self._designated_screen_name:
+            for scr in QGuiApplication.screens():
+                if scr.name() == self._designated_screen_name:
+                    return scr
+        return self.screen() or QGuiApplication.primaryScreen()
+
+    def set_designated_screen(self, screen: QScreen) -> None:
+        """Устанавливает основной монитор и перемещает питомца в его центр."""
+        self._designated_screen_name = screen.name()
+        set_setting("designated_screen", screen.name())
+
+        target = self._inactivity.current_target_widget
+        geo = screen.availableGeometry()
+
+        wh = target.windowHandle()
+        if wh is not None:
+            wh.setScreen(screen)
+
+        cx = geo.left() + (geo.width() - target.width()) // 2
+        cy = geo.top() + (geo.height() - target.height()) // 2
+        target.move(cx, cy)
+        self._inactivity.reset_timer()
+        self.speak(f"Монитор: {screen.name()}")
+
+    def set_designated_microphone(self, device: QAudioDevice | None) -> None:
+        """Переключает активный микрофон и сохраняет выбор."""
+        self._voice.set_device(device)
+        desc = device.description() if device and not device.isNull() else ""
+        set_setting("designated_microphone", desc)
+        name = desc if desc else "По умолчанию"
+        self.speak(f"Микрофон: {name}")
+
+    def show_context_menu(self, pos: QPoint) -> None:
+        """Контекстное меню настроек монитора, микрофона и режимов питомца."""
+        menu = QMenu(self)
+        menu.setStyleSheet(APP_STYLE)
+
+        # 1. Меню мониторов
+        screen_menu = menu.addMenu("🖥  Основной монитор")
+        screen_group = QActionGroup(screen_menu)
+        screen_group.setExclusive(True)
+
+        current_scr = self.get_designated_screen()
+        primary_scr = QGuiApplication.primaryScreen()
+
+        for scr in QGuiApplication.screens():
+            geo = scr.geometry()
+            name = scr.name()
+            extra = []
+            if primary_scr and scr.name() == primary_scr.name():
+                extra.append("системный")
+            extra_str = f" [{', '.join(extra)}]" if extra else ""
+            label = f"{name} ({geo.width()}x{geo.height()}){extra_str}"
+
+            action = screen_menu.addAction(label)
+            action.setCheckable(True)
+            if current_scr and scr.name() == current_scr.name():
+                action.setChecked(True)
+            action.triggered.connect(
+                lambda *_, s=scr: self.set_designated_screen(s)
+            )
+            screen_group.addAction(action)
+
+        # 2. Меню микрофонов
+        mic_menu = menu.addMenu("🎙  Микрофон")
+        mic_group = QActionGroup(mic_menu)
+        mic_group.setExclusive(True)
+
+        current_mic = self._voice.selected_device
+        default_mic = QMediaDevices.defaultAudioInput()
+        default_label = (
+            f"По умолчанию ({default_mic.description()})"
+            if not default_mic.isNull()
+            else "По умолчанию"
+        )
+        def_action = mic_menu.addAction(default_label)
+        def_action.setCheckable(True)
+        if current_mic is None or current_mic.isNull():
+            def_action.setChecked(True)
+        def_action.triggered.connect(
+            lambda *_: self.set_designated_microphone(None)
+        )
+        mic_group.addAction(def_action)
+
+        for dev in QMediaDevices.audioInputs():
+            if not default_mic.isNull() and dev.id() == default_mic.id():
+                continue
+            act = mic_menu.addAction(dev.description())
+            act.setCheckable(True)
+            if current_mic and dev.id() == current_mic.id():
+                act.setChecked(True)
+            act.triggered.connect(
+                lambda *_, d=dev: self.set_designated_microphone(d)
+            )
+            mic_group.addAction(act)
+
+        menu.addSeparator()
+
+        # 3. Быстрые действия
+        overlay_act = menu.addAction(
+            "🪟  Окно терминала" if self._overlay_mode else "👁  Нормальный облик"
+        )
+        overlay_act.triggered.connect(
+            lambda *_: self.process_input("нормальный облик")
+        )
+
+        glitch_act = menu.addAction("⚡  Экранные глитчи")
+        glitch_act.setCheckable(True)
+        glitch_act.setChecked(self._glitches.is_enabled)
+        glitch_act.triggered.connect(
+            lambda *_: self.process_input("глитч")
+        )
+
+        voice_act = menu.addAction("🎤  Голосовой ввод")
+        voice_act.setCheckable(True)
+        voice_act.setChecked(self._voice.is_listening)
+        voice_act.triggered.connect(
+            lambda *_: self._toggle_voice()
+        )
+
+        menu.addSeparator()
+        quit_act = menu.addAction("❌  Выход")
+        quit_act.triggered.connect(self.close)
+
+        menu.exec(pos)
 
 
     def _greet(self) -> None:

@@ -16,6 +16,7 @@ class CapriOverlayWindow(QWidget):
         self,
         image_path: Path,
         on_interact: Callable[[], None] | None = None,
+        on_context_menu: Callable[[QPoint], None] | None = None,
     ) -> None:
         super().__init__(
             None,
@@ -24,6 +25,7 @@ class CapriOverlayWindow(QWidget):
             | Qt.WindowType.WindowStaysOnTopHint,
         )
         self._on_interact = on_interact
+        self._on_context_menu = on_context_menu
         self.setWindowTitle("Капри")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
@@ -184,6 +186,11 @@ class CapriOverlayWindow(QWidget):
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         if callable(self._on_interact):
             self._on_interact()
+        if event.button() == Qt.MouseButton.RightButton:
+            if callable(self._on_context_menu):
+                self._on_context_menu(event.globalPosition().toPoint())
+                event.accept()
+                return
         if event.button() == Qt.MouseButton.LeftButton:
             handle = self.windowHandle()
             if handle is not None and hasattr(handle, "startSystemMove"):
