@@ -272,14 +272,21 @@ class CapriWindow(QWidget):
             )
 
         def show_one(text: str) -> None:
-            show_text(text, parent=self, hold_ms=hold_ms)
+            parent = self
+            if (
+                self._overlay_mode
+                and self._overlay_window is not None
+                and self._overlay_window.isVisible()
+            ):
+                parent = self._overlay_window
+            show_text(text, parent=parent, hold_ms=hold_ms)
 
         for index, text in enumerate(texts):
             QTimer.singleShot(index * delay, lambda t=text: show_one(t))
 
     def speak(self, text: str) -> SpeechWindow:
         if self._speech is not None:
-            self._speech.close()
+            self._speech.close(immediate=True)
         hold_ms = min(5000, max(1200, len(text) * 45))
         parent = self
         if (
