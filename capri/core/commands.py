@@ -17,9 +17,20 @@ HELP_ALIASES = (
     "помоги",
     "возможности",
     "меню",
+    "хелп",
+    "help",
 )
 
 ARGUMENT_PUNCTUATION = " \t,.:;–-!?()[]{}«»…\""
+
+_EN_KEYS = "qwertyuiop[]asdfghjkl;'zxcvbnm,./`"
+_RU_KEYS = "йцукенгшщзхъфывапролджэячсмитьбю.ё"
+_LAYOUT_TRANSLATION = str.maketrans(_EN_KEYS + _RU_KEYS, _RU_KEYS + _EN_KEYS)
+
+
+def switch_layout(text: str) -> str:
+    """Переключает раскладку текста между en (QWERTY) и ru (ЙЦУКЕН)."""
+    return text.translate(_LAYOUT_TRANSLATION)
 
 
 @dataclass(frozen=True)
@@ -43,7 +54,7 @@ class CommandRegistry:
             "показать этот список.",
             self.help_text,
             HELP_ALIASES,
-            keywords=("помощ", "умеешь", "справк", "возможност", "команд"),
+            keywords=("помощ", "умеешь", "справк", "возможност", "команд", "хелп", "help"),
         )
         for key in HELP_ALIASES:
             self._lookup[self._normalize(key)] = self._help
@@ -104,9 +115,24 @@ class CommandRegistry:
         if argument_match is not None:
             return argument_match
 
+        switched = switch_layout(normalized)
+        if switched != normalized:
+            exact_switched = self._lookup.get(switched)
+            if exact_switched is not None:
+                return exact_switched, ""
+            arg_switched = self._argument_match(switched)
+            if arg_switched is not None:
+                return arg_switched
+
         closest = self._closest(normalized)
         if closest is not None:
             return self._lookup[closest], ""
+
+        if switched != normalized:
+            closest_switched = self._closest(switched)
+            if closest_switched is not None:
+                return self._lookup[closest_switched], ""
+
         return None
 
     def exact_match(self, text: str) -> tuple[Command, str] | None:
@@ -118,21 +144,40 @@ class CommandRegistry:
         if exact is not None:
             return exact, ""
 
-        return self._argument_match(normalized)
+        arg_match = self._argument_match(normalized)
+        if arg_match is not None:
+            return arg_match
+
+        switched = switch_layout(normalized)
+        if switched != normalized:
+            exact_switched = self._lookup.get(switched)
+            if exact_switched is not None:
+                return exact_switched, ""
+            return self._argument_match(switched)
+
+        return None
 
     def suggest(self, text: str) -> Command | None:
         normalized = self._normalize(text)
         if not normalized:
             return None
 
+        switched = switch_layout(normalized)
+        queries = (normalized, switched) if switched != normalized else (normalized,)
+
         best: Command | None = None
         best_score: tuple[float, float] | None = None
         for command in (*self._commands, self._help):
             keys = (command.name, *command.aliases)
             closest = max(
-                similarity(normalized, self._normalize(key)) for key in keys
+                similarity(q, self._normalize(key))
+                for q in queries
+                for key in keys
             )
-            score = max(closest, keyword_score(normalized, command.keywords))
+            score = max(
+                closest,
+                max(keyword_score(q, command.keywords) for q in queries),
+            )
             candidate = (score, closest)
             if best_score is None or candidate > best_score:
                 best_score = candidate

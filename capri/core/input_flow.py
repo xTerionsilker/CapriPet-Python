@@ -4,7 +4,7 @@ import re
 
 from PySide6.QtCore import QObject, QTimer
 
-from .commands import Command, CommandRegistry
+from .commands import Command, CommandRegistry, switch_layout
 
 CONFIRM_TIMEOUT_MS = 15_000
 AFFIRMATIVE_WORDS = frozenset(
@@ -19,6 +19,9 @@ AFFIRMATIVE_WORDS = frozenset(
         "запускай",
         "выполняй",
         "включай",
+        "угу",
+        "ес",
+        "йес",
         "yes",
         "y",
         "ok",
@@ -35,6 +38,7 @@ NEGATIVE_WORDS = frozenset(
         "отмена",
         "отменить",
         "отменяй",
+        "ноу",
         "no",
         "nope",
     }
@@ -42,7 +46,9 @@ NEGATIVE_WORDS = frozenset(
 
 
 def _answer_words(text: str) -> set[str]:
-    return set(re.findall(r"[\w-]+", text.casefold()))
+    words = set(re.findall(r"[\w-]+", text.casefold()))
+    words |= {switch_layout(w) for w in words}
+    return words
 
 
 def _confirm_prompt(command: Command) -> str:
