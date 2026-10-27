@@ -23,7 +23,6 @@ class Handlers:
     power_off: Handler
     suspend: Handler
     reboot: Handler
-    toggle_overlay: Handler
     locate_mouse: Handler
 
 

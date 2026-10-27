@@ -21,16 +21,17 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "voice_enabled": True,
     },
     "appearance": {
-        "mode": "terminal",
         "skin": "default",
+        "pose": "sit",
         "overlay_pose": "sit",
     },
     "effects": {
         "glitches_enabled": True,
     },
     "window": {
-        "terminal_position": None,
+        "position": None,
         "overlay_position": None,
+        "terminal_position": None,
     },
     "behavior": {
         "inactivity_timeout_ms": 5000,
@@ -134,13 +135,11 @@ class ConfigManager:
         """Проверяет типы и границы критичных полей, восстанавливая дефолты при необходимости."""
         config = _deep_merge(DEFAULT_CONFIG, data)
 
-        # Проверка и санитизация режима отображения
-        if config["appearance"]["mode"] not in ("terminal", "overlay"):
-            config["appearance"]["mode"] = "terminal"
-
         # Проверка позы
-        if config["appearance"]["overlay_pose"] not in ("sit", "stay", "crouch"):
+        if config["appearance"].get("overlay_pose") not in ("sit", "stay", "crouch"):
             config["appearance"]["overlay_pose"] = "sit"
+        if config["appearance"].get("pose") not in ("sit", "stay", "crouch"):
+            config["appearance"]["pose"] = config["appearance"]["overlay_pose"]
 
         # Громкость
         for vol_key in ("sfx_volume", "media_volume"):
@@ -162,7 +161,7 @@ class ConfigManager:
             config["behavior"]["inactivity_timeout_ms"] = 5000
 
         # Координаты
-        for pos_key in ("terminal_position", "overlay_position"):
+        for pos_key in ("position", "overlay_position", "terminal_position"):
             pos = config["window"].get(pos_key)
             if pos is not None:
                 if not (isinstance(pos, dict) and "x" in pos and "y" in pos and isinstance(pos["x"], (int, float)) and isinstance(pos["y"], (int, float))):

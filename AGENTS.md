@@ -18,13 +18,13 @@
 ## Architecture & Entry Points
 
 - **`main.py`:** Application entry point. Instantiates `CapriWindow` and enters the Qt event loop.
-- **Dual Representation of Capri:**
-  - `CapriWindow` (`capri/ui/pet_window.py`): Primary 800×540 frameless window showing looping video (`faces/*.mp4`). Dragging by the video moves the window.
-  - `CapriOverlayWindow` (`capri/ui/overlay_window.py`): Floating translucent sprite (`assets/var/capri_{sit,stay,crouch}.png`) rendered with custom pixel glitch passes.
-  - Modes toggle automatically via `InactivityManager` (`capri/controllers/inactivity_manager.py`) or manually via the `Нормальный облик` command.
+- **Representation of Capri:**
+  - `CapriWindow` (`capri/ui/pet_window.py`): Floating translucent sprite (`assets/var/capri_{sit,stay,crouch}.png`) rendered with custom pixel glitch passes.
+  - Position is saved to configuration and restored automatically; dragging moves Capri across monitors.
+  - Automatically hides during inactivity and reappears via `InactivityManager` (`capri/controllers/inactivity_manager.py`).
 - **Speech System (`capri/ui/speech.py`):**
   - Displays cyber HUD speech bubbles (`CyberHudBubble`) with holographic deploy (open) and CRT beam collapse (close) animations.
-  - Anchors dynamically to whichever Capri widget is active (`CapriWindow` vs `CapriOverlayWindow`), tracking movement in real time via `eventFilter` and a 25ms timer.
+  - Anchors dynamically to Capri (`CapriWindow`), tracking movement in real time via `eventFilter` and a 25ms timer.
   - Position is computed by `pick_adjacent_position` (`capri/ui/placement.py`), preferring side placement (right/left) and falling back to above/below or minimum overlap if screen space is tight.
   - SFX are synthesized on the fly via `capri/ui/speech_sfx.py` into cached WAV files and played via system audio utilities (`pw-play`, `paplay`, `aplay`) or `QSoundEffect`.
 - **Configuration Management (`capri/core/settings.py`):**

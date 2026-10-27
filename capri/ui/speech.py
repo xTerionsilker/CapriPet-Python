@@ -536,27 +536,15 @@ class SpeechWindow(QFrame):
 
     @classmethod
     def _resolve_target(cls, widget: QWidget | None) -> QWidget | None:
-        """Определяет актуальный видимый виджет Капри (окно терминала или плавающий оверлей)."""
+        """Определяет актуальный видимый виджет Капри."""
         if widget is not None:
-            if widget.__class__.__name__ == "CapriWindow":
-                if getattr(widget, "_overlay_mode", False):
-                    overlay = getattr(widget, "_overlay_window", None)
-                    if overlay is not None and overlay.isVisible():
-                        return overlay
             return widget
 
         # Если widget не передан, ищем активного Капри среди верхнеуровневых окон
         app = QGuiApplication.instance()
         if app is not None:
             for w in app.topLevelWidgets():
-                if w.isVisible() and w.__class__.__name__ == "CapriOverlayWindow":
-                    return w
-            for w in app.topLevelWidgets():
-                if w.isVisible() and w.__class__.__name__ == "CapriWindow":
-                    if getattr(w, "_overlay_mode", False):
-                        overlay = getattr(w, "_overlay_window", None)
-                        if overlay is not None and overlay.isVisible():
-                            return overlay
+                if w.isVisible() and w.__class__.__name__ in ("CapriWindow", "CapriOverlayWindow"):
                     return w
         return None
 

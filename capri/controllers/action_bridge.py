@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import threading
-from typing import Callable
 
 from PySide6.QtCore import QObject, QTimer, Signal
 

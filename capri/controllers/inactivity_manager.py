@@ -9,29 +9,35 @@ from PySide6.QtWidgets import QWidget
 
 from ..effects.transition import TransitionOverlay
 from ..integrations.cursor import get_mouse_position, move_mouse_to_center
-from ..ui.overlay_window import CapriOverlayWindow
 
 INACTIVITY_TIMEOUT_MS = 5_000
 
 
 class InactivityManager(QObject):
-    """Управление бездействием, скрытием/показом и анимациями переходов между окнами."""
+    """Управление бездействием, скрытием/показом и анимациями переходов питомца."""
 
     def __init__(
         self,
         main_window: QWidget,
-        get_overlay: Callable[[], CapriOverlayWindow | None],
-        is_overlay_mode: Callable[[], bool],
-        is_closing: Callable[[], bool],
-        on_wake_voice: Callable[[], None],
+        *args,
+        is_closing: Callable[[], bool] | None = None,
+        on_wake_voice: Callable[[], None] | None = None,
         get_designated_screen: Callable[[], QScreen | None] | None = None,
+        **_kwargs,
     ) -> None:
         super().__init__(main_window)
         self._main_window = main_window
-        self._get_overlay = get_overlay
-        self._is_overlay_mode = is_overlay_mode
-        self._is_closing = is_closing
-        self._on_wake_voice = on_wake_voice
+
+        # Поддержка старой позиционной сигнатуры
+        if len(args) >= 3 and is_closing is None:
+            is_closing = args[2]
+            if len(args) >= 4 and on_wake_voice is None:
+                on_wake_voice = args[3]
+            if len(args) >= 5 and get_designated_screen is None:
+                get_designated_screen = args[4]
+
+        self._is_closing = is_closing or (lambda: False)
+        self._on_wake_voice = on_wake_voice or (lambda: None)
         self._get_designated_screen = get_designated_screen
 
         self._transitioning = False
@@ -68,9 +74,6 @@ class InactivityManager(QObject):
 
     @property
     def current_target_widget(self) -> QWidget:
-        overlay = self._get_overlay()
-        if self._is_overlay_mode() and overlay is not None:
-            return overlay
         return self._main_window
 
     def get_target_screen(self) -> QScreen:
@@ -114,21 +117,22 @@ class InactivityManager(QObject):
         self._inactivity_timer.stop()
         self._inactivity_timer.start(self._timeout_ms)
 
-    def relocate_overlay_randomly(self) -> None:
-        overlay = self._get_overlay()
-        if overlay is None:
-            return
+    def relocate_randomly(self) -> None:
+        target = self.current_target_widget
         screen = self.get_target_screen()
         if screen is None:
             return
         geo = screen.availableGeometry()
-        w = overlay.width()
-        h = overlay.height()
+        w = target.width()
+        h = target.height()
         max_x = max(geo.left(), geo.right() - w)
         max_y = max(geo.top(), geo.bottom() - h)
         rand_x = random.randint(geo.left(), max_x)
         rand_y = random.randint(geo.top(), max_y)
-        overlay.move(rand_x, rand_y)
+        target.move(rand_x, rand_y)
+
+    def relocate_overlay_randomly(self) -> None:
+        self.relocate_randomly()
 
     def _hide_for_inactivity(self) -> None:
         if self._paused or self._is_closing() or self._transitioning:
@@ -152,17 +156,8 @@ class InactivityManager(QObject):
     def _start_show_transition(self) -> None:
         self._transitioning = True
         screen = self.get_target_screen()
-        geo = screen.availableGeometry()
         target = self.current_target_widget
-
-        if self._is_overlay_mode() and self._get_overlay() is not None:
-            self.relocate_overlay_randomly()
-        else:
-            # Убеждаемся, что главное окно находится в пределах выбранного монитора
-            if not geo.contains(target.frameGeometry().center()):
-                cx = geo.left() + (geo.width() - target.width()) // 2
-                cy = geo.top() + (geo.height() - target.height()) // 2
-                target.move(cx, cy)
+        self.relocate_randomly()
 
         screen_rect = (
             screen.geometry() if screen is not None else target.geometry()
@@ -179,17 +174,9 @@ class InactivityManager(QObject):
         overlay.start()
 
     def _reveal_target_on_show_peak(self) -> None:
-        overlay = self._get_overlay()
-        if self._is_overlay_mode():
-            self._main_window.hide()
-            if overlay is not None:
-                overlay.show()
-                overlay.raise_()
-        else:
-            if overlay is not None:
-                overlay.hide()
-            self._main_window.show()
-            self._main_window.raise_()
+        target = self.current_target_widget
+        target.show()
+        target.raise_()
 
     def _finish_hide_transition(self) -> None:
         self._transitioning = False
@@ -208,66 +195,8 @@ class InactivityManager(QObject):
     def switch_target(
         self, old_target: QWidget, new_target: QWidget
     ) -> None:
-        if self._transition_overlay is not None:
-            try:
-                self._transition_overlay.close()
-            except Exception:
-                pass
-            self._transition_overlay = None
-
-        self._transitioning = True
-        self._inactivity_timer.stop()
-
-        old_screen = old_target.screen() or new_target.screen()
-        old_screen_rect = (
-            old_screen.geometry()
-            if old_screen is not None
-            else old_target.geometry()
-        )
-
-        def on_out_peak() -> None:
-            old_target.hide()
-
-        def on_out_finished() -> None:
-            new_screen = new_target.screen()
-            new_screen_rect = (
-                new_screen.geometry()
-                if new_screen is not None
-                else new_target.geometry()
-            )
-
-            def on_in_peak() -> None:
-                new_target.show()
-                new_target.raise_()
-
-            def on_in_finished() -> None:
-                self._transitioning = False
-                self._transition_overlay = None
-                new_target.show()
-                new_target.raise_()
-                self._inactivity_timer.start(self._timeout_ms)
-
-            overlay_in = TransitionOverlay(
-                new_screen_rect,
-                new_target.geometry(),
-                "in",
-                target=new_target,
-                on_peak=on_in_peak,
-            )
-            overlay_in.finished.connect(on_in_finished)
-            self._transition_overlay = overlay_in
-            overlay_in.start()
-
-        overlay_out = TransitionOverlay(
-            old_screen_rect,
-            old_target.geometry(),
-            "out",
-            target=old_target,
-            on_peak=on_out_peak,
-        )
-        overlay_out.finished.connect(on_out_finished)
-        self._transition_overlay = overlay_out
-        overlay_out.start()
+        # Для обратной совместимости
+        pass
 
     def catch_mouse(
         self, on_pose_change: Callable[[str], None] | None = None
@@ -374,7 +303,6 @@ class InactivityManager(QObject):
         target.hide()
 
         def on_lightning_finished() -> None:
-            # Молнии дотянулись до центра -> перемещаем Капри в центр и запускаем материализацию
             target.setGeometry(center_rect)
 
             def on_in_peak() -> None:
@@ -443,7 +371,6 @@ class InactivityManager(QObject):
             target.hide()
 
         def on_out_finished() -> None:
-            # Перемещаем виджет в целевую точку
             target.setGeometry(to_rect)
 
             def on_in_peak() -> None:
@@ -482,4 +409,3 @@ class InactivityManager(QObject):
         overlay_out.finished.connect(on_out_finished)
         self._transition_overlay = overlay_out
         overlay_out.start()
-

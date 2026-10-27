@@ -6,19 +6,24 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
-from PySide6.QtGui import QActionGroup, QGuiApplication, QKeySequence, QScreen, QShortcut
+from PySide6.QtGui import (
+    QActionGroup,
+    QColor,
+    QGuiApplication,
+    QKeySequence,
+    QPainter,
+    QPixmap,
+    QScreen,
+    QShortcut,
+)
 from PySide6.QtMultimedia import QAudioDevice, QMediaDevices
-from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
-    QFrame,
-    QLabel,
     QMenu,
-    QVBoxLayout,
     QWidget,
 )
 
 from ..audio.voice import VoiceInput
-from ..controllers import ActionBridge, InactivityManager, MediaController, PHASE_CLOSED
+from ..controllers import ActionBridge, InactivityManager
 from ..core.command_catalog import Handlers, register_commands
 from ..core.commands import CommandRegistry
 from ..core.input_flow import InputFlow
@@ -29,7 +34,6 @@ from ..core.wake_word import (
 )
 from ..effects.glitch import GlitchManager
 from ..effects.transition import TransitionOverlay
-from .overlay_window import CapriOverlayWindow
 from .speech import SpeechWindow, close_all as close_all_speech, show_text
 from .speech_sfx import get_speech_sfx
 from .theme import APP_STYLE
@@ -51,24 +55,41 @@ GOODBYE_LINE = "пока пока чумба"
 
 
 class CapriWindow(QWidget):
-    """Главное окно интерактивного питомца Капри."""
+    """Интерактивный питомец Капри."""
 
     def __init__(self) -> None:
-        super().__init__()
-        self.setWindowTitle("CAPRI")
-        self.setFixedSize(800, 540)
-        self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
-        self.setStyleSheet(APP_STYLE)
+        super().__init__(
+            None,
+            Qt.WindowType.Tool
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint,
+        )
+        self.setWindowTitle("Капри")
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setAutoFillBackground(False)
+
+        self._pixmaps: dict[str, QPixmap] = {}
+        self._load_all_poses()
+        self._current_pose = "sit"
+        self._pixmap = self._pixmaps.get("sit") or next(iter(self._pixmaps.values()))
+        self.setFixedSize(self._pixmap.size())
 
         self._drag_offset: QPoint | None = None
         self._speech: SpeechWindow | None = None
         self._greeted = False
+        self._spawn_glitch_ticks = 18
+        self._startup_overlay: TransitionOverlay | None = None
         self._voice_armed_until = 0.0
         self._closing = False
-        self._default_status = "Капри // Слушает"
-        self._overlay_mode = False
-        self._overlay_window: CapriOverlayWindow | None = None
         self._designated_screen_name: str | None = None
+
+        # Таймер анимации пиксельных глитчей
+        self._glitch_timer = QTimer(self)
+        self._glitch_timer.setInterval(80)
+        self._glitch_timer.timeout.connect(self._on_glitch_tick)
 
         self.commands = CommandRegistry()
         self._flow = InputFlow(self.commands, self)
@@ -76,11 +97,6 @@ class CapriWindow(QWidget):
         self._actions.speech_requested.connect(self.speak)
         self._actions.ollama_started.connect(self._on_ollama_talking_start)
         self._actions.ollama_finished.connect(self._on_ollama_talking_end)
-
-        self._build_ui()
-        self._media = MediaController(self, self.video)
-        self._media.error_occurred.connect(self._on_media_error)
-        self._media.outro_completed.connect(self._finish_close)
 
         self._build_shortcuts()
         self._glitches = GlitchManager(self)
@@ -90,46 +106,67 @@ class CapriWindow(QWidget):
 
         self._inactivity = InactivityManager(
             main_window=self,
-            get_overlay=lambda: self._overlay_window,
-            is_overlay_mode=lambda: self._overlay_mode,
-            is_closing=lambda: self._closing or self._media.phase == PHASE_CLOSED,
+            is_closing=lambda: self._closing,
             on_wake_voice=self._wake_voice_if_needed,
             get_designated_screen=self.get_designated_screen,
         )
         inactivity_ms = get_config_value("behavior.inactivity_timeout_ms", 5000)
         self._inactivity.set_timeout_ms(int(inactivity_ms))
 
-        self._media.start_playback()
         voice_enabled = get_config_value("audio.voice_enabled", True)
         if voice_enabled:
             self._voice.start()
         self._inactivity.start()
 
-    def _build_ui(self) -> None:
-        self.video = QVideoWidget(self)
-        self.video.setAspectRatioMode(Qt.AspectRatioMode.KeepAspectRatio)
-        self.video.setMinimumSize(320, 180)
+    def _load_pixmap(self, name: str, path: Path) -> QPixmap:
+        pixmap = QPixmap(str(path))
+        if pixmap.isNull():
+            pixmap = QPixmap(420, 420)
+        target_width = max(1, int(pixmap.width() / 1.5))
+        target_height = max(1, int(pixmap.height() / 1.5))
+        scaled = pixmap.scaled(
+            target_width,
+            target_height,
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        self._pixmaps[name] = scaled
+        return scaled
 
-        panel = QWidget(self)
-        panel.setObjectName("panel")
-        panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(16, 12, 16, 14)
-        panel_layout.setSpacing(8)
+    def _load_all_poses(self) -> None:
+        pose_files = {
+            "sit": OVERLAY_SIT,
+            "stay": OVERLAY_STAY,
+            "crouch": OVERLAY_CROUCH,
+        }
+        for pose_name, pose_path in pose_files.items():
+            if pose_path.is_file():
+                self._load_pixmap(pose_name, pose_path)
+        if not self._pixmaps:
+            fallback = QPixmap(280, 280)
+            fallback.fill(Qt.GlobalColor.transparent)
+            self._pixmaps["sit"] = fallback
 
-        self.status = QLabel(self._default_status, panel)
-        self.status.setObjectName("status")
-        panel_layout.addWidget(self.status)
+    def set_pose(self, pose: str) -> None:
+        """Переключает спрайт позы питомца."""
+        if pose not in self._pixmaps:
+            pose_path = {
+                "sit": OVERLAY_SIT,
+                "stay": OVERLAY_STAY,
+                "crouch": OVERLAY_CROUCH,
+            }.get(pose)
+            if pose_path is not None and pose_path.is_file():
+                self._load_pixmap(pose, pose_path)
+        if pose in self._pixmaps:
+            self._current_pose = pose
+            self._pixmap = self._pixmaps[pose]
+            self.setFixedSize(self._pixmap.size())
+            self.update()
 
-        accent = QFrame(self)
-        accent.setObjectName("accent")
-        accent.setFixedHeight(3)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        layout.addWidget(self.video, 1)
-        layout.addWidget(accent)
-        layout.addWidget(panel)
+    def set_pose_image(self, pose_name: str, path: Path) -> None:
+        """Переключает спрайт позы по пути к файлу."""
+        self._load_pixmap(pose_name, path)
+        self.set_pose(pose_name)
 
     def _build_shortcuts(self) -> None:
         QShortcut(QKeySequence("Ctrl+Q"), self, self.close)
@@ -165,27 +202,38 @@ class CapriWindow(QWidget):
                 power_off=self._actions.power_off,
                 suspend=self._actions.suspend,
                 reboot=self._actions.reboot,
-                toggle_overlay=self._toggle_capri_overlay,
                 locate_mouse=self._locate_mouse,
             ),
         )
 
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().showEvent(event)
+        self._glitch_timer.start()
         if not self._greeted:
             self._greeted = True
-            screen = self.get_designated_screen() or self.screen() or QGuiApplication.primaryScreen()
+            screen = (
+                self.get_designated_screen()
+                or self.screen()
+                or QGuiApplication.primaryScreen()
+            )
             if screen is not None:
                 wh = self.windowHandle()
                 if wh is not None:
                     wh.setScreen(screen)
 
-                # Восстановление сохраненной позиции с валидацией пересечения с экранами
-                pos_data = get_config_value("window.terminal_position")
+                pos_data = get_config_value("window.position") or get_config_value("window.overlay_position")
                 applied_pos = False
                 if isinstance(pos_data, dict) and "x" in pos_data and "y" in pos_data:
-                    target_rect = QRect(int(pos_data["x"]), int(pos_data["y"]), self.width(), self.height())
-                    if any(s.availableGeometry().intersects(target_rect) for s in QGuiApplication.screens()):
+                    target_rect = QRect(
+                        int(pos_data["x"]),
+                        int(pos_data["y"]),
+                        self.width(),
+                        self.height(),
+                    )
+                    if any(
+                        s.availableGeometry().intersects(target_rect)
+                        for s in QGuiApplication.screens()
+                    ):
                         self.move(int(pos_data["x"]), int(pos_data["y"]))
                         applied_pos = True
 
@@ -194,38 +242,186 @@ class CapriWindow(QWidget):
                     cx = geo.left() + (geo.width() - self.width()) // 2
                     cy = geo.top() + (geo.height() - self.height()) // 2
                     self.move(cx, cy)
+
             screen_rect = (
                 screen.geometry() if screen is not None else self.geometry()
             )
-            overlay = TransitionOverlay(
-                screen_rect, self.geometry(), "in", target=self
+            self.set_pose("crouch")
+            self._startup_overlay = TransitionOverlay(
+                screen_rect,
+                self.geometry(),
+                "in",
+                target=self,
+                on_peak=self._reveal_on_startup,
             )
-            overlay.start()
-            QTimer.singleShot(600, self._greet)
+            self._startup_overlay.finished.connect(self._on_startup_finished)
+            self._startup_overlay.start()
+            try:
+                get_speech_sfx().play_swoosh()
+            except Exception:
+                pass
 
-            # Переключение в оверлей, если сохранен данный режим отображения
-            if get_config_value("appearance.mode") == "overlay":
-                QTimer.singleShot(150, lambda: self.process_input("нормальный облик"))
+    def _reveal_on_startup(self) -> None:
+        """Переход Капри из позы приземления в позу покоя на пике вспышки."""
+        self.set_pose("sit")
+        self.update()
+        QTimer.singleShot(600, self._greet)
+
+    def _on_startup_finished(self) -> None:
+        self._startup_overlay = None
+        self.set_pose("sit")
+        self.update()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        self._glitch_timer.stop()
+        super().hideEvent(event)
+
+    def _on_glitch_tick(self) -> None:
+        if self._spawn_glitch_ticks > 0:
+            self._glitch_timer.setInterval(35)
+        else:
+            self._glitch_timer.setInterval(random.randint(60, 110))
+        self.update()
+
+    def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
+
+        w = self._pixmap.width()
+        h = self._pixmap.height()
+        if w <= 0 or h <= 0:
+            painter.end()
+            return
+
+        is_spawning = self._spawn_glitch_ticks > 0
+        if is_spawning:
+            self._spawn_glitch_ticks -= 1
+
+        active_glitch = is_spawning or (random.random() < 0.55)
+
+        # 1. Отрисовка базового спрайта
+        slice_chance = 0.90 if is_spawning else 0.50
+        if active_glitch and random.random() < slice_chance:
+            sy = (random.randint(0, max(0, h - 16)) // 4) * 4
+            sh = random.choice((6, 8, 12, 16, 24)) if is_spawning else random.choice((6, 8, 12, 16))
+            dx = random.choice((-24, -18, -12, 12, 18, 24)) if is_spawning else random.choice((-16, -12, -8, 8, 12, 16))
+            if sy > 0:
+                painter.drawPixmap(0, 0, self._pixmap, 0, 0, w, sy)
+            painter.drawPixmap(dx, sy, self._pixmap, 0, sy, w, sh)
+            bottom_y = sy + sh
+            if bottom_y < h:
+                painter.drawPixmap(
+                    0, bottom_y, self._pixmap, 0, bottom_y, w, h - bottom_y
+                )
+        else:
+            painter.drawPixmap(0, 0, self._pixmap)
+
+        # 2. Наложение крупных глитчей красного и чёрного цвета
+        painter.setCompositionMode(
+            QPainter.CompositionMode.CompositionMode_SourceAtop
+        )
+
+        red_colors = (
+            QColor(255, 0, 45, random.randint(200, 255)),
+            QColor(255, 30, 75, random.randint(180, 245)),
+            QColor(215, 0, 30, random.randint(210, 255)),
+            QColor(255, 50, 90, random.randint(190, 240)),
+        )
+        black_colors = (
+            QColor(0, 0, 0, random.randint(200, 255)),
+            QColor(8, 8, 12, random.randint(190, 250)),
+            QColor(16, 0, 8, random.randint(180, 240)),
+        )
+        glitch_colors = red_colors + black_colors
+
+        # а) Горизонтальные глитч-полосы
+        bar_count = (
+            random.randint(4, 8)
+            if is_spawning
+            else (
+                random.randint(2, 5)
+                if active_glitch
+                else (random.randint(1, 2) if random.random() < 0.5 else 0)
+            )
+        )
+        for _ in range(bar_count):
+            by = (random.randint(0, max(0, h - 8)) // 4) * 4
+            bh = random.choice((4, 6, 8, 12))
+            bw = (random.randint(w // 4, w) // 4) * 4
+            bx = (random.randint(0, max(0, w - bw)) // 4) * 4
+            color = random.choice(glitch_colors)
+            painter.fillRect(bx, by, bw, bh, color)
+
+        # б) Пиксельные блоки
+        block_count = (
+            random.randint(7, 14)
+            if is_spawning
+            else (
+                random.randint(4, 9)
+                if active_glitch
+                else random.randint(1, 4)
+            )
+        )
+        for _ in range(block_count):
+            bw = random.choice((8, 12, 16, 20, 28))
+            bh = random.choice((6, 8, 12, 16))
+            bx = (random.randint(0, max(0, w - bw)) // 4) * 4
+            by = (random.randint(0, max(0, h - bh)) // 4) * 4
+            color = random.choice(glitch_colors)
+            painter.fillRect(bx, by, bw, bh, color)
+
+        # в) Пиксельные шумовые квадраты
+        noise_count = (
+            random.randint(12, 24)
+            if is_spawning
+            else (
+                random.randint(6, 16)
+                if active_glitch
+                else random.randint(2, 6)
+            )
+        )
+        for _ in range(noise_count):
+            nx = (random.randint(0, max(0, w - 4)) // 4) * 4
+            ny = (random.randint(0, max(0, h - 4)) // 4) * 4
+            color = random.choice(glitch_colors)
+            painter.fillRect(nx, ny, 4, 4, color)
+
+        # 3. Выступающие за силуэт искры
+        painter.setCompositionMode(
+            QPainter.CompositionMode.CompositionMode_SourceOver
+        )
+        spark_chance = 0.90 if is_spawning else 0.65
+        if active_glitch and random.random() < spark_chance:
+            sparks_n = random.randint(4, 7) if is_spawning else random.randint(2, 4)
+            for _ in range(sparks_n):
+                ex = (random.randint(0, max(0, w - 8)) // 4) * 4
+                ey = (random.randint(0, max(0, h - 8)) // 4) * 4
+                ew = random.choice((4, 8, 12)) if is_spawning else random.choice((4, 8))
+                eh = random.choice((4, 6, 8)) if is_spawning else random.choice((4, 6))
+                spark_color = random.choice(glitch_colors)
+                painter.fillRect(ex, ey, ew, eh, spark_color)
+
+        painter.end()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        self._inactivity.reset_timer()
         if event.button() == Qt.MouseButton.RightButton:
             self.show_context_menu(event.globalPosition().toPoint())
             event.accept()
             return
         if event.button() == Qt.MouseButton.LeftButton:
-            child = self.childAt(event.pos())
-            if child is None or isinstance(child, QVideoWidget):
-                handle = self.windowHandle()
-                if handle is not None and hasattr(handle, "startSystemMove"):
-                    handle.startSystemMove()
-                    event.accept()
-                    return
-                self._drag_offset = (
-                    event.globalPosition().toPoint()
-                    - self.frameGeometry().topLeft()
-                )
+            handle = self.windowHandle()
+            if handle is not None and hasattr(handle, "startSystemMove"):
+                handle.startSystemMove()
                 event.accept()
                 return
+            self._drag_offset = (
+                event.globalPosition().toPoint()
+                - self.frameGeometry().topLeft()
+            )
+            event.accept()
+            return
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802 (Qt naming)
@@ -238,7 +434,8 @@ class CapriWindow(QWidget):
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         if self._drag_offset is not None:
             pos = self.pos()
-            set_config_value("window.terminal_position", {"x": pos.x(), "y": pos.y()})
+            set_config_value("window.position", {"x": pos.x(), "y": pos.y()})
+            set_config_value("window.overlay_position", {"x": pos.x(), "y": pos.y()})
         self._drag_offset = None
         super().mouseReleaseEvent(event)
 
@@ -256,14 +453,7 @@ class CapriWindow(QWidget):
         if self._speech is not None:
             self._speech.close(immediate=True)
         hold_ms = min(5000, max(1200, len(text) * 45))
-        parent = self
-        if (
-            self._overlay_mode
-            and self._overlay_window is not None
-            and self._overlay_window.isVisible()
-        ):
-            parent = self._overlay_window
-        speech = show_text(text, parent=parent, hold_ms=hold_ms)
+        speech = show_text(text, parent=self, hold_ms=hold_ms)
         self._speech = speech
         speech.destroyed.connect(
             lambda *_, window=speech: self._forget_speech(window)
@@ -276,7 +466,6 @@ class CapriWindow(QWidget):
         if self._voice.is_listening:
             self._voice.stop()
             set_config_value("audio.voice_enabled", False)
-            self.status.setText("Капри // Голос выключен")
             return "Голосовой ввод отключён."
         else:
             self._voice.start()
@@ -292,9 +481,7 @@ class CapriWindow(QWidget):
         self._inactivity.reset_timer()
         if command:
             self._disarm_voice_command()
-            self.status.setText("Капри // Выполняет")
             result = self.process_input(command)
-            self.status.setText("Капри // Слушает")
             self.speak(result)
             return
         self._arm_voice_command()
@@ -305,16 +492,20 @@ class CapriWindow(QWidget):
             return command
         if self._flow.awaiting_reply:
             return text.strip()
-        if self._voice_armed_until > time.monotonic():
+        if self._voice_command_armed:
             return text.strip()
         return None
 
+    @property
+    def _voice_command_armed(self) -> bool:
+        return time.monotonic() < self._voice_armed_until
+
     def _arm_voice_command(self) -> None:
-        self._voice_armed_until = time.monotonic() + (
-            VOICE_COMMAND_WINDOW_MS / 1000
+        self._voice_armed_until = (
+            time.monotonic() + VOICE_COMMAND_WINDOW_MS / 1000
         )
-        self.status.setText("Капри // Слушает")
         self._voice_window_timer.start(VOICE_COMMAND_WINDOW_MS)
+        self._greet_trigger()
 
     def _disarm_voice_command(self) -> None:
         self._voice_armed_until = 0.0
@@ -322,35 +513,20 @@ class CapriWindow(QWidget):
 
     def _on_voice_window_expired(self) -> None:
         self._voice_armed_until = 0.0
-        self._update_voice_status()
 
-    def _update_voice_status(self) -> None:
-        if self._voice.is_listening:
-            self.status.setText("Капри // Слушает")
-        else:
-            self.status.setText(self._default_status)
+    def _greet_trigger(self) -> None:
+        self.speak("Что?")
 
     def _wake_voice_if_needed(self) -> None:
-        if not get_config_value("audio.voice_enabled", True):
-            return
-        if not self._voice.is_listening and not self._voice.is_busy:
+        voice_enabled = get_config_value("audio.voice_enabled", True)
+        if voice_enabled and not self._voice.is_listening and not self._voice.is_busy:
             self._voice.start()
 
-    def _on_voice_listening(self, listening: bool) -> None:
-        if not listening:
-            self.status.setText(self._default_status)
-        else:
-            self.status.setText("Капри // Слушает")
+    def _on_voice_listening(self, active: bool) -> None:
+        pass
 
     def _on_voice_status(self, text: str) -> None:
-        if not text:
-            self.status.setText(self._default_status)
-        elif text == "Слушаю…":
-            self.status.setText("Капри // Слушает")
-        elif text == "Распознаю…":
-            self.status.setText("Капри // Думает")
-        else:
-            self.status.setText(f"Капри // {text.upper()}")
+        pass
 
     def _toggle_glitches(self) -> str:
         enabled = self._glitches.toggle()
@@ -361,96 +537,18 @@ class CapriWindow(QWidget):
         self._glitches.wild_glitch(5000)
         return "Капри в восторге! Весь экран глитчит 5 секунд."
 
-    def _on_overlay_moved(self, pos: QPoint) -> None:
-        set_config_value("window.overlay_position", {"x": pos.x(), "y": pos.y()})
-
-    def _toggle_capri_overlay(self) -> str:
-        if not self._overlay_mode:
-            if self._overlay_window is None:
-                pose = get_config_value("appearance.overlay_pose", "sit")
-                pose_map = {
-                    "sit": OVERLAY_SIT,
-                    "stay": OVERLAY_STAY,
-                    "crouch": OVERLAY_CROUCH,
-                }
-                pose_file = pose_map.get(pose, OVERLAY_SIT)
-                if not pose_file.is_file():
-                    pose_file = OVERLAY_SIT
-
-                self._overlay_window = CapriOverlayWindow(
-                    pose_file,
-                    on_interact=self._inactivity.reset_timer,
-                    on_context_menu=self.show_context_menu,
-                    on_moved=self._on_overlay_moved,
-                )
-            old_target = self
-
-            pos_data = get_config_value("window.overlay_position")
-            applied_pos = False
-            if isinstance(pos_data, dict) and "x" in pos_data and "y" in pos_data:
-                target_rect = QRect(
-                    int(pos_data["x"]),
-                    int(pos_data["y"]),
-                    self._overlay_window.width(),
-                    self._overlay_window.height(),
-                )
-                if any(s.availableGeometry().intersects(target_rect) for s in QGuiApplication.screens()):
-                    self._overlay_window.move(int(pos_data["x"]), int(pos_data["y"]))
-                    applied_pos = True
-
-            if not applied_pos:
-                center = self.frameGeometry().center()
-                self._overlay_window.move(
-                    center.x() - self._overlay_window.width() // 2,
-                    center.y() - self._overlay_window.height() // 2,
-                )
-
-            new_target = self._overlay_window
-            self._overlay_mode = True
-            set_config_value("appearance.mode", "overlay")
-            msg = "Капри в нормальном облике."
-        else:
-            old_target = (
-                self._overlay_window
-                if self._overlay_window is not None
-                else self
-            )
-            new_target = self
-            self._overlay_mode = False
-            set_config_value("appearance.mode", "terminal")
-            msg = "Капри снова в окне."
-
-        self._inactivity.switch_target(old_target, new_target)
-        self._inactivity.reset_timer()
-        return msg
-
-    def _set_overlay_pose(self, pose: str) -> None:
-        """Переключает спрайт оверлея питомца при наличии окна оверлея."""
-        if self._overlay_window is not None:
-            path = {
-                "sit": OVERLAY_SIT,
-                "stay": OVERLAY_STAY,
-                "crouch": OVERLAY_CROUCH,
-            }.get(pose)
-            if path is not None and path.is_file():
-                self._overlay_window.set_pose_image(pose, path)
-
     def _on_ollama_talking_start(self) -> None:
-        """Переключает Капри в позу stay при общении через локальную модель."""
-        self._set_overlay_pose("stay")
+        self.set_pose("stay")
 
     def _on_ollama_talking_end(self) -> None:
-        """Возвращает Капри в обычную позу sit после завершения ответа модели."""
-        self._set_overlay_pose("sit")
+        self.set_pose("sit")
 
     def _locate_mouse(self) -> str:
-        """Вспышка у курсора, молнии в центр, и появление Капри с курсором."""
         return self._inactivity.catch_mouse(
-            on_pose_change=self._set_overlay_pose
+            on_pose_change=self.set_pose
         )
 
     def _load_initial_settings(self) -> None:
-        """Загружает сохраненные предпочтения конфигурации (монитор, микрофон, глитчи, звук)."""
         screen_name = get_config_value("screen.designated_screen")
         self._designated_screen_name = None
         if screen_name:
@@ -476,11 +574,10 @@ class CapriWindow(QWidget):
         sfx_vol = get_config_value("audio.sfx_volume", 0.5)
         get_speech_sfx().set_volume(float(sfx_vol))
 
-        media_vol = get_config_value("audio.media_volume", 0.6)
-        self._media.set_volume(float(media_vol))
+        saved_pose = get_config_value("appearance.overlay_pose") or get_config_value("appearance.pose", "sit")
+        self.set_pose(str(saved_pose))
 
     def get_designated_screen(self) -> QScreen | None:
-        """Возвращает основной выбранный монитор или экран окна."""
         if self._designated_screen_name:
             for scr in QGuiApplication.screens():
                 if scr.name() == self._designated_screen_name:
@@ -488,29 +585,23 @@ class CapriWindow(QWidget):
         return self.screen() or QGuiApplication.primaryScreen()
 
     def set_designated_screen(self, screen: QScreen) -> None:
-        """Устанавливает основной монитор и перемещает питомца в его центр."""
         self._designated_screen_name = screen.name()
         set_config_value("screen.designated_screen", screen.name())
 
-        target = self._inactivity.current_target_widget
         geo = screen.availableGeometry()
-
-        wh = target.windowHandle()
+        wh = self.windowHandle()
         if wh is not None:
             wh.setScreen(screen)
 
-        cx = geo.left() + (geo.width() - target.width()) // 2
-        cy = geo.top() + (geo.height() - target.height()) // 2
-        target.move(cx, cy)
-        if self._overlay_mode:
-            set_config_value("window.overlay_position", {"x": cx, "y": cy})
-        else:
-            set_config_value("window.terminal_position", {"x": cx, "y": cy})
+        cx = geo.left() + (geo.width() - self.width()) // 2
+        cy = geo.top() + (geo.height() - self.height()) // 2
+        self.move(cx, cy)
+        set_config_value("window.position", {"x": cx, "y": cy})
+        set_config_value("window.overlay_position", {"x": cx, "y": cy})
         self._inactivity.reset_timer()
         self.speak(f"Монитор: {screen.name()}")
 
     def set_designated_microphone(self, device: QAudioDevice | None) -> None:
-        """Переключает активный микрофон и сохраняет выбор."""
         self._voice.set_device(device)
         desc = device.description() if device and not device.isNull() else ""
         set_config_value("audio.designated_microphone", desc if desc else None)
@@ -518,7 +609,6 @@ class CapriWindow(QWidget):
         self.speak(f"Микрофон: {name}")
 
     def show_context_menu(self, pos: QPoint) -> None:
-        """Контекстное меню настроек монитора, микрофона и режимов питомца."""
         self._inactivity.set_paused(True)
         try:
             menu = QMenu(self)
@@ -586,13 +676,6 @@ class CapriWindow(QWidget):
             menu.addSeparator()
 
             # 3. Быстрые действия
-            overlay_act = menu.addAction(
-                "🪟  Окно терминала" if self._overlay_mode else "👁  Нормальный облик"
-            )
-            overlay_act.triggered.connect(
-                lambda *_: self.process_input("нормальный облик")
-            )
-
             glitch_act = menu.addAction("⚡  Экранные глитчи")
             glitch_act.setCheckable(True)
             glitch_act.setChecked(self._glitches.is_enabled)
@@ -615,7 +698,6 @@ class CapriWindow(QWidget):
         finally:
             self._inactivity.set_paused(False)
 
-
     def _greet(self) -> None:
         if self._speech is not None:
             return
@@ -628,54 +710,34 @@ class CapriWindow(QWidget):
         if self._speech is window:
             self._speech = None
 
-    def _on_media_error(self, error_str: str) -> None:
-        self.status.setText(f"Капри // ОШИБКА ВОСПРОИЗВЕДЕНИЯ: {error_str}")
-
-    def _finish_close(self) -> None:
-        self._media.stop()
-        if self._speech is not None:
-            self._speech.close()
-        target = self._inactivity.current_target_widget
-        if target.isVisible():
-            screen = target.screen()
-            screen_rect = (
-                screen.geometry() if screen is not None else target.geometry()
-            )
-            overlay = TransitionOverlay(
-                screen_rect, target.geometry(), "out", target=target
-            )
-            overlay.finished.connect(self.close)
-            overlay.start()
-        else:
-            QTimer.singleShot(0, self.close)
-
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        if self._closing or self._media.phase == PHASE_CLOSED:
-            self._media.stop()
+        if self._closing:
             super().closeEvent(event)
             return
 
         try:
-            if self._overlay_mode and self._overlay_window is not None:
-                pos = self._overlay_window.pos()
-                set_config_value("window.overlay_position", {"x": pos.x(), "y": pos.y()})
-            else:
-                pos = self.pos()
-                set_config_value("window.terminal_position", {"x": pos.x(), "y": pos.y()})
+            pos = self.pos()
+            set_config_value("window.position", {"x": pos.x(), "y": pos.y()})
+            set_config_value("window.overlay_position", {"x": pos.x(), "y": pos.y()})
         except Exception:
             pass
 
-        if self._overlay_mode:
-            self._toggle_capri_overlay()
         self._closing = True
         event.ignore()
         self._voice.cancel()
         self._glitches.stop()
         close_all_speech()
-        if self._overlay_window is not None:
-            self._overlay_window.close()
         self.speak(GOODBYE_LINE)
-        self._media.play_outro()
+
+        screen = self.screen()
+        screen_rect = (
+            screen.geometry() if screen is not None else self.geometry()
+        )
+        overlay = TransitionOverlay(
+            screen_rect, self.geometry(), "out", target=self
+        )
+        overlay.finished.connect(self.close)
+        overlay.start()
 
 
 if __name__ == "__main__":
