@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from .placement import GAP, pick_position, pick_side_position
+from .speech_sfx import get_speech_sfx
 
 _TEXT_COLOR = "#00f0ff"
 _TEXT_WIDTH = 420
@@ -61,6 +62,11 @@ class CyberHudBubble(QWidget):
         self._chamfer = chamfer
         self._shadow_offset = shadow_offset
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+    def set_title(self, title: str) -> None:
+        if self._title != title:
+            self._title = title
+            self.update()
 
     def paintEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         painter = QPainter(self)
@@ -161,11 +167,14 @@ class SpeechWindow(QFrame):
         self._duration_ms = max(400.0, min(duration, 8000.0))
         self._revealed_chars = 0
         self._finished = False
+        self._phase = "transmitting"
+        self._transmit_frames = ["[ •     ]", "[ • •   ]", "[ • • • ]", "[   • • ]", "[     • ]"]
+        self._transmit_frame_idx = 0
 
-        bubble = CyberHudBubble(self)
-        bubble.setObjectName("bubble")
+        self._bubble = CyberHudBubble(self)
+        self._bubble.setObjectName("bubble")
 
-        self._label = QLabel(bubble)
+        self._label = QLabel(self._bubble)
         self._label.setObjectName("text")
         self._label.setWordWrap(True)
         self._label.setTextFormat(Qt.TextFormat.RichText)
@@ -174,24 +183,32 @@ class SpeechWindow(QFrame):
             Qt.WidgetAttribute.WA_TransparentForMouseEvents
         )
 
-        bubble_layout = QVBoxLayout(bubble)
+        bubble_layout = QVBoxLayout(self._bubble)
         bubble_layout.setContentsMargins(20, 28, 24, 18)
         bubble_layout.addWidget(self._label)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(16, 16, 16, 16)
-        outer.addWidget(bubble)
+        outer.addWidget(self._bubble)
 
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
         self._timer.setInterval(16)
         self._timer.timeout.connect(self._tick)
 
+        self._transmit_timer = QTimer(self)
+        self._transmit_timer.setSingleShot(True)
+        self._transmit_timer.timeout.connect(self._start_message)
+
+        self._transmit_anim_timer = QTimer(self)
+        self._transmit_anim_timer.setInterval(120)
+        self._transmit_anim_timer.timeout.connect(self._on_transmit_tick)
+
         self._hold_timer = QTimer(self)
         self._hold_timer.setSingleShot(True)
         self._hold_timer.timeout.connect(self.close)
 
-        self._render(0)
+        self._render_transmitting()
 
     @property
     def text(self) -> str:
@@ -202,18 +219,22 @@ class SpeechWindow(QFrame):
         return self._finished
 
     def skip(self) -> None:
-        if self._finished:
-            self.close()
-        else:
+        if self._phase == "transmitting":
+            self._start_message(skip_to_end=True)
+        elif not self._finished:
             self._finish()
+        else:
+            self.close()
 
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().showEvent(event)
-        if not self._clock.isValid():
+        if not self._clock.isValid() and self._phase == "transmitting":
+            self._bubble.set_title("[CAPRI://TRANSMITTING...]")
+            self._render_transmitting()
             self.adjustSize()
             self._place_randomly()
-            self._clock.start()
-            self._timer.start()
+            self._transmit_anim_timer.start()
+            self._transmit_timer.start(1000)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         if event.button() == Qt.MouseButton.LeftButton:
@@ -222,9 +243,38 @@ class SpeechWindow(QFrame):
             super().mousePressEvent(event)
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        self._transmit_timer.stop()
+        self._transmit_anim_timer.stop()
         self._timer.stop()
         self._hold_timer.stop()
         super().closeEvent(event)
+
+    def _on_transmit_tick(self) -> None:
+        self._transmit_frame_idx = (
+            self._transmit_frame_idx + 1
+        ) % len(self._transmit_frames)
+        self._render_transmitting()
+
+    def _render_transmitting(self) -> None:
+        frame = self._transmit_frames[self._transmit_frame_idx]
+        self._label.setText(
+            f'<span style="color:#ff1e46">TRANSMITTING</span> <span style="color:#00f0ff">{frame}</span>'
+        )
+
+    def _start_message(self, skip_to_end: bool = False) -> None:
+        self._transmit_timer.stop()
+        self._transmit_anim_timer.stop()
+        self._phase = "typing"
+        self._bubble.set_title("[CAPRI://NET_LINK]")
+        get_speech_sfx().play_swoosh()
+
+        if skip_to_end:
+            self._finish()
+        else:
+            self._render(0)
+            self.adjustSize()
+            self._clock.start()
+            self._timer.start()
 
     def _tick(self) -> None:
         if not self._clock.isValid():
