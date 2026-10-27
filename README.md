@@ -111,6 +111,6 @@ requirements.txt
 ## Notes
 
 - Wayland sessions are switched to XWayland automatically when possible.
-- Voice recognition defaults to offline local recognition with Vosk (`models/vosk-model-small-ru-0.22`). Google Web Speech is available via `CAPRI_VOICE_BACKEND=google` and requires internet access.
+- Voice recognition defaults to offline local recognition with Vosk (`models/vosk-model-ru-0.42`). Google Web Speech is available via `CAPRI_VOICE_BACKEND=google` and requires internet access.
 - Commands accept speech in Russian phonetics and auto-correct accidental English/Russian keyboard layout mismatches.
 - If a microphone or dependency is unavailable, text input still works.
