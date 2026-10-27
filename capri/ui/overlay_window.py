@@ -17,6 +17,7 @@ class CapriOverlayWindow(QWidget):
         image_path: Path,
         on_interact: Callable[[], None] | None = None,
         on_context_menu: Callable[[QPoint], None] | None = None,
+        on_moved: Callable[[QPoint], None] | None = None,
     ) -> None:
         super().__init__(
             None,
@@ -26,6 +27,7 @@ class CapriOverlayWindow(QWidget):
         )
         self._on_interact = on_interact
         self._on_context_menu = on_context_menu
+        self._on_moved = on_moved
         self.setWindowTitle("Капри")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
@@ -212,5 +214,7 @@ class CapriOverlayWindow(QWidget):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        if self._drag_offset is not None and self._on_moved is not None:
+            self._on_moved(self.pos())
         self._drag_offset = None
         super().mouseReleaseEvent(event)

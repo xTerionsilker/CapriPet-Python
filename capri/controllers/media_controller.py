@@ -60,6 +60,12 @@ class MediaController(QObject):
         self.sound.errorOccurred.connect(self._on_sound_error)
         self.sound.mediaStatusChanged.connect(self._on_sound_status)
 
+    def set_volume(self, volume: float) -> None:
+        """Устанавливает уровень громкости для видео и системных звуков (0.0..1.0)."""
+        vol = max(0.0, min(1.0, float(volume)))
+        self.audio.setVolume(vol)
+        self.sound_audio.setVolume(vol)
+
     @property
     def phase(self) -> str:
         return self._phase

@@ -42,6 +42,13 @@ class InactivityManager(QObject):
         self._inactivity_timer = QTimer(self)
         self._inactivity_timer.setSingleShot(True)
         self._inactivity_timer.timeout.connect(self._hide_for_inactivity)
+        self._timeout_ms = INACTIVITY_TIMEOUT_MS
+
+    def set_timeout_ms(self, timeout_ms: int) -> None:
+        """Обновляет таймаут бездействия и перезапускает таймер при активности."""
+        self._timeout_ms = max(500, int(timeout_ms))
+        if self._inactivity_timer.isActive():
+            self.reset_timer()
 
     @property
     def is_paused(self) -> bool:
@@ -90,7 +97,7 @@ class InactivityManager(QObject):
         return QGuiApplication.primaryScreen()
 
     def start(self) -> None:
-        self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
+        self._inactivity_timer.start(self._timeout_ms)
 
     def stop(self) -> None:
         self._inactivity_timer.stop()
@@ -105,7 +112,7 @@ class InactivityManager(QObject):
             self._start_show_transition()
             return
         self._inactivity_timer.stop()
-        self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
+        self._inactivity_timer.start(self._timeout_ms)
 
     def relocate_overlay_randomly(self) -> None:
         overlay = self._get_overlay()
@@ -196,7 +203,7 @@ class InactivityManager(QObject):
         self._reveal_target_on_show_peak()
         self._on_wake_voice()
         self._inactivity_timer.stop()
-        self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
+        self._inactivity_timer.start(self._timeout_ms)
 
     def switch_target(
         self, old_target: QWidget, new_target: QWidget
@@ -238,7 +245,7 @@ class InactivityManager(QObject):
                 self._transition_overlay = None
                 new_target.show()
                 new_target.raise_()
-                self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
+                self._inactivity_timer.start(self._timeout_ms)
 
             overlay_in = TransitionOverlay(
                 new_screen_rect,
@@ -381,7 +388,7 @@ class InactivityManager(QObject):
                 self._transition_overlay = None
                 target.show()
                 target.raise_()
-                self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
+                self._inactivity_timer.start(self._timeout_ms)
                 if on_finished is not None:
                     on_finished()
 
@@ -450,7 +457,7 @@ class InactivityManager(QObject):
                 self._transition_overlay = None
                 target.show()
                 target.raise_()
-                self._inactivity_timer.start(INACTIVITY_TIMEOUT_MS)
+                self._inactivity_timer.start(self._timeout_ms)
                 if on_finished is not None:
                     on_finished()
 
