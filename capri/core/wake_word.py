@@ -4,12 +4,14 @@ import re
 
 VOICE_TRIGGER_RE = re.compile(
     r"(?<!\w)(?:"
-    r"капри(?:\s*[-–—]?\s*(?:корд|корт|кард|корн|кор))?"
-    r"|кэпри"
+    r"капри[зс]?(?:\s*[-–—]?\s*(?:корд|корт|кард|корн|кор))?"
+    r"|к[эео]при[зс]?"
+    r"|ка[кп]\s+при"
     r"|capri(?:\s*[-–—]?\s*(?:corn|kord|cord|card|kor))?"
-    r")(?!\w)"
+    r")(?!\w)",
+    re.IGNORECASE,
 )
-VOICE_COMMAND_WINDOW_MS = 3_000
+VOICE_COMMAND_WINDOW_MS = 5_000
 VOICE_LISTENING_STATUS = "СЛУШАЮ «КАПРИ»…"
 VOICE_WAITING_STATUS = "ЖДУ КОМАНДУ…"
 
