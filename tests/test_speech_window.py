@@ -4,7 +4,7 @@ import unittest
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 from PySide6.QtWidgets import QApplication
-from capri.ui.speech import SpeechWindow, CyberHudBubble, show_text, close_all
+from capri.ui.speech import CyberHudBubble, show_text, close_all
 
 _app = QApplication.instance() or QApplication([])
 
@@ -83,8 +83,8 @@ class TestSpeechWindow(unittest.TestCase):
         self.assertFalse(w.isVisible())
 
     def test_close_all(self):
-        w1 = show_text("Text 1")
-        w2 = show_text("Text 2")
+        show_text("Text 1")
+        show_text("Text 2")
         close_all()
 
 
