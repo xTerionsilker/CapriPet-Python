@@ -1,0 +1,37 @@
+# AGENTS.md
+
+## Environment & Tooling
+
+- **Python Interpreter:** Always use the local virtual environment at `./.venv/bin/python`. System Python lacks dependencies like `PySide6` and `vosk`.
+- **Run Application:** `./.venv/bin/python main.py`
+- **Headless Testing / Verification:** In terminal sessions without an X/Wayland display server, set `QT_QPA_PLATFORM=offscreen`:
+  ```bash
+  QT_QPA_PLATFORM=offscreen ./.venv/bin/python -c "from capri.ui.pet_window import CapriWindow; print('OK')"
+  ```
+- **Syntax & Linter Checks:**
+  ```bash
+  ./.venv/bin/python -m py_compile capri/**/*.py main.py
+  ./.venv/bin/pyflakes capri/ main.py
+  ```
+- **Wayland / X11 Quirk:** `main.py` explicitly selects `QT_QPA_PLATFORM=xcb` when running under Wayland with XWayland to ensure frameless window positioning and movement behave consistently across Linux compositors.
+
+## Architecture & Entry Points
+
+- **`main.py`:** Application entry point. Instantiates `CapriWindow` and enters the Qt event loop.
+- **Dual Representation of Capri:**
+  - `CapriWindow` (`capri/ui/pet_window.py`): Primary 800×540 frameless window showing looping video (`faces/*.mp4`). Dragging by the video moves the window.
+  - `CapriOverlayWindow` (`capri/ui/overlay_window.py`): Floating translucent sprite (`assets/var/capri_{sit,stay,crouch}.png`) rendered with custom pixel glitch passes.
+  - Modes toggle automatically via `InactivityManager` (`capri/controllers/inactivity_manager.py`) or manually via the `Нормальный облик` command.
+- **Speech System (`capri/ui/speech.py`):**
+  - Displays cyber HUD speech bubbles (`CyberHudBubble`) with holographic deploy (open) and CRT beam collapse (close) animations.
+  - Anchors dynamically to whichever Capri widget is active (`CapriWindow` vs `CapriOverlayWindow`), tracking movement in real time via `eventFilter` and a 25ms timer.
+  - Position is computed by `pick_adjacent_position` (`capri/ui/placement.py`), preferring side placement (right/left) and falling back to above/below or minimum overlap if screen space is tight.
+  - SFX are synthesized on the fly via `capri/ui/speech_sfx.py` into cached WAV files and played via system audio utilities (`pw-play`, `paplay`, `aplay`) or `QSoundEffect`.
+- **Configuration Management (`capri/core/settings.py`):**
+  - Settings load in priority order: `$XDG_CONFIG_HOME/capri/config.json` (`~/.config/capri/config.json`) -> `<repo>/.capri/config.json` -> `/tmp/capri_config.json`.
+  - Saves are atomic: writes to `.tmp` file and replaces via `os.replace`.
+- **Audio & Voice (`capri/audio/`):**
+  - Offline STT uses `vosk` with Russian acoustic model located at `models/vosk-model-ru-0.42/`.
+  - Wake word detection (`"Капри"`) lives in `capri/core/wake_word.py`.
+  - Recognition is fully offline and local; internet dependency has been removed.
+  - Missing audio input devices or missing media assets fail gracefully without crashing the app.

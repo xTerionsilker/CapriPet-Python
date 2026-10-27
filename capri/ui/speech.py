@@ -5,7 +5,7 @@ import random
 import time
 from typing import Callable
 
-from PySide6.QtCore import QElapsedTimer, QEvent, QObject, QPoint, QRect, Qt, QTimer, Signal
+from PySide6.QtCore import QElapsedTimer, QEvent, QObject, QRect, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .placement import GAP, pick_adjacent_position, pick_position, pick_side_position
+from .placement import pick_adjacent_position
 from .speech_sfx import get_speech_sfx
 
 _TEXT_COLOR = "#00f0ff"
