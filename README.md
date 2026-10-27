@@ -70,7 +70,7 @@ skipped, so the app still starts.
 | `блокировка` | `заблокировать`, `я отойду`, `lock` и др. | Lock the screen |
 | `я спать` | `выключи пк`, `shutdown` и др. | Power off |
 | `я гулять` | `спящий режим`, `sleep` и др. | Suspend |
-| `я заебался` | `перезагрузи`, `restart` и др. | Reboot |
+| `перезагрузка` | `перезагрузи`, `restart` и др. | Reboot |
 | `слушай <запрос>` | `спроси модель`, `ollama`, `qwen` и др. | Ask the local Ollama model |
 | `Нормальный облик` | `нормальный вид`, `капри оверлей`, `покажи капри` и др. | Toggle between window and Capri overlay image (transparent, on top) |
 
