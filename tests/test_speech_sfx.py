@@ -11,7 +11,9 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 from PySide6.QtWidgets import QApplication
 from capri.ui.speech_sfx import (
     _generate_swoosh_wav,
+    _generate_close_wav,
     _generate_chirp_wav,
+    _find_system_player,
     SpeechSFX,
     get_speech_sfx,
 )
@@ -25,25 +27,29 @@ class TestSpeechSFX(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             swoosh_file = tmp_path / "swoosh.wav"
+            close_file = tmp_path / "close.wav"
             chirp_file = tmp_path / "chirp.wav"
 
             _generate_swoosh_wav(swoosh_file)
+            _generate_close_wav(close_file)
             _generate_chirp_wav(chirp_file)
 
             self.assertTrue(swoosh_file.exists())
+            self.assertTrue(close_file.exists())
             self.assertTrue(chirp_file.exists())
 
-            with wave.open(str(swoosh_file), "rb") as wf:
-                self.assertEqual(wf.getnchannels(), 1)
-                self.assertEqual(wf.getsampwidth(), 2)
-                self.assertEqual(wf.getframerate(), 44100)
-                self.assertGreater(wf.getnframes(), 0)
+            for f in (swoosh_file, close_file, chirp_file):
+                with wave.open(str(f), "rb") as wf:
+                    self.assertEqual(wf.getnchannels(), 1)
+                    self.assertEqual(wf.getsampwidth(), 2)
+                    self.assertEqual(wf.getframerate(), 44100)
+                    self.assertGreater(wf.getnframes(), 0)
 
-            with wave.open(str(chirp_file), "rb") as wf:
-                self.assertEqual(wf.getnchannels(), 1)
-                self.assertEqual(wf.getsampwidth(), 2)
-                self.assertEqual(wf.getframerate(), 44100)
-                self.assertGreater(wf.getnframes(), 0)
+    def test_system_player_detection(self):
+        player = _find_system_player()
+        # В системе должен быть pw-play, paplay или aplay
+        self.assertIsNotNone(player)
+        self.assertTrue(any(p in player for p in ("pw-play", "paplay", "aplay")))
 
     def test_sfx_singleton_and_controls(self):
         sfx = get_speech_sfx()
@@ -69,8 +75,9 @@ class TestSpeechSFX(unittest.TestCase):
         sfx = SpeechSFX()
         sfx.set_enabled(True)
 
-        # Swoosh playback
+        # Swoosh & Close playback
         sfx.play_swoosh()
+        sfx.play_close()
 
         # Chirp playback with throttling
         t0 = sfx._last_chirp_time
@@ -86,6 +93,7 @@ class TestSpeechSFX(unittest.TestCase):
         time.sleep(0.05)
         sfx.play_chirp()
         self.assertGreater(sfx._last_chirp_time, t1)
+        sfx.stop_all()
 
 
 if __name__ == "__main__":
