@@ -189,8 +189,10 @@ class SpeechSFX(QObject):
             try:
                 proc = subprocess.Popen(
                     [self._player_bin, str(path)],
+                    stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    close_fds=True,
                 )
                 self._processes.append(proc)
                 played_by_system = True
@@ -255,14 +257,15 @@ class SpeechSFX(QObject):
 
         self._play_file(self._chirp_path, fallback)
 
-    def stop_all(self, timeout: float = 0.2) -> None:
+    def stop_all(self, timeout: float = 0.3) -> None:
         """Ожидает завершения или останавливает запущенные процессы воспроизведения."""
         for p in self._processes:
             try:
                 p.wait(timeout=timeout)
             except Exception:
                 try:
-                    p.terminate()
+                    p.kill()
+                    p.wait(timeout=0.1)
                 except Exception:
                     pass
         self._processes.clear()
