@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from html import escape
+import random
 
 from PySide6.QtCore import QElapsedTimer, QRect, Qt, QTimer, Signal
 from PySide6.QtGui import (
@@ -24,6 +25,7 @@ from .speech_sfx import get_speech_sfx
 
 _TEXT_COLOR = "#00f0ff"
 _TEXT_WIDTH = 420
+_GLYPHS = "0123456789ABCDEF$#@%&*+-/<>~_!?░▒▓"
 
 _STYLE = """
 QLabel#text {
@@ -208,6 +210,11 @@ class SpeechWindow(QFrame):
         self._hold_timer.setSingleShot(True)
         self._hold_timer.timeout.connect(self.close)
 
+        self._cursor_visible = True
+        self._cursor_timer = QTimer(self)
+        self._cursor_timer.setInterval(480)
+        self._cursor_timer.timeout.connect(self._on_cursor_tick)
+
         self._render_transmitting()
 
     @property
@@ -243,11 +250,16 @@ class SpeechWindow(QFrame):
             super().mousePressEvent(event)
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        self._cursor_timer.stop()
         self._transmit_timer.stop()
         self._transmit_anim_timer.stop()
         self._timer.stop()
         self._hold_timer.stop()
         super().closeEvent(event)
+
+    def _on_cursor_tick(self) -> None:
+        self._cursor_visible = not self._cursor_visible
+        self._render_finished()
 
     def _on_transmit_tick(self) -> None:
         self._transmit_frame_idx = (
@@ -271,7 +283,7 @@ class SpeechWindow(QFrame):
         if skip_to_end:
             self._finish()
         else:
-            self._render(0)
+            self._render_scramble(0)
             self.adjustSize()
             self._clock.start()
             self._timer.start()
@@ -281,8 +293,8 @@ class SpeechWindow(QFrame):
             return
         progress = min(1.0, self._clock.elapsed() / self._duration_ms)
         count = round(len(self._text) * progress)
-        if count != self._revealed_chars:
-            self._render(count)
+        self._render_scramble(count)
+        get_speech_sfx().play_chirp()
         if progress >= 1.0:
             self._finish()
 
@@ -290,23 +302,52 @@ class SpeechWindow(QFrame):
         if self._finished:
             return
         self._finished = True
+        self._phase = "holding"
         self._timer.stop()
-        self._render(len(self._text))
+        self._cursor_visible = True
+        self._render_finished()
+        self._cursor_timer.start(480)
         self.revealed.emit()
         if self._hold_ms:
             self._hold_timer.start(self._hold_ms)
         else:
             self.close()
 
-    def _render(self, count: int) -> None:
-        count = max(0, min(count, len(self._text)))
-        visible = escape(self._text[:count]).replace("\n", "<br>")
-        hidden = escape(self._text[count:]).replace("\n", "<br>")
+    def _render_scramble(self, fixed_count: int) -> None:
+        fixed_count = max(0, min(fixed_count, len(self._text)))
+        scramble_count = min(3, len(self._text) - fixed_count)
+        scramble_end = fixed_count + scramble_count
+
+        fixed_part = escape(self._text[:fixed_count]).replace("\n", "<br>")
+
+        scramble_chars: list[str] = []
+        for ch in self._text[fixed_count:scramble_end]:
+            if ch in ("\n", " ", "\t"):
+                scramble_chars.append(ch)
+            else:
+                scramble_chars.append(random.choice(_GLYPHS))
+        scramble_part = escape("".join(scramble_chars)).replace("\n", "<br>")
+
+        cursor = '<span style="color:#ff1e46">█</span>'
+        hidden_part = escape(self._text[scramble_end:]).replace("\n", "<br>")
+
+        html = (
+            f'<span style="color:{_TEXT_COLOR}">{fixed_part}</span>'
+            f'<span style="color:#ff1e46">{scramble_part}</span>'
+            f'{cursor}'
+            f'<span style="color:rgba(0,0,0,0)">{hidden_part}</span>'
+        )
+        self._label.setText(html)
+        self._revealed_chars = fixed_count
+
+    def _render_finished(self) -> None:
+        visible = escape(self._text).replace("\n", "<br>")
+        cursor_color = "#ff1e46" if self._cursor_visible else "rgba(0,0,0,0)"
         self._label.setText(
             f'<span style="color:{_TEXT_COLOR}">{visible}</span>'
-            f'<span style="color:rgba(0,0,0,0)">{hidden}</span>'
+            f'<span style="color:{cursor_color}">█</span>'
         )
-        self._revealed_chars = count
+        self._revealed_chars = len(self._text)
 
     def _place_randomly(self) -> None:
         parent = self.parentWidget()

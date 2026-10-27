@@ -42,17 +42,45 @@ class TestSpeechWindow(unittest.TestCase):
 
         w.close()
 
-    def test_skip_during_transmitting(self):
-        w = show_text("Immediate skip message", chars_per_second=100.0)
-        self.assertEqual(w._phase, "transmitting")
+    def test_scramble_and_cursor(self):
+        w = show_text("Hello\nWorld Hacker!", chars_per_second=100.0)
+        w._start_message()
 
-        # Клик во время фазы transmitting должен мгновенно раскрыть сообщение
+        # Тестируем рендер скрембла
+        w._render_scramble(5)
+        text_html = w._label.text()
+        # Должен быть циан (#00f0ff) для первых 5 символов "Hello"
+        self.assertIn("#00f0ff", text_html)
+        self.assertIn("Hello", text_html)
+        # Должна быть каретка █
+        self.assertIn("█", text_html)
+        # Должен сохраняться перевод строки <br>
+        self.assertIn("<br>", text_html)
+
+        # Завершаем дешифровку
+        w._finish()
+        self.assertTrue(w.is_finished)
+        self.assertEqual(w._phase, "holding")
+        self.assertTrue(w._cursor_timer.isActive())
+
+        # Проверяем мигание каретки
+        cursor_vis = w._cursor_visible
+        w._on_cursor_tick()
+        self.assertNotEqual(w._cursor_visible, cursor_vis)
+
+        w.close()
+
+    def test_skip_click_behavior(self):
+        w = show_text("Double click test", chars_per_second=100.0)
+        # 1. Клик во время transmitting раскрывает весь текст
         w.skip()
         self.assertTrue(w.is_finished)
+        self.assertEqual(w._phase, "holding")
         self.assertFalse(w._transmit_timer.isActive())
 
-        # Повторный клик закрывает окно
+        # 2. Клик в состоянии holding закрывает окно
         w.skip()
+        self.assertFalse(w.isVisible())
 
     def test_close_all(self):
         w1 = show_text("Text 1")
