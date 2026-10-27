@@ -468,97 +468,101 @@ class CapriWindow(QWidget):
 
     def show_context_menu(self, pos: QPoint) -> None:
         """Контекстное меню настроек монитора, микрофона и режимов питомца."""
-        menu = QMenu(self)
-        menu.setStyleSheet(APP_STYLE)
+        self._inactivity.set_paused(True)
+        try:
+            menu = QMenu(self)
+            menu.setStyleSheet(APP_STYLE)
 
-        # 1. Меню мониторов
-        screen_menu = menu.addMenu("🖥  Основной монитор")
-        screen_group = QActionGroup(screen_menu)
-        screen_group.setExclusive(True)
+            # 1. Меню мониторов
+            screen_menu = menu.addMenu("🖥  Основной монитор")
+            screen_group = QActionGroup(screen_menu)
+            screen_group.setExclusive(True)
 
-        current_scr = self.get_designated_screen()
-        primary_scr = QGuiApplication.primaryScreen()
+            current_scr = self.get_designated_screen()
+            primary_scr = QGuiApplication.primaryScreen()
 
-        for scr in QGuiApplication.screens():
-            geo = scr.geometry()
-            name = scr.name()
-            extra = []
-            if primary_scr and scr.name() == primary_scr.name():
-                extra.append("системный")
-            extra_str = f" [{', '.join(extra)}]" if extra else ""
-            label = f"{name} ({geo.width()}x{geo.height()}){extra_str}"
+            for scr in QGuiApplication.screens():
+                geo = scr.geometry()
+                name = scr.name()
+                extra = []
+                if primary_scr and scr.name() == primary_scr.name():
+                    extra.append("системный")
+                extra_str = f" [{', '.join(extra)}]" if extra else ""
+                label = f"{name} ({geo.width()}x{geo.height()}){extra_str}"
 
-            action = screen_menu.addAction(label)
-            action.setCheckable(True)
-            if current_scr and scr.name() == current_scr.name():
-                action.setChecked(True)
-            action.triggered.connect(
-                lambda *_, s=scr: self.set_designated_screen(s)
+                action = screen_menu.addAction(label)
+                action.setCheckable(True)
+                if current_scr and scr.name() == current_scr.name():
+                    action.setChecked(True)
+                action.triggered.connect(
+                    lambda *_, s=scr: self.set_designated_screen(s)
+                )
+                screen_group.addAction(action)
+
+            # 2. Меню микрофонов
+            mic_menu = menu.addMenu("🎙  Микрофон")
+            mic_group = QActionGroup(mic_menu)
+            mic_group.setExclusive(True)
+
+            current_mic = self._voice.selected_device
+            default_mic = QMediaDevices.defaultAudioInput()
+            default_label = (
+                f"По умолчанию ({default_mic.description()})"
+                if not default_mic.isNull()
+                else "По умолчанию"
             )
-            screen_group.addAction(action)
-
-        # 2. Меню микрофонов
-        mic_menu = menu.addMenu("🎙  Микрофон")
-        mic_group = QActionGroup(mic_menu)
-        mic_group.setExclusive(True)
-
-        current_mic = self._voice.selected_device
-        default_mic = QMediaDevices.defaultAudioInput()
-        default_label = (
-            f"По умолчанию ({default_mic.description()})"
-            if not default_mic.isNull()
-            else "По умолчанию"
-        )
-        def_action = mic_menu.addAction(default_label)
-        def_action.setCheckable(True)
-        if current_mic is None or current_mic.isNull():
-            def_action.setChecked(True)
-        def_action.triggered.connect(
-            lambda *_: self.set_designated_microphone(None)
-        )
-        mic_group.addAction(def_action)
-
-        for dev in QMediaDevices.audioInputs():
-            if not default_mic.isNull() and dev.id() == default_mic.id():
-                continue
-            act = mic_menu.addAction(dev.description())
-            act.setCheckable(True)
-            if current_mic and dev.id() == current_mic.id():
-                act.setChecked(True)
-            act.triggered.connect(
-                lambda *_, d=dev: self.set_designated_microphone(d)
+            def_action = mic_menu.addAction(default_label)
+            def_action.setCheckable(True)
+            if current_mic is None or current_mic.isNull():
+                def_action.setChecked(True)
+            def_action.triggered.connect(
+                lambda *_: self.set_designated_microphone(None)
             )
-            mic_group.addAction(act)
+            mic_group.addAction(def_action)
 
-        menu.addSeparator()
+            for dev in QMediaDevices.audioInputs():
+                if not default_mic.isNull() and dev.id() == default_mic.id():
+                    continue
+                act = mic_menu.addAction(dev.description())
+                act.setCheckable(True)
+                if current_mic and dev.id() == current_mic.id():
+                    act.setChecked(True)
+                act.triggered.connect(
+                    lambda *_, d=dev: self.set_designated_microphone(d)
+                )
+                mic_group.addAction(act)
 
-        # 3. Быстрые действия
-        overlay_act = menu.addAction(
-            "🪟  Окно терминала" if self._overlay_mode else "👁  Нормальный облик"
-        )
-        overlay_act.triggered.connect(
-            lambda *_: self.process_input("нормальный облик")
-        )
+            menu.addSeparator()
 
-        glitch_act = menu.addAction("⚡  Экранные глитчи")
-        glitch_act.setCheckable(True)
-        glitch_act.setChecked(self._glitches.is_enabled)
-        glitch_act.triggered.connect(
-            lambda *_: self.process_input("глитч")
-        )
+            # 3. Быстрые действия
+            overlay_act = menu.addAction(
+                "🪟  Окно терминала" if self._overlay_mode else "👁  Нормальный облик"
+            )
+            overlay_act.triggered.connect(
+                lambda *_: self.process_input("нормальный облик")
+            )
 
-        voice_act = menu.addAction("🎤  Голосовой ввод")
-        voice_act.setCheckable(True)
-        voice_act.setChecked(self._voice.is_listening)
-        voice_act.triggered.connect(
-            lambda *_: self._toggle_voice()
-        )
+            glitch_act = menu.addAction("⚡  Экранные глитчи")
+            glitch_act.setCheckable(True)
+            glitch_act.setChecked(self._glitches.is_enabled)
+            glitch_act.triggered.connect(
+                lambda *_: self.process_input("глитч")
+            )
 
-        menu.addSeparator()
-        quit_act = menu.addAction("❌  Выход")
-        quit_act.triggered.connect(self.close)
+            voice_act = menu.addAction("🎤  Голосовой ввод")
+            voice_act.setCheckable(True)
+            voice_act.setChecked(self._voice.is_listening)
+            voice_act.triggered.connect(
+                lambda *_: self._toggle_voice()
+            )
 
-        menu.exec(pos)
+            menu.addSeparator()
+            quit_act = menu.addAction("❌  Выход")
+            quit_act.triggered.connect(self.close)
+
+            menu.exec(pos)
+        finally:
+            self._inactivity.set_paused(False)
 
 
     def _greet(self) -> None:

@@ -37,10 +37,23 @@ class InactivityManager(QObject):
         self._transitioning = False
         self._transition_overlay: TransitionOverlay | None = None
         self._voice_was_listening = False
+        self._paused = False
 
         self._inactivity_timer = QTimer(self)
         self._inactivity_timer.setSingleShot(True)
         self._inactivity_timer.timeout.connect(self._hide_for_inactivity)
+
+    @property
+    def is_paused(self) -> bool:
+        return self._paused
+
+    def set_paused(self, paused: bool) -> None:
+        """Приостанавливает таймер бездействия (например, пока открыто контекстное меню)."""
+        self._paused = paused
+        if paused:
+            self._inactivity_timer.stop()
+        else:
+            self.reset_timer()
 
     @property
     def is_transitioning(self) -> bool:
@@ -83,7 +96,7 @@ class InactivityManager(QObject):
         self._inactivity_timer.stop()
 
     def reset_timer(self) -> None:
-        if self._is_closing():
+        if self._paused or self._is_closing():
             return
         if self._transitioning:
             return
@@ -111,9 +124,7 @@ class InactivityManager(QObject):
         overlay.move(rand_x, rand_y)
 
     def _hide_for_inactivity(self) -> None:
-        if self._is_closing():
-            return
-        if self._transitioning:
+        if self._paused or self._is_closing() or self._transitioning:
             return
         target = self.current_target_widget
         if not target.isVisible():
@@ -272,6 +283,12 @@ class InactivityManager(QObject):
 
         # 2. Целевой экран, куда перемещаем Капри и курсор
         target_screen = self.get_target_screen()
+        target_screen_index = None
+        for idx, scr in enumerate(QGuiApplication.screens()):
+            if scr.name() == target_screen.name() or scr.geometry() == target_screen.geometry():
+                target_screen_index = idx
+                break
+
         geo = target_screen.availableGeometry()
 
         flash_size = 140
@@ -289,7 +306,7 @@ class InactivityManager(QObject):
 
         def move_mouse() -> None:
             try:
-                move_mouse_to_center(target_center)
+                move_mouse_to_center(target_center, screen_index=target_screen_index)
             except Exception:
                 pass
 
