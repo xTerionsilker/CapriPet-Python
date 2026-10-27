@@ -3,10 +3,17 @@ from __future__ import annotations
 from html import escape
 
 from PySide6.QtCore import QElapsedTimer, QRect, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QGuiApplication, QScreen
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QGuiApplication,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QScreen,
+)
 from PySide6.QtWidgets import (
     QFrame,
-    QGraphicsDropShadowEffect,
     QLabel,
     QVBoxLayout,
     QWidget,
@@ -14,26 +21,115 @@ from PySide6.QtWidgets import (
 
 from .placement import GAP, pick_position, pick_side_position
 
-_TEXT_COLOR = "#eaffef"
+_TEXT_COLOR = "#00f0ff"
 _TEXT_WIDTH = 420
 
 _STYLE = """
-QFrame#bubble {
-    background: #f708060c;
-    border: 3px solid #39ff6a;
-    border-radius: 0;
-}
 QLabel#text {
     background: transparent;
-    color: #eaffef;
+    color: #00f0ff;
     font-family: "Press Start 2P", "Pixelify Sans", "VT323", "Terminus",
         "JetBrains Mono", "DejaVu Sans Mono", monospace;
-    font-size: 14px;
+    font-size: 13px;
     letter-spacing: 1px;
 }
 """
 
 _active_windows: set["SpeechWindow"] = set()
+
+
+class CyberHudBubble(QWidget):
+    """
+    Sci-Fi HUD диалоговое облачко в эстетике Cyberpunk:
+    - Скошенный угол (chamfer) в правом верхнем углу
+    - Двухцветная палитра: циан (#00f0ff) и неоново-розовый (#ff1e46)
+    - Отрисовка сканлайнов (scanlines)
+    - Верхний заголовок терминала [CAPRI://NET_LINK]
+    - Пиксельная неоновая тень/свечение со смещением
+    """
+
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        title: str = "[CAPRI://NET_LINK]",
+        chamfer: int = 16,
+        shadow_offset: int = 6,
+    ) -> None:
+        super().__init__(parent)
+        self._title = title
+        self._chamfer = chamfer
+        self._shadow_offset = shadow_offset
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+    def paintEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+
+        w = self.width()
+        h = self.height()
+        c = self._chamfer
+        so = self._shadow_offset
+
+        bw = max(1, w - so)
+        bh = max(1, h - so)
+
+        # Контур полигона со скошенным правым верхним углом
+        path = QPainterPath()
+        path.moveTo(0, 0)
+        path.lineTo(bw - c, 0)
+        path.lineTo(bw, c)
+        path.lineTo(bw, bh)
+        path.lineTo(0, bh)
+        path.closeSubpath()
+
+        # 1. Пиксельная неоновая тень/свечение со смещением (+so, +so)
+        shadow_path = path.translated(so, so)
+        painter.fillPath(shadow_path, QColor(255, 30, 70, 90))
+
+        # 2. Глубокий темный фон (#08060c)
+        painter.fillPath(path, QColor(8, 6, 12, 245))
+
+        # 3. Сканлайны
+        painter.save()
+        painter.setClipPath(path)
+        scanline_pen = QPen(QColor(0, 240, 255, 14), 1)
+        painter.setPen(scanline_pen)
+        for y in range(0, bh, 3):
+            painter.drawLine(0, y, bw, y)
+        painter.restore()
+
+        # 4. Основная рамка (циан #00f0ff)
+        cyan_pen = QPen(QColor("#00f0ff"), 2)
+        painter.strokePath(path, cyan_pen)
+
+        # 5. Акценты неоново-розовым (#ff1e46)
+        accent_pen = QPen(QColor("#ff1e46"), 2)
+        painter.setPen(accent_pen)
+        # Подсветка скошенного угла
+        painter.drawLine(bw - c, 0, bw, c)
+        # Угловые засечки киберпанк HUD
+        painter.drawLine(0, 0, 10, 0)
+        painter.drawLine(0, 0, 0, 10)
+        painter.drawLine(0, bh - 10, 0, bh)
+        painter.drawLine(0, bh, 10, bh)
+        painter.drawLine(bw - 10, bh, bw, bh)
+        painter.drawLine(bw, bh - 10, bw, bh)
+
+        # 6. Верхняя терминальная плашка / заголовок
+        font = QFont("Press Start 2P")
+        font.setPixelSize(9)
+        font.setBold(True)
+        painter.setFont(font)
+
+        badge_rect = QRect(14, 5, max(10, bw - c - 20), 16)
+        painter.fillRect(QRect(12, 5, 154, 16), QColor(255, 30, 70, 30))
+        painter.setPen(QColor("#ff1e46"))
+        painter.drawText(
+            badge_rect,
+            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+            self._title,
+        )
 
 
 class SpeechWindow(QFrame):
@@ -66,9 +162,8 @@ class SpeechWindow(QFrame):
         self._revealed_chars = 0
         self._finished = False
 
-        bubble = QFrame(self)
+        bubble = CyberHudBubble(self)
         bubble.setObjectName("bubble")
-        bubble.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
         self._label = QLabel(bubble)
         self._label.setObjectName("text")
@@ -80,18 +175,12 @@ class SpeechWindow(QFrame):
         )
 
         bubble_layout = QVBoxLayout(bubble)
-        bubble_layout.setContentsMargins(24, 20, 24, 20)
+        bubble_layout.setContentsMargins(20, 28, 24, 18)
         bubble_layout.addWidget(self._label)
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(22, 22, 22, 22)
+        outer.setContentsMargins(16, 16, 16, 16)
         outer.addWidget(bubble)
-
-        glow = QGraphicsDropShadowEffect(bubble)
-        glow.setBlurRadius(0)
-        glow.setOffset(8, 8)
-        glow.setColor(QColor(57, 255, 106, 110))
-        bubble.setGraphicsEffect(glow)
 
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
