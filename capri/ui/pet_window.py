@@ -252,38 +252,6 @@ class CapriWindow(QWidget):
     def process_input(self, text: str) -> str:
         return self._flow.handle(text)
 
-    def _show_help(self) -> None:
-        close_all_speech()
-        hold_ms = 6000
-        delay = 400
-        texts = [
-            "помощь (также: что ты умеешь?, команды, справка…) — "
-            "показать этот список.",
-        ]
-        for command in self.commands._commands:
-            argument = " <запрос>" if command.takes_argument else ""
-            aliases = (
-                f" (также: {', '.join(command.aliases)})"
-                if command.aliases
-                else ""
-            )
-            texts.append(
-                f"{command.name}{argument}{aliases} — {command.description}"
-            )
-
-        def show_one(text: str) -> None:
-            parent = self
-            if (
-                self._overlay_mode
-                and self._overlay_window is not None
-                and self._overlay_window.isVisible()
-            ):
-                parent = self._overlay_window
-            show_text(text, parent=parent, hold_ms=hold_ms)
-
-        for index, text in enumerate(texts):
-            QTimer.singleShot(index * delay, lambda t=text: show_one(t))
-
     def speak(self, text: str) -> SpeechWindow:
         if self._speech is not None:
             self._speech.close(immediate=True)
@@ -324,12 +292,6 @@ class CapriWindow(QWidget):
         self._inactivity.reset_timer()
         if command:
             self._disarm_voice_command()
-            found = self.commands.find(command)
-            if found is not None and found is self.commands._help:
-                self.status.setText("Капри // Выполняет")
-                self._show_help()
-                self.status.setText("Капри // Слушает")
-                return
             self.status.setText("Капри // Выполняет")
             result = self.process_input(command)
             self.status.setText("Капри // Слушает")

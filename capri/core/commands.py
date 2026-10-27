@@ -8,29 +8,6 @@ from .fuzzy import MAX_TYPO_DISTANCE, edit_distance, keyword_score, similarity
 
 Handler = Callable[..., str]
 
-HELP_ALIASES = (
-    "помощь",
-    "что ты умеешь?",
-    "что ты умеешь",
-    "что умеешь?",
-    "что умеешь",
-    "что ты можешь",
-    "что ты можешь?",
-    "что можешь",
-    "что можешь?",
-    "команды",
-    "список команд",
-    "все команды",
-    "справка",
-    "помоги",
-    "подскажи команды",
-    "инструкция",
-    "возможности",
-    "меню",
-    "хелп",
-    "help",
-)
-
 ARGUMENT_PUNCTUATION = " \t,.:;–-!?()[]{}«»…\""
 
 _EN_KEYS = "qwertyuiop[]asdfghjkl;'zxcvbnm,./`"
@@ -59,26 +36,6 @@ class CommandRegistry:
     def __init__(self) -> None:
         self._commands: list[Command] = []
         self._lookup: dict[str, Command] = {}
-        self._help = Command(
-            "помощь",
-            "показать этот список.",
-            self.help_text,
-            HELP_ALIASES,
-            keywords=(
-                "помощ",
-                "умеешь",
-                "можешь",
-                "справк",
-                "возможност",
-                "команд",
-                "список",
-                "инструкц",
-                "хелп",
-                "help",
-            ),
-        )
-        for key in HELP_ALIASES:
-            self._lookup[self._normalize(key)] = self._help
 
     def register(
         self,
@@ -188,7 +145,7 @@ class CommandRegistry:
 
         best: Command | None = None
         best_score: tuple[float, float] | None = None
-        for command in (*self._commands, self._help):
+        for command in self._commands:
             keys = (command.name, *command.aliases)
             closest = max(
                 similarity(q, self._normalize(key))
@@ -204,23 +161,6 @@ class CommandRegistry:
                 best_score = candidate
                 best = command
         return best
-
-    def help_text(self) -> str:
-        lines = [
-            "Доступные команды:",
-            "• помощь (также: что ты умеешь?) — показать этот список.",
-        ]
-        for command in self._commands:
-            argument = " <запрос>" if command.takes_argument else ""
-            aliases = (
-                f" (также: {', '.join(command.aliases)})"
-                if command.aliases
-                else ""
-            )
-            lines.append(
-                f"• {command.name}{argument}{aliases} — {command.description}"
-            )
-        return "\n".join(lines)
 
     def _argument_match(self, normalized: str) -> tuple[Command, str] | None:
         keys = sorted(
