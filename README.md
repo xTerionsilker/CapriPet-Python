@@ -23,7 +23,8 @@ the whole desktop gets a light CRT glitch overlay while Capri is running.
 
 - Python 3.10+
 - PySide6 6.12+
-- `SpeechRecognition`
+- `vosk` (local offline voice recognition, default)
+- `SpeechRecognition` (optional fallback for Google Web Speech: `CAPRI_VOICE_BACKEND=google`)
 - Working microphone for voice input
 - Spotify client and `dbus-send` for music commands
 - Ollama for the `слушай` command

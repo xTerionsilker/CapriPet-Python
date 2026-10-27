@@ -8,7 +8,7 @@ from array import array
 from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtMultimedia import QAudioDevice, QAudioFormat, QAudioSource, QMediaDevices
 
-from .recognizer import RecognitionError, recognize
+from .recognizer import RecognitionError, check_available, recognize
 
 _SAMPLE_RATE = 16_000
 _CHANNELS = 1
@@ -177,9 +177,9 @@ class VoiceInput(QObject):
             return
 
         try:
-            import speech_recognition  # noqa: F401
-        except ImportError:
-            self._abort("Для голосового ввода установите SpeechRecognition.")
+            check_available()
+        except RecognitionError as error:
+            self._abort(str(error))
             return
 
         device = self.current_device
