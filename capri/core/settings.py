@@ -16,6 +16,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "audio": {
         "designated_microphone": None,
+        "volume": 50,
         "sfx_volume": 0.5,
         "media_volume": 0.6,
         "voice_enabled": True,
@@ -143,6 +144,15 @@ class ConfigManager:
             config["appearance"]["overlay_pose"] = "sit"
         if config["appearance"].get("pose") not in ("sit", "stay", "crouch"):
             config["appearance"]["pose"] = config["appearance"]["overlay_pose"]
+
+        # Общая громкость программы (в процентах)
+        try:
+            volume = int(config["audio"].get("volume", DEFAULT_CONFIG["audio"]["volume"]))
+            if volume not in (25, 50, 75, 100):
+                volume = DEFAULT_CONFIG["audio"]["volume"]
+            config["audio"]["volume"] = volume
+        except (ValueError, TypeError):
+            config["audio"]["volume"] = DEFAULT_CONFIG["audio"]["volume"]
 
         # Громкость
         for vol_key in ("sfx_volume", "media_volume"):

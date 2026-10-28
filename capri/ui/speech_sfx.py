@@ -488,6 +488,17 @@ class SpeechSFX(QObject):
             logger.warning("Не удалось инициализировать SFX звуки: %s. Работаем в беззвучном режиме.", exc)
             self._available = False
 
+    def _system_volume_args(self) -> list[str]:
+        """Возвращает аргументы громкости для выбранной системной утилиты воспроизведения."""
+        if not self._player_bin:
+            return []
+        player = Path(self._player_bin).name
+        if player == "pw-play":
+            return ["--volume", f"{self._volume:.3f}"]
+        if player == "paplay":
+            return [f"--volume={int(round(self._volume * 65536))}"]
+        return []
+
     def _play_file(self, path: Path | None, fallback_effect: QSoundEffect | None) -> None:
         """Воспроизводит WAV файл через системную утилиту или QSoundEffect фолбэк."""
         if not self.is_enabled() or path is None:
@@ -500,7 +511,7 @@ class SpeechSFX(QObject):
         if self._player_bin:
             try:
                 proc = subprocess.Popen(
-                    [self._player_bin, str(path)],
+                    [self._player_bin, *self._system_volume_args(), str(path)],
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,

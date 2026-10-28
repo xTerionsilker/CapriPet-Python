@@ -74,6 +74,7 @@ class CapriWindow(QWidget):
         self.setAutoFillBackground(False)
 
         self._scale_percent = 100
+        self._volume_percent = 50
         self._raw_pixmaps: dict[str, QPixmap] = {}
         self._pixmaps: dict[str, QPixmap] = {}
         self._load_all_poses()
@@ -569,9 +570,16 @@ class CapriWindow(QWidget):
         glitches_enabled = get_config_value("effects.glitches_enabled", True)
         self._glitches.set_enabled(bool(glitches_enabled))
 
-        sfx_vol = get_config_value("audio.sfx_volume", 0.5)
         speech_sfx = get_speech_sfx()
-        speech_sfx.set_volume(float(sfx_vol))
+        volume_percent = get_config_value("audio.volume", 50)
+        try:
+            volume_val = int(volume_percent)
+        except (ValueError, TypeError):
+            volume_val = 50
+        if volume_val not in (25, 50, 75, 100):
+            volume_val = 50
+        self._volume_percent = volume_val
+        speech_sfx.set_volume(volume_val / 100.0)
 
         speech_sound = get_config_value("audio.speech_sound_enabled", True)
         speech_sfx.set_speech_sound_enabled(bool(speech_sound))
@@ -634,6 +642,20 @@ class CapriWindow(QWidget):
         set_config_value("audio.effects_sound_enabled", bool(enabled))
         status = "вкл" if enabled else "выкл"
         self.speak(f"Звук эффектов: {status}")
+
+    def set_master_volume(self, percent: int) -> None:
+        if percent not in (25, 50, 75, 100):
+            return
+        if self._volume_percent == percent:
+            return
+        self._volume_percent = percent
+        get_speech_sfx().set_volume(percent / 100.0)
+        set_config_value("audio.volume", percent)
+        self.speak(f"Громкость: {percent}%")
+
+    @property
+    def volume_percent(self) -> int:
+        return self._volume_percent
 
     @property
     def scale_percent(self) -> int:

@@ -44,7 +44,10 @@ class ContextMenuBuilder:
         # 3. Меню звука
         self._add_sound_menu(menu)
 
-        # 4. Меню размера спрайта
+        # 4. Меню общей громкости
+        self._add_volume_menu(menu)
+
+        # 5. Меню размера спрайта
         self._add_scale_menu(menu)
 
         menu.addSeparator()
@@ -139,6 +142,22 @@ class ContextMenuBuilder:
         fx_sound_act.triggered.connect(
             lambda checked: self.window.set_effects_sound_enabled(checked)
         )
+
+    def _add_volume_menu(self, parent_menu: QMenu) -> None:
+        volume_menu = parent_menu.addMenu("🔉  Громкость")
+        volume_group = QActionGroup(volume_menu)
+        volume_group.setExclusive(True)
+
+        current_volume = getattr(self.window, "volume_percent", 50)
+        for opt in (25, 50, 75, 100):
+            act = volume_menu.addAction(f"{opt}%")
+            act.setCheckable(True)
+            if current_volume == opt:
+                act.setChecked(True)
+            act.triggered.connect(
+                lambda *_, v=opt: self.window.set_master_volume(v)
+            )
+            volume_group.addAction(act)
 
     def _add_scale_menu(self, parent_menu: QMenu) -> None:
         size_menu = parent_menu.addMenu("📐  Размер")
