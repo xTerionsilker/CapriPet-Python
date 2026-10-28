@@ -34,6 +34,7 @@ from ..core.wake_word import (
 )
 from ..effects.glitch import GlitchManager
 from ..effects.transition import TransitionOverlay
+from ..effects.transition_fx import pick_palette_color
 from .speech import SpeechWindow, close_all as close_all_speech, show_text
 from .speech_sfx import get_speech_sfx
 from .theme import APP_STYLE
@@ -317,23 +318,15 @@ class CapriWindow(QWidget):
         else:
             painter.drawPixmap(0, 0, self._pixmap)
 
-        # 2. Наложение крупных глитчей красного и чёрного цвета
+        # 2. Наложение крупных глитчей в фирменной палитре Капри
         painter.setCompositionMode(
             QPainter.CompositionMode.CompositionMode_SourceAtop
         )
 
-        red_colors = (
-            QColor(255, 0, 45, random.randint(200, 255)),
-            QColor(255, 30, 75, random.randint(180, 245)),
-            QColor(215, 0, 30, random.randint(210, 255)),
-            QColor(255, 50, 90, random.randint(190, 240)),
-        )
-        black_colors = (
-            QColor(0, 0, 0, random.randint(200, 255)),
-            QColor(8, 8, 12, random.randint(190, 250)),
-            QColor(16, 0, 8, random.randint(180, 240)),
-        )
-        glitch_colors = red_colors + black_colors
+        def get_glitch_color(alpha_min: int = 180, alpha_max: int = 255) -> QColor:
+            c = QColor(pick_palette_color())
+            c.setAlpha(random.randint(alpha_min, alpha_max))
+            return c
 
         # а) Горизонтальные глитч-полосы
         bar_count = (
@@ -350,7 +343,7 @@ class CapriWindow(QWidget):
             bh = random.choice((4, 6, 8, 12))
             bw = (random.randint(w // 4, w) // 4) * 4
             bx = (random.randint(0, max(0, w - bw)) // 4) * 4
-            color = random.choice(glitch_colors)
+            color = get_glitch_color(190, 255)
             painter.fillRect(bx, by, bw, bh, color)
 
         # б) Пиксельные блоки
@@ -368,7 +361,7 @@ class CapriWindow(QWidget):
             bh = random.choice((6, 8, 12, 16))
             bx = (random.randint(0, max(0, w - bw)) // 4) * 4
             by = (random.randint(0, max(0, h - bh)) // 4) * 4
-            color = random.choice(glitch_colors)
+            color = get_glitch_color(180, 255)
             painter.fillRect(bx, by, bw, bh, color)
 
         # в) Пиксельные шумовые квадраты
@@ -384,7 +377,7 @@ class CapriWindow(QWidget):
         for _ in range(noise_count):
             nx = (random.randint(0, max(0, w - 4)) // 4) * 4
             ny = (random.randint(0, max(0, h - 4)) // 4) * 4
-            color = random.choice(glitch_colors)
+            color = get_glitch_color(190, 255)
             painter.fillRect(nx, ny, 4, 4, color)
 
         # 3. Выступающие за силуэт искры
@@ -399,7 +392,7 @@ class CapriWindow(QWidget):
                 ey = (random.randint(0, max(0, h - 8)) // 4) * 4
                 ew = random.choice((4, 8, 12)) if is_spawning else random.choice((4, 8))
                 eh = random.choice((4, 6, 8)) if is_spawning else random.choice((4, 6))
-                spark_color = random.choice(glitch_colors)
+                spark_color = get_glitch_color(200, 255)
                 painter.fillRect(ex, ey, ew, eh, spark_color)
 
         painter.end()

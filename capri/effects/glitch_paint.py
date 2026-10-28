@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import math
 import random
 
-from PySide6.QtCore import QPoint, QRect, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
 
 COLORS = ("#39ff6a", "#ff1e46", "#a259ff", "#eaffef")
