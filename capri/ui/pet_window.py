@@ -704,11 +704,30 @@ class CapriWindow(QWidget):
             self._speech = None
             self._speaking = False
 
+    def _finalize_quit(self) -> None:
+        if getattr(self, "_exit_finalized", False):
+            return
+        self._exit_finalized = True
+        if hasattr(self, "_exit_safety_timer") and self._exit_safety_timer is not None:
+            self._exit_safety_timer.stop()
+            self._exit_safety_timer = None
+        if hasattr(self, "_exit_overlay") and self._exit_overlay is not None:
+            try:
+                self._exit_overlay.close()
+            except Exception:
+                pass
+            self._exit_overlay = None
+        if hasattr(self, "_tray_icon") and self._tray_icon is not None:
+            self._tray_icon.hide()
+        close_all_speech()
+        self.hide()
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
+
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         if self._closing:
-            if hasattr(self, "_tray_icon") and self._tray_icon is not None:
-                self._tray_icon.hide()
-            super().closeEvent(event)
+            event.accept()
             return
 
         try:
@@ -720,20 +739,33 @@ class CapriWindow(QWidget):
 
         self._closing = True
         event.ignore()
+        self._inactivity.stop()
+        self._glitch_timer.stop()
+        self._voice_window_timer.stop()
         self._voice.cancel()
         self._glitches.stop()
         close_all_speech()
-        self.speak(GOODBYE_LINE)
 
-        screen = self.screen()
+        speech = self.speak(GOODBYE_LINE)
+
+        screen = self.screen() or QGuiApplication.primaryScreen()
         screen_rect = (
             screen.geometry() if screen is not None else self.geometry()
         )
-        overlay = TransitionOverlay(
+        self._exit_overlay = TransitionOverlay(
             screen_rect, self.geometry(), "out", target=self
         )
-        overlay.finished.connect(self.close)
-        overlay.start()
+        self._exit_overlay.start()
+
+        self._exit_safety_timer = QTimer(self)
+        self._exit_safety_timer.setSingleShot(True)
+        self._exit_safety_timer.timeout.connect(self._finalize_quit)
+        self._exit_safety_timer.start(2200)
+
+        if speech is not None:
+            speech.destroyed.connect(self._finalize_quit)
+        else:
+            self._exit_overlay.finished.connect(self._finalize_quit)
 
 
 if __name__ == "__main__":
