@@ -4,8 +4,8 @@ import math
 import random
 from typing import List, Tuple
 
-from PySide6.QtCore import QPoint, QRect, Qt
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtCore import QPoint, QRect, QRectF, Qt
+from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPolygon
 
 # --- Пиксельные константы ---
 PIXEL_SIZE = 4
@@ -42,10 +42,10 @@ def pick_palette_color() -> QColor:
     return random.choices(PALETTE_COLORS, weights=PALETTE_WEIGHTS, k=1)[0]
 
 
-# Длительность переходов (мс)
-DURATION_OUT_MS = 640
-DURATION_IN_MS = 560
-DURATION_POINT_MS = 500
+# Длительность переходов (мс) — чуть длиннее, чтобы раскрыть хакерскую последовательность
+DURATION_OUT_MS = 780
+DURATION_IN_MS = 720
+DURATION_POINT_MS = 680
 
 # Матрица дизеринга Байера 4x4
 BAYER_4X4 = (
@@ -213,11 +213,13 @@ class CyberPixelBolt:
         self,
         start: QPoint,
         end: QPoint,
-        color_scheme: str = "crimson",  # "crimson" или "green"
+        color_scheme: str = "crimson",  # "crimson", "green", "blue" или "violet"
+        branch_chance: float = 0.30,
     ) -> None:
         self.start = snap_point(start)
         self.end = snap_point(end)
         self.color_scheme = color_scheme
+        self._branch_chance = max(0.0, min(1.0, branch_chance))
         self.segments: List[Tuple[QPoint, QPoint]] = []
         self.branches: List[List[Tuple[QPoint, QPoint]]] = []
         self.nodes: List[QPoint] = []
@@ -282,7 +284,7 @@ class CyberPixelBolt:
                 self.segments.append((corner, p2))
                 self.nodes.append(corner)
 
-            if random.random() < 0.30 and i < len(key_points) - 2:
+            if random.random() < self._branch_chance and i < len(key_points) - 2:
                 branch = self._build_branch(p2, dx, dy, dist)
                 if branch:
                     self.branches.append(branch)
@@ -317,10 +319,18 @@ class CyberPixelBolt:
 
         visible_count = max(1, int(len(self.segments) * min(1.0, progress)))
 
-        # Цвета в зависимости от схемы
+        # Цвета в зависимости от схемы (редкие синие/фиолетовые каналы — по палитре Капри)
         if self.color_scheme == "green":
             primary_color = COLOR_ACID_GREEN
             aberration_color = COLOR_CRIMSON
+            sub_packet_color = COLOR_CRIMSON
+        elif self.color_scheme == "blue":
+            primary_color = COLOR_ELECTRIC_BLUE
+            aberration_color = COLOR_VIOLET
+            sub_packet_color = COLOR_ACID_GREEN
+        elif self.color_scheme == "violet":
+            primary_color = COLOR_VIOLET
+            aberration_color = COLOR_ELECTRIC_BLUE
             sub_packet_color = COLOR_CRIMSON
         else:
             primary_color = COLOR_CRIMSON
@@ -328,7 +338,7 @@ class CyberPixelBolt:
             sub_packet_color = COLOR_ACID_GREEN
 
         # Слой 1: Темная обсидиановая подложка (#0B0B0B, толщина 8px) для резкого кибер-контраста
-        obsidian_pen = QPen(QColor(COLOR_OBSIDIAN.red(), COLOR_OBSIDIAN.green(), COLOR_OBSIDIAN.blue(), 190), PIXEL_SIZE * 2)
+        obsidian_pen = QPen(QColor(COLOR_OBSIDIAN.red(), COLOR_OBSIDIAN.green(), COLOR_OBSIDIAN.blue(), 170), PIXEL_SIZE * 2)
         obsidian_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
         obsidian_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
         painter.setPen(obsidian_pen)
@@ -346,8 +356,8 @@ class CyberPixelBolt:
 
         # Слой 3: Основное неоновое тело разряда (#F20D2E или #3CF12B, толщина 6px)
         neon_glow = QColor(primary_color)
-        neon_glow.setAlpha(235)
-        glow_pen = QPen(neon_glow, PIXEL_SIZE + 2)
+        neon_glow.setAlpha(215)
+        glow_pen = QPen(neon_glow, PIXEL_SIZE + 1)
         glow_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
         glow_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
         painter.setPen(glow_pen)
@@ -361,8 +371,8 @@ class CyberPixelBolt:
                 p1, p2 = branch[j]
                 painter.drawLine(p1, p2)
 
-        # Слой 4: Ослепительное белое ядро (#FFFFFF 2%, толщина 4px)
-        core_pen = QPen(COLOR_WHITE, PIXEL_SIZE)
+        # Слой 4: Белое ядро (#FFFFFF 2%, тонкое, чтобы не пересвечивать кадр)
+        core_pen = QPen(with_alpha(COLOR_WHITE, 150), 2)
         core_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
         core_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
         painter.setPen(core_pen)
@@ -539,3 +549,385 @@ class CyberShockwaveRing:
             p1 = pts[i]
             p2 = pts[(i + 1) % len(pts)]
             painter.drawLine(p1, p2)
+
+
+# ---------------------------------------------------------------------------
+# Cyberpunk 2077 / Kiroshi / quickhack primitives
+# ---------------------------------------------------------------------------
+
+
+def with_alpha(color: QColor, alpha: int) -> QColor:
+    """Возвращает копию цвета с ограниченной альфой."""
+    c = QColor(color)
+    c.setAlpha(max(0, min(255, int(alpha))))
+    return c
+
+
+def chamfer_points(rect: QRect, cut: int) -> QPolygon:
+    """Полигон с срезанными под 45° углами — фирменная форма панелей Night City."""
+    cut = max(2, min(cut, min(rect.width(), rect.height()) // 3))
+    l, r, t, b = rect.left(), rect.right(), rect.top(), rect.bottom()
+    return QPolygon(
+        [
+            QPoint(l + cut, t),
+            QPoint(r - cut, t),
+            QPoint(r, t + cut),
+            QPoint(r, b - cut),
+            QPoint(r - cut, b),
+            QPoint(l + cut, b),
+            QPoint(l, b - cut),
+            QPoint(l, t + cut),
+        ]
+    )
+
+
+def draw_scanlines(
+    painter: QPainter,
+    rect: QRect,
+    alpha: int = 34,
+    spacing: int = 4,
+) -> None:
+    """Тонкие ЭЛТ-сканлайны поверх экрана."""
+    if rect.width() <= 0 or rect.height() <= 0:
+        return
+    line = with_alpha(COLOR_OBSIDIAN, alpha)
+    y = rect.top()
+    while y < rect.bottom():
+        painter.fillRect(rect.left(), y, rect.width(), 1, line)
+        y += spacing
+
+
+def draw_scan_sweep(
+    painter: QPainter,
+    rect: QRect,
+    progress: float,
+    color: QColor = COLOR_CRIMSON,
+) -> None:
+    """Бегущая полоса оптического сканирования Kiroshi."""
+    if rect.height() <= 0:
+        return
+    y = rect.top() + int(rect.height() * (progress % 1.0))
+    for offset, alpha, height in ((-6, 28, 1), (-2, 70, 1), (0, 210, 2), (3, 90, 1)):
+        painter.fillRect(
+            rect.left(),
+            max(rect.top(), min(rect.bottom(), y + offset)),
+            rect.width(),
+            height,
+            with_alpha(color, alpha),
+        )
+    # Пиксельные обрывки по краям луча
+    rng = random.Random(int(progress * 1000) + rect.width())
+    for _ in range(7):
+        bx = rng.randint(rect.left(), max(rect.left(), rect.right() - 40))
+        bw = rng.choice((8, 16, 32, 64))
+        painter.fillRect(
+            bx,
+            y + rng.choice((-4, 0, 4)),
+            min(bw, rect.right() - bx),
+            2,
+            with_alpha(rng.choice((COLOR_CRIMSON, COLOR_ACID_GREEN, COLOR_WHITE)), 150),
+        )
+
+
+def draw_screen_glitch_bars(
+    painter: QPainter,
+    rect: QRect,
+    progress: float,
+    intensity: float = 1.0,
+) -> None:
+    """Горизонтальные сбои кадра (datamosh / tracking error) по всей ширине экрана."""
+    if intensity <= 0.02 or rect.height() <= 0:
+        return
+    rng = random.Random(int(progress * 500) + rect.height())
+    count = int(2 + 6 * intensity)
+    for _ in range(count):
+        y = rng.randint(rect.top(), rect.bottom())
+        h = rng.choice((1, 2, 3, 6, 10))
+        w = rng.randint(rect.width() // 12, max(rect.width() // 3, 2))
+        x = rng.randint(rect.left(), max(rect.left(), rect.right() - w))
+        color = rng.choices(
+            (COLOR_CRIMSON, COLOR_OBSIDIAN, COLOR_ACID_GREEN, COLOR_ELECTRIC_BLUE),
+            weights=(52, 30, 14, 4),
+            k=1,
+        )[0]
+        painter.fillRect(x, y, w, h, with_alpha(color, int(rng.randint(50, 150) * intensity)))
+
+
+def draw_hazard_frame(
+    painter: QPainter,
+    rect: QRect,
+    intensity: float = 1.0,
+    color: QColor = COLOR_CRIMSON,
+) -> None:
+    """Аварийная рамка с диагональными полосами (красно-чёрная, вместо жёлтой CP2077)."""
+    if intensity <= 0.02 or rect.width() <= 0 or rect.height() <= 0:
+        return
+    alpha = int(210 * intensity)
+    band_h = 8
+    painter.save()
+    painter.setClipRect(rect)
+    for band_rect in (
+        QRect(rect.left(), rect.top(), rect.width(), band_h),
+        QRect(rect.left(), rect.bottom() - band_h, rect.width(), band_h),
+    ):
+        painter.fillRect(band_rect, with_alpha(COLOR_OBSIDIAN, alpha))
+        stripe_w = 12
+        x = band_rect.left() - band_h
+        while x < band_rect.right():
+            poly = QPolygon(
+                [
+                    QPoint(x, band_rect.bottom()),
+                    QPoint(x + stripe_w // 2, band_rect.bottom()),
+                    QPoint(x + stripe_w // 2 + band_h, band_rect.top()),
+                    QPoint(x + band_h, band_rect.top()),
+                ]
+            )
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(with_alpha(color, alpha))
+            painter.drawPolygon(poly)
+            x += stripe_w
+    painter.restore()
+
+
+class CyberKiroshiReticle:
+    """Оптический прицел Kiroshi: вращающиеся деления, скобки и телеметрия цели."""
+
+    @staticmethod
+    def draw(
+        painter: QPainter,
+        rect: QRect,
+        progress: float,
+        color: QColor = COLOR_CRIMSON,
+        bracket_offset: int = 0,
+        rotation: float = 0.0,
+        label: str | None = None,
+        locked: bool = False,
+    ) -> None:
+        progress = max(0.0, min(1.0, progress))
+        if progress <= 0.01 or rect.width() <= 0 or rect.height() <= 0:
+            return
+
+        alpha = int(255 * progress)
+        shadow = with_alpha(COLOR_OBSIDIAN, int(alpha * 0.9))
+        main = with_alpha(color, alpha)
+        accent = with_alpha(
+            COLOR_ACID_GREEN if color != COLOR_ACID_GREEN else COLOR_CRIMSON,
+            int(alpha * 0.8),
+        )
+
+        # Угловые скобки и перекрестие — базовая оптика
+        CyberHoloReticle.draw(
+            painter, rect, progress, color=color, bracket_offset=bracket_offset
+        )
+
+        cx = rect.center().x()
+        cy = rect.center().y()
+        radius = max(18, min(rect.width(), rect.height()) // 2 + bracket_offset)
+        radius = snap_pixel(radius)
+
+        # Вращающееся кольцо тиков
+        ticks = 24
+        for i in range(ticks):
+            ang = rotation + (math.tau * i / ticks)
+            is_major = i % 6 == 0
+            inner = radius + 2
+            outer = radius + (12 if is_major else 6)
+            x1 = cx + int(math.cos(ang) * inner)
+            y1 = cy + int(math.sin(ang) * inner)
+            x2 = cx + int(math.cos(ang) * outer)
+            y2 = cy + int(math.sin(ang) * outer)
+            tick_color = accent if is_major else main
+            painter.setPen(QPen(tick_color, 2 if is_major else 1))
+            painter.drawLine(x1, y1, x2, y2)
+
+        # Сегментированные дуги захвата
+        arc_rect = QRectF(cx - radius - 16, cy - radius - 16, (radius + 16) * 2, (radius + 16) * 2)
+        pen = QPen(with_alpha(color, int(alpha * 0.75)), 2)
+        painter.setPen(pen)
+        for start in (15, 105, 195, 285):
+            painter.drawArc(arc_rect, int((start + math.degrees(rotation)) * 16), int(38 * 16))
+
+        # Обсидиановый контур под меткой цели
+        if label:
+            font = QFont("Monospace")
+            font.setStyleHint(QFont.StyleHint.Monospace)
+            font.setPixelSize(10)
+            font.setBold(True)
+            painter.setFont(font)
+            text = label.upper()
+            metrics = painter.fontMetrics()
+            tw = metrics.horizontalAdvance(text)
+            tx = cx - tw // 2
+            ty = rect.top() - 12 if rect.top() > 18 else rect.bottom() + 18
+            painter.fillRect(tx - 4, ty - 11, tw + 8, 15, shadow)
+            painter.setPen(with_alpha(COLOR_WHITE, alpha))
+            painter.drawText(tx, ty, text)
+            if locked:
+                painter.fillRect(tx - 7, ty - 4, 3, 3, accent)
+
+        # Маркер захвата в центре
+        if locked:
+            size = snap_pixel(max(6, radius // 8))
+            painter.fillRect(cx - size // 2, cy - size // 2, size, size, with_alpha(COLOR_WHITE, alpha))
+            painter.fillRect(cx - size, cy - 1, size * 2, 2, main)
+            painter.fillRect(cx - 1, cy - size, 2, size * 2, main)
+
+
+def draw_quickhack_panel(
+    painter: QPainter,
+    rect: QRect,
+    progress: float,
+    color: QColor = COLOR_CRIMSON,
+    title: str = "QUICKHACK",
+    status: str = "UPLOAD",
+) -> None:
+    """Панель загрузки быстрого взлома: сегментированный прогресс и телеметрия."""
+    if rect.width() < 80 or rect.height() < 18:
+        return
+    progress = max(0.0, min(1.0, progress))
+
+    painter.save()
+    panel = chamfer_points(rect, 7)
+    painter.setPen(QPen(with_alpha(COLOR_OBSIDIAN, 240), 2))
+    painter.setBrush(with_alpha(COLOR_OBSIDIAN, 205))
+    painter.drawPolygon(panel)
+    painter.setPen(QPen(with_alpha(color, 225), 2))
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    painter.drawPolygon(panel)
+
+    font = QFont("Monospace")
+    font.setStyleHint(QFont.StyleHint.Monospace)
+    font.setPixelSize(9)
+    font.setBold(True)
+    painter.setFont(font)
+
+    label_y = rect.top() + 12
+    painter.setPen(with_alpha(COLOR_WHITE, 235))
+    painter.drawText(rect.left() + 9, label_y, f"{title} // {status}")
+    percent_text = f"{int(progress * 100):03d}%"
+    painter.setPen(with_alpha(color, 255))
+    painter.drawText(
+        rect.right() - 9 - painter.fontMetrics().horizontalAdvance(percent_text),
+        label_y,
+        percent_text,
+    )
+
+    # Сегментированная полоса RAM / прогресса
+    bar = QRect(rect.left() + 9, rect.bottom() - 10, rect.width() - 18, 5)
+    segments = max(8, bar.width() // 6)
+    gap = 2
+    seg_w = max(1, (bar.width() - gap * (segments - 1)) // segments)
+    filled = int(segments * progress)
+    for i in range(segments):
+        x = bar.left() + i * (seg_w + gap)
+        if i < filled:
+            seg_color = color if i % 5 else COLOR_ACID_GREEN
+            painter.fillRect(x, bar.top(), seg_w, bar.height(), with_alpha(seg_color, 240))
+        else:
+            painter.fillRect(x, bar.top(), seg_w, bar.height(), with_alpha(COLOR_CRIMSON, 40))
+    painter.restore()
+
+
+def draw_breach_grid(
+    painter: QPainter,
+    rect: QRect,
+    progress: float,
+    seed: int = 0,
+    cell: int = 10,
+    color: QColor = COLOR_ACID_GREEN,
+) -> None:
+    """Матрица Breach Protocol вокруг курсора/цели."""
+    if rect.width() < cell * 2 or rect.height() < cell * 2:
+        return
+    painter.save()
+    painter.setClipRect(rect)
+    painter.fillRect(rect, with_alpha(COLOR_OBSIDIAN, 150))
+
+    rng = random.Random(seed)
+    cols = rect.width() // cell
+    rows = rect.height() // cell
+    for row in range(rows):
+        for col in range(cols):
+            r = rng.random()
+            if r < progress * 0.55:
+                c = color if r > 0.18 else rng.choice((COLOR_CRIMSON, COLOR_ELECTRIC_BLUE, COLOR_VIOLET))
+                painter.fillRect(
+                    rect.left() + col * cell + 2,
+                    rect.top() + row * cell + 2,
+                    cell - 4,
+                    cell - 4,
+                    with_alpha(c, rng.randint(90, 220)),
+                )
+            else:
+                painter.fillRect(
+                    rect.left() + col * cell + cell // 2,
+                    rect.top() + row * cell + cell // 2,
+                    2,
+                    2,
+                    with_alpha(color, 55),
+                )
+
+    # Активная линия взлома
+    line_y = rect.top() + int(rect.height() * progress)
+    painter.fillRect(rect.left(), line_y, rect.width(), 2, with_alpha(color, 210))
+    painter.fillRect(rect.left(), line_y - 2, rect.width(), 1, with_alpha(COLOR_WHITE, 120))
+    painter.restore()
+
+
+def draw_hex_stream(
+    painter: QPainter,
+    rect: QRect,
+    progress: float,
+    columns: int = 14,
+    color: QColor = COLOR_ACID_GREEN,
+) -> None:
+    """Столбцы глифов, стекающие по экрану, как в терминалах Night City."""
+    if rect.width() <= 0 or rect.height() <= 0:
+        return
+    painter.save()
+    painter.setClipRect(rect)
+    font = QFont("Monospace")
+    font.setStyleHint(QFont.StyleHint.Monospace)
+    font.setPixelSize(9)
+    font.setBold(True)
+    painter.setFont(font)
+    glyphs = "01ABCDEF<>/\\#%&"
+    rng = random.Random(2077 + rect.width())
+    for col in range(max(1, columns)):
+        x = rect.left() + int((col + 0.5) * rect.width() / max(1, columns))
+        speed = rng.uniform(0.55, 1.45)
+        phase = rng.uniform(0.0, 1.0)
+        head_y = rect.top() + int(((progress * speed + phase) % 1.0) * (rect.height() + 60)) - 30
+        for i in range(5):
+            y = head_y - i * 11
+            if y < rect.top() or y > rect.bottom():
+                continue
+            alpha = int((1.0 - i / 5.0) * 190)
+            glyph_color = COLOR_WHITE if i == 0 else color
+            painter.setPen(with_alpha(glyph_color, alpha))
+            painter.drawText(x, y, rng.choice(glyphs))
+    painter.restore()
+
+
+def draw_glitch_text(
+    painter: QPainter,
+    x: int,
+    y: int,
+    text: str,
+    color: QColor = COLOR_WHITE,
+    size: int = 10,
+) -> None:
+    """Текст с хроматическим расслоением, как сбоящий HUD Relic."""
+    font = QFont("Monospace")
+    font.setStyleHint(QFont.StyleHint.Monospace)
+    font.setPixelSize(size)
+    font.setBold(True)
+    painter.save()
+    painter.setFont(font)
+    painter.setPen(with_alpha(COLOR_CRIMSON, 170))
+    painter.drawText(x - 1, y, text)
+    painter.setPen(with_alpha(COLOR_ACID_GREEN, 150))
+    painter.drawText(x + 1, y, text)
+    painter.setPen(with_alpha(color, 245))
+    painter.drawText(x, y, text)
+    painter.restore()
