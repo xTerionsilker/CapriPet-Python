@@ -10,7 +10,6 @@ from .commands import CommandRegistry, Handler
 class Handlers:
     toggle_glitches: Handler
     toggle_voice: Handler
-    wild_glitch: Handler
     ask_ollama: Handler
     search_google: Handler
     search_youtube: Handler

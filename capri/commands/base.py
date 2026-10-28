@@ -19,7 +19,6 @@ class CommandContext:
     """
     speak: Callable[[str], Any]
     trigger_glitches: Callable[[], str]
-    wild_glitch: Callable[[], str]
     toggle_voice: Callable[[], str]
     locate_mouse: Callable[[], str]
     set_pose: Callable[[str], None]

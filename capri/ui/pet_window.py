@@ -235,7 +235,6 @@ class CapriWindow(QWidget):
         context = CommandContext(
             speak=self.speak,
             trigger_glitches=self._toggle_glitches,
-            wild_glitch=self._wild_glitch,
             toggle_voice=self._toggle_voice,
             locate_mouse=self._locate_mouse,
             set_pose=self.set_pose,
@@ -505,14 +504,6 @@ class CapriWindow(QWidget):
         enabled = self._glitches.toggle()
         set_config_value("effects.glitches_enabled", enabled)
         return "Глитчи включены." if enabled else "Глитчи выключены."
-
-    def _wild_glitch(self) -> str:
-        self._glitches.wild_glitch(5000)
-        try:
-            get_speech_sfx().play_lightning_strike()
-        except Exception:
-            pass
-        return "Капри в восторге! Весь экран глитчит 5 секунд."
 
     def _on_ollama_talking_start(self) -> None:
         self._surge_ticks = max(self._surge_ticks, 24)

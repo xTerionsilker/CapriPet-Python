@@ -10,7 +10,6 @@ from .media import (
     SpotifyResumeCommand,
 )
 from .pet_actions import (
-    ComplimentCommand,
     GlitchToggleCommand,
     LocateMouseCommand,
     VoiceToggleCommand,
@@ -25,7 +24,6 @@ from .system import (
 from .web import GoogleSearchCommand, YouTubeSearchCommand
 
 DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
-    ComplimentCommand,
     GlitchToggleCommand,
     VoiceToggleCommand,
     GoogleSearchCommand,
@@ -68,7 +66,6 @@ __all__ = [
     "register_default_commands",
     "create_default_registry",
     "DEFAULT_COMMAND_CLASSES",
-    "ComplimentCommand",
     "GlitchToggleCommand",
     "VoiceToggleCommand",
     "GoogleSearchCommand",

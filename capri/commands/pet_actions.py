@@ -3,53 +3,6 @@ from __future__ import annotations
 from .base import BaseCommand, CommandContext
 
 
-class ComplimentCommand(BaseCommand):
-    name = "комплимент"
-    description = "устроить дикие глитчи на 5 секунд."
-    aliases = (
-        "ты красивая",
-        "капри ты красивая",
-        "ты самая лучшая",
-        "ты прекрасна",
-        "комплимент капри",
-        "ты охуенная",
-        "ты ахуенная",
-        "ты офигенная",
-        "ты крутая",
-        "ты классная",
-        "ты супер",
-        "ты огонь",
-        "ты лучшая",
-        "ты молодец",
-        "ты милая",
-        "ты красотка",
-    )
-    keywords = (
-        "комплимент",
-        "красив",
-        "лучш",
-        "прекрасн",
-        "восторг",
-        "охуен",
-        "ахуен",
-        "офиген",
-        "афиген",
-        "крут",
-        "классн",
-        "огонь",
-        "потряс",
-        "мил",
-        "умниц",
-        "молодец",
-        "красот",
-        "супер",
-        "бомб",
-    )
-
-    def execute(self, ctx: CommandContext, query: str = "") -> str | None:
-        return ctx.wild_glitch()
-
-
 class GlitchToggleCommand(BaseCommand):
     name = "глитч"
     description = "включить или выключить экранные глитчи."
