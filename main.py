@@ -30,6 +30,7 @@ def main() -> int:
     _prefer_xwayland()
     app = QApplication(sys.argv)
     app.setApplicationName("Capri")
+    app.setQuitOnLastWindowClosed(False)
     window = CapriWindow()
     window.show()
     return app.exec()

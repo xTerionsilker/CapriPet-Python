@@ -17,10 +17,23 @@ class ContextMenuBuilder:
     def __init__(self, window: Any) -> None:
         self.window = window
 
-    def build(self) -> QMenu:
+    def build(self, for_tray: bool = False) -> QMenu:
         """Создает и настраивает контекстное меню."""
         menu = QMenu(self.window if isinstance(self.window, QWidget) else None)
         menu.setStyleSheet(APP_STYLE)
+
+        if for_tray:
+            call_act = menu.addAction("🐾  Позвать Капри")
+            trigger_fn = getattr(
+                self.window, "activate_command_mode", getattr(self.window, "show", None)
+            )
+            if trigger_fn is not None:
+                call_act.triggered.connect(trigger_fn)
+            font = call_act.font()
+            font.setBold(True)
+            call_act.setFont(font)
+            menu.setDefaultAction(call_act)
+            menu.addSeparator()
 
         # 1. Меню мониторов
         self._add_screen_menu(menu)
@@ -179,4 +192,10 @@ class ContextMenuBuilder:
 def build_pet_context_menu(window: Any, _pos: QPoint | None = None) -> QMenu:
     """Функция построения контекстного меню для питомца."""
     builder = ContextMenuBuilder(window)
-    return builder.build()
+    return builder.build(for_tray=False)
+
+
+def build_tray_context_menu(window: Any) -> QMenu:
+    """Функция построения контекстного меню для системного трея."""
+    builder = ContextMenuBuilder(window)
+    return builder.build(for_tray=True)

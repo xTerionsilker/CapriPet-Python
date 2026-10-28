@@ -8,6 +8,7 @@ from pathlib import Path
 from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import (
     QGuiApplication,
+    QIcon,
     QKeySequence,
     QPainter,
     QPixmap,
@@ -15,7 +16,7 @@ from PySide6.QtGui import (
     QShortcut,
 )
 from PySide6.QtMultimedia import QAudioDevice, QMediaDevices
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QWidget
 
 from ..audio.voice import VoiceInput
 from ..commands import CommandContext, register_default_commands
@@ -29,13 +30,14 @@ from ..core.wake_word import (
 )
 from ..effects.glitch import GlitchManager
 from ..effects.transition import TransitionOverlay
-from .context_menu import build_pet_context_menu
+from .context_menu import build_pet_context_menu, build_tray_context_menu
 from .pet_renderer import PetRenderState, PetRenderer
 from .speech import SpeechWindow, close_all as close_all_speech, show_text
 from .speech_sfx import get_speech_sfx
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 ASSETS = ROOT / "assets"
+CAPRI_ICON = ASSETS / "capri_icon.png"
 VAR_ASSETS = ASSETS / "var"
 OVERLAY_SIT = VAR_ASSETS / "capri_sit.png"
 OVERLAY_STAY = VAR_ASSETS / "capri_stay.png"
@@ -122,6 +124,10 @@ class CapriWindow(QWidget):
         if voice_enabled:
             self._voice.start()
         self._inactivity.start()
+
+        self._tray_icon: QSystemTrayIcon | None = None
+        self._tray_menu = None
+        self._init_tray()
 
     def _load_pixmap(self, name: str, path: Path) -> QPixmap:
         pixmap = QPixmap(str(path))
@@ -633,6 +639,58 @@ class CapriWindow(QWidget):
         finally:
             self._inactivity.set_paused(False)
 
+    def _init_tray(self) -> None:
+        icon = QIcon(str(CAPRI_ICON))
+        if icon.isNull():
+            pix = (
+                self._pixmap
+                if hasattr(self, "_pixmap") and not self._pixmap.isNull()
+                else QPixmap(32, 32)
+            )
+            icon = QIcon(pix)
+
+        self.setWindowIcon(icon)
+        app = QApplication.instance()
+        if app is not None:
+            app.setWindowIcon(icon)
+
+        self._tray_icon = QSystemTrayIcon(icon, self)
+        self._tray_icon.setToolTip("CapriPet")
+
+        self._tray_menu = build_tray_context_menu(self)
+        self._tray_icon.setContextMenu(self._tray_menu)
+
+        self._tray_icon.activated.connect(self._on_tray_activated)
+        self._tray_icon.show()
+
+    def _on_tray_activated(
+        self, reason: QSystemTrayIcon.ActivationReason
+    ) -> None:
+        if reason in (
+            QSystemTrayIcon.ActivationReason.Trigger,
+            QSystemTrayIcon.ActivationReason.DoubleClick,
+        ):
+            self.activate_command_mode()
+
+    def activate_command_mode(self) -> None:
+        """Показывает Капри и переводит в режим немедленного ожидания команды."""
+        if self._closing:
+            return
+
+        if self._inactivity.is_transitioning:
+            if self._inactivity._transition_overlay is not None:
+                self._inactivity._transition_overlay.close()
+                self._inactivity._transition_overlay = None
+            self._inactivity._transitioning = False
+
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        self._inactivity.reset_timer()
+
+        self._wake_voice_if_needed()
+        self._arm_voice_command()
+
     def _greet(self) -> None:
         if self._speech is not None:
             return
@@ -648,6 +706,8 @@ class CapriWindow(QWidget):
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         if self._closing:
+            if hasattr(self, "_tray_icon") and self._tray_icon is not None:
+                self._tray_icon.hide()
             super().closeEvent(event)
             return
 
