@@ -15,6 +15,21 @@
   ```
 - **Wayland / X11 Quirk:** `main.py` explicitly selects `QT_QPA_PLATFORM=xcb` when running under Wayland with XWayland to ensure frameless window positioning and movement behave consistently across Linux compositors.
 
+## Character Palette (Strict)
+
+Capri's visual identity uses **only** the following colors:
+
+| Color | Hex | Approx. share |
+| --- | --- | --- |
+| Neon crimson | `#F20D2E` | 45% |
+| Obsidian black | `#0B0B0B` | 35% |
+| Acid green | `#3CF12B` | 16% |
+| White | `#FFFFFF` | 2% |
+| Electric blue | `#1E70F0` | 1.5% |
+| Neon violet | `#9922EE` | 0.5% |
+
+**Mandatory rule:** no other colors are allowed. Any new or modified UI, HUD, glitch, transition, effect, particle, lightning, animation, or overlay must be built exclusively from this palette. Do not introduce extra hues, gradients to foreign colors, or hard-coded colors outside this list. Use the percentage shares as the intended visual balance, not as a requirement to use every color in every effect.
+
 ## Architecture & Entry Points
 
 - **`main.py`:** Application entry point. Instantiates `CapriWindow` and enters the Qt event loop.

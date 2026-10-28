@@ -42,14 +42,8 @@ from ..ui.speech_sfx import get_speech_sfx
 
 
 def _bolt_scheme(index: int, primary: str = "crimson") -> str:
-    """Редкие синие и фиолетовые каналы разбавлют красно-зелёную основу палитры."""
-    if index % 23 == 0:
-        return "violet"
-    if index % 13 == 0:
-        return "blue"
-    if index % 3 == 0:
-        return "green" if primary == "crimson" else "crimson"
-    return primary
+    """Все разряды строго красно-чёрные, без зелёных и синих каналов."""
+    return "crimson"
 
 
 class TransitionOverlay(QWidget):

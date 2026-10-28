@@ -204,16 +204,15 @@ class CyberPixelSpark:
 
 class CyberPixelBolt:
     """
-    Кибер-разряд: строго ортогональная (Манхэттенская) геометрия + 45° диагонали,
-    узловые микрочипы (Arc Nodes) и бегущие энергетические пакеты данных.
-    Выполнен в фирменной палитре Капри (#F20D2E 45%, #0B0B0B 35%, #3CF12B 16%).
+    Настоящая рваная молния: случайные изломы вдоль направления, ответвления-форки
+    и мерцающее алое тело. Строго два цвета — чёрный #0B0B0B и алый #F20D2E.
     """
 
     def __init__(
         self,
         start: QPoint,
         end: QPoint,
-        color_scheme: str = "crimson",  # "crimson", "green", "blue" или "violet"
+        color_scheme: str = "crimson",  # оставлен для совместимости: цвет всегда красно-чёрный
         branch_chance: float = 0.30,
     ) -> None:
         self.start = snap_point(start)
@@ -240,77 +239,99 @@ class CyberPixelBolt:
         if dist < PIXEL_SIZE * 2:
             return
 
-        steps = max(3, min(14, int(dist // 45)))
+        # Ломаная с резкими случайными изломами вдоль основного направления.
+        steps = max(5, min(20, int(dist // 26)))
         nx = -dy / dist
         ny = dx / dist
 
-        prev = QPoint(sx, sy)
+        offset = 0.0
+        max_offset = min(70.0, max(18.0, dist * 0.22))
+        prev = self.start
         key_points: List[QPoint] = [prev]
 
-        for i in range(1, steps):
+        for i in range(1, steps + 1):
             t = i / steps
             bx = sx + dx * t
             by = sy + dy * t
-            jitter_dist = min(60.0, dist * 0.25)
-            offset = random.choice((-1.0, -0.5, 0.0, 0.5, 1.0)) * jitter_dist
-            px = snap_pixel(bx + nx * offset)
-            py = snap_pixel(by + ny * offset)
+
+            # Рваный random walk: молния мечется вокруг оси, но всегда возвращается к цели.
+            offset += random.uniform(-1.0, 1.0) * max_offset * 0.55
+            if random.random() < 0.18:
+                offset += random.choice((-1.0, 1.0)) * max_offset * 0.9
+            offset *= 0.58
+            offset = max(-max_offset, min(max_offset, offset))
+
+            px = snap_pixel(bx + nx * offset + random.uniform(-6.0, 6.0))
+            py = snap_pixel(by + ny * offset + random.uniform(-6.0, 6.0))
             cur = QPoint(px, py)
-            key_points.append(cur)
 
-        key_points.append(QPoint(ex, ey))
+            if i == steps:
+                cur = QPoint(ex, ey)
 
-        for i in range(len(key_points) - 1):
-            p1 = key_points[i]
-            p2 = key_points[i + 1]
-
-            diag_len = min(abs(p2.x() - p1.x()), abs(p2.y() - p1.y()))
-            if diag_len > PIXEL_SIZE * 4 and random.random() < 0.45:
-                sign_x = 1 if p2.x() > p1.x() else -1
-                sign_y = 1 if p2.y() > p1.y() else -1
-                diag_pt = QPoint(
-                    snap_pixel(p1.x() + sign_x * diag_len),
-                    snap_pixel(p1.y() + sign_y * diag_len),
+            # Дополнительный излом посередине длинного сегмента — именно молния, а не труба.
+            seg_dx = cur.x() - prev.x()
+            seg_dy = cur.y() - prev.y()
+            seg_len = math.hypot(seg_dx, seg_dy)
+            if seg_len > 22 and random.random() < 0.65:
+                mx = prev.x() + seg_dx * random.uniform(0.35, 0.65)
+                my = prev.y() + seg_dy * random.uniform(0.35, 0.65)
+                snx = -seg_dy / max(1.0, seg_len)
+                sny = seg_dx / max(1.0, seg_len)
+                kink = random.uniform(-13.0, 13.0)
+                mid = QPoint(
+                    snap_pixel(mx + snx * kink),
+                    snap_pixel(my + sny * kink),
                 )
-                self.segments.append((p1, diag_pt))
-                self.segments.append((diag_pt, p2))
-                self.nodes.append(diag_pt)
+                self.segments.append((prev, mid))
+                self.segments.append((mid, cur))
             else:
-                if random.random() < 0.5:
-                    corner = QPoint(snap_pixel(p2.x()), snap_pixel(p1.y()))
-                else:
-                    corner = QPoint(snap_pixel(p1.x()), snap_pixel(p2.y()))
-                self.segments.append((p1, corner))
-                self.segments.append((corner, p2))
-                self.nodes.append(corner)
+                self.segments.append((prev, cur))
 
-            if random.random() < self._branch_chance and i < len(key_points) - 2:
-                branch = self._build_branch(p2, dx, dy, dist)
+            key_points.append(cur)
+            prev = cur
+
+        # Ответвления-форки, как у настоящей молнии.
+        forks = 0
+        max_forks = max(1, int(steps * self._branch_chance))
+        for i in range(1, len(key_points) - 2):
+            if forks >= max_forks:
+                break
+            if random.random() < self._branch_chance:
+                branch = self._build_branch(key_points[i], nx, ny, dist)
                 if branch:
                     self.branches.append(branch)
+                    forks += 1
 
     def _build_branch(
-        self, origin: QPoint, main_dx: float, main_dy: float, main_dist: float
+        self, origin: QPoint, main_nx: float, main_ny: float, main_dist: float
     ) -> List[Tuple[QPoint, QPoint]]:
         branch: List[Tuple[QPoint, QPoint]] = []
-        angle_sign = 1 if random.random() < 0.5 else -1
-        rad = math.atan2(main_dy, main_dx) + angle_sign * random.choice(
-            (math.pi / 2, math.pi / 4)
-        )
-        branch_len = snap_pixel(random.uniform(24.0, min(90.0, main_dist * 0.35)))
+        # Форк уходит в сторону от основной оси под случайным углом.
+        angle_sign = 1.0 if random.random() < 0.5 else -1.0
+        base_angle = math.atan2(main_ny, main_nx)
+        rad = base_angle + angle_sign * random.uniform(0.45, 1.15)
+        branch_len = random.uniform(22.0, min(110.0, max(30.0, main_dist * 0.38)))
+        steps = random.randint(2, 5)
 
-        end_x = snap_pixel(origin.x() + math.cos(rad) * branch_len)
-        end_y = snap_pixel(origin.y() + math.sin(rad) * branch_len)
-        target = QPoint(end_x, end_y)
-
-        corner = QPoint(snap_pixel(target.x()), snap_pixel(origin.y()))
-        branch.append((origin, corner))
-        branch.append((corner, target))
+        prev = origin
+        for i in range(1, steps + 1):
+            t = i / steps
+            spread = branch_len * t
+            jitter = random.uniform(-12.0, 12.0) * t
+            px = snap_pixel(
+                origin.x() + math.cos(rad) * spread + math.cos(rad + math.pi / 2) * jitter
+            )
+            py = snap_pixel(
+                origin.y() + math.sin(rad) * spread + math.sin(rad + math.pi / 2) * jitter
+            )
+            cur = QPoint(px, py)
+            branch.append((prev, cur))
+            prev = cur
         return branch
 
     def jitter(self) -> None:
-        self._energy_packet_pos = (self._energy_packet_pos + 0.12) % 1.0
-        if random.random() < 0.30:
+        # Молния должна мерцать и перестраиваться почти каждый кадр.
+        if random.random() < 0.46:
             self._rebuild()
 
     def draw(self, painter: QPainter, progress: float) -> None:
@@ -318,120 +339,69 @@ class CyberPixelBolt:
             return
 
         visible_count = max(1, int(len(self.segments) * min(1.0, progress)))
+        visible_segments = self.segments[:visible_count]
+        visible_branches: List[Tuple[QPoint, QPoint]] = []
+        for branch in self.branches:
+            b_count = max(1, int(len(branch) * min(1.0, progress * 1.35)))
+            visible_branches.extend(branch[:b_count])
 
-        # Цвета в зависимости от схемы (редкие синие/фиолетовые каналы — по палитре Капри)
-        if self.color_scheme == "green":
-            primary_color = COLOR_ACID_GREEN
-            aberration_color = COLOR_CRIMSON
-            sub_packet_color = COLOR_CRIMSON
-        elif self.color_scheme == "blue":
-            primary_color = COLOR_ELECTRIC_BLUE
-            aberration_color = COLOR_VIOLET
-            sub_packet_color = COLOR_ACID_GREEN
-        elif self.color_scheme == "violet":
-            primary_color = COLOR_VIOLET
-            aberration_color = COLOR_ELECTRIC_BLUE
-            sub_packet_color = COLOR_CRIMSON
-        else:
-            primary_color = COLOR_CRIMSON
-            aberration_color = COLOR_ACID_GREEN
-            sub_packet_color = COLOR_ACID_GREEN
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
-        # Слой 1: Темная обсидиановая подложка (#0B0B0B, толщина 8px) для резкого кибер-контраста
-        obsidian_pen = QPen(QColor(COLOR_OBSIDIAN.red(), COLOR_OBSIDIAN.green(), COLOR_OBSIDIAN.blue(), 170), PIXEL_SIZE * 2)
-        obsidian_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
-        obsidian_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
-        painter.setPen(obsidian_pen)
-        for i in range(visible_count):
-            p1, p2 = self.segments[i]
+        # 1. Чёрный контур молнии — строго #0B0B0B.
+        black_pen = QPen(with_alpha(COLOR_OBSIDIAN, 245), PIXEL_SIZE * 2)
+        black_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
+        black_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        painter.setPen(black_pen)
+        for p1, p2 in visible_segments:
+            painter.drawLine(p1, p2)
+        for p1, p2 in visible_branches:
             painter.drawLine(p1, p2)
 
-        # Слой 2: Хроматическая аберрация (сдвинутый на 2px шлейф)
-        ab_pen = QPen(QColor(aberration_color.red(), aberration_color.green(), aberration_color.blue(), 130), PIXEL_SIZE)
-        ab_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
-        painter.setPen(ab_pen)
-        for i in range(visible_count):
-            p1, p2 = self.segments[i]
-            painter.drawLine(p1.x() + 2, p1.y(), p2.x() + 2, p2.y())
-
-        # Слой 3: Основное неоновое тело разряда (#F20D2E или #3CF12B, толщина 6px)
-        neon_glow = QColor(primary_color)
-        neon_glow.setAlpha(215)
-        glow_pen = QPen(neon_glow, PIXEL_SIZE + 1)
+        # 2. Алый ореол — строго #F20D2E, без зелёного/синего/белого.
+        glow_pen = QPen(with_alpha(COLOR_CRIMSON, 70), PIXEL_SIZE * 3)
         glow_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
         glow_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
         painter.setPen(glow_pen)
-        for i in range(visible_count):
-            p1, p2 = self.segments[i]
+        for p1, p2 in visible_segments:
             painter.drawLine(p1, p2)
 
-        for branch in self.branches:
-            b_count = max(1, int(len(branch) * min(1.0, progress * 1.3)))
-            for j in range(b_count):
-                p1, p2 = branch[j]
-                painter.drawLine(p1, p2)
-
-        # Слой 4: Белое ядро (#FFFFFF 2%, тонкое, чтобы не пересвечивать кадр)
-        core_pen = QPen(with_alpha(COLOR_WHITE, 150), 2)
-        core_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
-        core_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
-        painter.setPen(core_pen)
-        for i in range(visible_count):
-            p1, p2 = self.segments[i]
+        # 3. Раскалённое алое тело разряда с мерцанием по сегментам.
+        red_pen = QPen(COLOR_CRIMSON, PIXEL_SIZE)
+        red_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
+        red_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        painter.setPen(red_pen)
+        for p1, p2 in visible_segments:
+            alpha = random.randint(185, 255)
+            painter.setPen(QPen(with_alpha(COLOR_CRIMSON, alpha), PIXEL_SIZE))
             painter.drawLine(p1, p2)
 
-        for branch in self.branches:
-            b_count = max(1, int(len(branch) * min(1.0, progress * 1.3)))
-            for j in range(b_count):
-                p1, p2 = branch[j]
-                painter.drawLine(p1, p2)
+        # Форки тоньше основного канала, но той же красно-чёрной палитры.
+        branch_black = QPen(with_alpha(COLOR_OBSIDIAN, 225), PIXEL_SIZE)
+        branch_black.setCapStyle(Qt.PenCapStyle.SquareCap)
+        painter.setPen(branch_black)
+        for p1, p2 in visible_branches:
+            painter.drawLine(p1, p2)
+        branch_red = QPen(COLOR_CRIMSON, max(1, PIXEL_SIZE // 2))
+        branch_red.setCapStyle(Qt.PenCapStyle.SquareCap)
+        painter.setPen(branch_red)
+        for p1, p2 in visible_branches:
+            painter.drawLine(p1, p2)
 
-        # Слой 5: Узловые диоды на изломах (Arc Nodes)
-        for node in self.nodes[: visible_count // 2]:
-            node_sz = PIXEL_SIZE * 2
-            nx = node.x() - node_sz // 2
-            ny = node.y() - node_sz // 2
-            painter.fillRect(nx, ny, node_sz, node_sz, primary_color)
+        # 4. Алые вспышки на концах разряда.
+        for endpoint, size in (
+            (self.start, PIXEL_SIZE * 2),
+            (self.end, PIXEL_SIZE),
+        ):
             painter.fillRect(
-                nx + PIXEL_SIZE // 2,
-                ny + PIXEL_SIZE // 2,
-                PIXEL_SIZE,
-                PIXEL_SIZE,
-                COLOR_WHITE,
+                endpoint.x() - size // 2,
+                endpoint.y() - size // 2,
+                size,
+                size,
+                COLOR_CRIMSON,
             )
 
-        # Слой 6: Бегущий энергетический пакет данных (Data Energy Pulse)
-        if visible_count > 0:
-            target_idx = int(self._energy_packet_pos * (visible_count - 1))
-            seg = self.segments[target_idx]
-            pulse_x = snap_pixel((seg[0].x() + seg[1].x()) // 2)
-            pulse_y = snap_pixel((seg[0].y() + seg[1].y()) // 2)
-            pulse_sz = PIXEL_SIZE * 3
-
-            # Обсидиановая рамка пакета
-            painter.fillRect(
-                pulse_x - pulse_sz // 2 - 2,
-                pulse_y - pulse_sz // 2 - 2,
-                pulse_sz + 4,
-                pulse_sz + 4,
-                COLOR_OBSIDIAN,
-            )
-            painter.fillRect(
-                pulse_x - pulse_sz // 2,
-                pulse_y - pulse_sz // 2,
-                pulse_sz,
-                pulse_sz,
-                sub_packet_color,
-            )
-            # Белая центральная точка
-            painter.fillRect(
-                pulse_x - PIXEL_SIZE // 2,
-                pulse_y - PIXEL_SIZE // 2,
-                PIXEL_SIZE,
-                PIXEL_SIZE,
-                COLOR_WHITE,
-            )
-
+        painter.restore()
 
 class CyberHoloReticle:
     """
