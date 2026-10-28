@@ -217,6 +217,8 @@ class SpeechSFX(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._enabled = True
+        self._speech_sound_enabled = True
+        self._effects_sound_enabled = True
         self._volume = 0.5
         self._throttle_interval = 0.045  # 45 мс минимальный интервал между бипами
         self._last_chirp_time = 0.0
@@ -353,6 +355,18 @@ class SpeechSFX(QObject):
     def set_enabled(self, enabled: bool) -> None:
         self._enabled = bool(enabled)
 
+    def is_speech_sound_enabled(self) -> bool:
+        return self._speech_sound_enabled and self.is_enabled()
+
+    def set_speech_sound_enabled(self, enabled: bool) -> None:
+        self._speech_sound_enabled = bool(enabled)
+
+    def is_effects_sound_enabled(self) -> bool:
+        return self._effects_sound_enabled and self.is_enabled()
+
+    def set_effects_sound_enabled(self, enabled: bool) -> None:
+        self._effects_sound_enabled = bool(enabled)
+
     def get_volume(self) -> float:
         return self._volume
 
@@ -373,22 +387,32 @@ class SpeechSFX(QObject):
 
     def play_swoosh(self) -> None:
         """Воспроизводит звук открытия облачка (кибер-свуш)."""
+        if not self.is_speech_sound_enabled():
+            return
         self._play_file(self._swoosh_path, self._swoosh_effect)
 
     def play_close(self) -> None:
         """Воспроизводит звук закрытия/деактивации облачка."""
+        if not self.is_speech_sound_enabled():
+            return
         self._play_file(self._close_path, self._close_effect)
 
     def play_lightning_strike(self) -> None:
         """Воспроизводит мощный удар кибер-молнии."""
+        if not self.is_effects_sound_enabled():
+            return
         self._play_file(self._lightning_strike_path, self._lightning_strike_effect)
 
     def play_lightning_arc(self) -> None:
         """Воспроизводит электрический треск бегущей дуги молнии."""
+        if not self.is_effects_sound_enabled():
+            return
         self._play_file(self._lightning_arc_path, self._lightning_arc_effect)
 
     def play_lightning_zap(self) -> None:
         """Воспроизводит короткий электрический щелчок микроразряда."""
+        if not self.is_effects_sound_enabled():
+            return
         self._play_file(self._lightning_zap_path, self._lightning_zap_effect)
 
     def play_chirp(self) -> None:
@@ -396,7 +420,7 @@ class SpeechSFX(QObject):
         Воспроизводит ретро-бип при расшифровке глифа.
         Защищен троттлингом (не чаще чем раз в 45 мс).
         """
-        if not self.is_enabled() or self._chirp_path is None:
+        if not self.is_speech_sound_enabled() or self._chirp_path is None:
             return
         now = time.monotonic()
         if now - self._last_chirp_time < self._throttle_interval:

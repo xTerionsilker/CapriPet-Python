@@ -19,11 +19,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "sfx_volume": 0.5,
         "media_volume": 0.6,
         "voice_enabled": True,
+        "speech_sound_enabled": True,
+        "effects_sound_enabled": True,
     },
     "appearance": {
         "skin": "default",
         "pose": "sit",
         "overlay_pose": "sit",
+        "scale": 100,
     },
     "effects": {
         "glitches_enabled": True,
@@ -151,7 +154,18 @@ class ConfigManager:
 
         # Булевы флаги
         config["audio"]["voice_enabled"] = bool(config["audio"].get("voice_enabled", True))
+        config["audio"]["speech_sound_enabled"] = bool(config["audio"].get("speech_sound_enabled", True))
+        config["audio"]["effects_sound_enabled"] = bool(config["audio"].get("effects_sound_enabled", True))
         config["effects"]["glitches_enabled"] = bool(config["effects"].get("glitches_enabled", True))
+
+        # Масштаб спрайта питомца
+        try:
+            scale = int(config["appearance"].get("scale", 100))
+            if scale not in (50, 75, 100, 125, 150):
+                scale = 100
+            config["appearance"]["scale"] = scale
+        except (ValueError, TypeError):
+            config["appearance"]["scale"] = 100
 
         # Таймаут бездействия
         try:

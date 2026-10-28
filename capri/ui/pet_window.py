@@ -82,6 +82,8 @@ class CapriWindow(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setAutoFillBackground(False)
 
+        self._scale_percent = 100
+        self._raw_pixmaps: dict[str, QPixmap] = {}
         self._pixmaps: dict[str, QPixmap] = {}
         self._load_all_poses()
         self._current_pose = "sit"
@@ -139,9 +141,21 @@ class CapriWindow(QWidget):
         pixmap = QPixmap(str(path))
         if pixmap.isNull():
             pixmap = QPixmap(420, 420)
-        target_width = max(1, int(pixmap.width() / 1.5))
-        target_height = max(1, int(pixmap.height() / 1.5))
-        scaled = pixmap.scaled(
+        self._raw_pixmaps[name] = pixmap
+        return self._apply_scale_for_pose(name)
+
+    def _apply_scale_for_pose(self, name: str) -> QPixmap:
+        raw = self._raw_pixmaps.get(name)
+        if raw is None or raw.isNull():
+            raw = QPixmap(420, 420)
+            self._raw_pixmaps[name] = raw
+        # 100% размер спрайта — базовый размер (width / 1.5, height / 1.5)
+        base_width = max(1, int(raw.width() / 1.5))
+        base_height = max(1, int(raw.height() / 1.5))
+        scale_factor = self._scale_percent / 100.0
+        target_width = max(1, int(base_width * scale_factor))
+        target_height = max(1, int(base_height * scale_factor))
+        scaled = raw.scaled(
             target_width,
             target_height,
             Qt.AspectRatioMode.KeepAspectRatio,
@@ -149,6 +163,26 @@ class CapriWindow(QWidget):
         )
         self._pixmaps[name] = scaled
         return scaled
+
+    def set_sprite_scale(self, percent: int) -> None:
+        if percent not in (50, 75, 100, 125, 150):
+            return
+        if self._scale_percent == percent:
+            return
+        self._scale_percent = percent
+        set_config_value("appearance.scale", percent)
+        for name in list(self._raw_pixmaps.keys()):
+            self._apply_scale_for_pose(name)
+        if self._current_pose in self._pixmaps:
+            self._pixmap = self._pixmaps[self._current_pose]
+            old_rect = self.geometry()
+            self.setFixedSize(self._pixmap.size())
+            # Центрируем изменение размера относительно текущей позиции
+            new_x = old_rect.center().x() - self.width() // 2
+            new_y = old_rect.bottom() - self.height()
+            self.move(new_x, new_y)
+            self.update()
+            self.speak(f"Размер: {percent}%")
 
     def _load_all_poses(self) -> None:
         pose_files = {
@@ -160,9 +194,10 @@ class CapriWindow(QWidget):
             if pose_path.is_file():
                 self._load_pixmap(pose_name, pose_path)
         if not self._pixmaps:
-            fallback = QPixmap(280, 280)
+            fallback = QPixmap(420, 420)
             fallback.fill(Qt.GlobalColor.transparent)
-            self._pixmaps["sit"] = fallback
+            self._raw_pixmaps["sit"] = fallback
+            self._apply_scale_for_pose("sit")
 
     def set_pose(self, pose: str) -> None:
         """Переключает спрайт позы питомца с эффектом цифровой киберпанк-реконструкции."""
@@ -725,7 +760,24 @@ class CapriWindow(QWidget):
         self._glitches.set_enabled(bool(glitches_enabled))
 
         sfx_vol = get_config_value("audio.sfx_volume", 0.5)
-        get_speech_sfx().set_volume(float(sfx_vol))
+        speech_sfx = get_speech_sfx()
+        speech_sfx.set_volume(float(sfx_vol))
+
+        speech_sound = get_config_value("audio.speech_sound_enabled", True)
+        speech_sfx.set_speech_sound_enabled(bool(speech_sound))
+
+        effects_sound = get_config_value("audio.effects_sound_enabled", True)
+        speech_sfx.set_effects_sound_enabled(bool(effects_sound))
+
+        saved_scale = get_config_value("appearance.scale", 100)
+        try:
+            scale_val = int(saved_scale)
+            if scale_val in (50, 75, 100, 125, 150):
+                self._scale_percent = scale_val
+                for name in list(self._raw_pixmaps.keys()):
+                    self._apply_scale_for_pose(name)
+        except (ValueError, TypeError):
+            pass
 
         saved_pose = get_config_value("appearance.overlay_pose") or get_config_value("appearance.pose", "sit")
         self.set_pose(str(saved_pose))
@@ -760,6 +812,18 @@ class CapriWindow(QWidget):
         set_config_value("audio.designated_microphone", desc if desc else None)
         name = desc if desc else "По умолчанию"
         self.speak(f"Микрофон: {name}")
+
+    def set_speech_sound_enabled(self, enabled: bool) -> None:
+        get_speech_sfx().set_speech_sound_enabled(enabled)
+        set_config_value("audio.speech_sound_enabled", bool(enabled))
+        status = "вкл" if enabled else "выкл"
+        self.speak(f"Звук сообщений: {status}")
+
+    def set_effects_sound_enabled(self, enabled: bool) -> None:
+        get_speech_sfx().set_effects_sound_enabled(enabled)
+        set_config_value("audio.effects_sound_enabled", bool(enabled))
+        status = "вкл" if enabled else "выкл"
+        self.speak(f"Звук эффектов: {status}")
 
     def show_context_menu(self, pos: QPoint) -> None:
         self._inactivity.set_paused(True)
@@ -826,9 +890,42 @@ class CapriWindow(QWidget):
                 )
                 mic_group.addAction(act)
 
+            # 3. Меню звука
+            sound_menu = menu.addMenu("🔊  Звук")
+
+            msg_sound_act = sound_menu.addAction("💬  Сообщения")
+            msg_sound_act.setCheckable(True)
+            msg_sound_act.setChecked(get_speech_sfx().is_speech_sound_enabled())
+            msg_sound_act.triggered.connect(
+                lambda checked: self.set_speech_sound_enabled(checked)
+            )
+
+            fx_sound_act = sound_menu.addAction("⚡  Эффекты")
+            fx_sound_act.setCheckable(True)
+            fx_sound_act.setChecked(get_speech_sfx().is_effects_sound_enabled())
+            fx_sound_act.triggered.connect(
+                lambda checked: self.set_effects_sound_enabled(checked)
+            )
+
+            # 4. Меню размера
+            size_menu = menu.addMenu("📐  Размер")
+            size_group = QActionGroup(size_menu)
+            size_group.setExclusive(True)
+
+            scale_options = [50, 75, 100, 125, 150]
+            for opt in scale_options:
+                act = size_menu.addAction(f"{opt}%")
+                act.setCheckable(True)
+                if self._scale_percent == opt:
+                    act.setChecked(True)
+                act.triggered.connect(
+                    lambda *_, s=opt: self.set_sprite_scale(s)
+                )
+                size_group.addAction(act)
+
             menu.addSeparator()
 
-            # 3. Быстрые действия
+            # 5. Быстрые действия
             glitch_act = menu.addAction("⚡  Экранные глитчи")
             glitch_act.setCheckable(True)
             glitch_act.setChecked(self._glitches.is_enabled)

@@ -52,12 +52,15 @@
     "designated_microphone": null,
     "sfx_volume": 0.5,
     "media_volume": 0.6,
-    "voice_enabled": true
+    "voice_enabled": true,
+    "speech_sound_enabled": true,
+    "effects_sound_enabled": true
   },
   "appearance": {
     "mode": "terminal",
     "skin": "default",
-    "overlay_pose": "sit"
+    "overlay_pose": "sit",
+    "scale": 100
   },
   "effects": {
     "glitches_enabled": true
@@ -82,9 +85,12 @@
 | `audio.sfx_volume` | `float` | `0.5` | Громкость звуков интерфейса и речи (0.0 .. 1.0) в `SpeechSFX` |
 | `audio.media_volume` | `float` | `0.6` | Громкость медиа и видео (0.0 .. 1.0) в `MediaController` |
 | `audio.voice_enabled` | `bool` | `true` | Состояние голосового распознавания при старте (`VoiceInput`) |
+| `audio.speech_sound_enabled` | `bool` | `true` | Воспроизведение звуков сообщений и облачков текста |
+| `audio.effects_sound_enabled` | `bool` | `true` | Воспроизведение звуков эффектов и молний |
 | `appearance.mode` | `str` | `"terminal"` | Режим отображения: `"terminal"` (окно) или `"overlay"` (спрайт питомца) |
 | `appearance.skin` | `str` | `"default"` | Имя скина/пака ресурсов |
 | `appearance.overlay_pose` | `str` | `"sit"` | Поза по умолчанию: `"sit"`, `"stay"`, `"crouch"` |
+| `appearance.scale` | `int` | `100` | Масштаб спрайта питомца в процентах (50, 75, 100, 125, 150) |
 | `effects.glitches_enabled` | `bool` | `true` | Включены ли экранные глитч-эффекты (`GlitchManager`) |
 | `window.terminal_position` | `{"x": int, "y": int} \| null` | `null` | Координаты окна терминала на рабочем столе. `null` = центр экрана |
 | `window.overlay_position` | `{"x": int, "y": int} \| null` | `null` | Координаты оверлея питомца на рабочем столе. `null` = центр экрана |
