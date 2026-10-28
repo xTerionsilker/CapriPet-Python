@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import re
 
+from typing import Any
+
 from PySide6.QtCore import QObject, QTimer
 
-from .commands import Command, CommandRegistry, switch_layout
+from .commands import switch_layout
 
 CONFIRM_TIMEOUT_MS = 15_000
 AFFIRMATIVE_WORDS = frozenset(
@@ -51,19 +53,21 @@ def _answer_words(text: str) -> set[str]:
     return words
 
 
-def _confirm_prompt(command: Command) -> str:
-    description = command.description.rstrip(". ")
+def _confirm_prompt(command: Any) -> str:
+    if hasattr(command, "get_confirmation_prompt"):
+        return command.get_confirmation_prompt()
+    description = getattr(command, "description", "").rstrip(". ")
     return f"Подтверди: «{command.name}» — {description}. (да / нет)"
 
 
 class InputFlow(QObject):
 
     def __init__(
-        self, registry: CommandRegistry, parent: QObject | None = None
+        self, registry: Any, parent: QObject | None = None
     ) -> None:
         super().__init__(parent)
         self._registry = registry
-        self._pending: tuple[Command, str] | None = None
+        self._pending: tuple[Any, str] | None = None
 
         self._confirm_timer = QTimer(self)
         self._confirm_timer.setSingleShot(True)
@@ -88,7 +92,7 @@ class InputFlow(QObject):
         exact = self._registry.exact_match(text)
         if exact is not None:
             command, _argument = exact
-            if command.requires_confirmation:
+            if getattr(command, "requires_confirmation", False):
                 self._pending = (command, text)
                 self._confirm_timer.start(CONFIRM_TIMEOUT_MS)
                 return _confirm_prompt(command)
@@ -107,8 +111,8 @@ class InputFlow(QObject):
         self._pending = None
         self._confirm_timer.stop()
 
-    def _run(self, command: Command, original: str) -> str:
-        if command.takes_argument:
+    def _run(self, command: Any, original: str) -> str:
+        if getattr(command, "takes_argument", False):
             reply = self._registry.dispatch(f"{command.name} {original}")
         else:
             reply = self._registry.dispatch(command.name)

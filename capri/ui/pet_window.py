@@ -7,26 +7,19 @@ from pathlib import Path
 
 from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import (
-    QActionGroup,
-    QColor,
-    QFont,
     QGuiApplication,
     QKeySequence,
     QPainter,
-    QPen,
     QPixmap,
     QScreen,
     QShortcut,
 )
 from PySide6.QtMultimedia import QAudioDevice, QMediaDevices
-from PySide6.QtWidgets import (
-    QMenu,
-    QWidget,
-)
+from PySide6.QtWidgets import QWidget
 
 from ..audio.voice import VoiceInput
+from ..commands import CommandContext, register_default_commands
 from ..controllers import ActionBridge, InactivityManager
-from ..core.command_catalog import Handlers, register_commands
 from ..core.commands import CommandRegistry
 from ..core.input_flow import InputFlow
 from ..core.settings import get_config_value, set_config_value
@@ -36,18 +29,10 @@ from ..core.wake_word import (
 )
 from ..effects.glitch import GlitchManager
 from ..effects.transition import TransitionOverlay
-from ..effects.transition_fx import (
-    COLOR_ACID_GREEN,
-    COLOR_CRIMSON,
-    COLOR_OBSIDIAN,
-    COLOR_WHITE,
-    PIXEL_SIZE,
-    pick_palette_color,
-    snap_pixel,
-)
+from .context_menu import build_pet_context_menu
+from .pet_renderer import PetRenderState, PetRenderer
 from .speech import SpeechWindow, close_all as close_all_speech, show_text
 from .speech_sfx import get_speech_sfx
-from .theme import APP_STYLE
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 ASSETS = ROOT / "assets"
@@ -104,6 +89,7 @@ class CapriWindow(QWidget):
         self._voice_armed_until = 0.0
         self._closing = False
         self._designated_screen_name: str | None = None
+        self._renderer = PetRenderer()
 
         # Таймер анимации пиксельных глитчей
         self._glitch_timer = QTimer(self)
@@ -240,27 +226,19 @@ class CapriWindow(QWidget):
         self._voice_window_timer.timeout.connect(self._on_voice_window_expired)
 
     def _register_commands(self) -> None:
-        register_commands(
-            self.commands,
-            Handlers(
-                toggle_glitches=self._toggle_glitches,
-                toggle_voice=self._toggle_voice,
-                wild_glitch=self._wild_glitch,
-                ask_ollama=self._actions.ask_ollama,
-                search_google=self._actions.search_google,
-                search_youtube=self._actions.search_youtube,
-                spotify_play=self._actions.spotify_play,
-                spotify_pause=self._actions.spotify_pause,
-                spotify_resume=self._actions.spotify_resume,
-                spotify_next=self._actions.spotify_next,
-                spotify_previous=self._actions.spotify_previous,
-                lock_screen=self._actions.lock_screen,
-                power_off=self._actions.power_off,
-                suspend=self._actions.suspend,
-                reboot=self._actions.reboot,
-                locate_mouse=self._locate_mouse,
-            ),
+        context = CommandContext(
+            speak=self.speak,
+            trigger_glitches=self._toggle_glitches,
+            wild_glitch=self._wild_glitch,
+            toggle_voice=self._toggle_voice,
+            locate_mouse=self._locate_mouse,
+            set_pose=self.set_pose,
+            get_config=get_config_value,
+            set_config=set_config_value,
+            action_bridge=self._actions,
         )
+        self.commands.set_context(context)
+        register_default_commands(self.commands)
 
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().showEvent(event)
@@ -362,208 +340,15 @@ class CapriWindow(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
 
-        w = self._pixmap.width()
-        h = self._pixmap.height()
-        if w <= 0 or h <= 0:
-            painter.end()
-            return
-
-        is_spawning = self._spawn_glitch_ticks > 0
-        is_drag = self._is_dragging
-        is_pose = self._pose_transition_ticks > 0
-        is_surge = self._surge_ticks > 0
-        is_speaking = self._speaking
-
-        # Вычисляем уровень кибер-глитч активности (severity)
-        if is_spawning:
-            severity = 1.0
-        elif is_drag:
-            severity = 0.85
-        elif is_pose:
-            severity = 0.75
-        elif is_surge:
-            severity = 0.65
-        elif is_speaking:
-            severity = 0.45
-        elif random.random() < 0.28:
-            severity = random.uniform(0.35, 0.55)
-        else:
-            severity = 0.12
-
-        # -------------------------------------------------------------
-        # 1. Хроматическое RGB-расслоение (Holographic Chromatic Desync)
-        # -------------------------------------------------------------
-        chroma_chance = 0.85 if severity > 0.5 else 0.35
-        if severity > 0.30 and random.random() < chroma_chance:
-            chroma_shift = snap_pixel(
-                random.choice((-16, -12, -8, 8, 12, 16))
-                if severity > 0.7
-                else random.choice((-8, -4, 4, 8))
-            )
-            # Алый левый фантомный слой (#F20D2E)
-            painter.save()
-            painter.setOpacity(random.uniform(0.25, 0.45))
-            painter.drawPixmap(-chroma_shift, 0, self._pixmap)
-            painter.restore()
-
-            # Кислотно-зеленый правый фантомный слой (#3CF12B)
-            painter.save()
-            painter.setOpacity(random.uniform(0.20, 0.40))
-            painter.drawPixmap(chroma_shift, 0, self._pixmap)
-            painter.restore()
-
-        # -------------------------------------------------------------
-        # 2. Отрисовка базового спрайта с горизонтальными смещениями (Tearing)
-        # -------------------------------------------------------------
-        tear_chance = 0.90 if severity > 0.6 else (0.45 if severity > 0.3 else 0.15)
-        if random.random() < tear_chance:
-            num_slices = random.randint(2, 5) if severity > 0.6 else random.randint(1, 2)
-            slice_bounds = [0] + sorted(
-                snap_pixel(random.randint(PIXEL_SIZE * 2, max(PIXEL_SIZE * 3, h - PIXEL_SIZE * 2)))
-                for _ in range(num_slices)
-            ) + [h]
-            slice_bounds = sorted(list(set(slice_bounds)))
-            for i in range(len(slice_bounds) - 1):
-                sy = slice_bounds[i]
-                sh = slice_bounds[i + 1] - sy
-                if sh <= 0:
-                    continue
-                if random.random() < 0.65:
-                    sdx = snap_pixel(
-                        random.choice((-20, -12, -8, 8, 12, 20))
-                        if severity > 0.6
-                        else random.choice((-8, -4, 4, 8))
-                    )
-                else:
-                    sdx = 0
-                painter.drawPixmap(sdx, sy, self._pixmap, 0, sy, w, sh)
-        else:
-            painter.drawPixmap(0, 0, self._pixmap)
-
-        # -------------------------------------------------------------
-        # 3. Внутренние глитчи по силуэту Капри (CompositionMode_SourceAtop)
-        # -------------------------------------------------------------
-        painter.setCompositionMode(
-            QPainter.CompositionMode.CompositionMode_SourceAtop
+        state = PetRenderState(
+            is_spawning=self._spawn_glitch_ticks > 0,
+            is_dragging=self._is_dragging,
+            is_pose_transition=self._pose_transition_ticks > 0,
+            is_surge=self._surge_ticks > 0,
+            is_speaking=self._speaking,
+            telemetry_tag=self._telemetry_tag,
         )
-
-        # а) Кибер-сканлайны CRT (каждые 4 пикселя)
-        scan_alpha = random.randint(25, 60) if severity > 0.4 else random.randint(15, 35)
-        scan_color = QColor(COLOR_OBSIDIAN)
-        scan_color.setAlpha(scan_alpha)
-        painter.setPen(QPen(scan_color, 1))
-        for y in range(0, h, PIXEL_SIZE):
-            painter.drawLine(0, y, w, y)
-
-        # б) Горизонтальные цифровые глитч-полосы в палитре Капри
-        bar_count = (
-            random.randint(5, 10)
-            if severity > 0.7
-            else (random.randint(3, 6) if severity > 0.3 else random.randint(1, 2))
-        )
-        for _ in range(bar_count):
-            by = snap_pixel(random.randint(0, max(0, h - PIXEL_SIZE)))
-            bh = random.choice((PIXEL_SIZE, PIXEL_SIZE * 2, PIXEL_SIZE * 3))
-            bw = snap_pixel(random.randint(w // 4, w))
-            bx = snap_pixel(random.randint(0, max(0, w - bw)))
-            c = QColor(pick_palette_color())
-            c.setAlpha(random.randint(160, 245))
-            painter.fillRect(bx, by, bw, bh, c)
-
-        # в) Пиксельные блоки байтов памяти (Byte Dumps)
-        block_count = (
-            random.randint(8, 16)
-            if severity > 0.6
-            else (random.randint(4, 9) if severity > 0.3 else random.randint(1, 3))
-        )
-        for _ in range(block_count):
-            bw = snap_pixel(random.choice((8, 12, 16, 24)))
-            bh = snap_pixel(random.choice((4, 8, 12)))
-            bx = snap_pixel(random.randint(0, max(0, w - bw)))
-            by = snap_pixel(random.randint(0, max(0, h - bh)))
-            c = QColor(pick_palette_color())
-            c.setAlpha(random.randint(170, 255))
-            painter.fillRect(bx, by, bw, bh, c)
-
-        # г) Телеметрические микро-глифы внутри силуэта при перегрузке
-        if severity > 0.5 and random.random() < 0.7:
-            font = QFont("Press Start 2P")
-            font.setStyleHint(QFont.StyleHint.Monospace)
-            font.setPixelSize(8)
-            font.setBold(True)
-            painter.setFont(font)
-            glyph = random.choice(("01", "FA", "ERR", "0x4F", "TX", "99%"))
-            gx = snap_pixel(random.randint(w // 4, max(w // 4 + 1, 3 * w // 4)))
-            gy = snap_pixel(random.randint(h // 4, max(h // 4 + 1, 3 * h // 4)))
-            painter.setPen(QColor(COLOR_ACID_GREEN if random.random() < 0.6 else COLOR_WHITE))
-            painter.drawText(gx, gy, glyph)
-
-        # д) Эффект цифровой сборки/разборки при смене позы (Байеровский дизеринг)
-        if is_pose:
-            dissolve_color = QColor(COLOR_CRIMSON if random.random() < 0.6 else COLOR_OBSIDIAN)
-            dissolve_color.setAlpha(random.randint(140, 220))
-            for dy in range(0, h, PIXEL_SIZE * 2):
-                for dx in range(0, w, PIXEL_SIZE * 2):
-                    if random.random() < 0.4:
-                        painter.fillRect(dx, dy, PIXEL_SIZE, PIXEL_SIZE, dissolve_color)
-
-        # -------------------------------------------------------------
-        # 4. Выступающие за силуэт кибер-искры и разряды (CompositionMode_SourceOver)
-        # -------------------------------------------------------------
-        painter.setCompositionMode(
-            QPainter.CompositionMode.CompositionMode_SourceOver
-        )
-        spark_chance = 0.95 if severity > 0.5 else 0.45
-        if random.random() < spark_chance:
-            spark_n = (
-                random.randint(6, 12)
-                if severity > 0.7
-                else (random.randint(3, 7) if severity > 0.3 else random.randint(1, 3))
-            )
-            for _ in range(spark_n):
-                ex = snap_pixel(random.randint(0, max(0, w - PIXEL_SIZE * 2)))
-                ey = snap_pixel(random.randint(0, max(0, h - PIXEL_SIZE * 2)))
-                spark_color = QColor(pick_palette_color())
-                spark_color.setAlpha(random.randint(180, 255))
-                if random.random() < 0.6:
-                    painter.fillRect(ex, ey, PIXEL_SIZE, PIXEL_SIZE, spark_color)
-                else:
-                    painter.fillRect(ex, ey, PIXEL_SIZE * 2, PIXEL_SIZE, spark_color)
-                    painter.fillRect(ex + PIXEL_SIZE, ey + PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE * 2, spark_color)
-
-        # -------------------------------------------------------------
-        # 5. Цифровой HUD-индикатор телеметрии в углу спрайта
-        # -------------------------------------------------------------
-        if severity > 0.4 or self._speaking or is_drag:
-            font = QFont("Press Start 2P")
-            font.setStyleHint(QFont.StyleHint.Monospace)
-            font.setPixelSize(7)
-            font.setBold(True)
-            painter.setFont(font)
-
-            tag = (
-                "[DRAG//RELOCATE]"
-                if is_drag
-                else (
-                    "[TX//SPEAKING]"
-                    if self._speaking
-                    else (
-                        "[REBUILD//0x1A]"
-                        if is_pose
-                        else self._telemetry_tag
-                    )
-                )
-            )
-            tag_w = len(tag) * 6 + 6
-            tag_h = 10
-            tag_x = snap_pixel(w - tag_w - 4)
-            tag_y = snap_pixel(h - 14)
-            painter.fillRect(tag_x, tag_y, tag_w, tag_h, QColor(COLOR_OBSIDIAN.red(), COLOR_OBSIDIAN.green(), COLOR_OBSIDIAN.blue(), 210))
-            painter.drawRect(tag_x, tag_y, tag_w, tag_h)
-            tag_color = COLOR_CRIMSON if (severity > 0.7 or is_drag) else COLOR_ACID_GREEN
-            painter.setPen(tag_color)
-            painter.drawText(tag_x + 3, tag_y + 8, tag)
-
+        self._renderer.render(painter, self._pixmap, state)
         painter.end()
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
@@ -825,125 +610,25 @@ class CapriWindow(QWidget):
         status = "вкл" if enabled else "выкл"
         self.speak(f"Звук эффектов: {status}")
 
+    @property
+    def scale_percent(self) -> int:
+        return self._scale_percent
+
+    @property
+    def selected_microphone(self) -> QAudioDevice | None:
+        return self._voice.selected_device
+
+    @property
+    def glitches_enabled(self) -> bool:
+        return self._glitches.is_enabled
+
+    def toggle_voice(self) -> str:
+        return self._toggle_voice()
+
     def show_context_menu(self, pos: QPoint) -> None:
         self._inactivity.set_paused(True)
         try:
-            menu = QMenu(self)
-            menu.setStyleSheet(APP_STYLE)
-
-            # 1. Меню мониторов
-            screen_menu = menu.addMenu("🖥  Основной монитор")
-            screen_group = QActionGroup(screen_menu)
-            screen_group.setExclusive(True)
-
-            current_scr = self.get_designated_screen()
-            primary_scr = QGuiApplication.primaryScreen()
-
-            for scr in QGuiApplication.screens():
-                geo = scr.geometry()
-                name = scr.name()
-                extra = []
-                if primary_scr and scr.name() == primary_scr.name():
-                    extra.append("системный")
-                extra_str = f" [{', '.join(extra)}]" if extra else ""
-                label = f"{name} ({geo.width()}x{geo.height()}){extra_str}"
-
-                action = screen_menu.addAction(label)
-                action.setCheckable(True)
-                if current_scr and scr.name() == current_scr.name():
-                    action.setChecked(True)
-                action.triggered.connect(
-                    lambda *_, s=scr: self.set_designated_screen(s)
-                )
-                screen_group.addAction(action)
-
-            # 2. Меню микрофонов
-            mic_menu = menu.addMenu("🎙  Микрофон")
-            mic_group = QActionGroup(mic_menu)
-            mic_group.setExclusive(True)
-
-            current_mic = self._voice.selected_device
-            default_mic = QMediaDevices.defaultAudioInput()
-            default_label = (
-                f"По умолчанию ({default_mic.description()})"
-                if not default_mic.isNull()
-                else "По умолчанию"
-            )
-            def_action = mic_menu.addAction(default_label)
-            def_action.setCheckable(True)
-            if current_mic is None or current_mic.isNull():
-                def_action.setChecked(True)
-            def_action.triggered.connect(
-                lambda *_: self.set_designated_microphone(None)
-            )
-            mic_group.addAction(def_action)
-
-            for dev in QMediaDevices.audioInputs():
-                if not default_mic.isNull() and dev.id() == default_mic.id():
-                    continue
-                act = mic_menu.addAction(dev.description())
-                act.setCheckable(True)
-                if current_mic and dev.id() == current_mic.id():
-                    act.setChecked(True)
-                act.triggered.connect(
-                    lambda *_, d=dev: self.set_designated_microphone(d)
-                )
-                mic_group.addAction(act)
-
-            # 3. Меню звука
-            sound_menu = menu.addMenu("🔊  Звук")
-
-            msg_sound_act = sound_menu.addAction("💬  Сообщения")
-            msg_sound_act.setCheckable(True)
-            msg_sound_act.setChecked(get_speech_sfx().is_speech_sound_enabled())
-            msg_sound_act.triggered.connect(
-                lambda checked: self.set_speech_sound_enabled(checked)
-            )
-
-            fx_sound_act = sound_menu.addAction("⚡  Эффекты")
-            fx_sound_act.setCheckable(True)
-            fx_sound_act.setChecked(get_speech_sfx().is_effects_sound_enabled())
-            fx_sound_act.triggered.connect(
-                lambda checked: self.set_effects_sound_enabled(checked)
-            )
-
-            # 4. Меню размера
-            size_menu = menu.addMenu("📐  Размер")
-            size_group = QActionGroup(size_menu)
-            size_group.setExclusive(True)
-
-            scale_options = [50, 75, 100, 125, 150]
-            for opt in scale_options:
-                act = size_menu.addAction(f"{opt}%")
-                act.setCheckable(True)
-                if self._scale_percent == opt:
-                    act.setChecked(True)
-                act.triggered.connect(
-                    lambda *_, s=opt: self.set_sprite_scale(s)
-                )
-                size_group.addAction(act)
-
-            menu.addSeparator()
-
-            # 5. Быстрые действия
-            glitch_act = menu.addAction("⚡  Экранные глитчи")
-            glitch_act.setCheckable(True)
-            glitch_act.setChecked(self._glitches.is_enabled)
-            glitch_act.triggered.connect(
-                lambda *_: self.process_input("глитч")
-            )
-
-            voice_act = menu.addAction("🎤  Голосовой ввод")
-            voice_act.setCheckable(True)
-            voice_act.setChecked(self._voice.is_listening)
-            voice_act.triggered.connect(
-                lambda *_: self._toggle_voice()
-            )
-
-            menu.addSeparator()
-            quit_act = menu.addAction("❌  Выход")
-            quit_act.triggered.connect(self.close)
-
+            menu = build_pet_context_menu(self, pos)
             menu.exec(pos)
         finally:
             self._inactivity.set_paused(False)
