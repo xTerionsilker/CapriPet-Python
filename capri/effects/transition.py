@@ -27,6 +27,7 @@ from .transition_fx import (
     screen_bus_points,
     snap_pixel,
 )
+from ..ui.speech_sfx import get_speech_sfx
 
 
 class TransitionOverlay(QWidget):
@@ -152,6 +153,16 @@ class TransitionOverlay(QWidget):
         self.raise_()
         self.show()
         self._timer.start()
+        try:
+            sfx = get_speech_sfx()
+            if self._mode == "out":
+                sfx.play_lightning_strike()
+            elif self._mode == "lightning_to_point":
+                sfx.play_lightning_arc()
+            else:
+                sfx.play_lightning_arc()
+        except Exception:
+            pass
 
     def _tick(self) -> None:
         if self._clock is None:
@@ -166,6 +177,14 @@ class TransitionOverlay(QWidget):
         peak_threshold = 0.38 if self._mode == "out" else 0.44
         if p >= peak_threshold and not self._peak_called:
             self._peak_called = True
+            try:
+                sfx = get_speech_sfx()
+                if self._mode == "in":
+                    sfx.play_lightning_strike()
+                elif self._mode == "lightning_to_point":
+                    sfx.play_lightning_zap()
+            except Exception:
+                pass
             if self._on_peak is not None:
                 try:
                     self._on_peak()

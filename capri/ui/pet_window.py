@@ -277,10 +277,6 @@ class CapriWindow(QWidget):
             )
             self._startup_overlay.finished.connect(self._on_startup_finished)
             self._startup_overlay.start()
-            try:
-                get_speech_sfx().play_swoosh()
-            except Exception:
-                pass
 
     def _reveal_on_startup(self) -> None:
         """Переход Капри из позы приземления в позу покоя на пике вспышки."""
@@ -545,6 +541,10 @@ class CapriWindow(QWidget):
             self._is_dragging = True
             self._surge_ticks = max(self._surge_ticks, 10)
             self.update()
+            try:
+                get_speech_sfx().play_lightning_zap()
+            except Exception:
+                pass
             handle = self.windowHandle()
             if handle is not None and hasattr(handle, "startSystemMove"):
                 handle.startSystemMove()
@@ -682,6 +682,10 @@ class CapriWindow(QWidget):
 
     def _wild_glitch(self) -> str:
         self._glitches.wild_glitch(5000)
+        try:
+            get_speech_sfx().play_lightning_strike()
+        except Exception:
+            pass
         return "Капри в восторге! Весь экран глитчит 5 секунд."
 
     def _on_ollama_talking_start(self) -> None:

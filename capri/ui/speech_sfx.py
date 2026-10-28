@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 from pathlib import Path
+import random
 import shutil
 import struct
 import subprocess
@@ -103,6 +104,109 @@ def _generate_chirp_wav(file_path: Path, sample_rate: int = 44100, duration: flo
         wf.writeframes(frames)
 
 
+def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.42) -> None:
+    """Генерирует мощный киберпанк-удар молнии: плазменный щелчок, высоковольтный треск и саб-басовый гром."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(1337)
+    for i in range(num_samples):
+        t = i / sample_rate
+
+        # 1. Начальный плазменный щелчок удара (0 - 25 мс)
+        snap = 0.0
+        if t < 0.025:
+            snap_env = math.sin(math.pi * (t / 0.025))
+            snap_freq = 3400.0 - 2400.0 * (t / 0.025)
+            noise = rng.uniform(-1.0, 1.0)
+            snap = (0.5 * math.sin(2.0 * math.pi * snap_freq * t) + 0.5 * noise) * snap_env
+
+        # 2. Высоковольтная дуга / треск разряда (0 - 220 мс)
+        arc = 0.0
+        if t < 0.22:
+            arc_p = t / 0.22
+            arc_env = (1.0 - arc_p) ** 1.6
+            arc_buzz = (
+                0.40 * math.sin(2.0 * math.pi * 110.0 * t)
+                + 0.30 * math.sin(2.0 * math.pi * 220.0 * t)
+                + 0.20 * math.sin(2.0 * math.pi * 440.0 * t)
+                + 0.35 * rng.uniform(-1.0, 1.0)
+            )
+            spark_spike = 1.9 if rng.random() < 0.04 else 0.0
+            arc = (arc_buzz + spark_spike) * arc_env
+
+        # 3. Низкочастотный кибер-раскат грома (20 - 420 мс)
+        boom = 0.0
+        if t > 0.02:
+            boom_t = t - 0.02
+            boom_dur = duration - 0.02
+            boom_p = boom_t / boom_dur
+            boom_env = math.sin(math.pi * (boom_p ** 0.5)) * ((1.0 - boom_p) ** 1.8)
+            boom_freq = 65.0 - 35.0 * boom_p
+            boom = math.sin(2.0 * math.pi * boom_freq * boom_t) * boom_env
+
+        val = 0.60 * snap + 0.45 * arc + 0.55 * boom
+        val = math.tanh(val * 1.25) * 0.75
+        sample = int(val * 32767)
+        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(file_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(frames)
+
+
+def _generate_lightning_arc_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.20) -> None:
+    """Генерирует треск электрической дуги при пробегании молнии."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(2049)
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+        env = (1.0 - p) ** 1.3
+        f1 = 800.0 + 1400.0 * math.sin(t * 120.0)
+        buzz = (
+            0.45 * math.sin(2.0 * math.pi * f1 * t)
+            + 0.35 * rng.uniform(-1.0, 1.0)
+            + (1.6 if rng.random() < 0.06 else 0.0)
+        )
+        val = math.tanh(buzz * env * 1.1) * 0.65
+        sample = int(val * 32767)
+        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(file_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(frames)
+
+
+def _generate_lightning_zap_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.08) -> None:
+    """Генерирует быстрый высоковольтный микроразряд (кибер-зэп)."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(777)
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+        env = (1.0 - p) ** 2.2
+        freq = 2600.0 - 2100.0 * p
+        val = (0.6 * math.sin(2.0 * math.pi * freq * t) + 0.4 * rng.uniform(-1.0, 1.0)) * env
+        val = math.tanh(val * 1.5) * 0.70
+        sample = int(val * 32767)
+        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(file_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(frames)
+
+
 class SpeechSFX(QObject):
     """
     Легковесный аудио-модуль для диалоговых облачков (SFX).
@@ -124,9 +228,15 @@ class SpeechSFX(QObject):
         self._swoosh_path: Path | None = None
         self._close_path: Path | None = None
         self._chirp_path: Path | None = None
+        self._lightning_strike_path: Path | None = None
+        self._lightning_arc_path: Path | None = None
+        self._lightning_zap_path: Path | None = None
 
         self._swoosh_effect: QSoundEffect | None = None
         self._close_effect: QSoundEffect | None = None
+        self._lightning_strike_effect: QSoundEffect | None = None
+        self._lightning_arc_effect: QSoundEffect | None = None
+        self._lightning_zap_effect: QSoundEffect | None = None
         self._chirp_pool: list[QSoundEffect] = []
         self._chirp_index = 0
 
@@ -138,6 +248,9 @@ class SpeechSFX(QObject):
             swoosh_path = temp_dir / "cyber_swoosh.wav"
             close_path = temp_dir / "cyber_close.wav"
             chirp_path = temp_dir / "retro_chirp.wav"
+            strike_path = temp_dir / "cyber_lightning_strike.wav"
+            arc_path = temp_dir / "cyber_lightning_arc.wav"
+            zap_path = temp_dir / "cyber_lightning_zap.wav"
 
             if not swoosh_path.exists():
                 _generate_swoosh_wav(swoosh_path)
@@ -145,10 +258,19 @@ class SpeechSFX(QObject):
                 _generate_close_wav(close_path)
             if not chirp_path.exists():
                 _generate_chirp_wav(chirp_path)
+            if not strike_path.exists():
+                _generate_lightning_strike_wav(strike_path)
+            if not arc_path.exists():
+                _generate_lightning_arc_wav(arc_path)
+            if not zap_path.exists():
+                _generate_lightning_zap_wav(zap_path)
 
             self._swoosh_path = swoosh_path
             self._close_path = close_path
             self._chirp_path = chirp_path
+            self._lightning_strike_path = strike_path
+            self._lightning_arc_path = arc_path
+            self._lightning_zap_path = zap_path
 
             # Фолбэк QSoundEffect для swoosh
             swoosh = QSoundEffect(self)
@@ -162,6 +284,22 @@ class SpeechSFX(QObject):
             close_sfx.setVolume(self._volume)
             self._close_effect = close_sfx
 
+            # Фолбэки QSoundEffect для молний
+            strike_sfx = QSoundEffect(self)
+            strike_sfx.setSource(QUrl.fromLocalFile(str(strike_path)))
+            strike_sfx.setVolume(self._volume)
+            self._lightning_strike_effect = strike_sfx
+
+            arc_sfx = QSoundEffect(self)
+            arc_sfx.setSource(QUrl.fromLocalFile(str(arc_path)))
+            arc_sfx.setVolume(self._volume * 0.85)
+            self._lightning_arc_effect = arc_sfx
+
+            zap_sfx = QSoundEffect(self)
+            zap_sfx.setSource(QUrl.fromLocalFile(str(zap_path)))
+            zap_sfx.setVolume(self._volume * 0.75)
+            self._lightning_zap_effect = zap_sfx
+
             # Пул эффектов для чирпов
             chirp_url = QUrl.fromLocalFile(str(chirp_path))
             self._chirp_pool = []
@@ -173,7 +311,7 @@ class SpeechSFX(QObject):
 
             self._available = True
         except Exception as exc:
-            logger.warning("Не удалось инициализировать SFX звуки речи: %s. Работаем в беззвучном режиме.", exc)
+            logger.warning("Не удалось инициализировать SFX звуки: %s. Работаем в беззвучном режиме.", exc)
             self._available = False
 
     def _play_file(self, path: Path | None, fallback_effect: QSoundEffect | None) -> None:
@@ -224,6 +362,12 @@ class SpeechSFX(QObject):
             self._swoosh_effect.setVolume(self._volume)
         if self._close_effect is not None:
             self._close_effect.setVolume(self._volume)
+        if self._lightning_strike_effect is not None:
+            self._lightning_strike_effect.setVolume(self._volume)
+        if self._lightning_arc_effect is not None:
+            self._lightning_arc_effect.setVolume(self._volume * 0.85)
+        if self._lightning_zap_effect is not None:
+            self._lightning_zap_effect.setVolume(self._volume * 0.75)
         for effect in self._chirp_pool:
             effect.setVolume(self._volume * 0.7)
 
@@ -234,6 +378,18 @@ class SpeechSFX(QObject):
     def play_close(self) -> None:
         """Воспроизводит звук закрытия/деактивации облачка."""
         self._play_file(self._close_path, self._close_effect)
+
+    def play_lightning_strike(self) -> None:
+        """Воспроизводит мощный удар кибер-молнии."""
+        self._play_file(self._lightning_strike_path, self._lightning_strike_effect)
+
+    def play_lightning_arc(self) -> None:
+        """Воспроизводит электрический треск бегущей дуги молнии."""
+        self._play_file(self._lightning_arc_path, self._lightning_arc_effect)
+
+    def play_lightning_zap(self) -> None:
+        """Воспроизводит короткий электрический щелчок микроразряда."""
+        self._play_file(self._lightning_zap_path, self._lightning_zap_effect)
 
     def play_chirp(self) -> None:
         """
