@@ -9,9 +9,11 @@ from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import (
     QActionGroup,
     QColor,
+    QFont,
     QGuiApplication,
     QKeySequence,
     QPainter,
+    QPen,
     QPixmap,
     QScreen,
     QShortcut,
@@ -34,7 +36,15 @@ from ..core.wake_word import (
 )
 from ..effects.glitch import GlitchManager
 from ..effects.transition import TransitionOverlay
-from ..effects.transition_fx import pick_palette_color
+from ..effects.transition_fx import (
+    COLOR_ACID_GREEN,
+    COLOR_CRIMSON,
+    COLOR_OBSIDIAN,
+    COLOR_WHITE,
+    PIXEL_SIZE,
+    pick_palette_color,
+    snap_pixel,
+)
 from .speech import SpeechWindow, close_all as close_all_speech, show_text
 from .speech_sfx import get_speech_sfx
 from .theme import APP_STYLE
@@ -81,7 +91,13 @@ class CapriWindow(QWidget):
         self._drag_offset: QPoint | None = None
         self._speech: SpeechWindow | None = None
         self._greeted = False
-        self._spawn_glitch_ticks = 18
+        self._spawn_glitch_ticks = 24
+        self._surge_ticks = 0
+        self._pose_transition_ticks = 0
+        self._is_dragging = False
+        self._speaking = False
+        self._anim_frame = 0
+        self._telemetry_tag = "[CAPRI//ONLINE]"
         self._startup_overlay: TransitionOverlay | None = None
         self._voice_armed_until = 0.0
         self._closing = False
@@ -89,7 +105,7 @@ class CapriWindow(QWidget):
 
         # Таймер анимации пиксельных глитчей
         self._glitch_timer = QTimer(self)
-        self._glitch_timer.setInterval(80)
+        self._glitch_timer.setInterval(70)
         self._glitch_timer.timeout.connect(self._on_glitch_tick)
 
         self.commands = CommandRegistry()
@@ -149,7 +165,7 @@ class CapriWindow(QWidget):
             self._pixmaps["sit"] = fallback
 
     def set_pose(self, pose: str) -> None:
-        """Переключает спрайт позы питомца."""
+        """Переключает спрайт позы питомца с эффектом цифровой киберпанк-реконструкции."""
         if pose not in self._pixmaps:
             pose_path = {
                 "sit": OVERLAY_SIT,
@@ -159,9 +175,13 @@ class CapriWindow(QWidget):
             if pose_path is not None and pose_path.is_file():
                 self._load_pixmap(pose, pose_path)
         if pose in self._pixmaps:
+            old_pose = self._current_pose
             self._current_pose = pose
             self._pixmap = self._pixmaps[pose]
             self.setFixedSize(self._pixmap.size())
+            if old_pose != pose:
+                self._pose_transition_ticks = 6
+                self._surge_ticks = max(self._surge_ticks, 6)
             self.update()
 
     def set_pose_image(self, pose_name: str, path: Path) -> None:
@@ -278,10 +298,32 @@ class CapriWindow(QWidget):
         super().hideEvent(event)
 
     def _on_glitch_tick(self) -> None:
+        self._anim_frame += 1
         if self._spawn_glitch_ticks > 0:
+            self._spawn_glitch_ticks -= 1
+        if self._surge_ticks > 0:
+            self._surge_ticks -= 1
+        if self._pose_transition_ticks > 0:
+            self._pose_transition_ticks -= 1
+
+        # Обновление киберпанк-телеметрии в нижнем индикаторе
+        if self._anim_frame % 25 == 0:
+            tags = (
+                "[CAPRI//ONLINE]",
+                "[HOLO//SYNC:OK]",
+                "[SYS.LOAD: 42%]",
+                "[NET//LINK:99%]",
+                "[CORE: 3.8GHz]",
+                "[BUS//TX:READY]",
+                "[MEM:0xDEADBEEF]",
+            )
+            self._telemetry_tag = random.choice(tags)
+
+        # Динамическая частота кадров глитча: высокая во время активности, экономная в простое
+        if self._spawn_glitch_ticks > 0 or self._is_dragging or self._surge_ticks > 0:
             self._glitch_timer.setInterval(35)
         else:
-            self._glitch_timer.setInterval(random.randint(60, 110))
+            self._glitch_timer.setInterval(random.randint(65, 110))
         self.update()
 
     def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
@@ -296,104 +338,200 @@ class CapriWindow(QWidget):
             return
 
         is_spawning = self._spawn_glitch_ticks > 0
+        is_drag = self._is_dragging
+        is_pose = self._pose_transition_ticks > 0
+        is_surge = self._surge_ticks > 0
+        is_speaking = self._speaking
+
+        # Вычисляем уровень кибер-глитч активности (severity)
         if is_spawning:
-            self._spawn_glitch_ticks -= 1
+            severity = 1.0
+        elif is_drag:
+            severity = 0.85
+        elif is_pose:
+            severity = 0.75
+        elif is_surge:
+            severity = 0.65
+        elif is_speaking:
+            severity = 0.45
+        elif random.random() < 0.28:
+            severity = random.uniform(0.35, 0.55)
+        else:
+            severity = 0.12
 
-        active_glitch = is_spawning or (random.random() < 0.55)
+        # -------------------------------------------------------------
+        # 1. Хроматическое RGB-расслоение (Holographic Chromatic Desync)
+        # -------------------------------------------------------------
+        chroma_chance = 0.85 if severity > 0.5 else 0.35
+        if severity > 0.30 and random.random() < chroma_chance:
+            chroma_shift = snap_pixel(
+                random.choice((-16, -12, -8, 8, 12, 16))
+                if severity > 0.7
+                else random.choice((-8, -4, 4, 8))
+            )
+            # Алый левый фантомный слой (#F20D2E)
+            painter.save()
+            painter.setOpacity(random.uniform(0.25, 0.45))
+            painter.drawPixmap(-chroma_shift, 0, self._pixmap)
+            painter.restore()
 
-        # 1. Отрисовка базового спрайта
-        slice_chance = 0.90 if is_spawning else 0.50
-        if active_glitch and random.random() < slice_chance:
-            sy = (random.randint(0, max(0, h - 16)) // 4) * 4
-            sh = random.choice((6, 8, 12, 16, 24)) if is_spawning else random.choice((6, 8, 12, 16))
-            dx = random.choice((-24, -18, -12, 12, 18, 24)) if is_spawning else random.choice((-16, -12, -8, 8, 12, 16))
-            if sy > 0:
-                painter.drawPixmap(0, 0, self._pixmap, 0, 0, w, sy)
-            painter.drawPixmap(dx, sy, self._pixmap, 0, sy, w, sh)
-            bottom_y = sy + sh
-            if bottom_y < h:
-                painter.drawPixmap(
-                    0, bottom_y, self._pixmap, 0, bottom_y, w, h - bottom_y
-                )
+            # Кислотно-зеленый правый фантомный слой (#3CF12B)
+            painter.save()
+            painter.setOpacity(random.uniform(0.20, 0.40))
+            painter.drawPixmap(chroma_shift, 0, self._pixmap)
+            painter.restore()
+
+        # -------------------------------------------------------------
+        # 2. Отрисовка базового спрайта с горизонтальными смещениями (Tearing)
+        # -------------------------------------------------------------
+        tear_chance = 0.90 if severity > 0.6 else (0.45 if severity > 0.3 else 0.15)
+        if random.random() < tear_chance:
+            num_slices = random.randint(2, 5) if severity > 0.6 else random.randint(1, 2)
+            slice_bounds = [0] + sorted(
+                snap_pixel(random.randint(PIXEL_SIZE * 2, max(PIXEL_SIZE * 3, h - PIXEL_SIZE * 2)))
+                for _ in range(num_slices)
+            ) + [h]
+            slice_bounds = sorted(list(set(slice_bounds)))
+            for i in range(len(slice_bounds) - 1):
+                sy = slice_bounds[i]
+                sh = slice_bounds[i + 1] - sy
+                if sh <= 0:
+                    continue
+                if random.random() < 0.65:
+                    sdx = snap_pixel(
+                        random.choice((-20, -12, -8, 8, 12, 20))
+                        if severity > 0.6
+                        else random.choice((-8, -4, 4, 8))
+                    )
+                else:
+                    sdx = 0
+                painter.drawPixmap(sdx, sy, self._pixmap, 0, sy, w, sh)
         else:
             painter.drawPixmap(0, 0, self._pixmap)
 
-        # 2. Наложение крупных глитчей в фирменной палитре Капри
+        # -------------------------------------------------------------
+        # 3. Внутренние глитчи по силуэту Капри (CompositionMode_SourceAtop)
+        # -------------------------------------------------------------
         painter.setCompositionMode(
             QPainter.CompositionMode.CompositionMode_SourceAtop
         )
 
-        def get_glitch_color(alpha_min: int = 180, alpha_max: int = 255) -> QColor:
-            c = QColor(pick_palette_color())
-            c.setAlpha(random.randint(alpha_min, alpha_max))
-            return c
+        # а) Кибер-сканлайны CRT (каждые 4 пикселя)
+        scan_alpha = random.randint(25, 60) if severity > 0.4 else random.randint(15, 35)
+        scan_color = QColor(COLOR_OBSIDIAN)
+        scan_color.setAlpha(scan_alpha)
+        painter.setPen(QPen(scan_color, 1))
+        for y in range(0, h, PIXEL_SIZE):
+            painter.drawLine(0, y, w, y)
 
-        # а) Горизонтальные глитч-полосы
+        # б) Горизонтальные цифровые глитч-полосы в палитре Капри
         bar_count = (
-            random.randint(4, 8)
-            if is_spawning
-            else (
-                random.randint(2, 5)
-                if active_glitch
-                else (random.randint(1, 2) if random.random() < 0.5 else 0)
-            )
+            random.randint(5, 10)
+            if severity > 0.7
+            else (random.randint(3, 6) if severity > 0.3 else random.randint(1, 2))
         )
         for _ in range(bar_count):
-            by = (random.randint(0, max(0, h - 8)) // 4) * 4
-            bh = random.choice((4, 6, 8, 12))
-            bw = (random.randint(w // 4, w) // 4) * 4
-            bx = (random.randint(0, max(0, w - bw)) // 4) * 4
-            color = get_glitch_color(190, 255)
-            painter.fillRect(bx, by, bw, bh, color)
+            by = snap_pixel(random.randint(0, max(0, h - PIXEL_SIZE)))
+            bh = random.choice((PIXEL_SIZE, PIXEL_SIZE * 2, PIXEL_SIZE * 3))
+            bw = snap_pixel(random.randint(w // 4, w))
+            bx = snap_pixel(random.randint(0, max(0, w - bw)))
+            c = QColor(pick_palette_color())
+            c.setAlpha(random.randint(160, 245))
+            painter.fillRect(bx, by, bw, bh, c)
 
-        # б) Пиксельные блоки
+        # в) Пиксельные блоки байтов памяти (Byte Dumps)
         block_count = (
-            random.randint(7, 14)
-            if is_spawning
-            else (
-                random.randint(4, 9)
-                if active_glitch
-                else random.randint(1, 4)
-            )
+            random.randint(8, 16)
+            if severity > 0.6
+            else (random.randint(4, 9) if severity > 0.3 else random.randint(1, 3))
         )
         for _ in range(block_count):
-            bw = random.choice((8, 12, 16, 20, 28))
-            bh = random.choice((6, 8, 12, 16))
-            bx = (random.randint(0, max(0, w - bw)) // 4) * 4
-            by = (random.randint(0, max(0, h - bh)) // 4) * 4
-            color = get_glitch_color(180, 255)
-            painter.fillRect(bx, by, bw, bh, color)
+            bw = snap_pixel(random.choice((8, 12, 16, 24)))
+            bh = snap_pixel(random.choice((4, 8, 12)))
+            bx = snap_pixel(random.randint(0, max(0, w - bw)))
+            by = snap_pixel(random.randint(0, max(0, h - bh)))
+            c = QColor(pick_palette_color())
+            c.setAlpha(random.randint(170, 255))
+            painter.fillRect(bx, by, bw, bh, c)
 
-        # в) Пиксельные шумовые квадраты
-        noise_count = (
-            random.randint(12, 24)
-            if is_spawning
-            else (
-                random.randint(6, 16)
-                if active_glitch
-                else random.randint(2, 6)
-            )
-        )
-        for _ in range(noise_count):
-            nx = (random.randint(0, max(0, w - 4)) // 4) * 4
-            ny = (random.randint(0, max(0, h - 4)) // 4) * 4
-            color = get_glitch_color(190, 255)
-            painter.fillRect(nx, ny, 4, 4, color)
+        # г) Телеметрические микро-глифы внутри силуэта при перегрузке
+        if severity > 0.5 and random.random() < 0.7:
+            font = QFont("Press Start 2P")
+            font.setStyleHint(QFont.StyleHint.Monospace)
+            font.setPixelSize(8)
+            font.setBold(True)
+            painter.setFont(font)
+            glyph = random.choice(("01", "FA", "ERR", "0x4F", "TX", "99%"))
+            gx = snap_pixel(random.randint(w // 4, max(w // 4 + 1, 3 * w // 4)))
+            gy = snap_pixel(random.randint(h // 4, max(h // 4 + 1, 3 * h // 4)))
+            painter.setPen(QColor(COLOR_ACID_GREEN if random.random() < 0.6 else COLOR_WHITE))
+            painter.drawText(gx, gy, glyph)
 
-        # 3. Выступающие за силуэт искры
+        # д) Эффект цифровой сборки/разборки при смене позы (Байеровский дизеринг)
+        if is_pose:
+            dissolve_color = QColor(COLOR_CRIMSON if random.random() < 0.6 else COLOR_OBSIDIAN)
+            dissolve_color.setAlpha(random.randint(140, 220))
+            for dy in range(0, h, PIXEL_SIZE * 2):
+                for dx in range(0, w, PIXEL_SIZE * 2):
+                    if random.random() < 0.4:
+                        painter.fillRect(dx, dy, PIXEL_SIZE, PIXEL_SIZE, dissolve_color)
+
+        # -------------------------------------------------------------
+        # 4. Выступающие за силуэт кибер-искры и разряды (CompositionMode_SourceOver)
+        # -------------------------------------------------------------
         painter.setCompositionMode(
             QPainter.CompositionMode.CompositionMode_SourceOver
         )
-        spark_chance = 0.90 if is_spawning else 0.65
-        if active_glitch and random.random() < spark_chance:
-            sparks_n = random.randint(4, 7) if is_spawning else random.randint(2, 4)
-            for _ in range(sparks_n):
-                ex = (random.randint(0, max(0, w - 8)) // 4) * 4
-                ey = (random.randint(0, max(0, h - 8)) // 4) * 4
-                ew = random.choice((4, 8, 12)) if is_spawning else random.choice((4, 8))
-                eh = random.choice((4, 6, 8)) if is_spawning else random.choice((4, 6))
-                spark_color = get_glitch_color(200, 255)
-                painter.fillRect(ex, ey, ew, eh, spark_color)
+        spark_chance = 0.95 if severity > 0.5 else 0.45
+        if random.random() < spark_chance:
+            spark_n = (
+                random.randint(6, 12)
+                if severity > 0.7
+                else (random.randint(3, 7) if severity > 0.3 else random.randint(1, 3))
+            )
+            for _ in range(spark_n):
+                ex = snap_pixel(random.randint(0, max(0, w - PIXEL_SIZE * 2)))
+                ey = snap_pixel(random.randint(0, max(0, h - PIXEL_SIZE * 2)))
+                spark_color = QColor(pick_palette_color())
+                spark_color.setAlpha(random.randint(180, 255))
+                if random.random() < 0.6:
+                    painter.fillRect(ex, ey, PIXEL_SIZE, PIXEL_SIZE, spark_color)
+                else:
+                    painter.fillRect(ex, ey, PIXEL_SIZE * 2, PIXEL_SIZE, spark_color)
+                    painter.fillRect(ex + PIXEL_SIZE, ey + PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE * 2, spark_color)
+
+        # -------------------------------------------------------------
+        # 5. Цифровой HUD-индикатор телеметрии в углу спрайта
+        # -------------------------------------------------------------
+        if severity > 0.4 or self._speaking or is_drag:
+            font = QFont("Press Start 2P")
+            font.setStyleHint(QFont.StyleHint.Monospace)
+            font.setPixelSize(7)
+            font.setBold(True)
+            painter.setFont(font)
+
+            tag = (
+                "[DRAG//RELOCATE]"
+                if is_drag
+                else (
+                    "[TX//SPEAKING]"
+                    if self._speaking
+                    else (
+                        "[REBUILD//0x1A]"
+                        if is_pose
+                        else self._telemetry_tag
+                    )
+                )
+            )
+            tag_w = len(tag) * 6 + 6
+            tag_h = 10
+            tag_x = snap_pixel(w - tag_w - 4)
+            tag_y = snap_pixel(h - 14)
+            painter.fillRect(tag_x, tag_y, tag_w, tag_h, QColor(COLOR_OBSIDIAN.red(), COLOR_OBSIDIAN.green(), COLOR_OBSIDIAN.blue(), 210))
+            painter.drawRect(tag_x, tag_y, tag_w, tag_h)
+            tag_color = COLOR_CRIMSON if (severity > 0.7 or is_drag) else COLOR_ACID_GREEN
+            painter.setPen(tag_color)
+            painter.drawText(tag_x + 3, tag_y + 8, tag)
 
         painter.end()
 
@@ -404,6 +542,9 @@ class CapriWindow(QWidget):
             event.accept()
             return
         if event.button() == Qt.MouseButton.LeftButton:
+            self._is_dragging = True
+            self._surge_ticks = max(self._surge_ticks, 10)
+            self.update()
             handle = self.windowHandle()
             if handle is not None and hasattr(handle, "startSystemMove"):
                 handle.startSystemMove()
@@ -418,18 +559,25 @@ class CapriWindow(QWidget):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        if self._drag_offset is not None:
-            self.move(event.globalPosition().toPoint() - self._drag_offset)
+        if self._drag_offset is not None or self._is_dragging:
+            self._is_dragging = True
+            self._surge_ticks = max(self._surge_ticks, 4)
+            if self._drag_offset is not None:
+                self.move(event.globalPosition().toPoint() - self._drag_offset)
+            self.update()
             event.accept()
             return
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        self._is_dragging = False
+        self._surge_ticks = max(self._surge_ticks, 6)
         if self._drag_offset is not None:
             pos = self.pos()
             set_config_value("window.position", {"x": pos.x(), "y": pos.y()})
             set_config_value("window.overlay_position", {"x": pos.x(), "y": pos.y()})
         self._drag_offset = None
+        self.update()
         super().mouseReleaseEvent(event)
 
     def changeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
@@ -445,9 +593,15 @@ class CapriWindow(QWidget):
     def speak(self, text: str) -> SpeechWindow:
         if self._speech is not None:
             self._speech.close(immediate=True)
+        self._speaking = True
+        self._surge_ticks = max(self._surge_ticks, 12)
         hold_ms = min(5000, max(1200, len(text) * 45))
         speech = show_text(text, parent=self, hold_ms=hold_ms)
         self._speech = speech
+        speech.destroyed.connect(
+            lambda *_, window=speech: self._forget_speech(window)
+        )
+        return speech
         speech.destroyed.connect(
             lambda *_, window=speech: self._forget_speech(window)
         )
@@ -531,9 +685,11 @@ class CapriWindow(QWidget):
         return "Капри в восторге! Весь экран глитчит 5 секунд."
 
     def _on_ollama_talking_start(self) -> None:
+        self._surge_ticks = max(self._surge_ticks, 24)
         self.set_pose("stay")
 
     def _on_ollama_talking_end(self) -> None:
+        self._surge_ticks = max(self._surge_ticks, 8)
         self.set_pose("sit")
 
     def _locate_mouse(self) -> str:
@@ -702,6 +858,7 @@ class CapriWindow(QWidget):
     def _forget_speech(self, window: SpeechWindow) -> None:
         if self._speech is window:
             self._speech = None
+            self._speaking = False
 
     def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         if self._closing:
