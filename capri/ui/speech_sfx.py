@@ -207,6 +207,159 @@ def _generate_lightning_zap_wav(file_path: Path, sample_rate: int = 44100, durat
         wf.writeframes(frames)
 
 
+def _generate_session_lock_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.72) -> None:
+    """Генерирует сервоприводный зажим и два подтверждающих кибер-бипа блокировки."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(2024)
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+
+        servo = 0.0
+        if t < 0.26:
+            sp = t / 0.26
+            freq = 170.0 + 460.0 * sp
+            servo_env = math.sin(math.pi * sp) ** 1.2
+            servo = (
+                0.55 * math.sin(2.0 * math.pi * freq * t)
+                + 0.25 * math.sin(2.0 * math.pi * freq * 2.0 * t)
+                + 0.20 * rng.uniform(-1.0, 1.0)
+            ) * servo_env
+
+        beep = 0.0
+        for start, freq in ((0.28, 1180.0), (0.42, 1760.0)):
+            if start <= t < start + 0.10:
+                bp = (t - start) / 0.10
+                env = math.sin(math.pi * bp) ** 1.4
+                beep += 0.36 * math.sin(2.0 * math.pi * freq * t) * env
+
+        click = 0.0
+        if 0.25 <= t < 0.29:
+            click = 0.22 * rng.uniform(-1.0, 1.0) * (1.0 - (t - 0.25) / 0.04)
+
+        val = math.tanh((servo + beep + click) * 1.35) * 0.62 * (1.0 - p * 0.25)
+        sample = int(val * 32767)
+        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(file_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(frames)
+
+
+def _generate_session_power_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.95) -> None:
+    """Генерирует падение энергии ядра: нисходящий свип, треск реле и глухой удар."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(404)
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+
+        freq = 72.0 + 820.0 * math.exp(-3.8 * p)
+        env = (1.0 - p) ** 0.55
+        tone = (
+            0.52 * math.sin(2.0 * math.pi * freq * t)
+            + 0.22 * math.sin(2.0 * math.pi * freq * 0.5 * t)
+            + 0.18 * math.tanh(math.sin(2.0 * math.pi * freq * t) * 3.0)
+        ) * env
+
+        clatter = 0.0
+        if 0.18 <= t < 0.30:
+            clatter = 0.28 * rng.uniform(-1.0, 1.0) * (1.0 - (t - 0.18) / 0.12)
+
+        thud = 0.0
+        if 0.55 <= t < 0.95:
+            tp = (t - 0.55) / 0.40
+            thud = 0.55 * math.sin(2.0 * math.pi * (48.0 - 16.0 * tp) * t) * (1.0 - tp) ** 2.0
+
+        val = math.tanh((tone + clatter + thud) * 1.25) * 0.70
+        sample = int(val * 32767)
+        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(file_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(frames)
+
+
+def _generate_session_suspend_wav(file_path: Path, sample_rate: int = 44100, duration: float = 1.05) -> None:
+    """Генерирует крио-погружение: низкий пульс, дыхание стазиса и одиночный сонный бип."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+
+        breath = math.sin(2.0 * math.pi * (78.0 + 9.0 * math.sin(2.0 * math.pi * 0.7 * t)) * t)
+        pad = (
+            0.42 * math.sin(2.0 * math.pi * 146.83 * t)
+            + 0.24 * math.sin(2.0 * math.pi * 220.0 * t)
+            + 0.18 * math.sin(2.0 * math.pi * 293.66 * t)
+        ) * (0.55 + 0.45 * math.sin(2.0 * math.pi * 1.6 * t)) * 0.6
+
+        blip = 0.0
+        if 0.20 <= t < 0.34:
+            bp = (t - 0.20) / 0.14
+            blip = 0.30 * math.sin(2.0 * math.pi * (880.0 - 240.0 * bp) * t) * math.sin(math.pi * bp)
+
+        fade = min(1.0, t / 0.08) * (1.0 - p) ** 1.1
+        val = math.tanh((breath * 0.40 + pad + blip) * 1.2) * 0.60 * fade
+        sample = int(val * 32767)
+        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(file_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(frames)
+
+
+def _generate_session_reboot_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.95) -> None:
+    """Генерирует загрузочную кибер-последовательность: восходящее арпеджио и бинарный стрекот."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(777)
+    notes = (261.63, 329.63, 392.0, 523.25, 659.25, 783.99)
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+
+        note_index = min(len(notes) - 1, int(p * len(notes) * 1.2))
+        freq = notes[note_index]
+        gate = 0.55 + 0.45 * math.sin(2.0 * math.pi * 7.0 * t)
+        arp = (
+            0.36 * math.sin(2.0 * math.pi * freq * t)
+            + 0.18 * math.sin(2.0 * math.pi * freq * 2.0 * t)
+        ) * gate
+
+        static = 0.0
+        if p < 0.35:
+            static = 0.11 * rng.uniform(-1.0, 1.0) * (1.0 - p / 0.35)
+
+        lock_beep = 0.0
+        if 0.72 <= t < 0.88:
+            bp = (t - 0.72) / 0.16
+            lock_beep = 0.30 * math.sin(2.0 * math.pi * 1568.0 * t) * math.sin(math.pi * bp) ** 1.3
+
+        val = math.tanh((arp + static + lock_beep) * 1.35) * 0.58 * (1.0 - p * 0.18)
+        sample = int(val * 32767)
+        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(file_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(frames)
+
+
 class SpeechSFX(QObject):
     """
     Легковесный аудио-модуль для диалоговых облачков (SFX).
@@ -233,12 +386,14 @@ class SpeechSFX(QObject):
         self._lightning_strike_path: Path | None = None
         self._lightning_arc_path: Path | None = None
         self._lightning_zap_path: Path | None = None
+        self._session_paths: dict[str, Path] = {}
 
         self._swoosh_effect: QSoundEffect | None = None
         self._close_effect: QSoundEffect | None = None
         self._lightning_strike_effect: QSoundEffect | None = None
         self._lightning_arc_effect: QSoundEffect | None = None
         self._lightning_zap_effect: QSoundEffect | None = None
+        self._session_effects: dict[str, QSoundEffect] = {}
         self._chirp_pool: list[QSoundEffect] = []
         self._chirp_index = 0
 
@@ -253,6 +408,13 @@ class SpeechSFX(QObject):
             strike_path = temp_dir / "cyber_lightning_strike.wav"
             arc_path = temp_dir / "cyber_lightning_arc.wav"
             zap_path = temp_dir / "cyber_lightning_zap.wav"
+
+            session_specs = {
+                "lock": ("cyber_session_lock.wav", _generate_session_lock_wav),
+                "power_off": ("cyber_session_power.wav", _generate_session_power_wav),
+                "suspend": ("cyber_session_suspend.wav", _generate_session_suspend_wav),
+                "reboot": ("cyber_session_reboot.wav", _generate_session_reboot_wav),
+            }
 
             if not swoosh_path.exists():
                 _generate_swoosh_wav(swoosh_path)
@@ -273,6 +435,16 @@ class SpeechSFX(QObject):
             self._lightning_strike_path = strike_path
             self._lightning_arc_path = arc_path
             self._lightning_zap_path = zap_path
+
+            for action, (filename, generator) in session_specs.items():
+                path = temp_dir / filename
+                if not path.exists():
+                    generator(path)
+                self._session_paths[action] = path
+                effect = QSoundEffect(self)
+                effect.setSource(QUrl.fromLocalFile(str(path)))
+                effect.setVolume(self._volume * 0.85)
+                self._session_effects[action] = effect
 
             # Фолбэк QSoundEffect для swoosh
             swoosh = QSoundEffect(self)
@@ -382,6 +554,8 @@ class SpeechSFX(QObject):
             self._lightning_arc_effect.setVolume(self._volume * 0.85)
         if self._lightning_zap_effect is not None:
             self._lightning_zap_effect.setVolume(self._volume * 0.75)
+        for effect in self._session_effects.values():
+            effect.setVolume(self._volume * 0.85)
         for effect in self._chirp_pool:
             effect.setVolume(self._volume * 0.7)
 
@@ -414,6 +588,13 @@ class SpeechSFX(QObject):
         if not self.is_effects_sound_enabled():
             return
         self._play_file(self._lightning_zap_path, self._lightning_zap_effect)
+
+    def play_session_action(self, action: str) -> None:
+        """Воспроизводит характерный звук сессионной анимации Капри."""
+        if not self.is_effects_sound_enabled():
+            return
+        path = self._session_paths.get(action)
+        self._play_file(path, self._session_effects.get(action))
 
     def play_chirp(self) -> None:
         """

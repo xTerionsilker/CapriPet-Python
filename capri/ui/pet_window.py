@@ -29,6 +29,10 @@ from ..core.wake_word import (
     command_after_trigger,
 )
 from ..effects.glitch import GlitchManager
+from ..effects.session_animations import (
+    SessionAnimationOverlay,
+    play_session_animation,
+)
 from ..effects.transition import TransitionOverlay
 from .context_menu import build_pet_context_menu, build_tray_context_menu
 from .pet_renderer import PetRenderState, PetRenderer
@@ -88,6 +92,7 @@ class CapriWindow(QWidget):
         self._anim_frame = 0
         self._telemetry_tag = "[CAPRI//ONLINE]"
         self._startup_overlay: TransitionOverlay | None = None
+        self._session_overlay: SessionAnimationOverlay | None = None
         self._voice_armed_until = 0.0
         self._closing = False
         self._designated_screen_name: str | None = None
@@ -102,6 +107,9 @@ class CapriWindow(QWidget):
         self._flow = InputFlow(self.commands, self)
         self._actions = ActionBridge(self)
         self._actions.speech_requested.connect(self.speak)
+        self._actions.session_animation_requested.connect(
+            self._on_session_animation_requested
+        )
         self._actions.ollama_started.connect(self._on_ollama_talking_start)
         self._actions.ollama_finished.connect(self._on_ollama_talking_end)
 
@@ -513,6 +521,26 @@ class CapriWindow(QWidget):
         self._surge_ticks = max(self._surge_ticks, 8)
         self.set_pose("sit")
 
+    def _on_session_animation_requested(self, action: str) -> None:
+        if self._closing:
+            return
+        if self._session_overlay is not None:
+            try:
+                self._session_overlay.close()
+            except Exception:
+                pass
+            self._session_overlay = None
+
+        overlay = play_session_animation(self, action)
+        self._session_overlay = overlay
+        overlay.finished.connect(
+            lambda overlay=overlay: self._forget_session_animation(overlay)
+        )
+
+    def _forget_session_animation(self, overlay: SessionAnimationOverlay) -> None:
+        if self._session_overlay is overlay:
+            self._session_overlay = None
+
     def _locate_mouse(self) -> str:
         return self._inactivity.catch_mouse(
             on_pose_change=self.set_pose
@@ -702,6 +730,12 @@ class CapriWindow(QWidget):
         if hasattr(self, "_exit_safety_timer") and self._exit_safety_timer is not None:
             self._exit_safety_timer.stop()
             self._exit_safety_timer = None
+        if self._session_overlay is not None:
+            try:
+                self._session_overlay.close()
+            except Exception:
+                pass
+            self._session_overlay = None
         if hasattr(self, "_exit_overlay") and self._exit_overlay is not None:
             try:
                 self._exit_overlay.close()

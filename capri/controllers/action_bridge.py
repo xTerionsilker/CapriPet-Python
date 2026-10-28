@@ -4,12 +4,11 @@ import threading
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
+from ..effects.session_animations import SESSION_ACTION_LEAD_MS
 from ..integrations import ollama, spotify, web_search
 from ..integrations.screen_lock import lock_commands, run_lock
 from ..integrations.system_power import power_commands, run_power
 
-LOCK_DELAY_MS = 800
-POWER_DELAY_MS = 2000
 OLLAMA_HISTORY_MESSAGES = 12
 
 
@@ -17,6 +16,7 @@ class ActionBridge(QObject):
     """Мост для выполнения длительных и системных действий (Ollama, Spotify, Power, Lock)."""
 
     speech_requested = Signal(str)
+    session_animation_requested = Signal(str)
     ollama_started = Signal()
     ollama_finished = Signal()
 
@@ -122,7 +122,8 @@ class ActionBridge(QObject):
         if not commands:
             return "Не удалось найти способ заблокировать экран."
         self._lock_pending = commands
-        QTimer.singleShot(LOCK_DELAY_MS, self._perform_lock)
+        self.session_animation_requested.emit("lock")
+        QTimer.singleShot(SESSION_ACTION_LEAD_MS, self._perform_lock)
         return "Блокирую экран."
 
     def _perform_lock(self) -> None:
@@ -157,7 +158,9 @@ class ActionBridge(QObject):
         if not commands:
             return "Не удалось найти способ выполнить это действие."
         self._power_pending = commands
-        QTimer.singleShot(POWER_DELAY_MS, self._perform_power)
+        animation_action = "power_off" if action == "poweroff" else action
+        self.session_animation_requested.emit(animation_action)
+        QTimer.singleShot(SESSION_ACTION_LEAD_MS, self._perform_power)
         return message
 
     def _perform_power(self) -> None:
