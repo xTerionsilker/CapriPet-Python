@@ -8,8 +8,8 @@ from PySide6.QtMultimedia import QMediaDevices
 from PySide6.QtWidgets import QMenu, QWidget
 
 from ..core.settings import ACTIVITY_TIMEOUT_OPTIONS_MS
+from .cyber_menu import CyberMenu
 from .speech_sfx import get_speech_sfx
-from .theme import APP_STYLE
 
 
 class ContextMenuBuilder:
@@ -20,8 +20,7 @@ class ContextMenuBuilder:
 
     def build(self, for_tray: bool = False) -> QMenu:
         """Создает и настраивает контекстное меню."""
-        menu = QMenu(self.window if isinstance(self.window, QWidget) else None)
-        menu.setStyleSheet(APP_STYLE)
+        menu = CyberMenu(self.window if isinstance(self.window, QWidget) else None)
 
         if for_tray:
             call_act = menu.addAction("🐾  Позвать Капри")
@@ -70,8 +69,14 @@ class ContextMenuBuilder:
 
         return menu
 
+    def _add_submenu(self, parent_menu: QMenu, title: str) -> CyberMenu:
+        submenu = CyberMenu(parent_menu)
+        submenu.setTitle(title)
+        parent_menu.addMenu(submenu)
+        return submenu
+
     def _add_screen_menu(self, parent_menu: QMenu) -> None:
-        screen_menu = parent_menu.addMenu("🖥  Основной монитор")
+        screen_menu = self._add_submenu(parent_menu, "🖥  Основной монитор")
         screen_group = QActionGroup(screen_menu)
         screen_group.setExclusive(True)
 
@@ -97,7 +102,7 @@ class ContextMenuBuilder:
             screen_group.addAction(action)
 
     def _add_microphone_menu(self, parent_menu: QMenu) -> None:
-        mic_menu = parent_menu.addMenu("🎙  Микрофон")
+        mic_menu = self._add_submenu(parent_menu, "🎙  Микрофон")
         mic_group = QActionGroup(mic_menu)
         mic_group.setExclusive(True)
 
@@ -133,7 +138,7 @@ class ContextMenuBuilder:
             mic_group.addAction(act)
 
     def _add_sound_menu(self, parent_menu: QMenu) -> None:
-        sound_menu = parent_menu.addMenu("🔊  Звук")
+        sound_menu = self._add_submenu(parent_menu, "🔊  Звук")
         speech_sfx = get_speech_sfx()
 
         msg_sound_act = sound_menu.addAction("💬  Сообщения")
@@ -151,7 +156,7 @@ class ContextMenuBuilder:
         )
 
     def _add_volume_menu(self, parent_menu: QMenu) -> None:
-        volume_menu = parent_menu.addMenu("🔉  Громкость")
+        volume_menu = self._add_submenu(parent_menu, "🔉  Громкость")
         volume_group = QActionGroup(volume_menu)
         volume_group.setExclusive(True)
 
@@ -167,7 +172,7 @@ class ContextMenuBuilder:
             volume_group.addAction(act)
 
     def _add_scale_menu(self, parent_menu: QMenu) -> None:
-        size_menu = parent_menu.addMenu("📐  Размер")
+        size_menu = self._add_submenu(parent_menu, "📐  Размер")
         size_group = QActionGroup(size_menu)
         size_group.setExclusive(True)
 
@@ -186,7 +191,7 @@ class ContextMenuBuilder:
             size_group.addAction(act)
 
     def _add_activity_timeout_menu(self, parent_menu: QMenu) -> None:
-        timeout_menu = parent_menu.addMenu("⏱  Время активности")
+        timeout_menu = self._add_submenu(parent_menu, "⏱  Время активности")
         timeout_group = QActionGroup(timeout_menu)
         timeout_group.setExclusive(True)
 

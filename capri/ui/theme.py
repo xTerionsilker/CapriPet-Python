@@ -1,7 +1,78 @@
+from pathlib import Path
+
 PIXEL_FONT = (
     '"Press Start 2P", "Pixelify Sans", "VT323", "Terminus", '
     '"DejaVu Sans Mono", monospace'
 )
+
+# Строгая палитра персонажа.
+NEON_CRIMSON = "#F20D2E"
+OBSIDIAN_BLACK = "#0B0B0B"
+ACID_GREEN = "#3CF12B"
+PURE_WHITE = "#FFFFFF"
+ELECTRIC_BLUE = "#1E70F0"
+NEON_VIOLET = "#9922EE"
+
+_MENU_ARROW = (Path(__file__).resolve().parents[2] / "assets" / "menu_arrow.svg").as_posix()
+
+CYBER_MENU_STYLE = f"""
+QMenu {{
+    background: transparent;
+    border: none;
+    padding: 8px 7px 7px 7px;
+    color: {PURE_WHITE};
+    font-family: {PIXEL_FONT};
+    font-size: 11px;
+    letter-spacing: 1px;
+}}
+QMenu::item {{
+    background: transparent;
+    padding: 8px 30px 8px 24px;
+    margin: 1px 0;
+    border-left: 2px solid transparent;
+}}
+QMenu::item:selected {{
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 {NEON_CRIMSON}, stop:0.55 {NEON_CRIMSON},
+        stop:1 {OBSIDIAN_BLACK});
+    color: {PURE_WHITE};
+    border-left: 2px solid {ACID_GREEN};
+}}
+QMenu::item:disabled {{
+    color: {NEON_VIOLET};
+}}
+QMenu::separator {{
+    height: 2px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 {NEON_CRIMSON}, stop:0.55 {NEON_VIOLET},
+        stop:1 {OBSIDIAN_BLACK});
+    margin: 7px 4px;
+}}
+QMenu::indicator {{
+    width: 10px;
+    height: 10px;
+    margin-left: 7px;
+}}
+QMenu::indicator:checked {{
+    background-color: {ACID_GREEN};
+    border: 1px solid {PURE_WHITE};
+}}
+QMenu::indicator:unchecked {{
+    background-color: {OBSIDIAN_BLACK};
+    border: 1px solid {NEON_VIOLET};
+}}
+QMenu::right-arrow {{
+    image: url("{_MENU_ARROW}");
+    width: 9px;
+    height: 9px;
+    margin-right: 7px;
+}}
+QMenu::scroller {{
+    height: 18px;
+    background: {OBSIDIAN_BLACK};
+    border: 1px solid {NEON_CRIMSON};
+}}
+"""
 
 APP_STYLE = f"""
 QWidget {{
