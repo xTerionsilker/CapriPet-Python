@@ -20,10 +20,14 @@ from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QWidget
 
 from ..audio.voice import VoiceInput
 from ..commands import CommandContext, register_default_commands
-from ..controllers import ActionBridge, InactivityManager
+from ..controllers import ActionBridge, InactivityManager, PresenceReminder
 from ..core.commands import CommandRegistry
 from ..core.input_flow import InputFlow
-from ..core.settings import get_config_value, set_config_value
+from ..core.settings import (
+    ACTIVITY_TIMEOUT_OPTIONS_MS,
+    get_config_value,
+    set_config_value,
+)
 from ..core.wake_word import (
     VOICE_COMMAND_WINDOW_MS,
     command_after_trigger,
@@ -126,13 +130,25 @@ class CapriWindow(QWidget):
             on_wake_voice=self._wake_voice_if_needed,
             get_designated_screen=self.get_designated_screen,
         )
-        inactivity_ms = get_config_value("behavior.inactivity_timeout_ms", 5000)
-        self._inactivity.set_timeout_ms(int(inactivity_ms))
+        inactivity_ms = get_config_value(
+            "behavior.inactivity_timeout_ms", ACTIVITY_TIMEOUT_OPTIONS_MS[0]
+        )
+        try:
+            inactivity_ms = int(inactivity_ms)
+        except (ValueError, TypeError):
+            inactivity_ms = ACTIVITY_TIMEOUT_OPTIONS_MS[0]
+        if inactivity_ms not in ACTIVITY_TIMEOUT_OPTIONS_MS:
+            inactivity_ms = ACTIVITY_TIMEOUT_OPTIONS_MS[0]
+        self._activity_timeout_seconds = inactivity_ms // 1000
+        self._inactivity.set_timeout_ms(inactivity_ms)
 
         voice_enabled = get_config_value("audio.voice_enabled", True)
         if voice_enabled:
             self._voice.start()
         self._inactivity.start()
+
+        self._reminder = PresenceReminder(self._on_reminder, self)
+        self._reminder.start()
 
         self._tray_icon: QSystemTrayIcon | None = None
         self._tray_menu = None
@@ -184,6 +200,20 @@ class CapriWindow(QWidget):
             self.move(new_x, new_y)
             self.update()
             self.speak(f"Размер: {percent}%")
+
+    def set_activity_timeout(self, seconds: int) -> None:
+        """Задаёт время активности: через сколько секунд Капри исчезает с экрана."""
+        timeout_ms = int(seconds) * 1000
+        if timeout_ms not in ACTIVITY_TIMEOUT_OPTIONS_MS:
+            return
+        self._activity_timeout_seconds = timeout_ms // 1000
+        set_config_value("behavior.inactivity_timeout_ms", timeout_ms)
+        self._inactivity.set_timeout_ms(timeout_ms)
+        self.speak(f"Время активности: {seconds} с")
+
+    @property
+    def activity_timeout_seconds(self) -> int:
+        return self._activity_timeout_seconds
 
     def _load_all_poses(self) -> None:
         pose_files = {
@@ -740,6 +770,15 @@ class CapriWindow(QWidget):
         line = random.choice(STARTUP_LINES).format(user=getpass.getuser())
         self.speak(line)
 
+    def _on_reminder(self, phrase: str) -> None:
+        """Напоминает о себе: при необходимости возвращает Капри на экран и говорит фразу."""
+        if self._closing or self._speaking or self._inactivity.is_paused:
+            return
+        if self.isVisible():
+            self.speak(phrase)
+            return
+        self._inactivity.show_with_callback(lambda: self.speak(phrase))
+
     def _forget_speech(self, window: SpeechWindow) -> None:
         if self._speech is window:
             self._speech = None
@@ -787,6 +826,7 @@ class CapriWindow(QWidget):
         self._closing = True
         event.ignore()
         self._inactivity.stop()
+        self._reminder.stop()
         self._glitch_timer.stop()
         self._voice_window_timer.stop()
         self._voice.cancel()

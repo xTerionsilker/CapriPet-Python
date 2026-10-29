@@ -44,6 +44,7 @@ class InactivityManager(QObject):
         self._transition_overlay: TransitionOverlay | None = None
         self._voice_was_listening = False
         self._paused = False
+        self._pending_show_callbacks: list[Callable[[], None]] = []
 
         self._inactivity_timer = QTimer(self)
         self._inactivity_timer.setSingleShot(True)
@@ -116,6 +117,19 @@ class InactivityManager(QObject):
             return
         self._inactivity_timer.stop()
         self._inactivity_timer.start(self._timeout_ms)
+
+    def show_with_callback(self, callback: Callable[[], None]) -> None:
+        """Показывает питомца и вызывает callback после завершения анимации появления."""
+        if self._is_closing():
+            return
+        target = self.current_target_widget
+        if target.isVisible():
+            callback()
+            return
+        if self._paused or self._transitioning:
+            return
+        self._pending_show_callbacks.append(callback)
+        self._start_show_transition()
 
     def relocate_randomly(self) -> None:
         target = self.current_target_widget
@@ -191,6 +205,10 @@ class InactivityManager(QObject):
         self._on_wake_voice()
         self._inactivity_timer.stop()
         self._inactivity_timer.start(self._timeout_ms)
+        callbacks = self._pending_show_callbacks
+        self._pending_show_callbacks = []
+        for callback in callbacks:
+            callback()
 
     def switch_target(
         self, old_target: QWidget, new_target: QWidget

@@ -94,7 +94,7 @@
 | `effects.glitches_enabled` | `bool` | `true` | Включены ли экранные глитч-эффекты (`GlitchManager`) |
 | `window.terminal_position` | `{"x": int, "y": int} \| null` | `null` | Координаты окна терминала на рабочем столе. `null` = центр экрана |
 | `window.overlay_position` | `{"x": int, "y": int} \| null` | `null` | Координаты оверлея питомца на рабочем столе. `null` = центр экрана |
-| `behavior.inactivity_timeout_ms`| `int` | `5000` | Время бездействия до анимации/скрытия в миллисекундах |
+| `behavior.inactivity_timeout_ms`| `int` | `5000` | Время активности до скрытия питомца в миллисекундах (`5000`, `10000`, `15000`) |
 
 ---
 

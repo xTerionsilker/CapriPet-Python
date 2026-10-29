@@ -7,6 +7,7 @@ from PySide6.QtGui import QActionGroup, QGuiApplication
 from PySide6.QtMultimedia import QMediaDevices
 from PySide6.QtWidgets import QMenu, QWidget
 
+from ..core.settings import ACTIVITY_TIMEOUT_OPTIONS_MS
 from .speech_sfx import get_speech_sfx
 from .theme import APP_STYLE
 
@@ -49,6 +50,9 @@ class ContextMenuBuilder:
 
         # 5. Меню размера спрайта
         self._add_scale_menu(menu)
+
+        # 6. Меню времени активности
+        self._add_activity_timeout_menu(menu)
 
         menu.addSeparator()
 
@@ -177,6 +181,25 @@ class ContextMenuBuilder:
                 lambda *_, s=opt: self.window.set_sprite_scale(s)
             )
             size_group.addAction(act)
+
+    def _add_activity_timeout_menu(self, parent_menu: QMenu) -> None:
+        timeout_menu = parent_menu.addMenu("⏱  Время активности")
+        timeout_group = QActionGroup(timeout_menu)
+        timeout_group.setExclusive(True)
+
+        current_seconds = getattr(
+            self.window, "activity_timeout_seconds", ACTIVITY_TIMEOUT_OPTIONS_MS[0] // 1000
+        )
+        for timeout_ms in ACTIVITY_TIMEOUT_OPTIONS_MS:
+            seconds = timeout_ms // 1000
+            act = timeout_menu.addAction(f"{seconds} секунд")
+            act.setCheckable(True)
+            if current_seconds == seconds:
+                act.setChecked(True)
+            act.triggered.connect(
+                lambda *_, s=seconds: self.window.set_activity_timeout(s)
+            )
+            timeout_group.addAction(act)
 
     def _add_quick_actions(self, parent_menu: QMenu) -> None:
         glitches_enabled = getattr(

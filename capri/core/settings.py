@@ -9,6 +9,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Допустимые значения времени активности (мс): 5, 10 и 15 секунд.
+ACTIVITY_TIMEOUT_OPTIONS_MS: tuple[int, ...] = (5_000, 10_000, 15_000)
+
 DEFAULT_CONFIG: dict[str, Any] = {
     "version": 1,
     "screen": {
@@ -177,12 +180,14 @@ class ConfigManager:
         except (ValueError, TypeError):
             config["appearance"]["scale"] = 100
 
-        # Таймаут бездействия
+        # Время активности до скрытия питомца
         try:
             inactivity = int(config["behavior"].get("inactivity_timeout_ms", 5000))
-            config["behavior"]["inactivity_timeout_ms"] = max(500, inactivity)
         except (ValueError, TypeError):
-            config["behavior"]["inactivity_timeout_ms"] = 5000
+            inactivity = ACTIVITY_TIMEOUT_OPTIONS_MS[0]
+        if inactivity not in ACTIVITY_TIMEOUT_OPTIONS_MS:
+            inactivity = ACTIVITY_TIMEOUT_OPTIONS_MS[0]
+        config["behavior"]["inactivity_timeout_ms"] = inactivity
 
         # Координаты
         for pos_key in ("position", "overlay_position", "terminal_position"):
