@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 from pathlib import Path
 
@@ -51,6 +52,41 @@ def _find_vosk_model_path() -> str | None:
                 return str(candidate)
 
     return None
+
+
+def get_model_info() -> dict[str, object]:
+    """Возвращает статус локальной модели Vosk без принудительной загрузки."""
+    vosk_available = True
+    vosk_version = ""
+    try:
+        import vosk
+
+        vosk_version = str(getattr(vosk, "__version__", "") or "")
+        if not vosk_version:
+            try:
+                from importlib.metadata import version as package_version
+
+                vosk_version = package_version("vosk")
+            except Exception:
+                vosk_version = ""
+    except ImportError:
+        vosk_available = False
+
+    model_path = _find_vosk_model_path()
+    model_name = Path(model_path).name if model_path else ""
+    model_version = ""
+    if model_name:
+        match = re.search(r"(\d+(?:\.\d+)+)", model_name)
+        if match:
+            model_version = match.group(1)
+
+    return {
+        "available": vosk_available,
+        "initialized": _vosk_model is not None,
+        "model_name": model_name,
+        "model_version": model_version,
+        "vosk_version": vosk_version,
+    }
 
 
 def get_vosk_model():

@@ -18,6 +18,7 @@ from PySide6.QtGui import (
 from PySide6.QtMultimedia import QAudioDevice, QMediaDevices
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QWidget
 
+from ..audio.recognizer import get_model_info
 from ..audio.voice import VoiceInput
 from ..commands import CommandContext, register_default_commands
 from ..controllers import ActionBridge, InactivityManager, PresenceReminder
@@ -102,6 +103,7 @@ class CapriWindow(QWidget):
         self._closing = False
         self._designated_screen_name: str | None = None
         self._renderer = PetRenderer()
+        self._started_at = time.monotonic()
 
         # Таймер анимации пиксельных глитчей
         self._glitch_timer = QTimer(self)
@@ -280,6 +282,7 @@ class CapriWindow(QWidget):
             get_config=get_config_value,
             set_config=set_config_value,
             action_bridge=self._actions,
+            debug_info=self._debug_info,
         )
         self.commands.set_context(context)
         register_default_commands(self.commands)
@@ -576,6 +579,14 @@ class CapriWindow(QWidget):
         return self._inactivity.catch_mouse(
             on_pose_change=self.set_pose
         )
+
+    def _debug_info(self) -> dict[str, object]:
+        """Собирает диагностические данные для команды «дебаг»."""
+        return {
+            "vosk": get_model_info(),
+            "next_reminder_seconds": self._reminder.seconds_until_next,
+            "uptime_seconds": time.monotonic() - self._started_at,
+        }
 
     def _load_initial_settings(self) -> None:
         screen_name = get_config_value("screen.designated_screen")

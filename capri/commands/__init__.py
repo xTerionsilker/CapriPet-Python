@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .ai import OllamaAskCommand
 from .base import BaseCommand, CommandContext, CommandResult
+from .diagnostics import DebugCommand
 from .media import (
     SpotifyNextCommand,
     SpotifyPauseCommand,
@@ -24,6 +25,7 @@ from .system import (
 from .web import GoogleSearchCommand, YouTubeSearchCommand
 
 DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
+    DebugCommand,
     GlitchToggleCommand,
     VoiceToggleCommand,
     GoogleSearchCommand,
@@ -66,6 +68,7 @@ __all__ = [
     "register_default_commands",
     "create_default_registry",
     "DEFAULT_COMMAND_CLASSES",
+    "DebugCommand",
     "GlitchToggleCommand",
     "VoiceToggleCommand",
     "GoogleSearchCommand",

@@ -5,6 +5,7 @@ from typing import Any, Tuple
 from ..commands import DEFAULT_COMMAND_CLASSES
 
 _CMD_TO_HANDLER: dict[str, str] = {
+    "дебаг": "debug_info",
     "глитч": "toggle_glitches",
     "голос": "toggle_voice",
     "гугл": "search_google",

@@ -25,6 +25,7 @@ class CommandContext:
     get_config: Callable[[str, Any], Any]
     set_config: Callable[[str, Any], None]
     action_bridge: Any = None  # ActionBridge для фоновых асинхронных операций
+    debug_info: Callable[[], dict[str, Any]] | None = None
 
 
 class BaseCommand:

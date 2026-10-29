@@ -38,6 +38,13 @@ class PresenceReminder(QObject):
     def is_active(self) -> bool:
         return self._active
 
+    @property
+    def seconds_until_next(self) -> int | None:
+        """Сколько секунд осталось до следующего напоминания (None, если таймер неактивен)."""
+        if not self._active or not self._timer.isActive():
+            return None
+        return max(0, round(self._timer.remainingTime() / 1000))
+
     def start(self) -> None:
         """Запускает цикл напоминаний."""
         self._active = True
