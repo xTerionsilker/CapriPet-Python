@@ -42,6 +42,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "behavior": {
         "inactivity_timeout_ms": 5000,
+        "reminders_enabled": True,
     },
 }
 
@@ -188,6 +189,9 @@ class ConfigManager:
         if inactivity not in ACTIVITY_TIMEOUT_OPTIONS_MS:
             inactivity = ACTIVITY_TIMEOUT_OPTIONS_MS[0]
         config["behavior"]["inactivity_timeout_ms"] = inactivity
+        config["behavior"]["reminders_enabled"] = bool(
+            config["behavior"].get("reminders_enabled", True)
+        )
 
         # Координаты
         for pos_key in ("position", "overlay_position", "terminal_position"):

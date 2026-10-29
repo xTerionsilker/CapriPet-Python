@@ -54,6 +54,9 @@ class ContextMenuBuilder:
         # 6. Меню времени активности
         self._add_activity_timeout_menu(menu)
 
+        # 7. Напоминания о себе
+        self._add_reminder_toggle(menu)
+
         menu.addSeparator()
 
         # 5. Быстрые переключатели
@@ -200,6 +203,14 @@ class ContextMenuBuilder:
                 lambda *_, s=seconds: self.window.set_activity_timeout(s)
             )
             timeout_group.addAction(act)
+
+    def _add_reminder_toggle(self, parent_menu: QMenu) -> None:
+        remind_act = parent_menu.addAction("🔔  Напоминания о себе")
+        remind_act.setCheckable(True)
+        remind_act.setChecked(bool(getattr(self.window, "reminders_enabled", True)))
+        remind_act.triggered.connect(
+            lambda checked: self.window.set_reminders_enabled(checked)
+        )
 
     def _add_quick_actions(self, parent_menu: QMenu) -> None:
         glitches_enabled = getattr(

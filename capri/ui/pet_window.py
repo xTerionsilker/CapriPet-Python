@@ -158,7 +158,11 @@ class CapriWindow(QWidget):
         self._inactivity.start()
 
         self._reminder = PresenceReminder(self._on_reminder, self)
-        self._reminder.start()
+        self._reminders_enabled = bool(
+            get_config_value("behavior.reminders_enabled", True)
+        )
+        if self._reminders_enabled:
+            self._reminder.start()
 
         self._tray_icon: QSystemTrayIcon | None = None
         self._tray_menu = None
@@ -224,6 +228,24 @@ class CapriWindow(QWidget):
     @property
     def activity_timeout_seconds(self) -> int:
         return self._activity_timeout_seconds
+
+    def set_reminders_enabled(self, enabled: bool) -> None:
+        """Включает или выключает случайные напоминания о себе."""
+        enabled = bool(enabled)
+        if self._reminders_enabled == enabled:
+            return
+        self._reminders_enabled = enabled
+        set_config_value("behavior.reminders_enabled", enabled)
+        if enabled:
+            self._reminder.start()
+            self.speak("Напоминания включены.")
+        else:
+            self._reminder.stop()
+            self.speak("Напоминания выключены.")
+
+    @property
+    def reminders_enabled(self) -> bool:
+        return self._reminders_enabled
 
     def _load_all_poses(self) -> None:
         pose_files = {
