@@ -5,8 +5,8 @@ from typing import Callable
 
 from PySide6.QtCore import QObject, QTimer
 
-MIN_INTERVAL_MS = 30_000
-MAX_INTERVAL_MS = 600_000
+MIN_INTERVAL_MS = 600_000
+MAX_INTERVAL_MS = 3_600_000
 
 REMINDER_PHRASES: tuple[str, ...] = (
     "Я всё ещё здесь. Не забывай про меня.",
@@ -18,7 +18,7 @@ REMINDER_PHRASES: tuple[str, ...] = (
 
 
 class PresenceReminder(QObject):
-    """Периодически напоминает о себе в случайный момент времени (30 секунд — 10 минут)."""
+    """Периодически напоминает о себе в случайный момент времени (10 минут — 1 час)."""
 
     def __init__(
         self,
