@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import threading
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 _vosk_model = None
 _model_lock = threading.Lock()
+_preload_lock = threading.Lock()
+_preload_thread: threading.Thread | None = None
+_model_loading = False
+_recognizers: dict[int, object] = {}
+_recognizer_lock = threading.Lock()
 
 
 class RecognitionError(RuntimeError):
@@ -83,10 +91,43 @@ def get_model_info() -> dict[str, object]:
     return {
         "available": vosk_available,
         "initialized": _vosk_model is not None,
+        "loading": _model_loading,
         "model_name": model_name,
         "model_version": model_version,
         "vosk_version": vosk_version,
     }
+
+
+def preload_model_async() -> None:
+    """Запускает фоновую загрузку модели Vosk при старте приложения."""
+    global _preload_thread
+    if _vosk_model is not None:
+        return
+
+    with _preload_lock:
+        if _vosk_model is not None:
+            return
+        if _preload_thread is not None and _preload_thread.is_alive():
+            return
+        _preload_thread = threading.Thread(
+            target=_preload_worker,
+            name="capri-vosk-preload",
+            daemon=True,
+        )
+        _preload_thread.start()
+
+
+def _preload_worker() -> None:
+    global _model_loading
+    _model_loading = True
+    try:
+        get_vosk_model()
+    except RecognitionError as error:
+        logger.warning("Не удалось прогреть модель Vosk: %s", error)
+    except Exception:
+        logger.exception("Ошибка фоновой загрузки модели Vosk.")
+    finally:
+        _model_loading = False
 
 
 def get_vosk_model():
@@ -143,9 +184,22 @@ def _recognize_vosk(data: bytes, *, channels: int, sample_rate: int) -> str | No
     model = get_vosk_model()
     mono_data = _to_mono(data, channels)
 
-    rec = vosk.KaldiRecognizer(model, float(sample_rate))
-    rec.AcceptWaveform(mono_data)
-    result = json.loads(rec.FinalResult())
+    with _recognizer_lock:
+        rec = _recognizers.get(sample_rate)
+        if rec is None:
+            rec = vosk.KaldiRecognizer(model, float(sample_rate))
+            _recognizers[sample_rate] = rec
+        else:
+            reset = getattr(rec, "Reset", None)
+            if reset is not None:
+                reset()
+            else:
+                rec = vosk.KaldiRecognizer(model, float(sample_rate))
+                _recognizers[sample_rate] = rec
+
+        rec.AcceptWaveform(mono_data)
+        result = json.loads(rec.FinalResult())
+
     text = result.get("text", "").strip()
     return text or None
 

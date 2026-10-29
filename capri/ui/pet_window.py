@@ -18,7 +18,7 @@ from PySide6.QtGui import (
 from PySide6.QtMultimedia import QAudioDevice, QMediaDevices
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QWidget
 
-from ..audio.recognizer import get_model_info
+from ..audio.recognizer import get_model_info, preload_model_async
 from ..audio.voice import VoiceInput
 from ..commands import CommandContext, register_default_commands
 from ..controllers import ActionBridge, InactivityManager, PresenceReminder
@@ -292,6 +292,8 @@ class CapriWindow(QWidget):
         QShortcut(QKeySequence("Ctrl+Space"), self, self._toggle_voice)
 
     def _build_voice(self) -> None:
+        if get_config_value("audio.voice_enabled", True):
+            preload_model_async()
         self._voice = VoiceInput(always_on=False)
         self._voice.listening_changed.connect(self._on_voice_listening)
         self._voice.status_changed.connect(self._on_voice_status)
@@ -512,6 +514,7 @@ class CapriWindow(QWidget):
             set_config_value("audio.voice_enabled", False)
             return "Голосовой ввод отключён."
         else:
+            preload_model_async()
             self._voice.start()
             set_config_value("audio.voice_enabled", True)
             if self._voice.is_listening:

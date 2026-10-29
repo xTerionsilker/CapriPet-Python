@@ -36,8 +36,10 @@ def _describe_vosk(info: dict[str, object]) -> str:
 
     if info.get("initialized", False):
         return f"инициализирована{suffix}"
+    if info.get("loading", False):
+        return f"загружается в фоне{suffix}"
     if model_name:
-        return f"не загружена, будет загружена при первом распознавании{suffix}"
+        return f"не загружена, загрузится при первом распознавании{suffix}"
     return "не инициализирована, локальная модель не найдена"
 
 
