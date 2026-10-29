@@ -29,86 +29,122 @@ _HUD_MICRO_TAGS = (
 )
 
 
-def paint_frame(painter: QPainter, width: int, height: int) -> None:
+def paint_frame(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
     """Фоновый киберпанк-глитч экрана в стилистике Cyberpunk 2077:
 
     деликатные микро-помехи интерфейса Kiroshi / Relic, сканлайны, шины данных и
-    микро-маркеры телеметрии в строгой палитре Капри, комфортные для повседневной работы.
+    микро-маркеры телеметрии в строгой палитре Капри с настраиваемой силой (weak/medium/strong).
     """
     painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
     painter.fillRect(0, 0, width, height, Qt.GlobalColor.transparent)
     painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
-    paint_scanlines(painter, width, height)
-    paint_kiroshi_brackets(painter, width, height)
-    paint_slices(painter, width, height)
-    paint_tears(painter, width, height)
-    paint_circuit_traces(painter, width, height)
-    paint_cyber_markers(painter, width, height)
-    paint_subtle_noise(painter, width, height)
+    paint_scanlines(painter, width, height, intensity)
+    paint_kiroshi_brackets(painter, width, height, intensity)
+    paint_slices(painter, width, height, intensity)
+    paint_tears(painter, width, height, intensity)
+    paint_circuit_traces(painter, width, height, intensity)
+    paint_cyber_markers(painter, width, height, intensity)
+    paint_subtle_noise(painter, width, height, intensity)
 
 
-def paint_scanlines(painter: QPainter, width: int, height: int) -> None:
-    """Тонкие интерлейсные сканлайны оптики Kiroshi с шагом 8px и деликатной прозрачностью."""
+def paint_scanlines(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    """Интерлейсные сканлайны оптики Kiroshi."""
     pen_color = QColor(COLOR_OBSIDIAN)
-    pen_color.setAlpha(random.randint(6, 12))
-    painter.setPen(QPen(pen_color, 1))
+    if intensity == "strong":
+        pen_color.setAlpha(random.randint(12, 22))
+        step = PIXEL_SIZE
+    elif intensity == "medium":
+        pen_color.setAlpha(random.randint(8, 16))
+        step = PIXEL_SIZE * 2
+    else:  # weak
+        pen_color.setAlpha(random.randint(6, 12))
+        step = PIXEL_SIZE * 2
 
-    # Сканлайн с шагом 8px (2 * PIXEL_SIZE), чтобы экран не рябил и текст под ним легко читался
-    step = PIXEL_SIZE * 2
+    painter.setPen(QPen(pen_color, 1))
     for y in range(0, height, step):
         painter.drawLine(0, y, width, y)
 
 
-def paint_tears(painter: QPainter, width: int, height: int) -> None:
-    """Редкие мягкие горизонтальные микро-разрывы кадра (tearing) в палитре персонажа."""
-    # Редкое срабатывание (~18% кадров), чтобы не отвлекать от работы
-    if random.random() >= 0.18:
+def paint_tears(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    """Горизонтальные разрывы кадра (tearing) в палитре персонажа."""
+    chance = 0.40 if intensity == "strong" else (0.28 if intensity == "medium" else 0.18)
+    if random.random() >= chance:
         return
 
-    y = snap_pixel(random.randint(0, max(0, height - 1)))
-    band = PIXEL_SIZE
-    tint = QColor(pick_palette_color())
-    # Очень прозрачная вуаль (альфа 8..18)
-    tint.setAlpha(random.randint(8, 18))
-    painter.fillRect(0, y, width, band, tint)
-
-
-def paint_slices(painter: QPainter, width: int, height: int) -> None:
-    """Компактные прямоугольные полосы передачи данных / Relic десинхронизации."""
-    # 1-2 полосы максимум за такт, не захламляющие экран
-    if random.random() >= 0.40:
-        return
-
-    count = random.randint(1, 2)
+    count = random.randint(1, 2) if intensity == "strong" else 1
     for _ in range(count):
         y = snap_pixel(random.randint(0, max(0, height - 1)))
-        slice_height = PIXEL_SIZE
+        band = random.choice((PIXEL_SIZE, PIXEL_SIZE * 2)) if intensity == "strong" else PIXEL_SIZE
+        tint = QColor(pick_palette_color())
+        alpha_range = (
+            (16, 35) if intensity == "strong" else ((12, 25) if intensity == "medium" else (8, 18))
+        )
+        tint.setAlpha(random.randint(*alpha_range))
+        painter.fillRect(0, y, width, band, tint)
+
+
+def paint_slices(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    """Компактные прямоугольные полосы передачи данных / Relic десинхронизации."""
+    chance = 0.65 if intensity == "strong" else (0.50 if intensity == "medium" else 0.40)
+    if random.random() >= chance:
+        return
+
+    if intensity == "strong":
+        count = random.randint(2, 4)
+    elif intensity == "medium":
+        count = random.randint(1, 3)
+    else:  # weak
+        count = random.randint(1, 2)
+
+    for _ in range(count):
+        y = snap_pixel(random.randint(0, max(0, height - 1)))
+        slice_height = (
+            random.choice((PIXEL_SIZE, PIXEL_SIZE * 2))
+            if intensity == "strong"
+            else PIXEL_SIZE
+        )
+        max_div = 3 if intensity == "strong" else 4
         slice_width = snap_pixel(
-            random.randint(width // 15, max(width // 15 + 1, width // 4))
+            random.randint(width // 15, max(width // 15 + 1, width // max_div))
         )
         x = snap_pixel(random.randint(0, max(0, width - slice_width)))
 
         color = QColor(pick_palette_color())
-        color.setAlpha(random.randint(16, 32))
+        alpha_range = (
+            (24, 48) if intensity == "strong" else ((20, 38) if intensity == "medium" else (16, 32))
+        )
+        color.setAlpha(random.randint(*alpha_range))
         painter.fillRect(x, y, slice_width, slice_height, color)
 
         # Тонкий хроматический след Cyberpunk 2077 (хроматическое расслоение алый/синий)
-        if random.random() < 0.65:
+        ghost_chance = 0.85 if intensity == "strong" else 0.65
+        if random.random() < ghost_chance:
             ghost_color = QColor(
                 COLOR_CRIMSON if random.random() < 0.75 else COLOR_ELECTRIC_BLUE
             )
-            ghost_color.setAlpha(random.randint(10, 20))
-            ghost_offset = random.choice((-16, -8, 8, 16))
+            ghost_color.setAlpha(random.randint(10, 24))
+            ghost_offset = random.choice((-24, -16, -8, 8, 16, 24)) if intensity == "strong" else random.choice((-16, -8, 8, 16))
             gx = max(0, min(width - 1, x + ghost_offset))
             gw = min(slice_width // 2, width - gx)
             if gw > 0:
-                painter.fillRect(gx, y, gw, PIXEL_SIZE, ghost_color)
+                painter.fillRect(gx, y, gw, slice_height, ghost_color)
 
 
-def paint_circuit_traces(painter: QPainter, width: int, height: int) -> None:
+def paint_circuit_traces(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
     """Шины передачи данных Cyberpunk: L-образные или линейные сегменты с терминальными узлами."""
-    if random.random() >= 0.15:
+    chance = 0.35 if intensity == "strong" else (0.24 if intensity == "medium" else 0.15)
+    if random.random() >= chance:
         return
 
     y = snap_pixel(random.randint(height // 10, max(height // 10 + 1, height - height // 10)))
@@ -116,11 +152,14 @@ def paint_circuit_traces(painter: QPainter, width: int, height: int) -> None:
     w = snap_pixel(random.randint(width // 8, width // 3))
 
     color = QColor(COLOR_ACID_GREEN if random.random() < 0.65 else COLOR_CRIMSON)
-    color.setAlpha(random.randint(20, 38))
+    alpha_range = (
+        (30, 55) if intensity == "strong" else ((25, 45) if intensity == "medium" else (20, 38))
+    )
+    color.setAlpha(random.randint(*alpha_range))
     painter.fillRect(x1, y, w, PIXEL_SIZE, color)
 
     # L-образный изгиб шины Cyberpunk
-    if random.random() < 0.5:
+    if random.random() < 0.6:
         bend_len = PIXEL_SIZE * random.randint(3, 7)
         dir_y = 1 if (y + bend_len < height) else -1
         painter.fillRect(x1 + w - PIXEL_SIZE, y, PIXEL_SIZE, bend_len * dir_y, color)
@@ -132,9 +171,12 @@ def paint_circuit_traces(painter: QPainter, width: int, height: int) -> None:
         painter.fillRect(x1 + w, y - PIXEL_SIZE, PIXEL_SIZE * 2, PIXEL_SIZE * 3, color)
 
 
-def paint_kiroshi_brackets(painter: QPainter, width: int, height: int) -> None:
+def paint_kiroshi_brackets(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
     """Угловые прицельные скобки интерфейса Kiroshi Optics по углам или в случайных секторах."""
-    if random.random() >= 0.12:
+    chance = 0.28 if intensity == "strong" else (0.18 if intensity == "medium" else 0.12)
+    if random.random() >= chance:
         return
 
     # Выбираем позицию: либо угловые зоны экрана, либо случайная точка
@@ -150,7 +192,10 @@ def paint_kiroshi_brackets(painter: QPainter, width: int, height: int) -> None:
 
     size = PIXEL_SIZE * random.randint(3, 5)
     bracket_color = QColor(COLOR_CRIMSON if random.random() < 0.75 else COLOR_ACID_GREEN)
-    bracket_color.setAlpha(random.randint(22, 45))
+    alpha_range = (
+        (35, 60) if intensity == "strong" else ((28, 50) if intensity == "medium" else (22, 45))
+    )
+    bracket_color.setAlpha(random.randint(*alpha_range))
 
     # Рисуем угол интерфейса
     painter.fillRect(bx, by, size, PIXEL_SIZE, bracket_color)
@@ -158,13 +203,16 @@ def paint_kiroshi_brackets(painter: QPainter, width: int, height: int) -> None:
 
     # Маленькая прицельная точка рядом
     dot_color = QColor(COLOR_WHITE)
-    dot_color.setAlpha(random.randint(20, 40))
+    dot_color.setAlpha(random.randint(25, 50))
     painter.fillRect(bx + size + PIXEL_SIZE, by + PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE, dot_color)
 
 
-def paint_cyber_markers(painter: QPainter, width: int, height: int) -> None:
+def paint_cyber_markers(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
     """Деликатные микро-метки телеметрии Cyberpunk 2077 (шрифт, координаты, системные теги)."""
-    if random.random() >= 0.08:
+    chance = 0.20 if intensity == "strong" else (0.13 if intensity == "medium" else 0.08)
+    if random.random() >= chance:
         return
 
     x = snap_pixel(random.randint(width // 10, max(width // 10 + 1, width - width // 3)))
@@ -175,7 +223,10 @@ def paint_cyber_markers(painter: QPainter, width: int, height: int) -> None:
     painter.setFont(font)
 
     text_color = QColor(COLOR_CRIMSON if random.random() < 0.70 else COLOR_ACID_GREEN)
-    text_color.setAlpha(random.randint(30, 55))
+    alpha_range = (
+        (45, 75) if intensity == "strong" else ((35, 65) if intensity == "medium" else (30, 55))
+    )
+    text_color.setAlpha(random.randint(*alpha_range))
     painter.setPen(text_color)
     painter.drawText(x, y, tag)
 
@@ -184,14 +235,23 @@ def paint_cyber_markers(painter: QPainter, width: int, height: int) -> None:
     painter.fillRect(x, y + 3, bar_w, 2, text_color)
 
 
-def paint_subtle_noise(painter: QPainter, width: int, height: int) -> None:
-    """Ненавязчивый разреженный шум цифровой памяти."""
-    # Редкие одиночные пиксели, не рябящие в глазах
-    count = random.randint(6, 18)
+def paint_subtle_noise(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    """Шум цифровой памяти."""
+    if intensity == "strong":
+        count = random.randint(20, 50)
+        alpha_range = (25, 65)
+    elif intensity == "medium":
+        count = random.randint(12, 30)
+        alpha_range = (20, 50)
+    else:  # weak
+        count = random.randint(6, 18)
+        alpha_range = (15, 45)
+
     for _ in range(count):
         x = snap_pixel(random.randint(0, max(0, width - 1)))
         y = snap_pixel(random.randint(0, max(0, height - 1)))
         fleck = QColor(pick_palette_color())
-        # Мягкая альфа (15..45) вместо прежней яркой 90
-        fleck.setAlpha(random.randint(15, 45))
+        fleck.setAlpha(random.randint(*alpha_range))
         painter.fillRect(x, y, PIXEL_SIZE, PIXEL_SIZE, fleck)

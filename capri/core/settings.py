@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 # Допустимые значения времени активности (мс): 5, 10 и 15 секунд.
 ACTIVITY_TIMEOUT_OPTIONS_MS: tuple[int, ...] = (5_000, 10_000, 15_000)
 
+# Допустимые уровни интенсивности экранных глитчей
+GLITCH_INTENSITY_OPTIONS: tuple[str, ...] = ("weak", "medium", "strong")
+
 DEFAULT_CONFIG: dict[str, Any] = {
     "version": 1,
     "screen": {
@@ -34,6 +37,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "effects": {
         "glitches_enabled": True,
+        "glitch_intensity": "weak",
     },
     "window": {
         "position": None,
@@ -171,6 +175,10 @@ class ConfigManager:
         config["audio"]["speech_sound_enabled"] = bool(config["audio"].get("speech_sound_enabled", True))
         config["audio"]["effects_sound_enabled"] = bool(config["audio"].get("effects_sound_enabled", True))
         config["effects"]["glitches_enabled"] = bool(config["effects"].get("glitches_enabled", True))
+        intensity = str(config["effects"].get("glitch_intensity", "weak")).lower()
+        if intensity not in GLITCH_INTENSITY_OPTIONS:
+            intensity = "weak"
+        config["effects"]["glitch_intensity"] = intensity
 
         # Масштаб спрайта питомца
         try:

@@ -674,6 +674,8 @@ class CapriWindow(QWidget):
 
         glitches_enabled = get_config_value("effects.glitches_enabled", True)
         self._glitches.set_enabled(bool(glitches_enabled))
+        glitch_intensity = get_config_value("effects.glitch_intensity", "weak")
+        self._glitches.set_intensity(str(glitch_intensity))
 
         speech_sfx = get_speech_sfx()
         volume_percent = get_config_value("audio.volume", 50)
@@ -773,6 +775,14 @@ class CapriWindow(QWidget):
     @property
     def glitches_enabled(self) -> bool:
         return self._glitches.is_enabled
+
+    @property
+    def glitch_intensity(self) -> str:
+        return self._glitches.intensity
+
+    def set_glitch_intensity(self, intensity: str) -> None:
+        self._glitches.set_intensity(intensity)
+        set_config_value("effects.glitch_intensity", intensity)
 
     def toggle_voice(self) -> str:
         return self._toggle_voice()

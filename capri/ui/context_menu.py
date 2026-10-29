@@ -53,7 +53,10 @@ class ContextMenuBuilder:
         # 6. Меню времени активности
         self._add_activity_timeout_menu(menu)
 
-        # 7. Напоминания о себе
+        # 7. Сила глюков
+        self._add_glitch_intensity_menu(menu)
+
+        # 8. Напоминания о себе
         self._add_reminder_toggle(menu)
 
         menu.addSeparator()
@@ -208,6 +211,27 @@ class ContextMenuBuilder:
                 lambda *_, s=seconds: self.window.set_activity_timeout(s)
             )
             timeout_group.addAction(act)
+
+    def _add_glitch_intensity_menu(self, parent_menu: QMenu) -> None:
+        intensity_menu = self._add_submenu(parent_menu, "⚡  Сила глюков")
+        group = QActionGroup(intensity_menu)
+        group.setExclusive(True)
+
+        current_intensity = getattr(self.window, "glitch_intensity", "weak")
+        options = (
+            ("weak", "Слабые"),
+            ("medium", "Средние"),
+            ("strong", "Сильные"),
+        )
+        for key, label in options:
+            act = intensity_menu.addAction(label)
+            act.setCheckable(True)
+            if current_intensity == key:
+                act.setChecked(True)
+            act.triggered.connect(
+                lambda *_, k=key: self.window.set_glitch_intensity(k)
+            )
+            group.addAction(act)
 
     def _add_reminder_toggle(self, parent_menu: QMenu) -> None:
         remind_act = parent_menu.addAction("🔔  Напоминания о себе")

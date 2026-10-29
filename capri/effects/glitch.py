@@ -15,7 +15,7 @@ class GlitchOverlay(QWidget):
 
     amplitude_changed = Signal(float)
 
-    def __init__(self, screen: QScreen) -> None:
+    def __init__(self, screen: QScreen, intensity: str = "weak") -> None:
         flags = (
             Qt.WindowType.Tool
             | Qt.WindowType.FramelessWindowHint
@@ -25,6 +25,7 @@ class GlitchOverlay(QWidget):
         )
         super().__init__(None, flags)
         self._screen = screen
+        self._intensity = intensity
         self.setWindowTitle("Глитч-оверлей Capri")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -38,9 +39,27 @@ class GlitchOverlay(QWidget):
         self._amplitude = 0.0
 
         self._frame_timer = QTimer(self)
-        self._frame_timer.setInterval(_BASE_INTERVAL_MS)
+        self._update_timer_interval()
         self._frame_timer.timeout.connect(self._tick)
         self._frame_timer.start()
+
+    def set_intensity(self, intensity: str) -> None:
+        if intensity not in ("weak", "medium", "strong"):
+            intensity = "weak"
+        if self._intensity == intensity:
+            return
+        self._intensity = intensity
+        self._update_timer_interval()
+        self.update()
+
+    def _update_timer_interval(self) -> None:
+        if self._intensity == "strong":
+            interval = 50
+        elif self._intensity == "medium":
+            interval = 65
+        else:
+            interval = 80
+        self._frame_timer.setInterval(interval)
 
     def set_active(self, active: bool) -> None:
         if active == self._active:
@@ -87,7 +106,7 @@ class GlitchOverlay(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         if self.width() > 0 and self.height() > 0:
-            paint_frame(painter, self.width(), self.height())
+            paint_frame(painter, self.width(), self.height(), self._intensity)
         painter.end()
 
 
@@ -95,11 +114,16 @@ class GlitchManager(QObject):
 
     amplitude_changed = Signal(float)
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(
+        self, parent: QObject | None = None, intensity: str = "weak"
+    ) -> None:
         super().__init__(parent)
         self._overlays: dict[QScreen, GlitchOverlay] = {}
         self._amplitudes: dict[QScreen, float] = {}
         self._enabled = True
+        self._intensity = (
+            intensity if intensity in ("weak", "medium", "strong") else "weak"
+        )
 
         app = QGuiApplication.instance()
         if app is not None:
@@ -111,6 +135,19 @@ class GlitchManager(QObject):
     @property
     def is_enabled(self) -> bool:
         return self._enabled
+
+    @property
+    def intensity(self) -> str:
+        return self._intensity
+
+    def set_intensity(self, intensity: str) -> None:
+        if intensity not in ("weak", "medium", "strong"):
+            intensity = "weak"
+        if self._intensity == intensity:
+            return
+        self._intensity = intensity
+        for overlay in self._overlays.values():
+            overlay.set_intensity(intensity)
 
     def set_enabled(self, enabled: bool) -> None:
         if enabled == self._enabled:
@@ -126,7 +163,7 @@ class GlitchManager(QObject):
     def _add_screen(self, screen: QScreen) -> None:
         if screen in self._overlays:
             return
-        overlay = GlitchOverlay(screen)
+        overlay = GlitchOverlay(screen, intensity=self._intensity)
         overlay.amplitude_changed.connect(
             lambda value, s=screen: self._on_amplitude(s, value)
         )
