@@ -14,6 +14,7 @@ _model_lock = threading.Lock()
 _preload_lock = threading.Lock()
 _preload_thread: threading.Thread | None = None
 _model_loading = False
+_model_failed = False
 _recognizers: dict[int, object] = {}
 _recognizer_lock = threading.Lock()
 
@@ -92,10 +93,23 @@ def get_model_info() -> dict[str, object]:
         "available": vosk_available,
         "initialized": _vosk_model is not None,
         "loading": _model_loading,
+        "failed": _model_failed,
         "model_name": model_name,
         "model_version": model_version,
         "vosk_version": vosk_version,
     }
+
+
+def is_model_ready() -> bool:
+    return _vosk_model is not None
+
+
+def is_model_loading() -> bool:
+    return _model_loading
+
+
+def model_load_failed() -> bool:
+    return _model_failed
 
 
 def preload_model_async() -> None:
@@ -118,13 +132,16 @@ def preload_model_async() -> None:
 
 
 def _preload_worker() -> None:
-    global _model_loading
+    global _model_loading, _model_failed
     _model_loading = True
+    _model_failed = False
     try:
         get_vosk_model()
     except RecognitionError as error:
+        _model_failed = True
         logger.warning("Не удалось прогреть модель Vosk: %s", error)
     except Exception:
+        _model_failed = True
         logger.exception("Ошибка фоновой загрузки модели Vosk.")
     finally:
         _model_loading = False
@@ -132,7 +149,7 @@ def _preload_worker() -> None:
 
 def get_vosk_model():
     """Загружает и кэширует модель Vosk."""
-    global _vosk_model
+    global _vosk_model, _model_failed
     if _vosk_model is not None:
         return _vosk_model
 
@@ -143,6 +160,7 @@ def get_vosk_model():
         try:
             import vosk
         except ImportError as error:
+            _model_failed = True
             raise RecognitionError(
                 "Для локального распознавания установите vosk (pip install vosk)."
             ) from error
@@ -156,11 +174,13 @@ def get_vosk_model():
             else:
                 _vosk_model = vosk.Model(lang="ru")
         except Exception as error:
+            _model_failed = True
             raise RecognitionError(
                 "Не удалось загрузить модель Vosk. Убедитесь, что модель для русского языка "
                 "скачана в папку models/ (например, models/vosk-model-small-ru-0.22)."
             ) from error
 
+        _model_failed = False
         return _vosk_model
 
 

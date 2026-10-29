@@ -18,7 +18,7 @@ from PySide6.QtGui import (
 from PySide6.QtMultimedia import QAudioDevice, QMediaDevices
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QWidget
 
-from ..audio.recognizer import get_model_info, preload_model_async
+from ..audio.recognizer import get_model_info, is_model_ready, preload_model_async
 from ..audio.voice import VoiceInput
 from ..commands import CommandContext, register_default_commands
 from ..controllers import ActionBridge, InactivityManager, PresenceReminder
@@ -34,6 +34,7 @@ from ..core.wake_word import (
     command_after_trigger,
 )
 from ..effects.glitch import GlitchManager
+from ..effects.model_init_animation import ModelInitOverlay
 from ..effects.session_animations import (
     SessionAnimationOverlay,
     play_session_animation,
@@ -106,6 +107,7 @@ class CapriWindow(QWidget):
         self._anim_frame = 0
         self._telemetry_tag = "[CAPRI//ONLINE]"
         self._startup_overlay: TransitionOverlay | None = None
+        self._model_init_overlay: ModelInitOverlay | None = None
         self._session_overlay: SessionAnimationOverlay | None = None
         self._voice_armed_until = 0.0
         self._closing = False
@@ -380,6 +382,35 @@ class CapriWindow(QWidget):
         self._startup_overlay = None
         self.set_pose("sit")
         self.update()
+        self._start_model_init_animation()
+
+    def _start_model_init_animation(self) -> None:
+        """Показывает HUD инициализации Vosk, пока модель грузится в фоне."""
+        if self._closing or self._model_init_overlay is not None:
+            return
+        if not get_config_value("audio.voice_enabled", True):
+            return
+        if is_model_ready():
+            return
+        screen = (
+            self.get_designated_screen()
+            or self.screen()
+            or QGuiApplication.primaryScreen()
+        )
+        if screen is None:
+            return
+        info = get_model_info()
+        overlay = ModelInitOverlay(
+            screen.geometry(),
+            str(info.get("model_name") or ""),
+            parent=self,
+        )
+        overlay.finished.connect(self._forget_model_init)
+        self._model_init_overlay = overlay
+        overlay.start()
+
+    def _forget_model_init(self) -> None:
+        self._model_init_overlay = None
 
     def hideEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         self._glitch_timer.stop()
@@ -871,6 +902,12 @@ class CapriWindow(QWidget):
         event.ignore()
         self._inactivity.stop()
         self._reminder.stop()
+        if self._model_init_overlay is not None:
+            try:
+                self._model_init_overlay.close()
+            except Exception:
+                pass
+            self._model_init_overlay = None
         self._glitch_timer.stop()
         self._voice_window_timer.stop()
         self._voice.cancel()
