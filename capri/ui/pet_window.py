@@ -60,6 +60,14 @@ STARTUP_LINES = (
 
 GOODBYE_LINE = "пока пока чумба"
 
+WAKE_LINES = (
+    "Что?",
+    "Слушаю.",
+    "Я здесь.",
+    "Да?",
+    "Говори.",
+)
+
 
 class CapriWindow(QWidget):
     """Интерактивный питомец Капри."""
@@ -529,7 +537,7 @@ class CapriWindow(QWidget):
         self._voice_armed_until = 0.0
 
     def _greet_trigger(self) -> None:
-        self.speak("Что?")
+        self.speak(random.choice(WAKE_LINES))
 
     def _wake_voice_if_needed(self) -> None:
         voice_enabled = get_config_value("audio.voice_enabled", True)
