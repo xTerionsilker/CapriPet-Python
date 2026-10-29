@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QWidget
 
 from .glitch_paint import paint_frame
 
-_BASE_INTERVAL_MS = 66
+_BASE_INTERVAL_MS = 80
 
 
 class GlitchOverlay(QWidget):
