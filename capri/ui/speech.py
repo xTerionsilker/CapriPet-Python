@@ -851,6 +851,11 @@ def show_text(
     return window
 
 
+def has_active_speech() -> bool:
+    """Проверяет, есть ли хотя бы одно открытое или закрывающееся облачко речи."""
+    return any(w.isVisible() for w in _active_windows)
+
+
 def close_all() -> None:
     for window in list(_active_windows):
         window.close()

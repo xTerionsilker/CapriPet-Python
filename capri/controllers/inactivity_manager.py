@@ -151,6 +151,12 @@ class InactivityManager(QObject):
     def _hide_for_inactivity(self) -> None:
         if self._paused or self._is_closing() or self._transitioning:
             return
+        # Запрет скрытия, пока активно/отображается облачко с текстом
+        if hasattr(self._main_window, "is_speaking"):
+            if self._main_window.is_speaking:
+                self._inactivity_timer.start(500)
+                return
+
         target = self.current_target_widget
         if not target.isVisible():
             return

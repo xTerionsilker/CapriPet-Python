@@ -42,7 +42,12 @@ from ..effects.session_animations import (
 from ..effects.transition import TransitionOverlay
 from .context_menu import build_pet_context_menu, build_tray_context_menu
 from .pet_renderer import PetRenderState, PetRenderer
-from .speech import SpeechWindow, close_all as close_all_speech, show_text
+from .speech import (
+    SpeechWindow,
+    close_all as close_all_speech,
+    has_active_speech,
+    show_text,
+)
 from .speech_sfx import get_speech_sfx
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -532,10 +537,6 @@ class CapriWindow(QWidget):
             lambda *_, window=speech: self._forget_speech(window)
         )
         return speech
-        speech.destroyed.connect(
-            lambda *_, window=speech: self._forget_speech(window)
-        )
-        return speech
 
     def _toggle_voice(self) -> str:
         if self._voice.is_busy:
@@ -773,6 +774,10 @@ class CapriWindow(QWidget):
         return self._voice.selected_device
 
     @property
+    def is_speaking(self) -> bool:
+        return self._speaking or has_active_speech() or (self._speech is not None and self._speech.isVisible())
+
+    @property
     def glitches_enabled(self) -> bool:
         return self._glitches.is_enabled
 
@@ -868,6 +873,8 @@ class CapriWindow(QWidget):
         if self._speech is window:
             self._speech = None
             self._speaking = False
+        if not self._closing and not self.is_speaking and hasattr(self, "_inactivity"):
+            self._inactivity.reset_timer()
 
     def _finalize_quit(self) -> None:
         if getattr(self, "_exit_finalized", False):
