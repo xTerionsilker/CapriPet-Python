@@ -5,9 +5,9 @@ CapriPet — это компактный десктопный кибер-пит�
 ## Требования
 
 - ОС: Linux (X11 / Wayland с XWayland) или Windows 10/11
-- Python 3.10+
+- [Python 3.10+](https://www.python.org/downloads/release/python-3148/)
 - PySide6 6.12+
-- `vosk` (локальное офлайн-распознавание речи)
+- [`vosk`](https://alphacephei.com/vosk/models) (локальное офлайн-распознавание речи)
 - Работающий микрофон для голосового ввода
 - Клиент Spotify (в Linux требуется `dbus-send` / playerctl, в Windows поддерживается нативно через медиа-клавиши)
 - Ollama для команды `слушай` (опционально)
