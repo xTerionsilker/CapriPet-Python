@@ -10,7 +10,7 @@ CapriPet — это компактный десктопный кибер-пит�
 - [`vosk`](https://alphacephei.com/vosk/models) (локальное офлайн-распознавание речи)
 - Работающий микрофон для голосового ввода
 - Клиент Spotify (в Linux требуется `dbus-send` / playerctl, в Windows поддерживается нативно через медиа-клавиши)
-- Ollama для команды `слушай` (опционально)
+- [Ollama](https://github.com/ollama/ollama#download) для команды `слушай` (опционально)
 
 ## Установка
 
