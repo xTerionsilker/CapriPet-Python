@@ -155,4 +155,9 @@ capri/
 assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
 models/                         # Локальная акустическая модель Vosk (vosk-model-ru-0.42)
 requirements.txt                # Зависимости проекта
+LICENSE                         # Лицензия MIT
 ```
+
+## Лицензия
+
+Проект распространяется под лицензией [MIT](LICENSE).
