@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.parse
@@ -103,8 +104,13 @@ def load_credentials() -> tuple[str, str] | None:
 
 
 def config_path() -> Path:
-    base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
-    return Path(base) / "capri" / "spotify.json"
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        base = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
+    else:
+        xdg = os.environ.get("XDG_CONFIG_HOME")
+        base = Path(xdg) if xdg else Path.home() / ".config"
+    return base / "capri" / "spotify.json"
 
 
 def _first_track(payload: dict) -> tuple[str, str, str] | None:

@@ -28,6 +28,41 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+## Настройка Spotify (Опционально)
+
+Поиск и включение музыки по голосовому запросу («спотифай <запрос>») работают через Spotify Web API.
+Управление воспроизведением (пауза, продолжить, переключение треков) работает локально и не требует ключей API.
+
+> [!NOTE]
+> Согласно актуальным правилам Spotify Developer Platform, для использования Web API Search аккаунт создателя приложения должен обладать активной подпиской **Spotify Premium**.
+
+1. Зайдите в [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) и создайте приложение.
+2. В настройках приложения скопируйте **Client ID** и **Client Secret**.
+3. Создайте файл `spotify.json` в системной директории настроек пользователя:
+   - **Linux:** `~/.config/capri/spotify.json`
+     ```bash
+     mkdir -p ~/.config/capri
+     cat << 'EOF' > ~/.config/capri/spotify.json
+     {
+       "client_id": "ВАШ_CLIENT_ID",
+       "client_secret": "ВАШ_CLIENT_SECRET"
+     }
+     EOF
+     chmod 600 ~/.config/capri/spotify.json
+     ```
+   - **Windows (PowerShell):** `$env:APPDATA\capri\spotify.json`
+     ```powershell
+     $dir = "$env:APPDATA\capri"
+     if (!(Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force }
+     @'
+     {
+       "client_id": "ВАШ_CLIENT_ID",
+       "client_secret": "ВАШ_CLIENT_SECRET"
+     }
+     '@ | Set-Content -Path "$dir\spotify.json" -Encoding UTF8
+     ```
+   *Либо задайте ключи через переменные окружения `SPOTIFY_CLIENT_ID` и `SPOTIFY_CLIENT_SECRET`.*
+
 ## Запуск
 
 **Linux:**
@@ -94,7 +129,7 @@ pip install -r requirements.txt
 | `SPOTIFY_CLIENT_SECRET` | Client Secret для Spotify |
 | `QT_QPA_PLATFORM` | Переопределение платформенного бэкенда Qt |
 
-Ключи Spotify также можно сохранить в файле `~/.config/capri/spotify.json`.
+Ключи Spotify сохраняются вне репозитория: в файле `~/.config/capri/spotify.json` (Linux) или `%APPDATA%\capri\spotify.json` (Windows).
 
 ## Структура проекта
 
