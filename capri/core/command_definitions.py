@@ -10,6 +10,7 @@ _CMD_TO_HANDLER: dict[str, str] = {
     "голос": "toggle_voice",
     "гугл": "search_google",
     "ютуб": "search_youtube",
+    "обновление": "open_update_page",
     "спотифай": "spotify_play",
     "пауза": "spotify_pause",
     "продолжить": "spotify_resume",

@@ -67,3 +67,39 @@ class YouTubeSearchCommand(BaseCommand):
         if ctx.action_bridge is not None:
             return ctx.action_bridge.search_youtube(query)
         return web_search.search_youtube(query)
+
+
+class UpdateCommand(BaseCommand):
+    name = "обновление"
+    description = "проверить обновления CapriPet на GitHub."
+    aliases = (
+        "обновления",
+        "обновить",
+        "обновись",
+        "проверить обновления",
+        "проверь обновления",
+        "проверить обновление",
+        "проверь обновление",
+        "апдейт",
+        "update",
+        "чекни обновления",
+        "страница обновления",
+        "репозиторий",
+        "гитхаб",
+        "github",
+    )
+    keywords = (
+        "обновление",
+        "обновления",
+        "обновить",
+        "обнови",
+        "апдейт",
+        "update",
+        "гитхаб",
+        "github",
+    )
+
+    def execute(self, ctx: CommandContext, query: str = "") -> str | None:
+        if ctx.action_bridge is not None and hasattr(ctx.action_bridge, "open_update_page"):
+            return ctx.action_bridge.open_update_page()
+        return web_search.open_update_page()

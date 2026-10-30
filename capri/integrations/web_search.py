@@ -22,3 +22,10 @@ def search_youtube(query: str) -> str:
         f"https://www.youtube.com/results?search_query={quote_plus(query)}"
     )
     return f"Ищу на YouTube: {query}"
+
+
+def open_update_page() -> str:
+    """Открывает страницу репозитория проекта на GitHub в браузере по умолчанию."""
+    url = "https://github.com/xTerionsilker/CapriPet-Python"
+    webbrowser.open(url)
+    return "Открываю страницу обновлений."

@@ -22,7 +22,7 @@ from .system import (
     RebootCommand,
     SuspendCommand,
 )
-from .web import GoogleSearchCommand, YouTubeSearchCommand
+from .web import GoogleSearchCommand, UpdateCommand, YouTubeSearchCommand
 
 DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     DebugCommand,
@@ -30,6 +30,7 @@ DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     VoiceToggleCommand,
     GoogleSearchCommand,
     YouTubeSearchCommand,
+    UpdateCommand,
     SpotifyPlayCommand,
     SpotifyPauseCommand,
     SpotifyResumeCommand,

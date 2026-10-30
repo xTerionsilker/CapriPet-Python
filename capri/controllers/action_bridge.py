@@ -153,6 +153,9 @@ class ActionBridge(QObject):
     def search_youtube(self, query: str) -> str:
         return web_search.search_youtube(query)
 
+    def open_update_page(self) -> str:
+        return web_search.open_update_page()
+
     def _queue_power(self, action: str, message: str) -> str:
         commands = power_commands(action)
         if not commands:

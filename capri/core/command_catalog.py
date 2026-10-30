@@ -13,6 +13,7 @@ class Handlers:
     ask_ollama: Handler
     search_google: Handler
     search_youtube: Handler
+    open_update_page: Handler
     spotify_play: Handler
     spotify_pause: Handler
     spotify_resume: Handler
