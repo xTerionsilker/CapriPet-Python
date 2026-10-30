@@ -54,9 +54,21 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 ASSETS = ROOT / "assets"
 CAPRI_ICON = ASSETS / "capri_icon.png"
 VAR_ASSETS = ASSETS / "var"
-OVERLAY_SIT = VAR_ASSETS / "capri_sit.png"
-OVERLAY_STAY = VAR_ASSETS / "capri_stay.png"
-OVERLAY_CROUCH = VAR_ASSETS / "capri_crouch.png"
+
+# Каталоги спрайтов по категориям поведения:
+IDLE_DIR = VAR_ASSETS / "idle"          # Появление, исчезновение, базовое состояние
+OTHER_DIR = VAR_ASSETS / "other"        # Ловля курсора и другие активные действия
+THINKING_DIR = VAR_ASSETS / "thinking"  # Размышления (команда «слушай»)
+
+# Основные спрайты по умолчанию для каждого состояния
+OVERLAY_IDLE = IDLE_DIR / "1.png"
+OVERLAY_OTHER = OTHER_DIR / "1.png"
+OVERLAY_THINKING = THINKING_DIR / "1.png"
+
+# Обратная совместимость алиасов для старых импортов / конфигов
+OVERLAY_SIT = OVERLAY_IDLE
+OVERLAY_STAY = OVERLAY_THINKING
+OVERLAY_CROUCH = OVERLAY_OTHER
 
 STARTUP_LINES = (
     "Хороший мальчик, {user}",
@@ -258,14 +270,38 @@ class CapriWindow(QWidget):
         return self._reminders_enabled
 
     def _load_all_poses(self) -> None:
-        pose_files = {
-            "sit": OVERLAY_SIT,
-            "stay": OVERLAY_STAY,
-            "crouch": OVERLAY_CROUCH,
+        pose_dirs = {
+            "idle": IDLE_DIR,
+            "other": OTHER_DIR,
+            "thinking": THINKING_DIR,
         }
-        for pose_name, pose_path in pose_files.items():
-            if pose_path.is_file():
-                self._load_pixmap(pose_name, pose_path)
+        self._pose_variants: dict[str, list[str]] = {
+            "idle": [],
+            "other": [],
+            "thinking": [],
+        }
+
+        for pose_name, pose_dir in pose_dirs.items():
+            if pose_dir.is_dir():
+                # Загружаем все доступные изображения из директории (например 1.png, 2.png, 3.png)
+                for file in sorted(pose_dir.glob("*.png")):
+                    variant_key = f"{pose_name}:{file.stem}"
+                    self._load_pixmap(variant_key, file)
+                    self._pose_variants[pose_name].append(variant_key)
+
+        # Псевдонимы категорий (sit -> idle, stay -> thinking, crouch -> other)
+        self._pose_variants["sit"] = self._pose_variants["idle"]
+        self._pose_variants["stay"] = self._pose_variants["thinking"]
+        self._pose_variants["crouch"] = self._pose_variants["other"]
+
+        # Устанавливаем базовые ключи категорий на случай прямого обращения
+        for category in ("idle", "other", "thinking", "sit", "stay", "crouch"):
+            variants = self._pose_variants.get(category)
+            if variants:
+                first_variant = variants[0]
+                self._raw_pixmaps[category] = self._raw_pixmaps[first_variant]
+                self._pixmaps[category] = self._pixmaps[first_variant]
+
         if not self._pixmaps:
             fallback = QPixmap(420, 420)
             fallback.fill(Qt.GlobalColor.transparent)
@@ -273,21 +309,29 @@ class CapriWindow(QWidget):
             self._apply_scale_for_pose("sit")
 
     def set_pose(self, pose: str) -> None:
-        """Переключает спрайт позы питомца с эффектом цифровой киберпанк-реконструкции."""
-        if pose not in self._pixmaps:
-            pose_path = {
-                "sit": OVERLAY_SIT,
-                "stay": OVERLAY_STAY,
-                "crouch": OVERLAY_CROUCH,
-            }.get(pose)
-            if pose_path is not None and pose_path.is_file():
-                self._load_pixmap(pose, pose_path)
-        if pose in self._pixmaps:
+        """Переключает спрайт позы питомца со случайным выбором вариации (1-3) и глитч-переходом."""
+        # Разрешаем алиасы
+        canonical_pose = {
+            "sit": "idle",
+            "crouch": "other",
+            "stay": "thinking",
+        }.get(pose, pose)
+
+        variants = self._pose_variants.get(canonical_pose) or self._pose_variants.get(pose)
+        if variants:
+            # Случайный выбор одного из доступных спрайтов в папке (1.png, 2.png, 3.png)
+            chosen_key = random.choice(variants)
+            chosen_pixmap = self._pixmaps.get(chosen_key)
+        else:
+            chosen_key = pose
+            chosen_pixmap = self._pixmaps.get(pose)
+
+        if chosen_pixmap is not None:
             old_pose = self._current_pose
-            self._current_pose = pose
-            self._pixmap = self._pixmaps[pose]
+            self._current_pose = canonical_pose
+            self._pixmap = chosen_pixmap
             self.setFixedSize(self._pixmap.size())
-            if old_pose != pose:
+            if old_pose != canonical_pose:
                 self._pose_transition_ticks = 6
                 self._surge_ticks = max(self._surge_ticks, 6)
             self.update()

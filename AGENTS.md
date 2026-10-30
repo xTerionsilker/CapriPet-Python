@@ -34,7 +34,7 @@ Capri's visual identity uses **only** the following colors:
 
 - **`main.py`:** Application entry point. Instantiates `CapriWindow` and enters the Qt event loop.
 - **Representation of Capri:**
-  - `CapriWindow` (`capri/ui/pet_window.py`): Floating translucent sprite (`assets/var/capri_{sit,stay,crouch}.png`) rendered with custom pixel glitch passes.
+  - `CapriWindow` (`capri/ui/pet_window.py`): Floating translucent sprite (`assets/var/{idle,other,thinking}/`) rendered with custom pixel glitch passes.
   - Position is saved to configuration and restored automatically; dragging moves Capri across monitors.
   - Automatically hides during inactivity and reappears via `InactivityManager` (`capri/controllers/inactivity_manager.py`).
 - **Speech System (`capri/ui/speech.py`):**
