@@ -111,6 +111,7 @@ class CapriWindow(QWidget):
         self._load_all_poses()
         self._current_pose = "sit"
         self._pixmap = self._pixmaps.get("sit") or next(iter(self._pixmaps.values()))
+        self._cached_hit_image = self._pixmap.toImage()
         self.setFixedSize(self._pixmap.size())
 
         self._drag_offset: QPoint | None = None
@@ -228,6 +229,7 @@ class CapriWindow(QWidget):
             self._apply_scale_for_pose(name)
         if self._current_pose in self._pixmaps:
             self._pixmap = self._pixmaps[self._current_pose]
+            self._cached_hit_image = self._pixmap.toImage()
             old_rect = self.geometry()
             self.setFixedSize(self._pixmap.size())
             # Центрируем изменение размера относительно текущей позиции
@@ -330,6 +332,7 @@ class CapriWindow(QWidget):
             old_pose = self._current_pose
             self._current_pose = canonical_pose
             self._pixmap = chosen_pixmap
+            self._cached_hit_image = self._pixmap.toImage()
             self.setFixedSize(self._pixmap.size())
             if old_pose != canonical_pose:
                 self._pose_transition_ticks = 6
@@ -514,7 +517,22 @@ class CapriWindow(QWidget):
         self._renderer.render(painter, self._pixmap, state)
         painter.end()
 
+    def _is_point_on_sprite(self, pos: QPoint) -> bool:
+        """Проверяет, попадает ли точка клика на непрозрачную часть спрайта Капри."""
+        img = self._cached_hit_image
+        if img is None or img.isNull():
+            return True
+        x, y = pos.x(), pos.y()
+        if not (0 <= x < img.width() and 0 <= y < img.height()):
+            return False
+        return img.pixelColor(x, y).alpha() > 20
+
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        pos = event.position().toPoint()
+        if not self._is_point_on_sprite(pos):
+            event.ignore()
+            return
+
         self._inactivity.reset_timer()
         if event.button() == Qt.MouseButton.RightButton:
             self.show_context_menu(event.globalPosition().toPoint())
