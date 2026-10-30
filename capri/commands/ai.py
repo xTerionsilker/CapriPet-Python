@@ -19,17 +19,13 @@ class OllamaAskCommand(BaseCommand):
         "спроси у модели",
         "ии",
         "спроси ии",
-        "ollama",
         "оллама",
-        "qwen",
         "квен",
         "квэн",
     )
     keywords = (
         "слушай",
-        "ollama",
         "оллам",
-        "qwen",
         "квен",
         "квэн",
         "нейросет",

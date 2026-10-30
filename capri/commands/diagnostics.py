@@ -47,7 +47,6 @@ class DebugCommand(BaseCommand):
     name = "дебаг"
     description = "показать состояние системы: модель Vosk, таймер напоминаний и время работы."
     aliases = (
-        "debug",
         "диагностика",
         "самодиагностика",
         "отладка",
@@ -61,7 +60,6 @@ class DebugCommand(BaseCommand):
     )
     keywords = (
         "дебаг",
-        "debug",
         "диагност",
         "отлад",
         "статус",

@@ -7,7 +7,6 @@ VOICE_TRIGGER_RE = re.compile(
     r"капри[зс]?(?:\s*[-–—]?\s*(?:корд|корт|кард|корн|кор))?"
     r"|к[эео]при[зс]?"
     r"|ка[кп]\s+при"
-    r"|capri(?:\s*[-–—]?\s*(?:corn|kord|cord|card|kor))?"
     r")(?!\w)",
     re.IGNORECASE,
 )

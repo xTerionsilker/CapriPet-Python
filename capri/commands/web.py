@@ -17,17 +17,11 @@ class GoogleSearchCommand(BaseCommand):
         "поищи в гугле",
         "поискать в гугле",
         "поиск в гугле",
-        "google",
-        "искать в google",
-        "найди в google",
-        "поищи в google",
-        "поиск в google",
         "найди в интернете",
         "поищи в интернете",
     )
     keywords = (
         "гугл",
-        "google",
         "поиск",
         "интернет",
         "найди",
@@ -47,7 +41,6 @@ class YouTubeSearchCommand(BaseCommand):
     takes_argument = True
     aliases = (
         "ютьюб",
-        "youtube",
         "искать на ютубе",
         "найди на ютубе",
         "найди в ютубе",
@@ -56,12 +49,8 @@ class YouTubeSearchCommand(BaseCommand):
         "поискать на ютубе",
         "поиск на ютубе",
         "поиск в ютубе",
-        "искать на youtube",
-        "найди на youtube",
-        "поищи на youtube",
-        "поиск на youtube",
     )
-    keywords = ("ютуб", "youtube", "видео", "ролик", "ютюб")
+    keywords = ("ютуб", "видео", "ролик", "ютюб")
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.action_bridge is not None:
@@ -81,12 +70,10 @@ class UpdateCommand(BaseCommand):
         "проверить обновление",
         "проверь обновление",
         "апдейт",
-        "update",
         "чекни обновления",
         "страница обновления",
         "репозиторий",
         "гитхаб",
-        "github",
     )
     keywords = (
         "обновление",
@@ -94,9 +81,7 @@ class UpdateCommand(BaseCommand):
         "обновить",
         "обнови",
         "апдейт",
-        "update",
         "гитхаб",
-        "github",
     )
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:

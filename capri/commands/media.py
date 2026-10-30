@@ -9,7 +9,6 @@ class SpotifyPlayCommand(BaseCommand):
     description = "найти и включить музыку в Spotify."
     takes_argument = True
     aliases = (
-        "spotify",
         "спотик",
         "включи музыку",
         "поставь музыку",
@@ -25,7 +24,6 @@ class SpotifyPlayCommand(BaseCommand):
         "песн",
         "трек",
         "спотиф",
-        "spotify",
         "плейлист",
         "альбом",
         "исполнител",
@@ -58,7 +56,6 @@ class SpotifyPauseCommand(BaseCommand):
         "помолчи",
         "тихо",
         "стоп музыка",
-        "pause",
     )
     keywords = ("пауз", "останов", "стоп", "тихо", "приглуш", "заткн", "замолч")
 
@@ -81,9 +78,8 @@ class SpotifyResumeCommand(BaseCommand):
         "играй дальше",
         "возобнови",
         "возобнови музыку",
-        "play",
     )
-    keywords = ("продолж", "играй", "возобнов", "плей", "громче", "play")
+    keywords = ("продолж", "играй", "возобнов", "плей", "громче")
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.action_bridge is not None:
@@ -97,7 +93,6 @@ class SpotifyNextCommand(BaseCommand):
     aliases = (
         "следующий",
         "след",
-        "next",
         "некст",
         "некст трек",
         "скип",
@@ -114,7 +109,7 @@ class SpotifyNextCommand(BaseCommand):
         "дальше",
         "переключи",
     )
-    keywords = ("следующ", "дальше", "переключ", "next", "некст", "скип", "пропуст")
+    keywords = ("следующ", "дальше", "переключ", "некст", "скип", "пропуст")
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.action_bridge is not None:
@@ -127,8 +122,6 @@ class SpotifyPreviousCommand(BaseCommand):
     description = "вернуться к предыдущему треку в Spotify."
     aliases = (
         "предыдущий",
-        "prev",
-        "previous",
         "прев",
         "превиус",
         "назад",
@@ -140,7 +133,7 @@ class SpotifyPreviousCommand(BaseCommand):
         "предыдущая песня",
         "предыдущая",
     )
-    keywords = ("предыдущ", "назад", "prev", "previous", "прев", "превиус", "верни", "прошл")
+    keywords = ("предыдущ", "назад", "прев", "превиус", "верни", "прошл")
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.action_bridge is not None:

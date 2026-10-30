@@ -18,8 +18,6 @@ class LockScreenCommand(BaseCommand):
         "экран блокировки",
         "блокировка экрана",
         "лок",
-        "lock",
-        "lock screen",
         "лок скрин",
         "залочь",
         "залочить",
@@ -27,13 +25,12 @@ class LockScreenCommand(BaseCommand):
         "залочить экран",
         "выключи экран",
         "погаси экран",
-        "super+l",
         "супер л",
         "заблок",
         "я отойду",
         "отойду",
     )
-    keywords = ("блокир", "заблок", "экран", "лок", "lock", "залоч")
+    keywords = ("блокир", "заблок", "экран", "лок", "залоч")
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.action_bridge is not None:
@@ -57,8 +54,6 @@ class PowerOffCommand(BaseCommand):
         "выруби компьютер",
         "выключись",
         "спокойной ночи",
-        "shutdown",
-        "poweroff",
         "шатдаун",
         "паверофф",
         "поверофф",
@@ -69,8 +64,6 @@ class PowerOffCommand(BaseCommand):
         "спат",
         "спят",
         "выключ",
-        "shutdown",
-        "poweroff",
         "шатдаун",
         "паверофф",
         "поверофф",
@@ -102,7 +95,6 @@ class SuspendCommand(BaseCommand):
         "отдохни",
         "передохни",
         "приостанови компьютер",
-        "sleep",
         "слип",
         "суспенд",
     )
@@ -110,8 +102,6 @@ class SuspendCommand(BaseCommand):
         "спящ",
         "сон",
         "усн",
-        "suspend",
-        "sleep",
         "слип",
         "суспенд",
         "замр",
@@ -151,10 +141,8 @@ class RebootCommand(BaseCommand):
         "ребут",
         "ребутни",
         "рестартни",
-        "restart",
-        "reboot",
     )
-    keywords = ("перезагруз", "рестарт", "restart", "reboot", "ребут")
+    keywords = ("перезагруз", "рестарт", "ребут")
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.action_bridge is not None:
