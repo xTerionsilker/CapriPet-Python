@@ -28,28 +28,42 @@ CapriPet — это компактный десктопный кибер-пит�
 
 ## Требования
 
+- ОС: Linux (X11 / Wayland с XWayland) или Windows 10/11
 - Python 3.10+
 - PySide6 6.12+
 - `vosk` (локальное офлайн-распознавание речи)
 - Работающий микрофон для голосового ввода
-- Клиент Spotify и `dbus-send` для команд управления музыкой
+- Клиент Spotify (в Linux требуется `dbus-send` / playerctl, в Windows поддерживается нативно через медиа-клавиши)
 - Ollama для команды `слушай` (опционально)
 
 ## Установка
 
+**Linux:**
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+**Windows (PowerShell):**
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
 ## Запуск
 
+**Linux:**
 ```bash
 ./.venv/bin/python main.py
 ```
-
 *Примечание для Wayland:* `main.py` автоматически активирует `QT_QPA_PLATFORM=xcb` при наличии XWayland для обеспечения стабильного позиционирования и перетаскивания прозрачного окна без рамок.
+
+**Windows:**
+```powershell
+.venv\Scripts\python.exe main.py
+```
 
 ## Триггерные слова
 
@@ -92,7 +106,9 @@ pip install -r requirements.txt
 
 ## Конфигурация
 
-Настройки автоматически сохраняются в `$XDG_CONFIG_HOME/capri/config.json` (`~/.config/capri/config.json`).
+Настройки автоматически сохраняются в кроссплатформенный каталог конфигурации:
+- **Linux:** `$XDG_CONFIG_HOME/capri/config.json` (по умолчанию `~/.config/capri/config.json`)
+- **Windows:** `%APPDATA%\capri\config.json` (по умолчанию `C:\Users\<Пользователь>\AppData\Roaming\capri\config.json`)
 
 | Переменная окружения | Описание |
 | --- | --- |
