@@ -17,41 +17,46 @@ _MENU_ARROW = (Path(__file__).resolve().parents[2] / "assets" / "menu_arrow.svg"
 
 CYBER_MENU_STYLE = f"""
 QMenu {{
-    background: transparent;
-    border: none;
-    padding: 8px 7px 7px 7px;
+    background-color: {OBSIDIAN_BLACK};
+    border: 1px solid {NEON_CRIMSON};
+    padding: 6px 4px 6px 4px;
     color: {PURE_WHITE};
     font-family: {PIXEL_FONT};
     font-size: 11px;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
 }}
 QMenu::item {{
     background: transparent;
-    padding: 8px 30px 8px 24px;
-    margin: 1px 0;
+    padding: 6px 26px 6px 24px;
+    margin: 1px 2px;
     border-left: 2px solid transparent;
+    color: {PURE_WHITE};
 }}
 QMenu::item:selected {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 {NEON_CRIMSON}, stop:0.55 {NEON_CRIMSON},
-        stop:1 {OBSIDIAN_BLACK});
+        stop:0 rgba(242, 13, 46, 0.9),
+        stop:0.65 rgba(242, 13, 46, 0.4),
+        stop:1 rgba(11, 11, 11, 0.2));
     color: {PURE_WHITE};
     border-left: 2px solid {ACID_GREEN};
 }}
 QMenu::item:disabled {{
-    color: {NEON_VIOLET};
+    color: rgba(153, 34, 238, 0.7);
+    background: transparent;
 }}
 QMenu::separator {{
-    height: 2px;
+    height: 1px;
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 {NEON_CRIMSON}, stop:0.55 {NEON_VIOLET},
-        stop:1 {OBSIDIAN_BLACK});
-    margin: 7px 4px;
+        stop:0 {NEON_CRIMSON},
+        stop:0.4 {NEON_VIOLET},
+        stop:0.8 {ELECTRIC_BLUE},
+        stop:1 transparent);
+    margin: 5px 6px;
 }}
 QMenu::indicator {{
-    width: 10px;
-    height: 10px;
-    margin-left: 7px;
+    width: 8px;
+    height: 8px;
+    margin-left: 8px;
 }}
 QMenu::indicator:checked {{
     background-color: {ACID_GREEN};
@@ -65,10 +70,10 @@ QMenu::right-arrow {{
     image: url("{_MENU_ARROW}");
     width: 9px;
     height: 9px;
-    margin-right: 7px;
+    margin-right: 8px;
 }}
 QMenu::scroller {{
-    height: 18px;
+    height: 16px;
     background: {OBSIDIAN_BLACK};
     border: 1px solid {NEON_CRIMSON};
 }}
