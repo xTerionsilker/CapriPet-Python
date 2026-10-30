@@ -3,11 +3,16 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 
 PER_COMMAND_TIMEOUT_S = 3
 
 
 def lock_commands() -> list[list[str]]:
+    if sys.platform == "win32":
+        rundll32 = shutil.which("rundll32.exe") or "rundll32.exe"
+        return [[rundll32, "user32.dll,LockWorkStation"]]
+
     desktop = os.environ.get("XDG_CURRENT_DESKTOP", "").upper()
     candidates: list[list[str]] = []
 
@@ -40,6 +45,15 @@ def lock_commands() -> list[list[str]]:
 
 
 def run_lock(commands: list[list[str]]) -> bool:
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            if ctypes.windll.user32.LockWorkStation():
+                return True
+        except Exception:
+            pass
+
     for command in commands:
         try:
             result = subprocess.run(

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
+import sys
 import urllib.parse
 
 from .spotify_api import SpotifyError, find_track
@@ -63,6 +65,13 @@ def _search_uri(query: str) -> str:
 
 
 def _open_uri(uri: str) -> bool:
+    if sys.platform == "win32":
+        try:
+            os.startfile(uri)
+            return True
+        except OSError:
+            pass
+
     for command in (["gio", "open", uri], ["xdg-open", uri]):
         if shutil.which(command[0]) is None:
             continue
@@ -80,7 +89,35 @@ def _open_uri(uri: str) -> bool:
     return False
 
 
+def _send_win_media_key(vk_code: int) -> bool:
+    try:
+        import ctypes
+
+        keybd_event = ctypes.windll.user32.keybd_event
+        # KEYEVENTF_EXTENDEDKEY = 0x0001, KEYEVENTF_KEYUP = 0x0002
+        keybd_event(vk_code, 0, 1, 0)
+        keybd_event(vk_code, 0, 1 | 2, 0)
+        return True
+    except Exception:
+        return False
+
+
 def _player_call(method: str) -> bool:
+    if sys.platform == "win32":
+        # Windows Virtual-Key Codes для мультимедиа:
+        # VK_MEDIA_NEXT_TRACK = 0xB0, VK_MEDIA_PREV_TRACK = 0xB1, VK_MEDIA_PLAY_PAUSE = 0xB3
+        key_map = {
+            "Play": 0xB3,
+            "Pause": 0xB3,
+            "PlayPause": 0xB3,
+            "Next": 0xB0,
+            "Previous": 0xB1,
+        }
+        vk = key_map.get(method)
+        if vk is not None:
+            return _send_win_media_key(vk)
+        return False
+
     if shutil.which("dbus-send") is None:
         return False
     try:

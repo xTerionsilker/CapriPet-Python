@@ -7,6 +7,7 @@ import random
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 import time
 import wave
@@ -19,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 def _find_system_player() -> str | None:
     """Ищет доступную системную утилиту воспроизведения Linux: pw-play -> paplay -> aplay."""
+    if sys.platform == "win32":
+        return None
     for cmd in ("pw-play", "paplay", "aplay"):
         path = shutil.which(cmd)
         if path:
@@ -515,7 +518,7 @@ class SpeechSFX(QObject):
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    close_fds=True,
+                    close_fds=(sys.platform != "win32"),
                 )
                 self._processes.append(proc)
                 played_by_system = True

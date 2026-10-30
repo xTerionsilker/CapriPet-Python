@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 
 PER_COMMAND_TIMEOUT_S = 5
 
@@ -25,8 +26,24 @@ POWER_ACTIONS: dict[str, tuple[tuple[str, ...], ...]] = {
     ),
 }
 
+WIN_POWER_ACTIONS: dict[str, tuple[tuple[str, ...], ...]] = {
+    "poweroff": (
+        ("shutdown", "/s", "/t", "0"),
+    ),
+    "suspend": (
+        ("rundll32.exe", "powrprof.dll,SetSuspendState", "0,1,0"),
+    ),
+    "reboot": (
+        ("shutdown", "/r", "/t", "0"),
+    ),
+}
+
 
 def power_commands(action: str) -> list[list[str]]:
+    if sys.platform == "win32":
+        candidates = WIN_POWER_ACTIONS.get(action, ())
+        return [list(command) for command in candidates]
+
     candidates = POWER_ACTIONS[action]
     return [
         list(command)
@@ -36,6 +53,19 @@ def power_commands(action: str) -> list[list[str]]:
 
 
 def run_power(commands: list[list[str]]) -> bool:
+    if sys.platform == "win32":
+        # Проверяем, если команда относится к спящему режиму
+        for command in commands:
+            if any("powrprof" in arg.lower() for arg in command):
+                try:
+                    import ctypes
+
+                    # SetSuspendState(bHibernate, bForce, bWakeupEventsDisabled)
+                    if ctypes.windll.powrprof.SetSuspendState(0, 1, 0):
+                        return True
+                except Exception:
+                    pass
+
     for command in commands:
         try:
             result = subprocess.run(

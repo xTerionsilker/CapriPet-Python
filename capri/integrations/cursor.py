@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -14,7 +15,21 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def get_mouse_position() -> QPoint:
-    """Возвращает глобальные координаты мыши с поддержкой Wayland (KWin) и X11."""
+    """Возвращает глобальные координаты мыши с поддержкой Windows, Wayland (KWin) и X11."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class POINT(ctypes.Structure):
+                _fields_ = [("x", wintypes.LONG), ("y", wintypes.LONG)]
+
+            pt = POINT()
+            if ctypes.windll.user32.GetCursorPos(ctypes.byref(pt)):
+                return QPoint(pt.x, pt.y)
+        except Exception:
+            pass
+
     # 1. Сначала пробуем получить координаты через KWin Wayland DBus (KDE Plasma)
     kwin_pos = _get_kwin_mouse_position()
     if kwin_pos is not None:
@@ -32,8 +47,17 @@ def get_mouse_position() -> QPoint:
 def move_mouse_to(
     x: int, y: int, screen_index: int | None = None
 ) -> bool:
-    """Перемещает курсор мыши в точку (x, y) с поддержкой X11, Wayland и нескольких мониторов."""
+    """Перемещает курсор мыши в точку (x, y) с поддержкой Windows, X11, Wayland и нескольких мониторов."""
     target_point = QPoint(x, y)
+
+    if sys.platform == "win32":
+        try:
+            import ctypes
+
+            ctypes.windll.user32.SetCursorPos(int(x), int(y))
+            return True
+        except Exception:
+            pass
 
     # 1. Если это KDE Wayland, переключаем активный экран на нужный монитор и центрируем
     if screen_index is None:

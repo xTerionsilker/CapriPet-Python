@@ -4,6 +4,8 @@ import copy
 import json
 import logging
 import os
+import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -69,9 +71,13 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
 
 def _resolve_config_dir() -> Path:
     """Возвращает базовую директорию для хранения конфигурации с безопасным fallback."""
-    # 1. Системный каталог ~/.config/capri
-    xdg = os.environ.get("XDG_CONFIG_HOME")
-    base_config = Path(xdg) if xdg else Path.home() / ".config"
+    # 1. Системный каталог конфигурации (%APPDATA% для Windows, ~/.config для Linux)
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA")
+        base_config = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
+    else:
+        xdg = os.environ.get("XDG_CONFIG_HOME")
+        base_config = Path(xdg) if xdg else Path.home() / ".config"
     home_dir = base_config / "capri"
     try:
         home_dir.mkdir(parents=True, exist_ok=True)
@@ -91,13 +97,15 @@ def _resolve_config_dir() -> Path:
         pass
 
     # 3. Временная директория
-    return Path("/tmp")
+    temp_dir = Path(tempfile.gettempdir())
+    return temp_dir
 
 
 def _get_default_config_path() -> Path:
     config_dir = _resolve_config_dir()
-    if config_dir == Path("/tmp"):
-        return Path("/tmp/capri_config.json")
+    temp_dir = Path(tempfile.gettempdir())
+    if config_dir == temp_dir:
+        return temp_dir / "capri_config.json"
     return config_dir / "config.json"
 
 
