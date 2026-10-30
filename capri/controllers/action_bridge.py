@@ -19,6 +19,7 @@ class ActionBridge(QObject):
     session_animation_requested = Signal(str)
     ollama_started = Signal()
     ollama_finished = Signal()
+    youtube_results_ready = Signal(list)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -151,7 +152,22 @@ class ActionBridge(QObject):
         return web_search.search_google(query)
 
     def search_youtube(self, query: str) -> str:
-        return web_search.search_youtube(query)
+        trimmed = query.strip()
+        if not trimmed:
+            return "Что искать на YouTube? Скажи: «ютуб <запрос>»."
+        web_search.search_youtube(trimmed)
+        threading.Thread(
+            target=self._fetch_youtube_worker,
+            args=(trimmed,),
+            name="capri-youtube-fetch",
+            daemon=True,
+        ).start()
+        return f"Ищу на YouTube: {trimmed}"
+
+    def _fetch_youtube_worker(self, query: str) -> None:
+        videos = web_search.fetch_youtube_top_videos(query, limit=5)
+        if videos:
+            self.youtube_results_ready.emit(videos)
 
     def open_update_page(self) -> str:
         return web_search.open_update_page()

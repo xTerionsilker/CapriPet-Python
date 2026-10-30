@@ -24,6 +24,7 @@ class CommandContext:
     set_pose: Callable[[str], None]
     get_config: Callable[[str, Any], Any]
     set_config: Callable[[str, Any], None]
+    expect_reply: Callable[..., None] | None = None
     action_bridge: Any = None  # ActionBridge для фоновых асинхронных операций
     debug_info: Callable[[], dict[str, Any]] | None = None
 

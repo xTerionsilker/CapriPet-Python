@@ -53,9 +53,12 @@ class YouTubeSearchCommand(BaseCommand):
     keywords = ("ютуб", "видео", "ролик", "ютюб")
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
+        trimmed = query.strip()
+        if not trimmed:
+            return "Что искать на YouTube? Скажи: «ютуб <запрос>»."
         if ctx.action_bridge is not None:
-            return ctx.action_bridge.search_youtube(query)
-        return web_search.search_youtube(query)
+            return ctx.action_bridge.search_youtube(trimmed)
+        return web_search.search_youtube(trimmed)
 
 
 class UpdateCommand(BaseCommand):

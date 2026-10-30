@@ -134,6 +134,9 @@ class CapriWindow(QWidget):
         )
         self._actions.ollama_started.connect(self._on_ollama_talking_start)
         self._actions.ollama_finished.connect(self._on_ollama_talking_end)
+        self._actions.youtube_results_ready.connect(
+            self._on_youtube_results_ready
+        )
 
         self._build_shortcuts()
         self._glitches = GlitchManager(self)
@@ -320,6 +323,7 @@ class CapriWindow(QWidget):
             set_pose=self.set_pose,
             get_config=get_config_value,
             set_config=set_config_value,
+            expect_reply=self._flow.expect_reply,
             action_bridge=self._actions,
             debug_info=self._debug_info,
         )
@@ -525,12 +529,13 @@ class CapriWindow(QWidget):
     def process_input(self, text: str) -> str:
         return self._flow.handle(text)
 
-    def speak(self, text: str) -> SpeechWindow:
+    def speak(self, text: str, hold_ms: int | None = None) -> SpeechWindow:
         if self._speech is not None:
             self._speech.close(immediate=True)
         self._speaking = True
         self._surge_ticks = max(self._surge_ticks, 12)
-        hold_ms = min(5000, max(1200, len(text) * 45))
+        if hold_ms is None:
+            hold_ms = min(5000, max(1200, len(text) * 45))
         speech = show_text(text, parent=self, hold_ms=hold_ms)
         self._speech = speech
         speech.destroyed.connect(
@@ -619,6 +624,28 @@ class CapriWindow(QWidget):
     def _on_ollama_talking_end(self) -> None:
         self._surge_ticks = max(self._surge_ticks, 8)
         self.set_pose("sit")
+
+    def _on_youtube_results_ready(self, videos: list[dict[str, str]]) -> None:
+        if not videos or self._closing:
+            return
+
+        def _on_choice(text: str) -> str:
+            from ..core.input_flow import _parse_selected_number
+            choice = _parse_selected_number(text, max_number=len(videos))
+            if choice is None:
+                return "Не поняла номер. Поиск отменён."
+            selected = videos[choice - 1]
+            import webbrowser
+            webbrowser.open(selected["url"])
+            return f"Включаю #{choice}: {selected['title']}"
+
+        lines = [
+            f"{i}. {v['title'][:32]}…" if len(v['title']) > 32 else f"{i}. {v['title']}"
+            for i, v in enumerate(videos, 1)
+        ]
+        prompt = "\n".join(lines) + "\nСкажи номер (1–5)"
+        self._flow.expect_reply(_on_choice, timeout_ms=25_000)
+        self.speak(prompt, hold_ms=25_000)
 
     def _on_session_animation_requested(self, action: str) -> None:
         if self._closing:
