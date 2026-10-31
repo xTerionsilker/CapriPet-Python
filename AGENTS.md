@@ -1,8 +1,24 @@
 # AGENTS.md
 
+## Target Operating Systems & Cross-Platform Support
+
+CapriPet targets **strictly two desktop operating systems: Linux and Windows**. All new features, windowing logic, input capturing, audio playback, file paths, and system integrations must support both platforms seamlessly:
+
+- **Linux:**
+  - Handles Wayland (KWin / Mutter) and X11 environments.
+  - `main.py` explicitly selects `QT_QPA_PLATFORM=xcb` under Wayland with XWayland to ensure consistent frameless window positioning and coordinate tracking.
+  - Configuration paths follow XDG (`$XDG_CONFIG_HOME/capri/config.json` or `~/.config/capri/config.json`).
+  - Audio fallbacks use system utilities (`pw-play`, `paplay`, `aplay`) or Qt `QSoundEffect`.
+- **Windows:**
+  - Works natively with Windows Desktop Window Manager (DWM) and Multi-DPI displays.
+  - Frameless click-through overlays use standard Qt tool window flags (`WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW`).
+  - Cursor tracking and screen metrics leverage native Win32 APIs (`ctypes.windll.user32`) and Qt virtual screen geometry (`QGuiApplication.screens()`).
+  - Configuration path resolves via `%APPDATA%/capri/config.json`.
+  - Audio uses native `winsound` / `QSoundEffect`.
+
 ## Environment & Tooling
 
-- **Python Interpreter:** Always use the local virtual environment at `./.venv/bin/python`. System Python lacks dependencies like `PySide6` and `vosk`.
+- **Python Interpreter:** Always use the local virtual environment (`./.venv/bin/python` on Linux, `.\.venv\Scripts\python.exe` on Windows). System Python lacks dependencies like `PySide6` and `vosk`.
 - **Run Application:** `./.venv/bin/python main.py`
 - **Headless Testing / Verification:** In terminal sessions without an X/Wayland display server, set `QT_QPA_PLATFORM=offscreen`:
   ```bash
@@ -13,7 +29,6 @@
   ./.venv/bin/python -m py_compile capri/**/*.py main.py
   ./.venv/bin/pyflakes capri/ main.py
   ```
-- **Wayland / X11 Quirk:** `main.py` explicitly selects `QT_QPA_PLATFORM=xcb` when running under Wayland with XWayland to ensure frameless window positioning and movement behave consistently across Linux compositors.
 
 ## Visual Design & Cyberpunk Style Guide
 
@@ -55,7 +70,7 @@ Capri's visual identity uses **only** the following colors:
 - **`main.py`:** Application entry point. Instantiates `CapriWindow` and enters the Qt event loop.
 - **Representation of Capri:**
   - `CapriWindow` (`capri/ui/pet_window.py`): Floating translucent sprite (`assets/var/{idle,other,thinking}/`) rendered with custom pixel glitch passes.
-  - Position is saved to configuration and restored automatically; dragging moves Capri across monitors.
+  - Position is saved to configuration and restored automatically. Direct object dragging is replaced with tactical lightning tether teleportation (holding LMB stretches red cyber lightning to cursor; releasing LMB teleports Capri).
   - Automatically hides during inactivity and reappears via `InactivityManager` (`capri/controllers/inactivity_manager.py`).
 - **Voice HUD (`capri/ui/voice_hud.py`):**
   - Displays a Cyberpunk 2077 style HUD (`CyberVoiceHud`) above the taskbar when Capri is listening for voice commands after a trigger phrase or awaiting arguments/confirmation (yes/no, numbers, etc.).
