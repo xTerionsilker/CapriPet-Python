@@ -35,6 +35,7 @@ from ..core.wake_word import (
     command_after_trigger,
 )
 from ..effects.glitch import GlitchManager
+from ..effects.lightning_tether import LightningTetherOverlay
 from ..effects.model_init_animation import ModelInitOverlay
 from ..effects.session_animations import (
     SessionAnimationOverlay,
@@ -123,6 +124,10 @@ class CapriWindow(QWidget):
         self._surge_ticks = 0
         self._pose_transition_ticks = 0
         self._is_dragging = False
+        self._is_lightning_aiming = False
+        self._lightning_overlay: LightningTetherOverlay | None = None
+        self._teleport_overlay_out: TransitionOverlay | None = None
+        self._teleport_overlay_in: TransitionOverlay | None = None
         self._speaking = False
         self._anim_frame = 0
         self._telemetry_tag = "[CAPRI//ONLINE]"
@@ -548,6 +553,11 @@ class CapriWindow(QWidget):
             return False
         return img.pixelColor(x, y).alpha() > 20
 
+    def _ensure_lightning_overlay(self) -> LightningTetherOverlay:
+        if self._lightning_overlay is None:
+            self._lightning_overlay = LightningTetherOverlay()
+        return self._lightning_overlay
+
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         pos = event.position().toPoint()
         if not self._is_point_on_sprite(pos):
@@ -556,51 +566,157 @@ class CapriWindow(QWidget):
 
         self._inactivity.reset_timer()
         if event.button() == Qt.MouseButton.RightButton:
+            if self._is_lightning_aiming:
+                self._cancel_lightning_aiming()
             self.show_context_menu(event.globalPosition().toPoint())
             event.accept()
             return
+
         if event.button() == Qt.MouseButton.LeftButton:
-            self._is_dragging = True
-            self._surge_ticks = max(self._surge_ticks, 10)
+            # Запрещаем прямое перетаскивание окна; активируем прицеливание молнией
+            self._is_lightning_aiming = True
+            self._is_dragging = False
+            self._drag_offset = None
+            self._surge_ticks = max(self._surge_ticks, 14)
             self.update()
-            try:
-                get_speech_sfx().play_lightning_zap()
-            except Exception:
-                pass
-            handle = self.windowHandle()
-            if handle is not None and hasattr(handle, "startSystemMove"):
-                handle.startSystemMove()
-                event.accept()
-                return
-            self._drag_offset = (
-                event.globalPosition().toPoint()
-                - self.frameGeometry().topLeft()
-            )
+
+            cursor_pos = event.globalPosition().toPoint()
+            pet_center = self.geometry().center()
+            overlay = self._ensure_lightning_overlay()
+            overlay.activate(pet_center, cursor_pos, self.geometry())
+
             event.accept()
             return
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        if self._drag_offset is not None or self._is_dragging:
-            self._is_dragging = True
-            self._surge_ticks = max(self._surge_ticks, 4)
-            if self._drag_offset is not None:
-                self.move(event.globalPosition().toPoint() - self._drag_offset)
+        if self._is_lightning_aiming:
+            cursor_pos = event.globalPosition().toPoint()
+            pet_center = self.geometry().center()
+            overlay = self._ensure_lightning_overlay()
+            overlay.update_start(pet_center, self.geometry())
+            overlay.update_target(cursor_pos)
+            self._surge_ticks = max(self._surge_ticks, 6)
             self.update()
             event.accept()
             return
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        self._is_dragging = False
-        self._surge_ticks = max(self._surge_ticks, 6)
-        if self._drag_offset is not None:
-            pos = self.pos()
-            set_config_value("window.position", {"x": pos.x(), "y": pos.y()})
-            set_config_value("window.overlay_position", {"x": pos.x(), "y": pos.y()})
-        self._drag_offset = None
-        self.update()
+        if event.button() == Qt.MouseButton.LeftButton and self._is_lightning_aiming:
+            self._is_lightning_aiming = False
+            target_pos = event.globalPosition().toPoint()
+            if self._lightning_overlay is not None:
+                self._lightning_overlay.deactivate()
+
+            self._surge_ticks = max(self._surge_ticks, 10)
+            self.update()
+            event.accept()
+
+            # Запускаем процедуру телепортации в целевую точку
+            self._teleport_to_point(target_pos)
+            return
+
         super().mouseReleaseEvent(event)
+
+    def _cancel_lightning_aiming(self) -> None:
+        self._is_lightning_aiming = False
+        if self._lightning_overlay is not None:
+            self._lightning_overlay.deactivate()
+        self.update()
+
+    def _teleport_to_point(self, target_center_point: QPoint) -> None:
+        """Телепортирует Капри в указанную точку с эффектом красных молний."""
+        w = self.width()
+        h = self.height()
+        target_top_left = QPoint(target_center_point.x() - w // 2, target_center_point.y() - h // 2)
+
+        from_rect = QRect(self.geometry())
+        to_rect = QRect(target_top_left.x(), target_top_left.y(), w, h)
+
+        # Если точка осталась той же самой (микро-клик), просто сохраняем
+        dx = abs(from_rect.center().x() - to_rect.center().x())
+        dy = abs(from_rect.center().y() - to_rect.center().y())
+        if dx < 12 and dy < 12:
+            return
+
+        # Находим экран для целевой точки
+        target_screen = None
+        for scr in QGuiApplication.screens():
+            if scr.geometry().contains(target_center_point):
+                target_screen = scr
+                break
+        if target_screen is None:
+            target_screen = self.screen() or QGuiApplication.primaryScreen()
+
+        screen_rect = target_screen.geometry() if target_screen is not None else to_rect
+
+        # Завершаем старые оверлеи если были
+        if self._teleport_overlay_out is not None:
+            try:
+                self._teleport_overlay_out.close()
+            except Exception:
+                pass
+            self._teleport_overlay_out = None
+        if self._teleport_overlay_in is not None:
+            try:
+                self._teleport_overlay_in.close()
+            except Exception:
+                pass
+            self._teleport_overlay_in = None
+
+        def on_out_peak() -> None:
+            self.hide()
+
+        def on_out_finished() -> None:
+            if self._closing:
+                return
+
+            # Перемещаем окно в целевую позицию
+            self.setGeometry(to_rect)
+            wh = self.windowHandle()
+            if wh is not None and target_screen is not None:
+                wh.setScreen(target_screen)
+
+            # Сохраняем новую позицию
+            set_config_value("window.position", {"x": to_rect.x(), "y": to_rect.y()})
+            set_config_value("window.overlay_position", {"x": to_rect.x(), "y": to_rect.y()})
+
+            self.set_pose("crouch")
+
+            def on_in_peak() -> None:
+                self.show()
+                self.raise_()
+                self.set_pose("sit")
+                self.update()
+
+            def on_in_finished() -> None:
+                self._teleport_overlay_in = None
+                self.show()
+                self.raise_()
+                self._surge_ticks = 8
+                self.update()
+
+            self._teleport_overlay_in = TransitionOverlay(
+                screen_rect,
+                to_rect,
+                "in",
+                target=self,
+                on_peak=on_in_peak,
+            )
+            self._teleport_overlay_in.finished.connect(on_in_finished)
+            self._teleport_overlay_in.start()
+
+        self.set_pose("crouch")
+        self._teleport_overlay_out = TransitionOverlay(
+            self.screen().geometry() if self.screen() else from_rect,
+            from_rect,
+            "out",
+            target=self,
+            on_peak=on_out_peak,
+        )
+        self._teleport_overlay_out.finished.connect(on_out_finished)
+        self._teleport_overlay_out.start()
 
     def changeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().changeEvent(event)
