@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if [ -f ".venv/bin/python" ]; then
+    exec ./.venv/bin/python main.py "$@"
+else
+    echo "[ERROR] Virtual environment .venv not found!"
+    echo "Please create it first:"
+    echo "  python3 -m venv .venv"
+    echo "  source .venv/bin/activate && pip install -r requirements.txt"
+    exit 1
+fi
