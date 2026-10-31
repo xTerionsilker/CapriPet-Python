@@ -15,6 +15,26 @@
   ```
 - **Wayland / X11 Quirk:** `main.py` explicitly selects `QT_QPA_PLATFORM=xcb` when running under Wayland with XWayland to ensure frameless window positioning and movement behave consistently across Linux compositors.
 
+## Visual Design & Cyberpunk Style Guide
+
+The entire CapriPet interface must strictly adhere to the **Cyberpunk 2077 Military-Corpo Tech / HUD** aesthetic. Every visual element, overlay, dialog, HUD widget, menu, and effect should feel like an in-universe cyberware display, tactical OS, or neural link overlay:
+
+1. **Geometry & Framing:**
+   - **Chamfered / Cut Corners:** Avoid soft rounded corners (`border-radius`). Instead, use 45-degree chamfers, cut-outs (`_CORNER_CUT`), and asymmetrical angular frames.
+   - **Corner Brackets & Technical Crosshairs:** Frame containers with corner brackets, caliper ticks, technical notch markers, and micro-grid indicators (e.g. Acid Green / Neon Crimson corner brackets).
+   - **Section Separators:** Crisp, thin technical divider lines (`1px`), dotted/dashed guides, or linear gradients fading into transparency.
+
+2. **CRT & Holo Display Elements:**
+   - **Scanlines:** Fine horizontal scanlines (`1px` lines every 2–3px with low alpha like `rgba(242, 13, 46, 0.07)`).
+   - **Digital Noise & Glitch:** Occasional horizontal line tearing, chromatic shift hints, or momentary flickers during transitions.
+   - **Holographic Glow & Glass:** High-contrast solid Obsidian Black (`#0B0B0B`) bases with crisp neon borders; avoid generic translucent blur/aero unless it represents a CRT phosphorescent panel.
+
+3. **Typography & Data Telemetry:**
+   - **Font Stack:** Technical / terminal monospace fonts: `"Press Start 2P"`, `"Pixelify Sans"`, `"VT323"`, `"Terminus"`, `"JetBrains Mono"`, `"DejaVu Sans Mono"`, `monospace`.
+   - **Technical Headers & Telemetry:** Prefix titles and headers with tactical metadata tags (e.g. `CAPRI//ONLINE`, `[SYS.LOAD: 42%]`, `▶ CAPRI//AWAITING_INPUT // [STATUS]`, `0xDEADBEEF`).
+   - **Typewriter Effect & Block Cursors:** Text input and recognition output should appear via rapid typewriter effect accompanied by block cursor pulses (`█`).
+   - **Status Indicators:** Micro LED dots, animated audio equalizer bars, and blinking recording / sync markers.
+
 ## Character Palette (Strict)
 
 Capri's visual identity uses **only** the following colors:
