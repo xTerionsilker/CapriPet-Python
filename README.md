@@ -141,6 +141,18 @@ pip install -r requirements.txt
 
 Ключи Spotify сохраняются вне репозитория: в файле `~/.config/capri/spotify.json` (Linux) или `%APPDATA%\capri\spotify.json` (Windows).
 
+### Источники приложений для команды «Запусти»
+
+Поиск установленных приложений выполняется локально без сторонних служб:
+- **Linux:** сканируются стандартные системные и пользовательские директории спецификации XDG Desktop Entry:
+  - `/usr/share/applications`
+  - `/usr/local/share/applications`
+  - `~/.local/share/applications`
+  - Учитываются только десктоп-файлы типа `Application` без флага `NoDisplay=true`.
+- **Windows:** сканируются системные ярлыки и зарегистрированные пути приложений:
+  - Папки меню «Пуск»: `%ProgramData%\Microsoft\Windows\Start Menu\Programs` и `%AppData%\Microsoft\Windows\Start Menu\Programs` (файлы `.lnk`)
+  - Системный реестр `App Paths` в разделах `HKEY_LOCAL_MACHINE` и `HKEY_CURRENT_USER` (`SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths`)
+
 ## Структура проекта
 
 ```text
