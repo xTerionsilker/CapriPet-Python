@@ -8,6 +8,8 @@ from urllib.parse import quote_plus
 
 import requests
 
+from ..core.user_agent import get_user_agent
+
 
 def search_google(query: str) -> str:
     """Выполняет поиск в Google через браузер по умолчанию."""
@@ -25,11 +27,7 @@ def fetch_youtube_top_videos(query: str, limit: int = 5) -> list[dict[str, str]]
         return []
     try:
         headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            ),
+            "User-Agent": get_user_agent(),
             "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
         }
         resp = requests.get(

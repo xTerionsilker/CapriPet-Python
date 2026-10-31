@@ -50,6 +50,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "inactivity_timeout_ms": 5000,
         "reminders_enabled": True,
     },
+    "network": {
+        "user_agent": None,
+    },
 }
 
 LEGACY_KEY_MAP = {

@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication
 from capri import CapriWindow
 from capri.audio.recognizer import preload_model_async
 from capri.core.settings import get_config_value
+from capri.core.user_agent import init_user_agent_async
 
 
 def _prefer_xwayland() -> None:
@@ -31,10 +32,11 @@ def _prefer_xwayland() -> None:
 def main() -> int:
     _prefer_xwayland()
 
-    # Прогреваем Vosk параллельно с инициализацией Qt, чтобы первый триггер
-    # обрабатывался без задержки на загрузку модели.
+    # Прогреваем Vosk и определяем User-Agent параллельно с инициализацией Qt,
+    # чтобы первый триггер и сетевые запросы обрабатывались без задержек.
     if get_config_value("audio.voice_enabled", True):
         preload_model_async()
+    init_user_agent_async()
 
     app = QApplication(sys.argv)
     app.setApplicationName("Capri")
