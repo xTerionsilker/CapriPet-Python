@@ -50,6 +50,7 @@ from .speech import (
     show_text,
 )
 from .speech_sfx import get_speech_sfx
+from .voice_hud import CyberVoiceHud
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 ASSETS = ROOT / "assets"
@@ -128,6 +129,7 @@ class CapriWindow(QWidget):
         self._startup_overlay: TransitionOverlay | None = None
         self._model_init_overlay: ModelInitOverlay | None = None
         self._session_overlay: SessionAnimationOverlay | None = None
+        self._voice_hud: CyberVoiceHud | None = None
         self._voice_armed_until = 0.0
         self._closing = False
         self._designated_screen_name: str | None = None
@@ -348,6 +350,20 @@ class CapriWindow(QWidget):
         self._load_pixmap(pose_name, path)
         self.set_pose(pose_name)
 
+    def _ensure_voice_hud(self) -> CyberVoiceHud:
+        if self._voice_hud is None:
+            self._voice_hud = CyberVoiceHud(self)
+        return self._voice_hud
+
+    def _on_awaiting_reply_changed(self, awaiting: bool) -> None:
+        if awaiting:
+            hud = self._ensure_voice_hud()
+            hud.show_hud(status="WAITING_ARGUMENT", mode="AWAITING_INPUT")
+        else:
+            if not self._voice_command_armed:
+                if self._voice_hud is not None:
+                    self._voice_hud.hide_hud(delay_ms=400)
+
     def _build_shortcuts(self) -> None:
         QShortcut(QKeySequence("Ctrl+Q"), self, self.close)
         QShortcut(QKeySequence("Ctrl+Space"), self, self._toggle_voice)
@@ -360,6 +376,7 @@ class CapriWindow(QWidget):
         self._voice.status_changed.connect(self._on_voice_status)
         self._voice.recognized.connect(self._on_voice_text)
         self._voice.failed.connect(self.speak)
+        self._flow.awaiting_reply_changed.connect(self._on_awaiting_reply_changed)
 
         self._voice_window_timer = QTimer(self)
         self._voice_window_timer.setSingleShot(True)
@@ -629,6 +646,12 @@ class CapriWindow(QWidget):
         if command is None:
             return
         self._inactivity.reset_timer()
+
+        # Если HUD активен (была триггер фраза или ожидался ответ), показываем распознанный текст
+        if self._voice_command_armed or self._flow.awaiting_reply:
+            hud = self._ensure_voice_hud()
+            hud.set_recognized_text(text, keep_ms=2500)
+
         if command:
             self._disarm_voice_command()
             result = self.process_input(command)
@@ -655,14 +678,22 @@ class CapriWindow(QWidget):
             time.monotonic() + VOICE_COMMAND_WINDOW_MS / 1000
         )
         self._voice_window_timer.start(VOICE_COMMAND_WINDOW_MS)
+        hud = self._ensure_voice_hud()
+        hud.show_hud(status="LISTENING_COMMAND", mode="TRIGGER_DETECTED")
         self._greet_trigger()
 
     def _disarm_voice_command(self) -> None:
         self._voice_armed_until = 0.0
         self._voice_window_timer.stop()
+        if not self._flow.awaiting_reply:
+            if self._voice_hud is not None:
+                self._voice_hud.hide_hud(delay_ms=2200)
 
     def _on_voice_window_expired(self) -> None:
         self._voice_armed_until = 0.0
+        if not self._flow.awaiting_reply:
+            if self._voice_hud is not None:
+                self._voice_hud.hide_hud(delay_ms=300)
 
     def _greet_trigger(self) -> None:
         self.speak(random.choice(WAKE_LINES))

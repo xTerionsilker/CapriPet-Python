@@ -7,10 +7,12 @@ from .pet_renderer import PetRenderState, PetRenderer
 from .pet_window import CapriWindow
 from .speech import SpeechWindow, show_text
 from .theme import APP_STYLE
+from .voice_hud import CyberVoiceHud
 
 __all__ = [
     "CapriWindow",
     "SpeechWindow",
+    "CyberVoiceHud",
     "show_text",
     "APP_STYLE",
     "ContextMenuBuilder",

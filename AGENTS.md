@@ -37,6 +37,9 @@ Capri's visual identity uses **only** the following colors:
   - `CapriWindow` (`capri/ui/pet_window.py`): Floating translucent sprite (`assets/var/{idle,other,thinking}/`) rendered with custom pixel glitch passes.
   - Position is saved to configuration and restored automatically; dragging moves Capri across monitors.
   - Automatically hides during inactivity and reappears via `InactivityManager` (`capri/controllers/inactivity_manager.py`).
+- **Voice HUD (`capri/ui/voice_hud.py`):**
+  - Displays a Cyberpunk 2077 style HUD (`CyberVoiceHud`) above the taskbar when Capri is listening for voice commands after a trigger phrase or awaiting arguments/confirmation (yes/no, numbers, etc.).
+  - Shows real-time audio telemetry, status indicator, and typing effect for recognized text strictly within Capri's palette.
 - **Speech System (`capri/ui/speech.py`):**
   - Displays cyber HUD speech bubbles (`CyberHudBubble`) with holographic deploy (open) and CRT beam collapse (close) animations.
   - Anchors dynamically to Capri (`CapriWindow`), tracking movement in real time via `eventFilter` and a 25ms timer.

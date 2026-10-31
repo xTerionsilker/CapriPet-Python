@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
-from PySide6.QtCore import QObject, QTimer
+from PySide6.QtCore import QObject, QTimer, Signal
 
 from .commands import switch_layout
 
@@ -124,6 +124,8 @@ def _confirm_prompt(command: Any) -> str:
 
 class InputFlow(QObject):
 
+    awaiting_reply_changed = Signal(bool)
+
     def __init__(
         self, registry: Any, parent: QObject | None = None
     ) -> None:
@@ -150,6 +152,7 @@ class InputFlow(QObject):
         timer.timeout.connect(self.clear)
         self._custom_waiter = (handler, timer)
         timer.start(timeout_ms)
+        self.awaiting_reply_changed.emit(True)
 
     def handle(self, text: str) -> str:
         if self._custom_waiter is not None:
@@ -178,6 +181,7 @@ class InputFlow(QObject):
             if getattr(command, "requires_confirmation", False):
                 self._pending = (command, text)
                 self._confirm_timer.start(CONFIRM_TIMEOUT_MS)
+                self.awaiting_reply_changed.emit(True)
                 return _confirm_prompt(command)
             reply = self._registry.dispatch(text)
             if reply is not None:
@@ -187,16 +191,20 @@ class InputFlow(QObject):
         if suggestion is not None:
             self._pending = (suggestion, text)
             self._confirm_timer.start(CONFIRM_TIMEOUT_MS)
+            self.awaiting_reply_changed.emit(True)
             return f"Ты имел в виду: «{suggestion.name}»? (да / нет)"
         return f"Ты сказал: {text}"
 
     def clear(self) -> None:
+        was_awaiting = self.awaiting_reply
         self._pending = None
         if self._custom_waiter is not None:
             _, timer = self._custom_waiter
             timer.stop()
             self._custom_waiter = None
         self._confirm_timer.stop()
+        if was_awaiting:
+            self.awaiting_reply_changed.emit(False)
 
     def _run(self, command: Any, original: str) -> str:
         if getattr(command, "takes_argument", False):
