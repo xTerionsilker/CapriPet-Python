@@ -12,76 +12,43 @@ CapriPet — это компактный десктопный кибер-пит�
 - Клиент Spotify (в Linux требуется `dbus-send` / playerctl, в Windows поддерживается нативно через медиа-клавиши)
 - [Ollama](https://github.com/ollama/ollama#download) для команды `слушай` (опционально)
 
-## Установка
+## Установка и запуск
+
+### Быстрый старт (Автоматическая установка)
+
+Скрипты запуска автоматически проверяют наличие виртуального окружения `.venv` и установку всех необходимых библиотек. Если окружение отсутствует или библиотеки не установлены, скрипт сам создаст `.venv` и скачает зависимости из `requirements.txt`:
+
+- **Linux:**
+  ```bash
+  chmod +x capriLinux.sh
+  ./capriLinux.sh
+  ```
+- **Windows:**
+  Дважды кликните по файлу `capriWin.bat` или запустите в командной строке:
+  ```cmd
+  capriWin.bat
+  ```
+
+---
+
+### Ручная установка и запуск
+
+Если вы предпочитаете настраивать окружение вручную:
 
 **Linux:**
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+./.venv/bin/python main.py
 ```
+*Примечание для Wayland:* `main.py` автоматически активирует `QT_QPA_PLATFORM=xcb` при наличии XWayland для обеспечения стабильного позиционирования прозрачного окна без рамок.
 
 **Windows (PowerShell):**
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-```
-
-## Настройка Spotify (Опционально)
-
-Поиск и включение музыки по голосовому запросу («спотифай <запрос>») работают через Spotify Web API.
-Управление воспроизведением (пауза, продолжить, переключение треков) работает локально и не требует ключей API.
-
-> [!NOTE]
-> Согласно актуальным правилам Spotify Developer Platform, для использования Web API Search аккаунт создателя приложения должен обладать активной подпиской **Spotify Premium**.
-
-1. Зайдите в [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) и создайте приложение.
-2. В настройках приложения скопируйте **Client ID** и **Client Secret**.
-3. Создайте файл `spotify.json` в системной директории настроек пользователя:
-   - **Linux:** `~/.config/capri/spotify.json`
-     ```bash
-     mkdir -p ~/.config/capri
-     cat << 'EOF' > ~/.config/capri/spotify.json
-     {
-       "client_id": "ВАШ_CLIENT_ID",
-       "client_secret": "ВАШ_CLIENT_SECRET"
-     }
-     EOF
-     chmod 600 ~/.config/capri/spotify.json
-     ```
-   - **Windows (PowerShell):** `$env:APPDATA\capri\spotify.json`
-     ```powershell
-     $dir = "$env:APPDATA\capri"
-     if (!(Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force }
-     @'
-     {
-       "client_id": "ВАШ_CLIENT_ID",
-       "client_secret": "ВАШ_CLIENT_SECRET"
-     }
-     '@ | Set-Content -Path "$dir\spotify.json" -Encoding UTF8
-     ```
-   *Либо задайте ключи через переменные окружения `SPOTIFY_CLIENT_ID` и `SPOTIFY_CLIENT_SECRET`.*
-
-## Запуск
-
-**Быстрый запуск скриптом:**
-- **Linux:** `./capriLinux.sh`
-- **Windows:** дважды кликните `capriWin.bat` или запустите в терминале:
-  ```cmd
-  capriWin.bat
-  ```
-
-**Ручной запуск через Python:**
-
-**Linux:**
-```bash
-./.venv/bin/python main.py
-```
-*Примечание для Wayland:* `main.py` автоматически активирует `QT_QPA_PLATFORM=xcb` при наличии XWayland для обеспечения стабильного позиционирования и перетаскивания прозрачного окна без рамок.
-
-**Windows (PowerShell):**
-```powershell
 .venv\Scripts\python.exe main.py
 ```
 
