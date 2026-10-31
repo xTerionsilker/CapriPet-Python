@@ -151,3 +151,32 @@ class RebootCommand(BaseCommand):
         if not commands or not run_power(commands):
             return "Не удалось перезагрузить компьютер."
         return "Перезагружаю ПК."
+
+
+class LaunchAppCommand(BaseCommand):
+    name = "запусти"
+    description = "найти и запустить установленное приложение."
+    takes_argument = True
+    aliases = (
+        "запусти приложение",
+        "запустить",
+        "запустить приложение",
+        "открой",
+        "открыть",
+        "открой приложение",
+        "открыть приложение",
+        "включи приложение",
+        "включить приложение",
+        "старт",
+        "стартуй",
+    )
+    keywords = ("запусти", "запустить", "открой", "открыть", "старт", "приложение", "программу")
+
+    def execute(self, ctx: CommandContext, query: str = "") -> str | None:
+        trimmed = query.strip()
+        if not trimmed:
+            return "Какое приложение запустить? Скажи: «запусти <название>»."
+        if ctx.action_bridge is not None:
+            return ctx.action_bridge.launch_app(trimmed)
+        return f"Ищу приложение: {trimmed}"
+

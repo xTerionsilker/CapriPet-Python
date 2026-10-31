@@ -4,6 +4,7 @@ import getpass
 import random
 import time
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import (
@@ -149,6 +150,9 @@ class CapriWindow(QWidget):
         self._actions.ollama_finished.connect(self._on_ollama_talking_end)
         self._actions.youtube_results_ready.connect(
             self._on_youtube_results_ready
+        )
+        self._actions.launch_app_results_ready.connect(
+            self._on_launch_app_results_ready
         )
 
         self._build_shortcuts()
@@ -706,6 +710,33 @@ class CapriWindow(QWidget):
             for i, v in enumerate(videos, 1)
         ]
         prompt = "\n".join(lines) + "\nСкажи номер (1–5)"
+        self._flow.expect_reply(_on_choice, timeout_ms=25_000)
+        self.speak(prompt, hold_ms=25_000)
+
+    def _on_launch_app_results_ready(self, apps: list[dict[str, Any]]) -> None:
+        if self._closing:
+            return
+        if not apps:
+            self.speak("Не удалось найти подходящих приложений.")
+            return
+
+        def _on_choice(text: str) -> str:
+            from ..core.input_flow import _parse_selected_number
+            from ..integrations.app_launcher import launch_application
+            choice = _parse_selected_number(text, max_number=len(apps))
+            if choice is None:
+                return "Не поняла номер. Запуск отменён."
+            selected = apps[choice - 1]
+            success = launch_application(selected)
+            if success:
+                return f"Запускаю #{choice}: {selected['name']}"
+            return f"Не удалось запустить {selected['name']}."
+
+        lines = [
+            f"{i}. {a['name'][:32]}…" if len(a['name']) > 32 else f"{i}. {a['name']}"
+            for i, a in enumerate(apps, 1)
+        ]
+        prompt = "\n".join(lines) + f"\nСкажи номер (1–{len(apps)})"
         self._flow.expect_reply(_on_choice, timeout_ms=25_000)
         self.speak(prompt, hold_ms=25_000)
 

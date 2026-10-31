@@ -22,6 +22,7 @@ _CMD_TO_HANDLER: dict[str, str] = {
     "перезагрузка": "reboot",
     "слушай": "ask_ollama",
     "где мышь": "locate_mouse",
+    "запусти": "launch_app",
 }
 
 

@@ -17,6 +17,7 @@ from .pet_actions import (
 )
 from .registry import CommandRegistry, switch_layout
 from .system import (
+    LaunchAppCommand,
     LockScreenCommand,
     PowerOffCommand,
     RebootCommand,
@@ -42,6 +43,7 @@ DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     RebootCommand,
     OllamaAskCommand,
     LocateMouseCommand,
+    LaunchAppCommand,
 )
 
 

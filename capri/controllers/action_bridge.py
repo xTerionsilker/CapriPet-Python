@@ -5,7 +5,7 @@ import threading
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ..effects.session_animations import SESSION_ACTION_LEAD_MS
-from ..integrations import ollama, spotify, web_search
+from ..integrations import app_launcher, ollama, spotify, web_search
 from ..integrations.screen_lock import lock_commands, run_lock
 from ..integrations.system_power import power_commands, run_power
 
@@ -20,6 +20,7 @@ class ActionBridge(QObject):
     ollama_started = Signal()
     ollama_finished = Signal()
     youtube_results_ready = Signal(list)
+    launch_app_results_ready = Signal(list)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -168,6 +169,22 @@ class ActionBridge(QObject):
         videos = web_search.fetch_youtube_top_videos(query, limit=5)
         if videos:
             self.youtube_results_ready.emit(videos)
+
+    def launch_app(self, query: str) -> str:
+        trimmed = query.strip()
+        if not trimmed:
+            return "Какое приложение запустить? Скажи: «запусти <название>»."
+        threading.Thread(
+            target=self._find_apps_worker,
+            args=(trimmed,),
+            name="capri-app-find",
+            daemon=True,
+        ).start()
+        return f"Ищу приложение: {trimmed}"
+
+    def _find_apps_worker(self, query: str) -> None:
+        apps = app_launcher.find_matching_applications(query, limit=5)
+        self.launch_app_results_ready.emit(apps)
 
     def open_update_page(self) -> str:
         return web_search.open_update_page()
