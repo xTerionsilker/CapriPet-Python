@@ -65,13 +65,22 @@ pip install -r requirements.txt
 
 ## Запуск
 
+**Быстрый запуск скриптом:**
+- **Linux:** `./capriLinux.sh`
+- **Windows:** дважды кликните `capriWin.bat` или запустите в терминале:
+  ```cmd
+  capriWin.bat
+  ```
+
+**Ручной запуск через Python:**
+
 **Linux:**
 ```bash
 ./.venv/bin/python main.py
 ```
 *Примечание для Wayland:* `main.py` автоматически активирует `QT_QPA_PLATFORM=xcb` при наличии XWayland для обеспечения стабильного позиционирования и перетаскивания прозрачного окна без рамок.
 
-**Windows:**
+**Windows (PowerShell):**
 ```powershell
 .venv\Scripts\python.exe main.py
 ```
@@ -135,7 +144,9 @@ pip install -r requirements.txt
 ## Структура проекта
 
 ```text
-main.py
+main.py                         # Главная точка входа приложения
+capriLinux.sh                   # Скрипт быстрого запуска для Linux
+capriWin.bat                    # Скрипт быстрого запуска для Windows
 capri/
 ├── __init__.py
 ├── audio/                      # Голосовой ввод и распознавание речи
@@ -171,6 +182,7 @@ capri/
 │   ├── transition.py           # Процедурная кибер-анимация скрытия/появления
 │   └── transition_fx.py        # Палитра, шины и кадры эффекта перехода-молнии
 ├── integrations/               # Внешние интеграции и системные команды
+│   ├── app_launcher.py         # Поиск и запуск установленных приложений (Linux/Windows)
 │   ├── cursor.py               # Определение положения и центрирование курсора мыши
 │   ├── ollama.py               # Взаимодействие с локальной нейросетью Ollama
 │   ├── screen_lock.py          # Блокировка экрана через системные утилиты
