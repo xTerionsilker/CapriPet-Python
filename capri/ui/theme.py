@@ -41,8 +41,10 @@ QMenu::item:selected {{
     border-left: 2px solid {ACID_GREEN};
 }}
 QMenu::item:disabled {{
-    color: rgba(153, 34, 238, 0.7);
-    background: transparent;
+    color: rgba(242, 13, 46, 0.7);
+    background: rgba(242, 13, 46, 0.08);
+    font-weight: bold;
+    border-left: 2px solid {NEON_CRIMSON};
 }}
 QMenu::separator {{
     height: 1px;
@@ -81,123 +83,125 @@ QMenu::scroller {{
 
 APP_STYLE = f"""
 QWidget {{
-    background: #07060b;
-    color: #e7f9ea;
+    background: {OBSIDIAN_BLACK};
+    color: {PURE_WHITE};
     font-family: {PIXEL_FONT};
     font-size: 13px;
 }}
 QVideoWidget {{
-    background: #000;
+    background: {OBSIDIAN_BLACK};
     border: none;
-    border-bottom: 3px solid #1c2a20;
+    border-bottom: 2px solid {NEON_CRIMSON};
 }}
 #panel {{
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #0d0a14, stop:0.49 #0d0a14,
-        stop:0.5 #0a0810, stop:0.99 #0a0810,
-        stop:1 #0d0a14);
-    border-top: 3px solid #1a2a1f;
+    background: {OBSIDIAN_BLACK};
+    border-top: 2px solid {NEON_CRIMSON};
 }}
 #panel QLabel {{ background: transparent; }}
 #accent {{
     border: none;
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 #39ff6a, stop:0.19 #39ff6a,
-        stop:0.2 #a259ff, stop:0.39 #a259ff,
-        stop:0.4 #ff1e46, stop:0.59 #ff1e46,
-        stop:0.6 #ffb000, stop:0.79 #ffb000,
-        stop:0.8 #39ff6a, stop:1 #39ff6a);
+        stop:0 {NEON_CRIMSON},
+        stop:0.45 {NEON_CRIMSON},
+        stop:0.7 {NEON_VIOLET},
+        stop:0.85 {ELECTRIC_BLUE},
+        stop:1 {ACID_GREEN});
 }}
 #prompt {{
-    color: #39ff6a;
+    color: {NEON_CRIMSON};
     font-weight: 700;
-    font-size: 16px;
+    font-size: 15px;
+    letter-spacing: 1px;
 }}
 #status {{
-    color: #6f9479;
+    color: {ACID_GREEN};
     font-size: 11px;
     letter-spacing: 2px;
 }}
 QLineEdit {{
-    background: #0c0a12;
-    border: 3px solid #2a2140;
+    background: {OBSIDIAN_BLACK};
+    border: 1px solid {NEON_CRIMSON};
     border-radius: 0;
     padding: 8px 10px;
-    color: #eaffef;
-    placeholder-text-color: #5f6b62;
-    selection-background-color: #ff1e46;
-    selection-color: #07060b;
+    color: {PURE_WHITE};
+    placeholder-text-color: rgba(242, 13, 46, 0.4);
+    selection-background-color: {NEON_CRIMSON};
+    selection-color: {OBSIDIAN_BLACK};
 }}
 QLineEdit:focus {{
-    border: 3px solid #39ff6a;
-    background: #121019;
+    border: 1px solid {ACID_GREEN};
+    background: {OBSIDIAN_BLACK};
 }}
 QPushButton {{
-    background: #39ff6a;
-    color: #05070a;
-    border: 3px solid #39ff6a;
-    border-top-color: #a6ffbe;
-    border-left-color: #a6ffbe;
-    border-right-color: #0f8f33;
-    border-bottom-color: #0f8f33;
+    background: {NEON_CRIMSON};
+    color: {PURE_WHITE};
+    border: 1px solid {NEON_CRIMSON};
     border-radius: 0;
     padding: 8px 20px;
     font-weight: 800;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
 }}
 QPushButton:hover {{
-    background: #7dffa0;
-    border-color: #7dffa0;
-    border-top-color: #d2ffe0;
-    border-left-color: #d2ffe0;
-    border-right-color: #1fa94a;
-    border-bottom-color: #1fa94a;
+    background: {ACID_GREEN};
+    color: {OBSIDIAN_BLACK};
+    border-color: {ACID_GREEN};
 }}
 QPushButton:pressed {{
-    background: #12c744;
-    border-color: #12c744;
-    border-top-color: #0f8f33;
-    border-left-color: #0f8f33;
-    border-right-color: #a6ffbe;
-    border-bottom-color: #a6ffbe;
-    padding: 10px 20px 6px;
+    background: {ELECTRIC_BLUE};
+    color: {PURE_WHITE};
+    border-color: {ELECTRIC_BLUE};
+    padding: 9px 20px 7px;
 }}
 QMenu {{
-    background-color: #0d0a14;
-    border: 2px solid #39ff6a;
-    padding: 6px;
-    color: #e7f9ea;
+    background-color: {OBSIDIAN_BLACK};
+    border: 1px solid {NEON_CRIMSON};
+    padding: 6px 4px 6px 4px;
+    color: {PURE_WHITE};
     font-family: {PIXEL_FONT};
     font-size: 11px;
+    letter-spacing: 0.5px;
 }}
 QMenu::item {{
     background: transparent;
-    padding: 6px 28px 6px 20px;
-    border: 1px solid transparent;
+    padding: 6px 26px 6px 24px;
+    margin: 1px 2px;
+    border-left: 2px solid transparent;
+    color: {PURE_WHITE};
 }}
 QMenu::item:selected {{
-    background-color: #1a1628;
-    color: #39ff6a;
-    border: 1px solid #39ff6a;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 rgba(242, 13, 46, 0.9),
+        stop:0.65 rgba(242, 13, 46, 0.4),
+        stop:1 rgba(11, 11, 11, 0.2));
+    color: {PURE_WHITE};
+    border-left: 2px solid {ACID_GREEN};
 }}
 QMenu::item:disabled {{
-    color: #555268;
+    color: rgba(242, 13, 46, 0.7);
+    background: rgba(242, 13, 46, 0.08);
+    font-weight: bold;
+    border-left: 2px solid {NEON_CRIMSON};
 }}
 QMenu::separator {{
-    height: 2px;
-    background: #2a2140;
-    margin: 6px 2px;
+    height: 1px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 {NEON_CRIMSON},
+        stop:0.4 {NEON_VIOLET},
+        stop:0.8 {ELECTRIC_BLUE},
+        stop:1 transparent);
+    margin: 5px 6px;
 }}
 QMenu::indicator {{
-    width: 12px;
-    height: 12px;
+    width: 8px;
+    height: 8px;
+    margin-left: 8px;
 }}
 QMenu::indicator:checked {{
-    background-color: #39ff6a;
-    border: 1px solid #a6ffbe;
+    background-color: {ACID_GREEN};
+    border: 1px solid {PURE_WHITE};
 }}
 QMenu::indicator:unchecked {{
-    background-color: #0c0a12;
-    border: 1px solid #4a3e6a;
+    background-color: {OBSIDIAN_BLACK};
+    border: 1px solid {NEON_VIOLET};
 }}
 """

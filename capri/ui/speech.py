@@ -26,20 +26,26 @@ from PySide6.QtWidgets import (
 
 from .placement import pick_adjacent_position
 from .speech_sfx import get_speech_sfx
+from .theme import (
+    ACID_GREEN,
+    ELECTRIC_BLUE,
+    NEON_CRIMSON,
+    PIXEL_FONT,
+    PURE_WHITE,
+)
 
-_TEXT_COLOR = "#00f0ff"
+_TEXT_COLOR = PURE_WHITE
 _TEXT_WIDTH = 420
 _GLYPHS = "0123456789ABCDEF$#@%&*+-/<>~_!?░▒▓"
 
-_STYLE = """
-QLabel#text {
+_STYLE = f"""
+QLabel#text {{
     background: transparent;
-    color: #00f0ff;
-    font-family: "Press Start 2P", "Pixelify Sans", "VT323", "Terminus",
-        "JetBrains Mono", "DejaVu Sans Mono", monospace;
+    color: {_TEXT_COLOR};
+    font-family: {PIXEL_FONT};
     font-size: 13px;
     letter-spacing: 1px;
-}
+}}
 """
 
 _active_windows: set["SpeechWindow"] = set()
@@ -60,7 +66,7 @@ class CyberHudBubble(QWidget):
     - Анимированное исчезновение: цифровой глитч -> CRT-схлопывание в лазерную линию -> угасание
     - Направленный кибер-разъем/шеврон (◀ / ▶ / ▼ / ▲), указывающий прямо на Капри
     - Скошенный угол (chamfer) в правом верхнем углу
-    - Двухцветная палитра: циан (#00f0ff) и неоново-розовый (#ff1e46)
+    - Киберпанк-палитра: Neon Crimson (#F20D2E) и Acid Green (#3CF12B) на Obsidian Black (#0B0B0B)
     - Отрисовка сканлайнов (scanlines) и скан-линии развёртки
     - Верхний заголовок терминала [CAPRI://NET_LINK] с направлением
     - Пиксельная неоновая тень/свечение со смещением
@@ -321,12 +327,12 @@ class CyberHudBubble(QWidget):
         # 1. Пиксельная неоновая тень/свечение со смещением (+so, +so)
         shadow_path = path.translated(so, so)
         shadow_alpha = int(90 + 50 * intensity) if is_glitch else 90
-        painter.fillPath(shadow_path, QColor(255, 30, 70, shadow_alpha))
+        painter.fillPath(shadow_path, QColor(242, 13, 46, shadow_alpha))
 
-        # 2. Глубокий темный фон (#08060c)
-        painter.fillPath(path, QColor(8, 6, 12, 245))
+        # 2. Глубокий темный фон (#0B0B0B)
+        painter.fillPath(path, QColor(11, 11, 11, 248))
 
-        # 3. Сканлайны
+        # 3. Сканлайны (алый / кислотно-зеленый с низкой прозрачностью)
         painter.save()
         painter.setClipPath(path)
         scanline_alpha = (
@@ -334,7 +340,7 @@ class CyberHudBubble(QWidget):
             if is_glitch
             else 14
         )
-        scanline_pen = QPen(QColor(0, 240, 255, max(8, scanline_alpha)), 1)
+        scanline_pen = QPen(QColor(242, 13, 46, max(8, scanline_alpha)), 1)
         painter.setPen(scanline_pen)
         for y in range(0, bh, 3):
             painter.drawLine(shake_x - 10, y, bw + shake_x + 10, y)
@@ -342,7 +348,7 @@ class CyberHudBubble(QWidget):
         # Анимированная бегущая линия голографической развёртки
         if phase in ("opening", "closing") or is_glitch:
             sweep_y = int(bh * ((time.monotonic() * 2.5) % 1.0))
-            painter.fillRect(shake_x - 10, sweep_y, bw + 20, 2, QColor(0, 240, 255, 110))
+            painter.fillRect(shake_x - 10, sweep_y, bw + 20, 2, QColor(242, 13, 46, 110))
 
         painter.restore()
 
@@ -350,16 +356,16 @@ class CyberHudBubble(QWidget):
         if is_glitch and intensity > 0.08:
             dx = int(random.uniform(2, 6) * intensity)
             red_path = path.translated(-dx, 0)
-            painter.strokePath(red_path, QPen(QColor(255, 30, 70, int(160 * intensity)), 2))
-            cyan_shift = path.translated(dx, 0)
-            painter.strokePath(cyan_shift, QPen(QColor(0, 240, 255, int(160 * intensity)), 2))
+            painter.strokePath(red_path, QPen(QColor(242, 13, 46, int(160 * intensity)), 2))
+            green_shift = path.translated(dx, 0)
+            painter.strokePath(green_shift, QPen(QColor(60, 241, 43, int(160 * intensity)), 2))
 
-        # 5. Основная рамка (циан #00f0ff)
-        cyan_pen = QPen(QColor("#00f0ff"), 2)
-        painter.strokePath(path, cyan_pen)
+        # 5. Основная рамка (Neon Crimson #F20D2E)
+        crimson_pen = QPen(QColor(NEON_CRIMSON), 2)
+        painter.strokePath(path, crimson_pen)
 
-        # 6. Акценты неоново-розовым (#ff1e46)
-        accent_pen = QPen(QColor("#ff1e46"), 2)
+        # 6. Акценты кислотно-зеленым (#3CF12B)
+        accent_pen = QPen(QColor(ACID_GREEN), 2)
         painter.setPen(accent_pen)
         # Подсветка скошенного угла
         painter.drawLine(bw - c + shake_x, 0, bw + shake_x, c)
@@ -372,7 +378,7 @@ class CyberHudBubble(QWidget):
         painter.drawLine(bw + shake_x, bh - 10, bw + shake_x, bh)
 
         # 7. Индикаторный неоновый шеврон внутри направляющего разъёма
-        chevron_color = QColor("#ff1e46") if is_glitch else QColor("#00f0ff")
+        chevron_color = QColor(NEON_CRIMSON) if is_glitch else QColor(ACID_GREEN)
         painter.setPen(QPen(chevron_color, 2))
         if dir_ == "left":
             painter.drawLine(shake_x + 3, y_mid, shake_x + 1, y_mid)
@@ -390,7 +396,7 @@ class CyberHudBubble(QWidget):
                 sh = random.randint(1, 3)
                 sw = random.randint(bw // 4, max(bw // 4 + 1, bw))
                 sx = random.randint(0, max(0, bw - sw))
-                slice_color = QColor(random.choice(("#00f0ff", "#ff1e46", "#ffffff")))
+                slice_color = QColor(random.choice((NEON_CRIMSON, ACID_GREEN, PURE_WHITE, ELECTRIC_BLUE)))
                 slice_color.setAlpha(int(random.randint(40, 100) * intensity))
                 painter.fillRect(sx, sy, sw, sh, slice_color)
 
@@ -401,8 +407,8 @@ class CyberHudBubble(QWidget):
         painter.setFont(font)
 
         badge_rect = QRect(14 + shake_x, 5, max(10, bw - c - 20), 16)
-        painter.fillRect(QRect(12 + shake_x, 5, 168, 16), QColor(255, 30, 70, 32))
-        painter.setPen(QColor("#ff1e46"))
+        painter.fillRect(QRect(12 + shake_x, 5, 168, 16), QColor(242, 13, 46, 35))
+        painter.setPen(QColor(ACID_GREEN))
         chevron = _CHEVRONS.get(dir_, "")
         title_with_dir = f"{self._title} {chevron}".strip()
         painter.drawText(
@@ -413,11 +419,11 @@ class CyberHudBubble(QWidget):
 
         # 10. Неоновые лазерные границы при раскрытии / схлопывании
         if phase == "opening" and prog >= 0.22 and prog < 0.95:
-            painter.fillRect(0, y_top - 1, bw, 2, QColor(0, 240, 255, 230))
-            painter.fillRect(0, y_bot - 1, bw, 2, QColor(255, 30, 70, 230))
+            painter.fillRect(0, y_top - 1, bw, 2, QColor(242, 13, 46, 230))
+            painter.fillRect(0, y_bot - 1, bw, 2, QColor(60, 241, 43, 230))
         elif phase == "closing" and prog >= 0.25 and prog < 0.75:
-            painter.fillRect(0, y_top - 1, bw, 3, QColor(0, 240, 255, 245))
-            painter.fillRect(0, y_bot - 1, bw, 3, QColor(255, 30, 70, 245))
+            painter.fillRect(0, y_top - 1, bw, 3, QColor(242, 13, 46, 245))
+            painter.fillRect(0, y_bot - 1, bw, 3, QColor(60, 241, 43, 245))
 
 
 class SpeechWindow(QFrame):
@@ -737,12 +743,12 @@ class SpeechWindow(QFrame):
                 scramble_chars.append(random.choice(_GLYPHS))
         scramble_part = escape("".join(scramble_chars)).replace("\n", "<br>")
 
-        cursor = '<span style="color:#ff1e46">█</span>'
+        cursor = f'<span style="color:{NEON_CRIMSON}">█</span>'
         hidden_part = escape(self._text[scramble_end:]).replace("\n", "<br>")
 
         html = (
             f'<span style="color:{_TEXT_COLOR}">{fixed_part}</span>'
-            f'<span style="color:#ff1e46">{scramble_part}</span>'
+            f'<span style="color:{ACID_GREEN}">{scramble_part}</span>'
             f'{cursor}'
             f'<span style="color:rgba(0,0,0,0)">{hidden_part}</span>'
         )
@@ -751,7 +757,7 @@ class SpeechWindow(QFrame):
 
     def _render_finished(self) -> None:
         visible = escape(self._text).replace("\n", "<br>")
-        cursor_color = "#ff1e46" if self._cursor_visible else "rgba(0,0,0,0)"
+        cursor_color = NEON_CRIMSON if self._cursor_visible else "rgba(0,0,0,0)"
         self._label.setText(
             f'<span style="color:{_TEXT_COLOR}">{visible}</span>'
             f'<span style="color:{cursor_color}">█</span>'
