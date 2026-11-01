@@ -498,6 +498,8 @@ class CapriWindow(QWidget):
         self._model_init_overlay = None
 
     def hideEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        if self._is_lightning_aiming:
+            self._cancel_lightning_aiming()
         self._glitch_timer.stop()
         super().hideEvent(event)
 
@@ -581,6 +583,7 @@ class CapriWindow(QWidget):
             self._is_dragging = False
             self._drag_offset = None
             self._surge_ticks = max(self._surge_ticks, 14)
+            self._inactivity.set_paused(True)
             self.update()
 
             cursor_pos = event.globalPosition().toPoint()
@@ -600,6 +603,7 @@ class CapriWindow(QWidget):
             overlay.update_start(pet_center, self.geometry())
             overlay.update_target(cursor_pos)
             self._surge_ticks = max(self._surge_ticks, 6)
+            self._inactivity.reset_timer()
             self.update()
             event.accept()
             return
@@ -608,6 +612,7 @@ class CapriWindow(QWidget):
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         if event.button() == Qt.MouseButton.LeftButton and self._is_lightning_aiming:
             self._is_lightning_aiming = False
+            self._inactivity.set_paused(False)
             target_pos = event.globalPosition().toPoint()
             if self._lightning_overlay is not None:
                 self._lightning_overlay.deactivate()
@@ -624,6 +629,7 @@ class CapriWindow(QWidget):
 
     def _cancel_lightning_aiming(self) -> None:
         self._is_lightning_aiming = False
+        self._inactivity.set_paused(False)
         if self._lightning_overlay is not None:
             self._lightning_overlay.deactivate()
         self.update()
