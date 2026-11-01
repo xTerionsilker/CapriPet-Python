@@ -19,11 +19,8 @@ from PySide6.QtGui import (
 from PySide6.QtMultimedia import QAudioDevice, QMediaDevices
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QWidget
 
-from ..audio.recognizer import get_model_info, is_model_ready, preload_model_async
-from ..commands import CommandContext, register_default_commands
-from ..controllers import ActionBridge, InactivityManager, PresenceReminder
-from ..commands.registry import CommandRegistry
-from ..core.input_flow import InputFlow
+from ..audio.recognizer import preload_model_async
+from ..controllers.orchestrator import PetOrchestrator
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
     get_config_value,
@@ -135,43 +132,11 @@ class CapriWindow(QWidget):
         self._glitch_timer.setInterval(70)
         self._glitch_timer.timeout.connect(self._on_glitch_tick)
 
-        self.commands = CommandRegistry()
-        self._flow = InputFlow(self.commands, self)
-        self._actions = ActionBridge(self)
-        self._actions.speech_requested.connect(self.speak)
-        self._actions.session_animation_requested.connect(
-            self._on_session_animation_requested
-        )
-        self._actions.ollama_started.connect(self._on_ollama_talking_start)
-        self._actions.ollama_finished.connect(self._on_ollama_talking_end)
-        self._actions.youtube_results_ready.connect(
-            self._on_youtube_results_ready
-        )
-        self._actions.launch_app_results_ready.connect(
-            self._on_launch_app_results_ready
-        )
-        self._actions.kill_app_results_ready.connect(
-            self._on_kill_app_results_ready
-        )
-
-        self._voice_coord = VoiceCoordinator(
-            self,
-            on_command_ready=self._on_voice_command_ready,
-            speak_fn=self.speak,
-        )
-        self._flow.awaiting_reply_changed.connect(self._voice_coord.handle_awaiting_reply_changed)
-        self._build_shortcuts()
         self._glitches = GlitchManager(self)
-
+        self._orchestrator = PetOrchestrator(self)
+        self._build_shortcuts()
         self._load_initial_settings()
-        self._register_commands()
 
-        self._inactivity = InactivityManager(
-            main_window=self,
-            is_closing=lambda: self._closing,
-            on_wake_voice=self._voice_coord.wake_if_needed,
-            get_designated_screen=self.get_designated_screen,
-        )
         inactivity_ms = get_config_value(
             "behavior.inactivity_timeout_ms", ACTIVITY_TIMEOUT_OPTIONS_MS[0]
         )
@@ -182,27 +147,29 @@ class CapriWindow(QWidget):
         if inactivity_ms not in ACTIVITY_TIMEOUT_OPTIONS_MS:
             inactivity_ms = ACTIVITY_TIMEOUT_OPTIONS_MS[0]
         self._activity_timeout_seconds = inactivity_ms // 1000
-        self._inactivity.set_timeout_ms(inactivity_ms)
 
-        self._voice_coord.start_if_enabled()
-        self._inactivity.start()
-
-        self._reminder = PresenceReminder(self._on_reminder, self)
-        self._reminders_enabled = bool(
-            get_config_value("behavior.reminders_enabled", True)
-        )
-        if self._reminders_enabled:
-            self._reminder.start()
-
+        self._orchestrator.start()
         self._tray = TrayManager(self)
 
     @property
-    def input_flow(self) -> InputFlow:
-        return self._flow
+    def orchestrator(self) -> PetOrchestrator:
+        return self._orchestrator
 
     @property
-    def inactivity_manager(self) -> InactivityManager:
-        return self._inactivity
+    def commands(self):
+        return self._orchestrator.commands
+
+    @property
+    def input_flow(self):
+        return self._orchestrator.flow
+
+    @property
+    def inactivity_manager(self):
+        return self._orchestrator.inactivity
+
+    @property
+    def voice_coordinator(self):
+        return self._orchestrator.voice_coordinator
 
     @property
     def is_closing(self) -> bool:
@@ -241,7 +208,7 @@ class CapriWindow(QWidget):
             return
         self._activity_timeout_seconds = timeout_ms // 1000
         set_config_value("behavior.inactivity_timeout_ms", timeout_ms)
-        self._inactivity.set_timeout_ms(timeout_ms)
+        self._orchestrator.inactivity.set_timeout_ms(timeout_ms)
         self.speak(f"Время активности: {seconds} с")
 
     @property
@@ -251,20 +218,20 @@ class CapriWindow(QWidget):
     def set_reminders_enabled(self, enabled: bool) -> None:
         """Включает или выключает случайные напоминания о себе."""
         enabled = bool(enabled)
-        if self._reminders_enabled == enabled:
+        if self._orchestrator._reminders_enabled == enabled:
             return
-        self._reminders_enabled = enabled
+        self._orchestrator._reminders_enabled = enabled
         set_config_value("behavior.reminders_enabled", enabled)
         if enabled:
-            self._reminder.start()
+            self._orchestrator.reminder.start()
             self.speak("Напоминания включены.")
         else:
-            self._reminder.stop()
+            self._orchestrator.reminder.stop()
             self.speak("Напоминания выключены.")
 
     @property
     def reminders_enabled(self) -> bool:
-        return self._reminders_enabled
+        return self._orchestrator._reminders_enabled
 
     def set_pose(self, pose: str) -> None:
         """Переключает спрайт позы питомца."""
@@ -279,27 +246,7 @@ class CapriWindow(QWidget):
 
     def _build_shortcuts(self) -> None:
         QShortcut(QKeySequence("Ctrl+Q"), self, self.close)
-        QShortcut(QKeySequence("Ctrl+Space"), self, self._voice_coord.toggle_voice)
-
-    def _on_voice_command_ready(self, command: str) -> None:
-        result = self.process_input(command)
-        self.speak(result)
-
-    def _register_commands(self) -> None:
-        context = CommandContext(
-            speak=self.speak,
-            trigger_glitches=self._toggle_glitches,
-            toggle_voice=self._voice_coord.toggle_voice,
-            locate_mouse=self._locate_mouse,
-            set_pose=self.set_pose,
-            get_config=get_config_value,
-            set_config=set_config_value,
-            expect_reply=self._flow.expect_reply,
-            action_bridge=self._actions,
-            debug_info=self._debug_info,
-        )
-        self.commands.set_context(context)
-        register_default_commands(self.commands)
+        QShortcut(QKeySequence("Ctrl+Space"), self, self._orchestrator.voice_coordinator.toggle_voice)
 
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().showEvent(event)
@@ -507,130 +454,11 @@ class CapriWindow(QWidget):
         set_config_value("effects.glitches_enabled", enabled)
         return "Глитчи включены." if enabled else "Глитчи выключены."
 
-    def _on_ollama_talking_start(self) -> None:
-        self._surge_ticks = max(self._surge_ticks, 24)
-        self.set_pose("stay")
+    def toggle_glitches(self) -> str:
+        return self._toggle_glitches()
 
-    def _on_ollama_talking_end(self) -> None:
-        self._surge_ticks = max(self._surge_ticks, 8)
-        self.set_pose("sit")
-
-    def _on_youtube_results_ready(self, videos: list[dict[str, str]]) -> None:
-        if not videos or self._closing:
-            return
-
-        def _on_choice(text: str) -> str:
-            from ..core.input_flow import _parse_selected_number
-            choice = _parse_selected_number(text, max_number=len(videos))
-            if choice is None:
-                return "Не поняла номер. Поиск отменён."
-            selected = videos[choice - 1]
-            import webbrowser
-            webbrowser.open(selected["url"])
-            return f"Включаю #{choice}: {selected['title']}"
-
-        lines = [
-            f"{i}. {v['title'][:32]}…" if len(v['title']) > 32 else f"{i}. {v['title']}"
-            for i, v in enumerate(videos, 1)
-        ]
-        prompt = "\n".join(lines) + "\nСкажи номер (1–5)"
-        self._flow.expect_reply(_on_choice, timeout_ms=25_000)
-        self.speak(prompt, hold_ms=25_000)
-
-    def _on_launch_app_results_ready(self, apps: list[dict[str, Any]]) -> None:
-        if self._closing:
-            return
-        if not apps:
-            self.speak("Не удалось найти подходящих приложений.")
-            return
-
-        def _on_choice(text: str) -> str:
-            from ..core.input_flow import _parse_selected_number
-            from ..integrations.app_launcher import launch_application
-            choice = _parse_selected_number(text, max_number=len(apps))
-            if choice is None:
-                return "Не поняла номер. Запуск отменён."
-            selected = apps[choice - 1]
-            success = launch_application(selected)
-            if success:
-                return f"Запускаю #{choice}: {selected['name']}"
-            return f"Не удалось запустить {selected['name']}."
-
-        lines = [
-            f"{i}. {a['name'][:32]}…" if len(a['name']) > 32 else f"{i}. {a['name']}"
-            for i, a in enumerate(apps, 1)
-        ]
-        prompt = "\n".join(lines) + f"\nСкажи номер (1–{len(apps)})"
-        self._flow.expect_reply(_on_choice, timeout_ms=25_000)
-        self.speak(prompt, hold_ms=25_000)
-
-    def _on_kill_app_results_ready(self, procs: list[dict[str, Any]]) -> None:
-        if self._closing:
-            return
-        if not procs:
-            self.speak("Не удалось найти подходящих процессов.")
-            return
-
-        def _on_choice(text: str) -> str:
-            from ..core.input_flow import _parse_selected_number
-            from ..integrations.process_manager import kill_process_group
-            choice = _parse_selected_number(text, max_number=len(procs))
-            if choice is None:
-                return "Не поняла номер. Завершение отменено."
-            selected = procs[choice - 1]
-            success, count = kill_process_group(selected)
-            name = selected["name"]
-            if success:
-                if count > 1:
-                    return f"Завершено {count} процессов «{name}»."
-                return f"Процесс «{name}» завершён."
-            return f"Не удалось завершить {name}."
-
-        lines = []
-        for i, p in enumerate(procs, 1):
-            name = p["name"]
-            count = len(p.get("pids", []))
-            count_label = f" ({count})" if count > 1 else ""
-            display = f"{name}{count_label}"
-            display = f"{display[:32]}…" if len(display) > 32 else display
-            lines.append(f"{i}. {display}")
-
-        prompt = "\n".join(lines) + f"\nСкажи номер (1–{len(procs)})"
-        self._flow.expect_reply(_on_choice, timeout_ms=25_000)
-        self.speak(prompt, hold_ms=25_000)
-
-    def _on_session_animation_requested(self, action: str) -> None:
-        if self._closing:
-            return
-        if self._session_overlay is not None:
-            try:
-                self._session_overlay.close()
-            except Exception:
-                pass
-            self._session_overlay = None
-
-        overlay = play_session_animation(self, action)
-        self._session_overlay = overlay
-        overlay.finished.connect(
-            lambda overlay=overlay: self._forget_session_animation(overlay)
-        )
-
-    def _forget_session_animation(self, overlay: SessionAnimationOverlay) -> None:
-        if self._session_overlay is overlay:
-            self._session_overlay = None
-
-    def _locate_mouse(self) -> str:
-        return self._inactivity.catch_mouse(
-            on_pose_change=self.set_pose
-        )
-
-    def _debug_info(self) -> dict[str, object]:
-        """Собирает диагностические данные для команды «дебаг»."""
-        return {
-            "vosk": get_model_info(),
-            "next_reminder_seconds": self._reminder.seconds_until_next,
-            "uptime_seconds": time.monotonic() - self._started_at,
-        }
+    def process_input(self, text: str) -> str:
+        return self._orchestrator.flow.handle(text)
 
     def _load_initial_settings(self) -> None:
         screen_name = get_config_value("screen.designated_screen")
@@ -646,11 +474,11 @@ class CapriWindow(QWidget):
         if mic_desc:
             for dev in QMediaDevices.audioInputs():
                 if dev.description() == mic_desc:
-                    self._voice_coord.set_device(dev)
+                    self._orchestrator.voice_coordinator.set_device(dev)
                     found_mic = True
                     break
         if not found_mic:
-            self._voice_coord.set_device(None)
+            self._orchestrator.voice_coordinator.set_device(None)
 
         glitches_enabled = get_config_value("effects.glitches_enabled", True)
         self._glitches.set_enabled(bool(glitches_enabled))
@@ -702,7 +530,7 @@ class CapriWindow(QWidget):
         self.speak(f"Монитор: {screen.name()}")
 
     def set_designated_microphone(self, device: QAudioDevice | None) -> None:
-        self._voice_coord.set_device(device)
+        self._orchestrator.voice_coordinator.set_device(device)
         desc = device.description() if device and not device.isNull() else ""
         set_config_value("audio.designated_microphone", desc if desc else None)
         name = desc if desc else "По умолчанию"
@@ -740,7 +568,7 @@ class CapriWindow(QWidget):
 
     @property
     def selected_microphone(self) -> QAudioDevice | None:
-        return self._voice_coord.selected_device
+        return self._orchestrator.voice_coordinator.selected_device
 
     @property
     def is_speaking(self) -> bool:
@@ -759,34 +587,34 @@ class CapriWindow(QWidget):
         set_config_value("effects.glitch_intensity", intensity)
 
     def toggle_voice(self) -> str:
-        return self._voice_coord.toggle_voice()
+        return self._orchestrator.voice_coordinator.toggle_voice()
 
     def show_context_menu(self, pos: QPoint) -> None:
-        self._inactivity.set_paused(True)
+        self._orchestrator.inactivity.set_paused(True)
         try:
             menu = build_pet_context_menu(self, pos)
             menu.exec(pos)
         finally:
-            self._inactivity.set_paused(False)
+            self._orchestrator.inactivity.set_paused(False)
 
     def activate_command_mode(self) -> None:
         """Показывает Капри и переводит в режим немедленного ожидания команды."""
         if self._closing:
             return
 
-        if self._inactivity.is_transitioning:
-            if self._inactivity._transition_overlay is not None:
-                self._inactivity._transition_overlay.close()
-                self._inactivity._transition_overlay = None
-            self._inactivity._transitioning = False
+        if self._orchestrator.inactivity.is_transitioning:
+            if self._orchestrator.inactivity._transition_overlay is not None:
+                self._orchestrator.inactivity._transition_overlay.close()
+                self._orchestrator.inactivity._transition_overlay = None
+            self._orchestrator.inactivity._transitioning = False
 
         self.show()
         self.raise_()
         self.activateWindow()
-        self._inactivity.reset_timer()
+        self._orchestrator.inactivity.reset_timer()
 
-        self._voice_coord.wake_if_needed()
-        self._voice_coord._arm()
+        self._orchestrator.voice_coordinator.wake_if_needed()
+        self._orchestrator.voice_coordinator._arm()
 
     def _greet(self) -> None:
         if self._speech is not None:
@@ -795,15 +623,6 @@ class CapriWindow(QWidget):
             return
         line = random.choice(STARTUP_LINES).format(user=getpass.getuser())
         self.speak(line)
-
-    def _on_reminder(self, phrase: str) -> None:
-        """Напоминает о себе: при необходимости возвращает Капри на экран и говорит фразу."""
-        if self._closing or self._speaking or self._inactivity.is_paused:
-            return
-        if self.isVisible():
-            self.speak(phrase)
-            return
-        self._inactivity.show_with_callback(lambda: self.speak(phrase))
 
     def _forget_speech(self, window: SpeechWindow) -> None:
         try:
@@ -814,8 +633,8 @@ class CapriWindow(QWidget):
         if self._speech is window:
             self._speech = None
             self._speaking = False
-        if not self._closing and not self.is_speaking and hasattr(self, "_inactivity"):
-            self._inactivity.reset_timer()
+        if not self._closing and not self.is_speaking and hasattr(self, "_orchestrator"):
+            self._orchestrator.inactivity.reset_timer()
 
     def _finalize_quit(self) -> None:
         if getattr(self, "_exit_finalized", False):
@@ -858,8 +677,7 @@ class CapriWindow(QWidget):
 
         self._closing = True
         event.ignore()
-        self._inactivity.stop()
-        self._reminder.stop()
+        self._orchestrator.stop()
         if self._model_init_overlay is not None:
             try:
                 self._model_init_overlay.close()
@@ -867,7 +685,6 @@ class CapriWindow(QWidget):
                 pass
             self._model_init_overlay = None
         self._glitch_timer.stop()
-        self._voice_coord.voice.cancel()
         self._glitches.stop()
         close_all_speech()
 
