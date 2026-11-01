@@ -23,7 +23,7 @@ from ..audio.recognizer import get_model_info, is_model_ready, preload_model_asy
 from ..audio.voice import VoiceInput
 from ..commands import CommandContext, register_default_commands
 from ..controllers import ActionBridge, InactivityManager, PresenceReminder
-from ..core.commands import CommandRegistry
+from ..commands.registry import CommandRegistry
 from ..core.input_flow import InputFlow
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,

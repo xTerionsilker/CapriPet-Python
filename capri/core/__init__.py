@@ -1,24 +1,33 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from .fuzzy import MAX_TYPO_DISTANCE, edit_distance, keyword_score, similarity
+from .input_flow import InputFlow
+from .settings import (
+    get_config_value,
+    load_config,
+    load_settings,
+    save_config,
+    save_settings,
+    set_config_value,
+)
+from .user_agent import get_user_agent, init_user_agent_async
+from .wake_word import VOICE_TRIGGER_RE, command_after_trigger, voice_normalized
 
-if TYPE_CHECKING:
-    from .command_catalog import Handlers, register_commands
-    from .commands import Command, CommandRegistry
-    from .input_flow import InputFlow
-
-
-def __getattr__(name: str):
-    if name in ("Command", "CommandRegistry"):
-        from . import commands
-        return getattr(commands, name)
-    if name in ("Handlers", "register_commands"):
-        from . import command_catalog
-        return getattr(command_catalog, name)
-    if name == "InputFlow":
-        from . import input_flow
-        return getattr(input_flow, name)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
-__all__ = ["Command", "CommandRegistry", "Handlers", "register_commands", "InputFlow"]
+__all__ = [
+    "MAX_TYPO_DISTANCE",
+    "edit_distance",
+    "keyword_score",
+    "similarity",
+    "InputFlow",
+    "load_config",
+    "save_config",
+    "load_settings",
+    "save_settings",
+    "get_config_value",
+    "set_config_value",
+    "get_user_agent",
+    "init_user_agent_async",
+    "VOICE_TRIGGER_RE",
+    "command_after_trigger",
+    "voice_normalized",
+]

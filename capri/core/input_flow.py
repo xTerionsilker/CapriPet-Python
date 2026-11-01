@@ -5,7 +5,7 @@ from typing import Any, Callable
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from .commands import switch_layout
+from ..commands.registry import switch_layout
 
 CONFIRM_TIMEOUT_MS = 15_000
 YOUTUBE_SELECT_TIMEOUT_MS = 25_000

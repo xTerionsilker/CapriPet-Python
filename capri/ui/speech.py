@@ -550,7 +550,7 @@ class SpeechWindow(QFrame):
         app = QGuiApplication.instance()
         if app is not None:
             for w in app.topLevelWidgets():
-                if w.isVisible() and w.__class__.__name__ in ("CapriWindow", "CapriOverlayWindow"):
+                if w.isVisible() and w.__class__.__name__ == "CapriWindow":
                     return w
         return None
 
