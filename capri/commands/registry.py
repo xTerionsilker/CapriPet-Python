@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any
 
 from rapidfuzz import fuzz
 
@@ -17,33 +17,6 @@ _LAYOUT_TRANSLATION = str.maketrans(_EN_KEYS + _RU_KEYS, _RU_KEYS + _EN_KEYS)
 def switch_layout(text: str) -> str:
     """Переключает раскладку текста между en (QWERTY) и ru (ЙЦУКЕН)."""
     return text.translate(_LAYOUT_TRANSLATION)
-
-
-class FunctionalCommand(BaseCommand):
-    """Адаптер для функциональных обработчиков (обратная совместимость)."""
-
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        handler: Callable[..., Any],
-        aliases: tuple[str, ...] = (),
-        keywords: tuple[str, ...] = (),
-        takes_argument: bool = False,
-        requires_confirmation: bool = False,
-    ) -> None:
-        self.name = name
-        self.description = description
-        self.handler = handler
-        self.aliases = tuple(aliases)
-        self.keywords = tuple(keywords)
-        self.takes_argument = takes_argument
-        self.requires_confirmation = requires_confirmation
-
-    def execute(self, ctx: CommandContext, query: str = "") -> str | None:
-        if self.takes_argument:
-            return self.handler(query)
-        return self.handler()
 
 
 class CommandRegistry:
@@ -65,34 +38,10 @@ class CommandRegistry:
     def set_context(self, context: CommandContext | None) -> None:
         self._context = context
 
-    def register(
-        self,
-        command_or_name: BaseCommand | str | None = None,
-        description: str = "",
-        handler: Callable[..., Any] | None = None,
-        *,
-        name: str = "",
-        aliases: tuple[str, ...] = (),
-        takes_argument: bool = False,
-        keywords: tuple[str, ...] = (),
-        requires_confirmation: bool = False,
-    ) -> BaseCommand:
-        """Регистрирует команду либо как BaseCommand, либо по сигнатуре (name, description, handler)."""
-        if isinstance(command_or_name, BaseCommand):
-            command = command_or_name
-        else:
-            cmd_name = command_or_name if isinstance(command_or_name, str) else name
-            if not cmd_name or handler is None:
-                raise ValueError("Необходимо указать имя команды и обработчик")
-            command = FunctionalCommand(
-                name=cmd_name,
-                description=description,
-                handler=handler,
-                aliases=aliases,
-                keywords=keywords,
-                takes_argument=takes_argument,
-                requires_confirmation=requires_confirmation,
-            )
+    def register(self, command: BaseCommand) -> BaseCommand:
+        """Регистрирует команду BaseCommand в реестре."""
+        if not isinstance(command, BaseCommand):
+            raise TypeError(f"Ожидается BaseCommand, получено {type(command).__name__}")
 
         keys = (command.name, *command.aliases)
         for key in keys:
@@ -117,19 +66,11 @@ class CommandRegistry:
         command, argument = match
         ctx = context or self._context
 
-        if hasattr(command, "execute"):
-            if ctx is None and not isinstance(command, FunctionalCommand):
-                raise RuntimeError(
-                    f"Команда '{command.name}' требует CommandContext для выполнения"
-                )
-            return command.execute(ctx, argument)  # type: ignore
-        elif hasattr(command, "handler"):
-            # Обратная совместимость с dataclass Command
-            h = getattr(command, "handler")
-            if getattr(command, "takes_argument", False):
-                return h(argument)
-            return h()
-        return None
+        if ctx is None:
+            raise RuntimeError(
+                f"Команда '{command.name}' требует CommandContext для выполнения"
+            )
+        return command.execute(ctx, argument)
 
     def match(self, text: str) -> tuple[BaseCommand, str] | None:
         normalized = self._normalize(text)
