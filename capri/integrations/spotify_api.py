@@ -5,10 +5,9 @@ import json
 import os
 import sys
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 from pathlib import Path
+
+import httpx
 
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 SEARCH_URL = "https://api.spotify.com/v1/search"
@@ -26,19 +25,17 @@ def find_track(query: str) -> tuple[str, str, str] | None:
         raise SpotifyError("не настроены ключи Spotify")
 
     token = access_token(*credentials)
-    params = urllib.parse.urlencode(
-        {"q": query, "type": "track", "limit": 1}
-    )
-    request = urllib.request.Request(
-        f"{SEARCH_URL}?{params}",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {"q": query, "type": "track", "limit": "1"}
+
     try:
-        with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT) as response:
-            payload = json.load(response)
-    except urllib.error.HTTPError as error:
-        raise SpotifyError(f"Spotify ответил {error.code}") from error
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        with httpx.Client(timeout=HTTP_TIMEOUT) as client:
+            response = client.get(SEARCH_URL, params=params, headers=headers)
+            response.raise_for_status()
+            payload = response.json()
+    except httpx.HTTPStatusError as error:
+        raise SpotifyError(f"Spotify ответил {error.response.status_code}") from error
+    except httpx.RequestError as error:
         raise SpotifyError("нет связи с Spotify") from error
     except json.JSONDecodeError as error:
         raise SpotifyError("некорректный ответ Spotify") from error
@@ -55,23 +52,20 @@ def access_token(client_id: str, client_secret: str) -> str:
     auth = base64.b64encode(
         f"{client_id}:{client_secret}".encode()
     ).decode("ascii")
-    request = urllib.request.Request(
-        TOKEN_URL,
-        data=urllib.parse.urlencode(
-            {"grant_type": "client_credentials"}
-        ).encode(),
-        headers={
-            "Authorization": f"Basic {auth}",
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
-        method="POST",
-    )
+    headers = {
+        "Authorization": f"Basic {auth}",
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+    data = {"grant_type": "client_credentials"}
+
     try:
-        with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT) as response:
-            payload = json.load(response)
-    except urllib.error.HTTPError as error:
+        with httpx.Client(timeout=HTTP_TIMEOUT) as client:
+            response = client.post(TOKEN_URL, data=data, headers=headers)
+            response.raise_for_status()
+            payload = response.json()
+    except httpx.HTTPStatusError as error:
         raise SpotifyError("ключи Spotify не приняты") from error
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
+    except httpx.RequestError as error:
         raise SpotifyError("нет связи с Spotify") from error
     except json.JSONDecodeError as error:
         raise SpotifyError("некорректный ответ Spotify") from error

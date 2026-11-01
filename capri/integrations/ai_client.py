@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import os
-import urllib.error
-import urllib.request
 from typing import Any
+
+import httpx
 
 from ..core.ai_config import get_ai_config_value, load_ai_config
 from ..core.user_agent import get_user_agent
@@ -79,11 +79,10 @@ def get_ai_settings() -> dict[str, Any]:
     }
 
 
-def _extract_error_detail(error: urllib.error.HTTPError) -> str:
+def _extract_error_detail(response: httpx.Response) -> str:
     """Извлекает подробное описание ошибки из тела ответа HTTP."""
     try:
-        raw_body = error.read().decode("utf-8", "replace")
-        body = json.loads(raw_body)
+        body = response.json()
     except Exception:
         return ""
 
@@ -184,19 +183,14 @@ def ask(
     for k, v in settings["headers"].items():
         headers[k] = str(v)
 
-    req = urllib.request.Request(
-        endpoint,
-        data=json.dumps(payload).encode("utf-8"),
-        headers=headers,
-        method="POST",
-    )
-
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
-            raw_data = json.load(response)
-    except urllib.error.HTTPError as error:
-        detail = _extract_error_detail(error)
-        code = error.code
+        with httpx.Client(timeout=timeout) as client:
+            response = client.post(endpoint, json=payload, headers=headers)
+            response.raise_for_status()
+            raw_data = response.json()
+    except httpx.HTTPStatusError as error:
+        detail = _extract_error_detail(error.response)
+        code = error.response.status_code
         if code in (401, 403):
             msg = detail or "проверь api_key в ai_config.json"
             raise AIError(f"Ошибка авторизации AI API ({code}): {msg}.") from error
@@ -208,16 +202,13 @@ def ask(
             raise AIError(f"Лимит запросов к AI API исчерпан (429): {msg}.") from error
         msg = detail or f"HTTP {code}"
         raise AIError(f"AI API ответил ошибкой: {msg}.") from error
-    except TimeoutError as error:
+    except httpx.TimeoutException as error:
         raise AIError(f"AI сервис не ответил за {timeout:.0f} сек.") from error
-    except urllib.error.URLError as error:
-        if isinstance(error.reason, TimeoutError):
-            raise AIError(f"AI сервис не ответил за {timeout:.0f} сек.") from error
-        reason = str(error.reason)
+    except httpx.RequestError as error:
         raise AIError(
-            f"Не удалось подключиться к AI эндпоинту ({endpoint}): {reason}."
+            f"Не удалось подключиться к AI эндпоинту ({endpoint}): {error}."
         ) from error
-    except ValueError as error:
+    except json.JSONDecodeError as error:
         raise AIError("AI сервис вернул некорректный ответ (не JSON).") from error
 
     answer = _extract_response_text(raw_data)
