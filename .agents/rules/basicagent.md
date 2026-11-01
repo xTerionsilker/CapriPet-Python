@@ -68,13 +68,18 @@ Capri's visual identity uses **only** the following colors:
 ## Architecture & Entry Points
 
 - **`main.py`:** Application entry point. Instantiates `CapriWindow` and enters the Qt event loop.
-- **Representation of Capri:**
-  - `CapriWindow` (`capri/ui/pet_window.py`): Floating translucent sprite (`assets/var/{idle,other,thinking}/`) rendered with custom pixel glitch passes.
-  - Position is saved to configuration and restored automatically. Direct object dragging is replaced with tactical lightning tether teleportation (holding LMB stretches red cyber lightning to cursor; releasing LMB teleports Capri).
-  - Automatically hides during inactivity and reappears via `InactivityManager` (`capri/controllers/inactivity_manager.py`).
-- **Voice HUD (`capri/ui/voice_hud.py`):**
-  - Displays a Cyberpunk 2077 style HUD (`CyberVoiceHud`) above the taskbar when Capri is listening for voice commands after a trigger phrase or awaiting arguments/confirmation (yes/no, numbers, etc.).
-  - Shows real-time audio telemetry, status indicator, and typing effect for recognized text strictly within Capri's palette.
+- **Orchestration & Business Logic:**
+  - `PetOrchestrator` (`capri/controllers/orchestrator.py`): Central controller decoupling business logic from UI. Owns `CommandRegistry`, `InputFlow`, `ActionBridge` (background integrations like Ollama, Spotify, process management), `InactivityManager`, and `PresenceReminder`.
+- **Representation of Capri (View Layer):**
+  - `CapriWindow` (`capri/ui/pet_window.py`): Cleaned View widget responsible for geometry, transparency, Qt event routing, and rendering.
+  - `SpriteManager` (`capri/ui/sprite_manager.py`): Manages multi-pose sprite loading, caching, scaling, and pixel alpha hit detection (`assets/var/{idle,other,thinking}/`).
+  - `TeleportController` (`capri/ui/teleport_controller.py`): Manages tactical lightning tether teleportation (holding LMB stretches red cyber lightning to cursor; releasing LMB triggers transition animation).
+  - `TrayManager` (`capri/ui/tray_manager.py`): Encapsulates system tray icon lifecycle and activation menus.
+- **Effects & Overlays:**
+  - `EffectsCoordinator` (`capri/effects/effects_coordinator.py`): Unified facade managing procedural glitches (`GlitchManager`), session transitions (`SessionAnimationOverlay`), Vosk calibration HUD (`ModelInitOverlay`), and screen transitions (`TransitionOverlay`).
+- **Voice System & HUD:**
+  - `VoiceCoordinator` (`capri/ui/voice_coordinator.py`): Coordinates Vosk offline recognition, trigger-phrase arming timers, and updates to the voice HUD.
+  - `CyberVoiceHud` (`capri/ui/voice_hud.py`): Displays a Cyberpunk 2077 style HUD above the taskbar when listening for voice commands or awaiting arguments/confirmation.
 - **Speech System (`capri/ui/speech.py`):**
   - Displays cyber HUD speech bubbles (`CyberHudBubble`) with holographic deploy (open) and CRT beam collapse (close) animations.
   - Anchors dynamically to Capri (`CapriWindow`), tracking movement in real time via `eventFilter` and a 25ms timer.
