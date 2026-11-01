@@ -6,7 +6,7 @@ CapriPet — это компактный десктопный кибер-пит�
 
 - ОС: Linux (X11 / Wayland с XWayland) или Windows 10/11
 - [Python 3.10+](https://www.python.org/downloads/release/python-3148/)
-- PySide6 6.12+
+- [`PySide6 6.12+`](https://pypi.org/project/PySide6/)
 - [`vosk`](https://alphacephei.com/vosk/models) (локальное офлайн-распознавание речи; для русского языка рекомендую `vosk-model-small-ru-0.22`)
 - [`psutil`](https://pypi.org/project/psutil/) (кроссплатформенный мониторинг и завершение процессов)
 - [`rapidfuzz`](https://pypi.org/project/rapidfuzz/) (высокопроизводительный нечёткий поиск команд)
