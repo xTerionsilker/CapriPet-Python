@@ -19,23 +19,13 @@ class InactivityManager(QObject):
     def __init__(
         self,
         main_window: QWidget,
-        *args,
+        *,
         is_closing: Callable[[], bool] | None = None,
         on_wake_voice: Callable[[], None] | None = None,
         get_designated_screen: Callable[[], QScreen | None] | None = None,
-        **_kwargs,
     ) -> None:
         super().__init__(main_window)
         self._main_window = main_window
-
-        # Поддержка старой позиционной сигнатуры
-        if len(args) >= 3 and is_closing is None:
-            is_closing = args[2]
-            if len(args) >= 4 and on_wake_voice is None:
-                on_wake_voice = args[3]
-            if len(args) >= 5 and get_designated_screen is None:
-                get_designated_screen = args[4]
-
         self._is_closing = is_closing or (lambda: False)
         self._on_wake_voice = on_wake_voice or (lambda: None)
         self._get_designated_screen = get_designated_screen
@@ -215,12 +205,6 @@ class InactivityManager(QObject):
         self._pending_show_callbacks = []
         for callback in callbacks:
             callback()
-
-    def switch_target(
-        self, old_target: QWidget, new_target: QWidget
-    ) -> None:
-        # Для обратной совместимости
-        pass
 
     def catch_mouse(
         self, on_pose_change: Callable[[str], None] | None = None
