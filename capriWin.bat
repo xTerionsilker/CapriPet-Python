@@ -1,26 +1,33 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
-REM 1. Проверяем наличие виртуального окружения
+REM 1. Проверяем наличие виртуального окружения Windows
 if not exist ".venv\Scripts\python.exe" (
+    if exist ".venv\bin\python" (
+        echo [WARNING] Обнаружено Linux-окружение .venv. Удалите его или пересоздайте для Windows!
+    )
     echo [INFO] Виртуальное окружение .venv не найдено. Создаём...
+    
+    set "PY_CMD="
     where py >nul 2>&1
-    if %errorlevel% equ 0 (
+    if !errorlevel! equ 0 (
         set "PY_CMD=py"
     ) else (
         where python >nul 2>&1
-        if %errorlevel% equ 0 (
+        if !errorlevel! equ 0 (
             set "PY_CMD=python"
-        ) else (
-            echo [ERROR] Python не найден в системе! Установите Python 3.10+ и добавьте его в PATH.
-            pause
-            exit /b 1
         )
     )
 
-    "%PY_CMD%" -m venv .venv
-    if errorlevel 1 (
+    if not defined PY_CMD (
+        echo [ERROR] Python не найден в системе! Установите Python 3.10+ и добавьте его в PATH.
+        pause
+        exit /b 1
+    )
+
+    "!PY_CMD!" -m venv .venv
+    if !errorlevel! neq 0 (
         echo [ERROR] Не удалось создать виртуальное окружение .venv.
         pause
         exit /b 1
@@ -44,5 +51,10 @@ if errorlevel 1 (
 
 REM 3. Запуск CapriPet
 ".venv\Scripts\python.exe" main.py %*
+if errorlevel 1 (
+    echo.
+    echo [ERROR] CapriPet завершился с ошибкой (код !errorlevel!).
+    pause
+)
 
 endlocal

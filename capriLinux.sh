@@ -6,6 +6,10 @@ cd "$SCRIPT_DIR"
 
 # 1. Проверяем наличие виртуального окружения
 if [ ! -f ".venv/bin/python" ]; then
+    if [ -f ".venv/Scripts/python.exe" ]; then
+        echo "[WARNING] Обнаружено Windows-окружение .venv! Удалите .venv перед запуском на Linux."
+    fi
+
     echo "[INFO] Виртуальное окружение .venv не найдено. Создаём..."
     if command -v python3 >/dev/null 2>&1; then
         PYTHON_CMD="python3"
@@ -29,4 +33,15 @@ if ! ./.venv/bin/python -c "import PySide6; import vosk" >/dev/null 2>&1; then
 fi
 
 # 3. Запуск CapriPet
-exec ./.venv/bin/python main.py "$@"
+set +e
+./.venv/bin/python main.py "$@"
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+    echo
+    echo "[ERROR] CapriPet завершился с ошибкой (код $EXIT_CODE)."
+    if [ -t 0 ] && [ -t 1 ]; then
+        read -r -p "Нажмите Enter для выхода..." dummy 2>/dev/null || true
+    fi
+    exit $EXIT_CODE
+fi
