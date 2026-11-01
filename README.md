@@ -8,6 +8,11 @@ CapriPet — это компактный десктопный кибер-пит�
 - [Python 3.10+](https://www.python.org/downloads/release/python-3148/)
 - PySide6 6.12+
 - [`vosk`](https://alphacephei.com/vosk/models) (локальное офлайн-распознавание речи; для русского языка рекомендую `vosk-model-small-ru-0.22`)
+- [`psutil`](https://pypi.org/project/psutil/) (кроссплатформенный мониторинг и завершение процессов)
+- [`rapidfuzz`](https://pypi.org/project/rapidfuzz/) (высокопроизводительный нечёткий поиск команд)
+- [`httpx`](https://www.python-httpx.org/) (современный HTTP-клиент для AI API и Spotify)
+- [`cyrtranslit`](https://pypi.org/project/cyrtranslit/) (стандартизированная транслитерация при поиске приложений)
+- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) (надёжный поиск видео на YouTube)
 - Работающий микрофон для голосового ввода
 - Клиент Spotify (в Linux требуется `dbus-send` / playerctl, в Windows поддерживается нативно через медиа-клавиши)
 - Любой AI API / Endpoint (OpenAI, OpenRouter, Groq, DeepSeek, локальные LM Studio / vLLM / LocalAI) для команды `слушай` (настраивается через отдельный файл `ai_config.json`)
