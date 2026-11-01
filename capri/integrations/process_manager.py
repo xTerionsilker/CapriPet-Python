@@ -1,120 +1,43 @@
 from __future__ import annotations
 
 import difflib
+import logging
 import os
-import signal
-import subprocess
-import sys
 from typing import Any
+
+import psutil
 
 from .app_launcher import phonetic_normalize, translit_ru_to_en
 from ..commands.registry import switch_layout
 
+logger = logging.getLogger(__name__)
+
 
 def get_running_processes() -> list[dict[str, Any]]:
-    """Возвращает список запущенных процессов для Linux и Windows."""
-    if sys.platform == "win32":
-        return _get_running_processes_windows()
-    return _get_running_processes_linux()
-
-
-def _get_running_processes_linux() -> list[dict[str, Any]]:
+    """Возвращает список запущенных процессов кроссплатформенно через psutil."""
     processes: list[dict[str, Any]] = []
 
-    # 1. Сначала пробуем ps -eo pid,comm,args
-    try:
-        res = subprocess.run(
-            ["ps", "-eo", "pid,comm,args"],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=2.0,
-        )
-        if res.returncode == 0:
-            lines = res.stdout.splitlines()
-            if lines:
-                lines = lines[1:]  # пропускаем заголовок
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-                parts = line.split(None, 2)
-                if not parts or not parts[0].isdigit():
-                    continue
-                pid = int(parts[0])
-                comm = parts[1] if len(parts) > 1 else ""
-                args = parts[2] if len(parts) > 2 else comm
-                name = os.path.basename(comm or args.split()[0] if args else "")
+    for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):
+        try:
+            info = proc.info
+            pid = info.get("pid")
+            name = info.get("name") or ""
+            cmdline = info.get("cmdline") or []
+            cmd = " ".join(cmdline) if cmdline else name
+
+            if pid is not None and (name or cmd):
                 processes.append({
                     "pid": pid,
-                    "name": name,
-                    "comm": comm,
-                    "cmd": args,
+                    "name": name or os.path.basename(cmdline[0] if cmdline else ""),
+                    "comm": name,
+                    "cmd": cmd,
                 })
-            if processes:
-                return processes
-    except Exception:
-        pass
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+        except Exception as exc:
+            logger.debug("Ошибка при чтении процесса: %s", exc)
+            continue
 
-    # 2. Фолбэк на /proc
-    if os.path.isdir("/proc"):
-        for entry in os.listdir("/proc"):
-            if not entry.isdigit():
-                continue
-            pid = int(entry)
-            comm = ""
-            cmd = ""
-            try:
-                comm_path = os.path.join("/proc", entry, "comm")
-                if os.path.isfile(comm_path):
-                    with open(comm_path, "r", encoding="utf-8", errors="ignore") as f:
-                        comm = f.read().strip()
-                cmdline_path = os.path.join("/proc", entry, "cmdline")
-                if os.path.isfile(cmdline_path):
-                    with open(cmdline_path, "rb") as f:
-                        raw = f.read()
-                        cmd = raw.replace(b"\x00", b" ").decode("utf-8", errors="ignore").strip()
-            except Exception:
-                continue
-
-            name = comm or (os.path.basename(cmd.split()[0]) if cmd else "")
-            if name:
-                processes.append({
-                    "pid": pid,
-                    "name": name,
-                    "comm": comm,
-                    "cmd": cmd or comm,
-                })
-
-    return processes
-
-
-def _get_running_processes_windows() -> list[dict[str, Any]]:
-    processes: list[dict[str, Any]] = []
-    try:
-        import csv
-        res = subprocess.run(
-            ["tasklist", "/FO", "CSV", "/NH"],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=3.0,
-        )
-        if res.returncode == 0:
-            reader = csv.reader(res.stdout.splitlines())
-            for row in reader:
-                if len(row) >= 2:
-                    image_name = row[0].strip()
-                    pid_str = row[1].strip()
-                    if pid_str.isdigit():
-                        processes.append({
-                            "pid": int(pid_str),
-                            "name": image_name,
-                            "comm": image_name,
-                            "cmd": image_name,
-                        })
-    except Exception:
-        pass
     return processes
 
 
@@ -211,53 +134,21 @@ def find_matching_processes(query: str, limit: int = 5) -> list[dict[str, Any]]:
 
 
 def kill_process_group(group: dict[str, Any]) -> tuple[bool, int]:
-    """Завершает все процессы из группы. Возвращает (успех, количество_завершённых)."""
+    """Завершает все процессы из группы через psutil. Возвращает (успех, количество_завершённых)."""
     pids = group.get("pids", [])
     if not pids:
         return False, 0
 
     killed_count = 0
-    if sys.platform == "win32":
-        name = group.get("name", "")
-        # Пробуем через taskkill /IM <name> /F
-        if name:
-            try:
-                res = subprocess.run(
-                    ["taskkill", "/F", "/IM", name],
-                    capture_output=True,
-                    check=False,
-                    timeout=3.0,
-                )
-                if res.returncode == 0:
-                    return True, len(pids)
-            except Exception:
-                pass
-
-        # Иначе убиваем по PID
-        for pid in pids:
-            try:
-                res = subprocess.run(
-                    ["taskkill", "/F", "/PID", str(pid)],
-                    capture_output=True,
-                    check=False,
-                    timeout=2.0,
-                )
-                if res.returncode == 0:
-                    killed_count += 1
-            except Exception:
-                pass
-        return killed_count > 0, killed_count
-
-    # Linux: kill SIGTERM -> SIGKILL
     for pid in pids:
         try:
-            os.kill(pid, signal.SIGTERM)
+            proc = psutil.Process(pid)
+            proc.terminate()
             killed_count += 1
-        except ProcessLookupError:
-            pass
-        except PermissionError:
-            pass
-        except Exception:
-            pass
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+        except Exception as exc:
+            logger.debug("Ошибка при завершении процесса PID %s: %s", pid, exc)
+            continue
 
     return killed_count > 0, killed_count
