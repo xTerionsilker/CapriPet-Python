@@ -93,3 +93,11 @@ Capri's visual identity uses **only** the following colors:
   - Wake word detection (`"Капри"`) lives in `capri/core/wake_word.py`.
   - Recognition is fully offline and local; internet dependency has been removed.
   - Missing audio input devices or missing media assets fail gracefully without crashing the app.
+
+## Code Quality & Anti-Legacy Rules
+
+1. **No Artificial Backward Compatibility:**
+   - **Do not write wrapper adapters or legacy bridges:** Never re-introduce adapters (such as `FunctionalCommand`, alias functions, fake parameters, or `*args/**kwargs` unpackers) purely to support hypothetical old signatures.
+   - **No deprecated alias methods or redundant properties:** When refactoring a class or module, migrate the callers directly instead of leaving obsolete functions/properties with comments like `# Для обратной совместимости`.
+   - **Strict type signatures:** New and refactored functions must use strict, explicit keyword/positional parameters with complete type annotations.
+   - **Clean dependency contracts:** Standard libraries and ecosystem packages (`psutil`, `rapidfuzz`, `httpx`, `cyrtranslit`, `yt-dlp`) are canonical. Do not implement manual string parsing, hand-rolled typo matching, or custom subprocess scrapers where vetted dependencies are available.
