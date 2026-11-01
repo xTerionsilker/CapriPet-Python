@@ -343,20 +343,3 @@ def get_config_value(path: str, default: Any = None) -> Any:
 
 def set_config_value(path: str, value: Any) -> None:
     _global_manager.set_value(path, value)
-
-
-# Совместимость с предыдущим API settings.py
-def load_settings() -> dict[str, Any]:
-    return load_config()
-
-
-def save_settings(settings: dict[str, Any]) -> None:
-    save_config(settings)
-
-
-def get_setting(key: str, default: Any = None) -> Any:
-    return get_config_value(key, default)
-
-
-def set_setting(key: str, value: Any) -> None:
-    set_config_value(key, value)
