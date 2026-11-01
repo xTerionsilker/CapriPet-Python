@@ -139,20 +139,6 @@ class CyberHudBubble(QWidget):
         self._anim_callback = None
         self.update()
 
-    # Обратная совместимость с методом start_glitch
-    def start_glitch(
-        self,
-        mode: str,
-        duration_ms: int = 200,
-        callback: Callable[[], None] | None = None,
-    ) -> None:
-        if mode == "open":
-            self.start_open(duration_ms=duration_ms, callback=callback)
-        elif mode == "close":
-            self.start_close(duration_ms=duration_ms, callback=callback)
-        else:
-            self.start_open(duration_ms=duration_ms, callback=callback)
-
     def stop_glitch(self) -> None:
         self.stop_animations()
 
