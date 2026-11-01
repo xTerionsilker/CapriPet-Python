@@ -228,6 +228,19 @@ class CapriWindow(QWidget):
     def reminders_enabled(self) -> bool:
         return self._orchestrator._reminders_enabled
 
+    def set_reminder_interval_range(self, min_ms: int, max_ms: int) -> None:
+        """Настраивает диапазон напоминаний в миллисекундах и сохраняет в конфиг."""
+        self._orchestrator.reminder.set_interval_range(min_ms, max_ms)
+        set_config_value("behavior.reminder_min_interval_ms", self._orchestrator.reminder.min_interval_ms)
+        set_config_value("behavior.reminder_max_interval_ms", self._orchestrator.reminder.max_interval_ms)
+
+    @property
+    def reminder_interval_range(self) -> tuple[int, int]:
+        return (
+            self._orchestrator.reminder.min_interval_ms,
+            self._orchestrator.reminder.max_interval_ms,
+        )
+
     def set_pose(self, pose: str) -> None:
         """Переключает спрайт позы питомца."""
         changed = self._sprite_manager.set_pose(pose)
@@ -563,6 +576,10 @@ class CapriWindow(QWidget):
     @property
     def is_speaking(self) -> bool:
         return self._speaking or has_active_speech() or (self._speech is not None and self._speech.isVisible())
+
+    @property
+    def effects(self) -> EffectsCoordinator:
+        return self._effects
 
     @property
     def glitches_enabled(self) -> bool:

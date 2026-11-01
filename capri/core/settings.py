@@ -49,6 +49,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "behavior": {
         "inactivity_timeout_ms": 5000,
         "reminders_enabled": True,
+        "reminder_min_interval_ms": 600_000,
+        "reminder_max_interval_ms": 3_600_000,
     },
     "network": {
         "user_agent": None,
@@ -225,6 +227,22 @@ class ConfigManager:
         config["behavior"]["reminders_enabled"] = bool(
             config["behavior"].get("reminders_enabled", True)
         )
+
+        # Диапазон интервалов напоминания (мс)
+        try:
+            min_remind = int(config["behavior"].get("reminder_min_interval_ms", 600_000))
+        except (ValueError, TypeError):
+            min_remind = 600_000
+        try:
+            max_remind = int(config["behavior"].get("reminder_max_interval_ms", 3_600_000))
+        except (ValueError, TypeError):
+            max_remind = 3_600_000
+
+        # Валидация: минимальный интервал не менее 5 секунд, max >= min
+        min_remind = max(5_000, min_remind)
+        max_remind = max(min_remind, max_remind)
+        config["behavior"]["reminder_min_interval_ms"] = min_remind
+        config["behavior"]["reminder_max_interval_ms"] = max_remind
 
         # Координаты
         for pos_key in ("position", "overlay_position", "terminal_position"):

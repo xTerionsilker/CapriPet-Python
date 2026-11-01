@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, QRect
 
-from .glitch import GlitchManager
+from .glitch import GlitchBurstOverlay, GlitchManager
 from .model_init_animation import ModelInitOverlay
 from .session_animations import (
     SessionAnimationOverlay,
@@ -26,6 +26,7 @@ class EffectsCoordinator(QObject):
         self._startup_overlay: TransitionOverlay | None = None
         self._model_init_overlay: ModelInitOverlay | None = None
         self._session_overlay: SessionAnimationOverlay | None = None
+        self._burst_overlay: GlitchBurstOverlay | None = None
 
     @property
     def glitches(self) -> GlitchManager:
@@ -44,6 +45,43 @@ class EffectsCoordinator(QObject):
 
     def toggle_glitches(self) -> bool:
         return self._glitches.toggle()
+
+    def glitch_burst(
+        self,
+        rect: QRect,
+        duration_ms: int = 1400,
+        intensity: str = "strong",
+        on_finished: Callable[[], None] | None = None,
+    ) -> GlitchBurstOverlay | None:
+        """Запускает концентрированный глитч над указанным прямоугольником."""
+        if getattr(self._window, "is_closing", False):
+            return None
+
+        if self._burst_overlay is not None:
+            try:
+                self._burst_overlay.close()
+                self._burst_overlay.deleteLater()
+            except Exception:
+                pass
+            self._burst_overlay = None
+
+        overlay = GlitchBurstOverlay(
+            rect,
+            duration_ms=duration_ms,
+            intensity=intensity,
+            parent=None,
+        )
+        self._burst_overlay = overlay
+
+        def _cleanup() -> None:
+            if self._burst_overlay is overlay:
+                self._burst_overlay = None
+            if on_finished is not None:
+                on_finished()
+
+        overlay.finished.connect(_cleanup)
+        overlay.start()
+        return overlay
 
     def play_session(self, action: str) -> SessionAnimationOverlay | None:
         """Запускает сессионную анимацию (lock, power_off, suspend, reboot)."""
@@ -89,6 +127,14 @@ class EffectsCoordinator(QObject):
     def stop_all(self) -> None:
         """Останавливает все активные оверлеи и таймеры эффектов при выходе."""
         self._glitches.stop()
+        if self._burst_overlay is not None:
+            try:
+                self._burst_overlay.close()
+                self._burst_overlay.deleteLater()
+            except Exception:
+                pass
+            self._burst_overlay = None
+
         if self._model_init_overlay is not None:
             try:
                 self._model_init_overlay.close()

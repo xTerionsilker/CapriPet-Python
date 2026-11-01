@@ -18,21 +18,40 @@ REMINDER_PHRASES: tuple[str, ...] = (
 
 
 class PresenceReminder(QObject):
-    """Периодически напоминает о себе в случайный момент времени (10 минут — 1 час)."""
+    """Периодически напоминает о себе в случайный момент времени (настраиваемый диапазон)."""
 
     def __init__(
         self,
         on_remind: Callable[[str], None],
         parent: QObject | None = None,
+        min_interval_ms: int = MIN_INTERVAL_MS,
+        max_interval_ms: int = MAX_INTERVAL_MS,
     ) -> None:
         super().__init__(parent)
         self._on_remind = on_remind
         self._active = False
         self._last_phrase: str | None = None
+        self._min_interval_ms = max(5_000, min_interval_ms)
+        self._max_interval_ms = max(self._min_interval_ms, max_interval_ms)
 
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._fire)
+
+    @property
+    def min_interval_ms(self) -> int:
+        return self._min_interval_ms
+
+    @property
+    def max_interval_ms(self) -> int:
+        return self._max_interval_ms
+
+    def set_interval_range(self, min_ms: int, max_ms: int) -> None:
+        """Обновляет границы диапазона напоминаний."""
+        self._min_interval_ms = max(5_000, int(min_ms))
+        self._max_interval_ms = max(self._min_interval_ms, int(max_ms))
+        if self._active:
+            self._schedule_next()
 
     @property
     def is_active(self) -> bool:
@@ -58,7 +77,7 @@ class PresenceReminder(QObject):
     def _schedule_next(self) -> None:
         if not self._active:
             return
-        self._timer.start(random.randint(MIN_INTERVAL_MS, MAX_INTERVAL_MS))
+        self._timer.start(random.randint(self._min_interval_ms, self._max_interval_ms))
 
     def _next_phrase(self) -> str:
         candidates = [p for p in REMINDER_PHRASES if p != self._last_phrase]

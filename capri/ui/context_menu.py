@@ -271,12 +271,36 @@ class ContextMenuBuilder:
             timeout_group.addAction(act)
 
     def _add_reminder_toggle(self, parent_menu: QMenu) -> None:
-        remind_act = parent_menu.addAction("▶  [AUTONOMY] Автономные реплики")
+        remind_menu = parent_menu.addMenu("▶  [AUTONOMY] Автономные реплики")
+        remind_act = remind_menu.addAction("Включить реплики")
         remind_act.setCheckable(True)
         remind_act.setChecked(bool(getattr(self.window, "reminders_enabled", True)))
         remind_act.triggered.connect(
             lambda checked: self.window.set_reminders_enabled(checked)
         )
+
+        remind_menu.addSeparator()
+        range_menu = remind_menu.addMenu("Частота напоминаний")
+        range_group = QActionGroup(self.window)
+
+        intervals = (
+            ("Часто (1 – 5 мин)", 60_000, 300_000),
+            ("Обычно (10 – 60 мин)", 600_000, 3_600_000),
+            ("Редко (30 – 120 мин)", 1_800_000, 7_200_000),
+        )
+
+        curr_range = getattr(
+            self.window, "reminder_interval_range", (600_000, 3_600_000)
+        )
+        for label, min_ms, max_ms in intervals:
+            act = range_menu.addAction(label)
+            act.setCheckable(True)
+            if abs(curr_range[0] - min_ms) < 1000 and abs(curr_range[1] - max_ms) < 1000:
+                act.setChecked(True)
+            act.triggered.connect(
+                lambda *_, mn=min_ms, mx=max_ms: self.window.set_reminder_interval_range(mn, mx)
+            )
+            range_group.addAction(act)
 
 
 def build_pet_context_menu(window: Any, _pos: QPoint | None = None) -> QMenu:

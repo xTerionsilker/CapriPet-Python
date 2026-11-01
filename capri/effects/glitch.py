@@ -1,14 +1,167 @@
 from __future__ import annotations
 
+import math
 import random
 
-from PySide6.QtCore import QObject, Qt, QTimer, Signal
-from PySide6.QtGui import QGuiApplication, QPainter, QScreen
+from PySide6.QtCore import QElapsedTimer, QObject, QRect, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPen, QScreen
 from PySide6.QtWidgets import QWidget
 
 from .glitch_paint import paint_frame
+from .transition_fx import (
+    COLOR_ACID_GREEN,
+    COLOR_CRIMSON,
+    COLOR_ELECTRIC_BLUE,
+    COLOR_OBSIDIAN,
+    COLOR_WHITE,
+    PIXEL_SIZE,
+    pick_palette_color,
+    snap_pixel,
+)
+from ..ui.speech_sfx import get_speech_sfx
 
 _BASE_INTERVAL_MS = 80
+
+
+class GlitchBurstOverlay(QWidget):
+    """Яркий оверлей концентрированного глитч-шторма Cyberpunk над целевым окном."""
+
+    finished = Signal()
+
+    def __init__(
+        self,
+        rect: QRect,
+        duration_ms: int = 1400,
+        intensity: str = "strong",
+        parent: QWidget | None = None,
+    ) -> None:
+        flags = (
+            Qt.WindowType.Tool
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.WindowTransparentForInput
+            | Qt.WindowType.WindowDoesNotAcceptFocus
+        )
+        super().__init__(parent, flags)
+        self.setWindowTitle("Глитч окна Capri")
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        self._intensity = intensity
+        self._target_rect = rect
+        self.setGeometry(rect)
+
+        self._frame_timer = QTimer(self)
+        self._frame_timer.setInterval(24)
+        self._frame_timer.timeout.connect(self._tick)
+
+        self._clock = QElapsedTimer()
+        self._duration_ms = duration_ms
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        wh = self.windowHandle()
+        if wh is not None:
+            for scr in QGuiApplication.screens():
+                if scr.geometry().intersects(self._target_rect):
+                    wh.setScreen(scr)
+                    break
+        self.setGeometry(self._target_rect)
+
+    def start(self) -> None:
+        self.show()
+        self.raise_()
+        self._clock.start()
+        self._frame_timer.start()
+        try:
+            get_speech_sfx().play_lightning_strike()
+        except Exception:
+            pass
+
+    def _tick(self) -> None:
+        elapsed = self._clock.elapsed()
+        if elapsed >= self._duration_ms:
+            self._frame_timer.stop()
+            self.finished.emit()
+            self.close()
+            self.deleteLater()
+            return
+        self.update()
+
+    def paintEvent(self, _event) -> None:  # noqa: N802
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        w = self.width()
+        h = self.height()
+        if w <= 0 or h <= 0:
+            painter.end()
+            return
+
+        elapsed = self._clock.elapsed() if self._clock.isValid() else 0
+        progress = min(1.0, elapsed / max(1, self._duration_ms))
+
+        # 1. Фоновая полупрозрачная вуаль кибер-помех (пульсирующая подложка)
+        alpha = int(45 + 35 * math.sin(progress * math.pi * 3))
+        bg_color = QColor(COLOR_OBSIDIAN)
+        bg_color.setAlpha(alpha)
+        painter.fillRect(0, 0, w, h, bg_color)
+
+        # 2. Неоновая рамка взлома по периметру активного окна (Cyberpunk hazard border)
+        frame_alpha = int(180 + 75 * math.sin(progress * math.pi * 6))
+        frame_color = QColor(COLOR_CRIMSON if random.random() < 0.75 else COLOR_ACID_GREEN)
+        frame_color.setAlpha(min(255, max(0, frame_alpha)))
+        bw = PIXEL_SIZE * 2
+        painter.fillRect(0, 0, w, bw, frame_color)
+        painter.fillRect(0, h - bw, w, bw, frame_color)
+        painter.fillRect(0, 0, bw, h, frame_color)
+        painter.fillRect(w - bw, 0, bw, h, frame_color)
+
+        # 3. Крупные горизонтальные datamosh-срезы и полосы помех
+        slice_count = random.randint(4, 9)
+        for _ in range(slice_count):
+            sy = snap_pixel(random.randint(0, max(0, h - 1)))
+            sh = PIXEL_SIZE * random.randint(1, 4)
+            sw = snap_pixel(random.randint(w // 4, w))
+            sx = snap_pixel(random.randint(0, max(0, w - sw)))
+            scolor = QColor(pick_palette_color())
+            scolor.setAlpha(random.randint(110, 220))
+            painter.fillRect(sx, sy, sw, sh, scolor)
+
+            # Хроматический сдвиг
+            if random.random() < 0.8:
+                offset = random.choice((-20, -12, 12, 20))
+                ghost_color = QColor(COLOR_ELECTRIC_BLUE if offset > 0 else COLOR_CRIMSON)
+                ghost_color.setAlpha(random.randint(90, 180))
+                painter.fillRect(max(0, min(w - sw, sx + offset)), sy, sw // 2, sh, ghost_color)
+
+        # 4. Базовый HUD-глитч (сканлайны, шум, скобки Kiroshi)
+        paint_frame(painter, w, h, intensity="strong")
+
+        # 5. Заметный HUD-баннер взлома по центру
+        if 0.15 <= progress <= 0.85:
+            banner_w = min(w - 40, max(260, w // 2))
+            banner_h = 36
+            bx = (w - banner_w) // 2
+            by = (h - banner_h) // 2
+            painter.fillRect(bx, by, banner_w, banner_h, QColor(0, 0, 0, 220))
+            painter.fillRect(bx, by, banner_w, 2, COLOR_CRIMSON)
+            painter.fillRect(bx, by + banner_h - 2, banner_w, 2, COLOR_ACID_GREEN)
+
+            font = QFont("monospace", 10, QFont.Weight.Bold)
+            painter.setFont(font)
+            painter.setPen(COLOR_CRIMSON if random.random() < 0.6 else COLOR_WHITE)
+            hud_text = random.choice((
+                "⚠ CAPRI::BREACH_PROTOCOL",
+                "⚡ RELIC 2.0 OVERRIDE",
+                "▶ KIROSHI INTERCEPTION",
+                "SYSTEM::ALERT // 0xDEAD",
+            ))
+            painter.drawText(bx + 12, by + 23, hud_text)
+
+        painter.end()
 
 
 class GlitchOverlay(QWidget):

@@ -19,6 +19,8 @@ from ..effects.session_animations import (
 )
 from ..integrations.app_launcher import launch_application
 from ..integrations.process_manager import kill_process_group
+from ..integrations.window_tracker import get_active_window_rect
+from ..ui.placement import pick_adjacent_position
 from ..ui.voice_coordinator import VoiceCoordinator
 
 
@@ -59,7 +61,14 @@ class PetOrchestrator(QObject):
         self._init_inactivity_settings()
 
         # Напоминания о присутствии
-        self.reminder = PresenceReminder(self._on_reminder, self._window)
+        min_remind_ms = int(get_config_value("behavior.reminder_min_interval_ms", 600_000))
+        max_remind_ms = int(get_config_value("behavior.reminder_max_interval_ms", 3_600_000))
+        self.reminder = PresenceReminder(
+            self._on_reminder,
+            self._window,
+            min_interval_ms=min_remind_ms,
+            max_interval_ms=max_remind_ms,
+        )
         self._reminders_enabled = bool(
             get_config_value("behavior.reminders_enabled", True)
         )
@@ -147,10 +156,61 @@ class PetOrchestrator(QObject):
     def _on_reminder(self, phrase: str) -> None:
         if self._window.is_closing or self._window.is_speaking or self.inactivity.is_paused:
             return
-        if self._window.isVisible():
-            self._window.speak(phrase)
-            return
-        self.inactivity.show_with_callback(lambda: self._window.speak(phrase))
+
+        # 1. Засекаем активное окно пользователя (или экран под курсором)
+        target_rect = get_active_window_rect()
+        effects = getattr(self._window, "effects", None)
+
+        def _after_glitch_or_direct() -> None:
+            if self._window.is_closing:
+                return
+
+            if target_rect is not None and target_rect.isValid():
+                # Выбираем позицию для Капри рядом с активным окном
+                screen = self.inactivity.get_target_screen()
+                screen_area = screen.geometry() if screen is not None else target_rect
+                pet_w = self._window.width()
+                pet_h = self._window.height()
+
+                target_x, target_y, _ = pick_adjacent_position(
+                    screen_area,
+                    target_rect,
+                    pet_w,
+                    pet_h,
+                    gap=24,
+                )
+
+                if self._window.isVisible():
+                    # Телепортируем или перемещаем к активному окну
+                    teleport_ctrl = getattr(self._window, "_teleport", None)
+                    if teleport_ctrl is not None:
+                        from PySide6.QtCore import QPoint
+                        teleport_ctrl.teleport_to_point(
+                            QPoint(target_x + pet_w // 2, target_y + pet_h // 2)
+                        )
+                    else:
+                        self._window.move(target_x, target_y)
+                    self._window.speak(phrase)
+                else:
+                    # Устанавливаем координаты перед показом
+                    self._window.move(target_x, target_y)
+                    self.inactivity.show_with_callback(lambda: self._window.speak(phrase))
+            else:
+                if self._window.isVisible():
+                    self._window.speak(phrase)
+                else:
+                    self.inactivity.show_with_callback(lambda: self._window.speak(phrase))
+
+        # Запускаем концентрированный глитч над окном перед появлением
+        if effects is not None and target_rect is not None and target_rect.isValid():
+            effects.glitch_burst(
+                target_rect,
+                duration_ms=1300,
+                intensity="strong",
+                on_finished=_after_glitch_or_direct,
+            )
+        else:
+            _after_glitch_or_direct()
 
     def _on_ai_talking_start(self) -> None:
         self._window.surge_ticks = max(self._window.surge_ticks, 24)
