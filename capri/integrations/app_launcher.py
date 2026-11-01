@@ -9,22 +9,16 @@ import subprocess
 import sys
 from typing import Any
 
+import cyrtranslit
 from rapidfuzz import fuzz
 
 from ..commands.registry import switch_layout
 
-RUS_TO_ENG = {
-    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
-    "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
-    "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
-    "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "shch",
-    "ы": "y", "э": "e", "ю": "yu", "я": "ya", "ъ": "", "ь": "",
-}
-
 
 def translit_ru_to_en(text: str) -> str:
+    """Транслитерирует русский текст в латиницу по стандарту."""
     t = text.lower().replace("кс", "x")
-    return "".join(RUS_TO_ENG.get(ch, ch) for ch in t)
+    return cyrtranslit.to_latin(t, "ru")
 
 
 def phonetic_normalize(text: str) -> str:
