@@ -212,12 +212,10 @@ class CyberPixelBolt:
         self,
         start: QPoint,
         end: QPoint,
-        color_scheme: str = "crimson",  # оставлен для совместимости: цвет всегда красно-чёрный
         branch_chance: float = 0.30,
     ) -> None:
         self.start = snap_point(start)
         self.end = snap_point(end)
-        self.color_scheme = color_scheme
         self._branch_chance = max(0.0, min(1.0, branch_chance))
         self.segments: List[Tuple[QPoint, QPoint]] = []
         self.branches: List[List[Tuple[QPoint, QPoint]]] = []

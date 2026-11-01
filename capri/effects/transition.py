@@ -41,11 +41,6 @@ from .transition_fx import (
 from ..ui.speech_sfx import get_speech_sfx
 
 
-def _bolt_scheme(index: int, primary: str = "crimson") -> str:
-    """Все разряды строго красно-чёрные, без зелёных и синих каналов."""
-    return "crimson"
-
-
 class TransitionOverlay(QWidget):
     """
     Полноэкранный оверлей кибернетических переходов в духе Cyberpunk 2077:
@@ -125,13 +120,11 @@ class TransitionOverlay(QWidget):
         if mode == "lightning_to_point" and self._local_target_point is not None:
             # Трассировка: пакеты данных тянутся от курсора к центру экрана
             starts = perimeter_circuit_points(self._local_window, 6)
-            for idx, s in enumerate(starts):
-                scheme = _bolt_scheme(idx, primary="green")
+            for s in starts:
                 self._bolts.append(
                     CyberPixelBolt(
                         s,
                         self._local_target_point,
-                        color_scheme=scheme,
                         branch_chance=0.0,
                     )
                 )
@@ -139,27 +132,23 @@ class TransitionOverlay(QWidget):
             # Аварийный разрыв: короткие разряды вырываются из силуэта наружу
             starts = perimeter_circuit_points(self._local_window, bolt_count)
             ends = perimeter_circuit_points(outer_ring, bolt_count)
-            for idx, (s, e) in enumerate(zip(starts, ends)):
+            for s, e in zip(starts, ends):
                 self._bolts.append(
                     CyberPixelBolt(
                         s,
                         e,
-                        color_scheme=_bolt_scheme(idx, "crimson"),
                         branch_chance=0.08,
                     )
                 )
             # Пара дальних аварийных шин к границам экрана
-            for idx, (s, e) in enumerate(
-                zip(
-                    perimeter_circuit_points(outer_ring, 3),
-                    screen_bus_points(local_screen, 3),
-                )
+            for s, e in zip(
+                perimeter_circuit_points(outer_ring, 3),
+                screen_bus_points(local_screen, 3),
             ):
                 self._bolts.append(
                     CyberPixelBolt(
                         s,
                         e,
-                        color_scheme=_bolt_scheme(idx, "crimson"),
                         branch_chance=0.10,
                     )
                 )
@@ -167,27 +156,23 @@ class TransitionOverlay(QWidget):
             # Материализация: шины сходятся к силуэту из ближней зоны
             starts = perimeter_circuit_points(outer_ring, bolt_count)
             ends = perimeter_circuit_points(self._local_window, bolt_count)
-            for idx, (s, e) in enumerate(zip(starts, ends)):
+            for s, e in zip(starts, ends):
                 self._bolts.append(
                     CyberPixelBolt(
                         s,
                         e,
-                        color_scheme=_bolt_scheme(idx, "crimson"),
                         branch_chance=0.08,
                     )
                 )
             # Редкие дальние пакеты из углов экрана
-            for idx, (s, e) in enumerate(
-                zip(
-                    screen_bus_points(local_screen, 3),
-                    perimeter_circuit_points(outer_ring, 3),
-                )
+            for s, e in zip(
+                screen_bus_points(local_screen, 3),
+                perimeter_circuit_points(outer_ring, 3),
             ):
                 self._bolts.append(
                     CyberPixelBolt(
                         s,
                         e,
-                        color_scheme=_bolt_scheme(idx, "green"),
                         branch_chance=0.10,
                     )
                 )

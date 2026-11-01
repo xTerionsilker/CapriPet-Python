@@ -139,7 +139,6 @@ class LightningTetherOverlay(QWidget):
             CyberPixelBolt(
                 local_start,
                 local_target,
-                color_scheme="crimson",
                 branch_chance=0.28,
             )
         )
@@ -152,7 +151,6 @@ class LightningTetherOverlay(QWidget):
                 CyberPixelBolt(
                     jitter_start,
                     jitter_target,
-                    color_scheme="crimson",
                     branch_chance=0.35,
                 )
             )
