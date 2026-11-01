@@ -26,12 +26,7 @@ from ..core.settings import (
     get_config_value,
     set_config_value,
 )
-from ..effects.glitch import GlitchManager
-from ..effects.model_init_animation import ModelInitOverlay
-from ..effects.session_animations import (
-    SessionAnimationOverlay,
-    play_session_animation,
-)
+from ..effects.effects_coordinator import EffectsCoordinator
 from ..effects.transition import TransitionOverlay
 from .context_menu import build_pet_context_menu
 from .pet_renderer import PetRenderState, PetRenderer
@@ -132,7 +127,7 @@ class CapriWindow(QWidget):
         self._glitch_timer.setInterval(70)
         self._glitch_timer.timeout.connect(self._on_glitch_tick)
 
-        self._glitches = GlitchManager(self)
+        self._effects = EffectsCoordinator(self)
         self._orchestrator = PetOrchestrator(self)
         self._build_shortcuts()
         self._load_initial_settings()
@@ -449,11 +444,6 @@ class CapriWindow(QWidget):
         )
         return speech
 
-    def _toggle_glitches(self) -> str:
-        enabled = self._glitches.toggle()
-        set_config_value("effects.glitches_enabled", enabled)
-        return "Глитчи включены." if enabled else "Глитчи выключены."
-
     def toggle_glitches(self) -> str:
         return self._toggle_glitches()
 
@@ -481,9 +471,9 @@ class CapriWindow(QWidget):
             self._orchestrator.voice_coordinator.set_device(None)
 
         glitches_enabled = get_config_value("effects.glitches_enabled", True)
-        self._glitches.set_enabled(bool(glitches_enabled))
+        self._effects.glitches.set_enabled(bool(glitches_enabled))
         glitch_intensity = get_config_value("effects.glitch_intensity", "weak")
-        self._glitches.set_intensity(str(glitch_intensity))
+        self._effects.set_glitch_intensity(str(glitch_intensity))
 
         speech_sfx = get_speech_sfx()
         volume_percent = get_config_value("audio.volume", 50)
@@ -576,15 +566,20 @@ class CapriWindow(QWidget):
 
     @property
     def glitches_enabled(self) -> bool:
-        return self._glitches.is_enabled
+        return self._effects.is_glitch_enabled
 
     @property
     def glitch_intensity(self) -> str:
-        return self._glitches.intensity
+        return self._effects.glitch_intensity
 
     def set_glitch_intensity(self, intensity: str) -> None:
-        self._glitches.set_intensity(intensity)
+        self._effects.set_glitch_intensity(intensity)
         set_config_value("effects.glitch_intensity", intensity)
+
+    def _toggle_glitches(self) -> str:
+        enabled = self._effects.toggle_glitches()
+        set_config_value("effects.glitches_enabled", enabled)
+        return "Глитчи включены." if enabled else "Глитчи выключены."
 
     def toggle_voice(self) -> str:
         return self._orchestrator.voice_coordinator.toggle_voice()
@@ -678,14 +673,8 @@ class CapriWindow(QWidget):
         self._closing = True
         event.ignore()
         self._orchestrator.stop()
-        if self._model_init_overlay is not None:
-            try:
-                self._model_init_overlay.close()
-            except Exception:
-                pass
-            self._model_init_overlay = None
+        self._effects.stop_all()
         self._glitch_timer.stop()
-        self._glitches.stop()
         close_all_speech()
 
         speech = self.speak(GOODBYE_LINE)
