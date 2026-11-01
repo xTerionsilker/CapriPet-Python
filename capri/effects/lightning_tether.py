@@ -168,24 +168,27 @@ class LightningTetherOverlay(QWidget):
 
         # Рождение пиксельных искр вокруг цели
         if random.random() < 0.65:
+            angle = random.uniform(0, math.tau)
+            speed = random.uniform(40.0, 160.0)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            kind = random.choice(("spark", "bit", "bar"))
             self._sparks.append(
                 CyberPixelSpark(
-                    local_target,
+                    local_target.x(),
+                    local_target.y(),
+                    vx,
+                    vy,
                     color=random.choice((COLOR_CRIMSON, COLOR_WHITE, COLOR_ACID_GREEN)),
-                    speed_range=(2.0, 7.0),
-                    ttl_range=(0.15, 0.40),
                     size=PIXEL_SIZE,
+                    life=random.uniform(0.15, 0.40),
+                    kind=kind,
                 )
             )
 
-        # Обновление существующих искр
+        # Обновление существующих искр (step возвращает True пока искра жива)
         dt = 0.02
-        alive_sparks: List[CyberPixelSpark] = []
-        for spark in self._sparks:
-            spark.update(dt)
-            if spark.is_alive():
-                alive_sparks.append(spark)
-        self._sparks = alive_sparks
+        self._sparks = [s for s in self._sparks if s.step(dt)]
 
         self.update()
 
