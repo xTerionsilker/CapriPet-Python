@@ -180,3 +180,39 @@ class LaunchAppCommand(BaseCommand):
             return ctx.action_bridge.launch_app(trimmed)
         return f"Ищу приложение: {trimmed}"
 
+
+class KillAppCommand(BaseCommand):
+    name = "убей"
+    description = "найти и завершить запущенный процесс или приложение."
+    takes_argument = True
+    aliases = (
+        "убей процесс",
+        "убей приложение",
+        "убить",
+        "убить процесс",
+        "убить приложение",
+        "закрой",
+        "закрыть",
+        "закрой процесс",
+        "закрыть процесс",
+        "закрой приложение",
+        "закрыть приложение",
+        "заверши",
+        "завершить",
+        "заверши процесс",
+        "завершить процесс",
+        "прибей",
+        "прибить",
+        "стоп процесс",
+    )
+    keywords = ("убей", "убить", "закрой", "закрыть", "заверши", "завершить", "прибей", "прибить", "процесс")
+
+    def execute(self, ctx: CommandContext, query: str = "") -> str | None:
+        trimmed = query.strip()
+        if not trimmed:
+            return "Какой процесс убить? Скажи: «убей <название>»."
+        if ctx.action_bridge is not None:
+            return ctx.action_bridge.kill_app(trimmed)
+        return f"Ищу процессы: {trimmed}"
+
+

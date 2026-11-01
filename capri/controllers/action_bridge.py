@@ -5,7 +5,7 @@ import threading
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ..effects.session_animations import SESSION_ACTION_LEAD_MS
-from ..integrations import app_launcher, ollama, spotify, web_search
+from ..integrations import app_launcher, ollama, process_manager, spotify, web_search
 from ..integrations.screen_lock import lock_commands, run_lock
 from ..integrations.system_power import power_commands, run_power
 
@@ -21,6 +21,7 @@ class ActionBridge(QObject):
     ollama_finished = Signal()
     youtube_results_ready = Signal(list)
     launch_app_results_ready = Signal(list)
+    kill_app_results_ready = Signal(list)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -185,6 +186,22 @@ class ActionBridge(QObject):
     def _find_apps_worker(self, query: str) -> None:
         apps = app_launcher.find_matching_applications(query, limit=5)
         self.launch_app_results_ready.emit(apps)
+
+    def kill_app(self, query: str) -> str:
+        trimmed = query.strip()
+        if not trimmed:
+            return "Какой процесс убить? Скажи: «убей <название>»."
+        threading.Thread(
+            target=self._find_processes_worker,
+            args=(trimmed,),
+            name="capri-process-find",
+            daemon=True,
+        ).start()
+        return f"Ищу процессы: {trimmed}"
+
+    def _find_processes_worker(self, query: str) -> None:
+        procs = process_manager.find_matching_processes(query, limit=5)
+        self.kill_app_results_ready.emit(procs)
 
     def open_update_page(self) -> str:
         return web_search.open_update_page()

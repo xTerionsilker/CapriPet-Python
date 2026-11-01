@@ -23,6 +23,7 @@ _CMD_TO_HANDLER: dict[str, str] = {
     "слушай": "ask_ollama",
     "где мышь": "locate_mouse",
     "запусти": "launch_app",
+    "убей": "kill_app",
 }
 
 

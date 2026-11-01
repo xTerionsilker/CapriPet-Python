@@ -161,6 +161,9 @@ class CapriWindow(QWidget):
         self._actions.launch_app_results_ready.connect(
             self._on_launch_app_results_ready
         )
+        self._actions.kill_app_results_ready.connect(
+            self._on_kill_app_results_ready
+        )
 
         self._build_shortcuts()
         self._glitches = GlitchManager(self)
@@ -884,6 +887,41 @@ class CapriWindow(QWidget):
             for i, a in enumerate(apps, 1)
         ]
         prompt = "\n".join(lines) + f"\nСкажи номер (1–{len(apps)})"
+        self._flow.expect_reply(_on_choice, timeout_ms=25_000)
+        self.speak(prompt, hold_ms=25_000)
+
+    def _on_kill_app_results_ready(self, procs: list[dict[str, Any]]) -> None:
+        if self._closing:
+            return
+        if not procs:
+            self.speak("Не удалось найти подходящих процессов.")
+            return
+
+        def _on_choice(text: str) -> str:
+            from ..core.input_flow import _parse_selected_number
+            from ..integrations.process_manager import kill_process_group
+            choice = _parse_selected_number(text, max_number=len(procs))
+            if choice is None:
+                return "Не поняла номер. Завершение отменено."
+            selected = procs[choice - 1]
+            success, count = kill_process_group(selected)
+            name = selected["name"]
+            if success:
+                if count > 1:
+                    return f"Завершено {count} процессов «{name}»."
+                return f"Процесс «{name}» завершён."
+            return f"Не удалось завершить {name}."
+
+        lines = []
+        for i, p in enumerate(procs, 1):
+            name = p["name"]
+            count = len(p.get("pids", []))
+            count_label = f" ({count})" if count > 1 else ""
+            display = f"{name}{count_label}"
+            display = f"{display[:32]}…" if len(display) > 32 else display
+            lines.append(f"{i}. {display}")
+
+        prompt = "\n".join(lines) + f"\nСкажи номер (1–{len(procs)})"
         self._flow.expect_reply(_on_choice, timeout_ms=25_000)
         self.speak(prompt, hold_ms=25_000)
 
