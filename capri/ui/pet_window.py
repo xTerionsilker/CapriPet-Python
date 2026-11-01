@@ -20,7 +20,6 @@ from PySide6.QtMultimedia import QAudioDevice, QMediaDevices
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QWidget
 
 from ..audio.recognizer import get_model_info, is_model_ready, preload_model_async
-from ..audio.voice import VoiceInput
 from ..commands import CommandContext, register_default_commands
 from ..controllers import ActionBridge, InactivityManager, PresenceReminder
 from ..commands.registry import CommandRegistry
@@ -30,19 +29,14 @@ from ..core.settings import (
     get_config_value,
     set_config_value,
 )
-from ..core.wake_word import (
-    VOICE_COMMAND_WINDOW_MS,
-    command_after_trigger,
-)
 from ..effects.glitch import GlitchManager
-from ..effects.lightning_tether import LightningTetherOverlay
 from ..effects.model_init_animation import ModelInitOverlay
 from ..effects.session_animations import (
     SessionAnimationOverlay,
     play_session_animation,
 )
 from ..effects.transition import TransitionOverlay
-from .context_menu import build_pet_context_menu, build_tray_context_menu
+from .context_menu import build_pet_context_menu
 from .pet_renderer import PetRenderState, PetRenderer
 from .speech import (
     SpeechWindow,
@@ -51,6 +45,10 @@ from .speech import (
     show_text,
 )
 from .speech_sfx import get_speech_sfx
+from .sprite_manager import SpriteManager
+from .teleport_controller import TeleportController
+from .tray_manager import TrayManager
+from .voice_coordinator import VoiceCoordinator
 from .voice_hud import CyberVoiceHud
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -107,15 +105,9 @@ class CapriWindow(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setAutoFillBackground(False)
 
-        self._scale_percent = 100
         self._volume_percent = 50
-        self._raw_pixmaps: dict[str, QPixmap] = {}
-        self._pixmaps: dict[str, QPixmap] = {}
-        self._load_all_poses()
-        self._current_pose = "sit"
-        self._pixmap = self._pixmaps.get("sit") or next(iter(self._pixmaps.values()))
-        self._cached_hit_image = self._pixmap.toImage()
-        self.setFixedSize(self._pixmap.size())
+        self._sprite_manager = SpriteManager(self._on_sprite_changed)
+        self.setFixedSize(self._sprite_manager.current_pixmap.size())
 
         self._drag_offset: QPoint | None = None
         self._speech: SpeechWindow | None = None
@@ -124,22 +116,19 @@ class CapriWindow(QWidget):
         self._surge_ticks = 0
         self._pose_transition_ticks = 0
         self._is_dragging = False
-        self._is_lightning_aiming = False
-        self._lightning_overlay: LightningTetherOverlay | None = None
-        self._teleport_overlay_out: TransitionOverlay | None = None
-        self._teleport_overlay_in: TransitionOverlay | None = None
         self._speaking = False
         self._anim_frame = 0
         self._telemetry_tag = "[CAPRI//ONLINE]"
         self._startup_overlay: TransitionOverlay | None = None
         self._model_init_overlay: ModelInitOverlay | None = None
         self._session_overlay: SessionAnimationOverlay | None = None
-        self._voice_hud: CyberVoiceHud | None = None
-        self._voice_armed_until = 0.0
         self._closing = False
         self._designated_screen_name: str | None = None
         self._renderer = PetRenderer()
         self._started_at = time.monotonic()
+
+        # Контроллеры вспомогательных подсистем
+        self._teleport = TeleportController(self)
 
         # Таймер анимации пиксельных глитчей
         self._glitch_timer = QTimer(self)
@@ -165,16 +154,22 @@ class CapriWindow(QWidget):
             self._on_kill_app_results_ready
         )
 
+        self._voice_coord = VoiceCoordinator(
+            self,
+            on_command_ready=self._on_voice_command_ready,
+            speak_fn=self.speak,
+        )
+        self._flow.awaiting_reply_changed.connect(self._voice_coord.handle_awaiting_reply_changed)
         self._build_shortcuts()
         self._glitches = GlitchManager(self)
-        self._build_voice()
+
         self._load_initial_settings()
         self._register_commands()
 
         self._inactivity = InactivityManager(
             main_window=self,
             is_closing=lambda: self._closing,
-            on_wake_voice=self._wake_voice_if_needed,
+            on_wake_voice=self._voice_coord.wake_if_needed,
             get_designated_screen=self.get_designated_screen,
         )
         inactivity_ms = get_config_value(
@@ -189,9 +184,7 @@ class CapriWindow(QWidget):
         self._activity_timeout_seconds = inactivity_ms // 1000
         self._inactivity.set_timeout_ms(inactivity_ms)
 
-        voice_enabled = get_config_value("audio.voice_enabled", True)
-        if voice_enabled:
-            self._voice.start()
+        self._voice_coord.start_if_enabled()
         self._inactivity.start()
 
         self._reminder = PresenceReminder(self._on_reminder, self)
@@ -201,56 +194,44 @@ class CapriWindow(QWidget):
         if self._reminders_enabled:
             self._reminder.start()
 
-        self._tray_icon: QSystemTrayIcon | None = None
-        self._tray_menu = None
-        self._init_tray()
+        self._tray = TrayManager(self)
 
-    def _load_pixmap(self, name: str, path: Path) -> QPixmap:
-        pixmap = QPixmap(str(path))
-        if pixmap.isNull():
-            pixmap = QPixmap(420, 420)
-        self._raw_pixmaps[name] = pixmap
-        return self._apply_scale_for_pose(name)
+    @property
+    def input_flow(self) -> InputFlow:
+        return self._flow
 
-    def _apply_scale_for_pose(self, name: str) -> QPixmap:
-        raw = self._raw_pixmaps.get(name)
-        if raw is None or raw.isNull():
-            raw = QPixmap(420, 420)
-            self._raw_pixmaps[name] = raw
-        # 100% размер спрайта — базовый размер (width / 1.5, height / 1.5)
-        base_width = max(1, int(raw.width() / 1.5))
-        base_height = max(1, int(raw.height() / 1.5))
-        scale_factor = self._scale_percent / 100.0
-        target_width = max(1, int(base_width * scale_factor))
-        target_height = max(1, int(base_height * scale_factor))
-        scaled = raw.scaled(
-            target_width,
-            target_height,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self._pixmaps[name] = scaled
-        return scaled
+    @property
+    def inactivity_manager(self) -> InactivityManager:
+        return self._inactivity
 
-    def set_sprite_scale(self, percent: int) -> None:
-        if percent not in (50, 75, 100, 125, 150):
-            return
-        if self._scale_percent == percent:
-            return
-        self._scale_percent = percent
-        set_config_value("appearance.scale", percent)
-        for name in list(self._raw_pixmaps.keys()):
-            self._apply_scale_for_pose(name)
-        if self._current_pose in self._pixmaps:
-            self._pixmap = self._pixmaps[self._current_pose]
-            self._cached_hit_image = self._pixmap.toImage()
+    @property
+    def is_closing(self) -> bool:
+        return self._closing
+
+    @property
+    def surge_ticks(self) -> int:
+        return self._surge_ticks
+
+    @surge_ticks.setter
+    def surge_ticks(self, val: int) -> None:
+        self._surge_ticks = val
+
+    @property
+    def pixmap(self) -> QPixmap:
+        return self._sprite_manager.current_pixmap
+
+    def _on_sprite_changed(self, pixmap: QPixmap, hit_image, pose_name: str) -> None:
+        old_size = self.size()
+        self.setFixedSize(pixmap.size())
+        if old_size != pixmap.size() and old_size.isValid():
             old_rect = self.geometry()
-            self.setFixedSize(self._pixmap.size())
-            # Центрируем изменение размера относительно текущей позиции
             new_x = old_rect.center().x() - self.width() // 2
             new_y = old_rect.bottom() - self.height()
             self.move(new_x, new_y)
-            self.update()
+        self.update()
+
+    def set_sprite_scale(self, percent: int) -> None:
+        if self._sprite_manager.set_sprite_scale(percent):
             self.speak(f"Размер: {percent}%")
 
     def set_activity_timeout(self, seconds: int) -> None:
@@ -285,116 +266,30 @@ class CapriWindow(QWidget):
     def reminders_enabled(self) -> bool:
         return self._reminders_enabled
 
-    def _load_all_poses(self) -> None:
-        pose_dirs = {
-            "idle": IDLE_DIR,
-            "other": OTHER_DIR,
-            "thinking": THINKING_DIR,
-        }
-        self._pose_variants: dict[str, list[str]] = {
-            "idle": [],
-            "other": [],
-            "thinking": [],
-        }
-
-        for pose_name, pose_dir in pose_dirs.items():
-            if pose_dir.is_dir():
-                # Загружаем все доступные изображения из директории (например 1.png, 2.png, 3.png)
-                for file in sorted(pose_dir.glob("*.png")):
-                    variant_key = f"{pose_name}:{file.stem}"
-                    self._load_pixmap(variant_key, file)
-                    self._pose_variants[pose_name].append(variant_key)
-
-        # Псевдонимы категорий (sit -> idle, stay -> thinking, crouch -> other)
-        self._pose_variants["sit"] = self._pose_variants["idle"]
-        self._pose_variants["stay"] = self._pose_variants["thinking"]
-        self._pose_variants["crouch"] = self._pose_variants["other"]
-
-        # Устанавливаем базовые ключи категорий на случай прямого обращения
-        for category in ("idle", "other", "thinking", "sit", "stay", "crouch"):
-            variants = self._pose_variants.get(category)
-            if variants:
-                first_variant = variants[0]
-                self._raw_pixmaps[category] = self._raw_pixmaps[first_variant]
-                self._pixmaps[category] = self._pixmaps[first_variant]
-
-        if not self._pixmaps:
-            fallback = QPixmap(420, 420)
-            fallback.fill(Qt.GlobalColor.transparent)
-            self._raw_pixmaps["sit"] = fallback
-            self._apply_scale_for_pose("sit")
-
     def set_pose(self, pose: str) -> None:
-        """Переключает спрайт позы питомца со случайным выбором вариации (1-3) и глитч-переходом."""
-        # Разрешаем алиасы
-        canonical_pose = {
-            "sit": "idle",
-            "crouch": "other",
-            "stay": "thinking",
-        }.get(pose, pose)
-
-        variants = self._pose_variants.get(canonical_pose) or self._pose_variants.get(pose)
-        if variants:
-            # Случайный выбор одного из доступных спрайтов в папке (1.png, 2.png, 3.png)
-            chosen_key = random.choice(variants)
-            chosen_pixmap = self._pixmaps.get(chosen_key)
-        else:
-            chosen_key = pose
-            chosen_pixmap = self._pixmaps.get(pose)
-
-        if chosen_pixmap is not None:
-            old_pose = self._current_pose
-            self._current_pose = canonical_pose
-            self._pixmap = chosen_pixmap
-            self._cached_hit_image = self._pixmap.toImage()
-            self.setFixedSize(self._pixmap.size())
-            if old_pose != canonical_pose:
-                self._pose_transition_ticks = 6
-                self._surge_ticks = max(self._surge_ticks, 6)
-            self.update()
+        """Переключает спрайт позы питомца."""
+        changed = self._sprite_manager.set_pose(pose)
+        if changed:
+            self._pose_transition_ticks = 6
+            self._surge_ticks = max(self._surge_ticks, 6)
 
     def set_pose_image(self, pose_name: str, path: Path) -> None:
         """Переключает спрайт позы по пути к файлу."""
-        self._load_pixmap(pose_name, path)
-        self.set_pose(pose_name)
-
-    def _ensure_voice_hud(self) -> CyberVoiceHud:
-        if self._voice_hud is None:
-            self._voice_hud = CyberVoiceHud(self)
-        return self._voice_hud
-
-    def _on_awaiting_reply_changed(self, awaiting: bool) -> None:
-        if awaiting:
-            hud = self._ensure_voice_hud()
-            hud.show_hud(status="WAITING_ARGUMENT", mode="AWAITING_INPUT")
-        else:
-            if not self._voice_command_armed:
-                if self._voice_hud is not None:
-                    self._voice_hud.hide_hud(delay_ms=400)
+        self._sprite_manager.set_pose_image(pose_name, path)
 
     def _build_shortcuts(self) -> None:
         QShortcut(QKeySequence("Ctrl+Q"), self, self.close)
-        QShortcut(QKeySequence("Ctrl+Space"), self, self._toggle_voice)
+        QShortcut(QKeySequence("Ctrl+Space"), self, self._voice_coord.toggle_voice)
 
-    def _build_voice(self) -> None:
-        if get_config_value("audio.voice_enabled", True):
-            preload_model_async()
-        self._voice = VoiceInput(always_on=False)
-        self._voice.listening_changed.connect(self._on_voice_listening)
-        self._voice.status_changed.connect(self._on_voice_status)
-        self._voice.recognized.connect(self._on_voice_text)
-        self._voice.failed.connect(self.speak)
-        self._flow.awaiting_reply_changed.connect(self._on_awaiting_reply_changed)
-
-        self._voice_window_timer = QTimer(self)
-        self._voice_window_timer.setSingleShot(True)
-        self._voice_window_timer.timeout.connect(self._on_voice_window_expired)
+    def _on_voice_command_ready(self, command: str) -> None:
+        result = self.process_input(command)
+        self.speak(result)
 
     def _register_commands(self) -> None:
         context = CommandContext(
             speak=self.speak,
             trigger_glitches=self._toggle_glitches,
-            toggle_voice=self._toggle_voice,
+            toggle_voice=self._voice_coord.toggle_voice,
             locate_mouse=self._locate_mouse,
             set_pose=self.set_pose,
             get_config=get_config_value,
@@ -550,18 +445,7 @@ class CapriWindow(QWidget):
 
     def _is_point_on_sprite(self, pos: QPoint) -> bool:
         """Проверяет, попадает ли точка клика на непрозрачную часть спрайта Капри."""
-        img = self._cached_hit_image
-        if img is None or img.isNull():
-            return True
-        x, y = pos.x(), pos.y()
-        if not (0 <= x < img.width() and 0 <= y < img.height()):
-            return False
-        return img.pixelColor(x, y).alpha() > 20
-
-    def _ensure_lightning_overlay(self) -> LightningTetherOverlay:
-        if self._lightning_overlay is None:
-            self._lightning_overlay = LightningTetherOverlay()
-        return self._lightning_overlay
+        return self._sprite_manager.is_point_on_sprite(pos.x(), pos.y())
 
     def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         pos = event.position().toPoint()
@@ -571,161 +455,28 @@ class CapriWindow(QWidget):
 
         self._inactivity.reset_timer()
         if event.button() == Qt.MouseButton.RightButton:
-            if self._is_lightning_aiming:
-                self._cancel_lightning_aiming()
+            if self._teleport.is_aiming:
+                self._teleport.cancel_aiming()
             self.show_context_menu(event.globalPosition().toPoint())
             event.accept()
             return
 
-        if event.button() == Qt.MouseButton.LeftButton:
-            # Запрещаем прямое перетаскивание окна; активируем прицеливание молнией
-            self._is_lightning_aiming = True
-            self._is_dragging = False
-            self._drag_offset = None
-            self._surge_ticks = max(self._surge_ticks, 14)
-            self._inactivity.set_paused(True)
-            self.update()
-
-            cursor_pos = event.globalPosition().toPoint()
-            pet_center = self.geometry().center()
-            overlay = self._ensure_lightning_overlay()
-            overlay.activate(pet_center, cursor_pos, self.geometry())
-
+        if self._teleport.handle_mouse_press(event):
             event.accept()
             return
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        if self._is_lightning_aiming:
-            cursor_pos = event.globalPosition().toPoint()
-            pet_center = self.geometry().center()
-            overlay = self._ensure_lightning_overlay()
-            overlay.update_start(pet_center, self.geometry())
-            overlay.update_target(cursor_pos)
-            self._surge_ticks = max(self._surge_ticks, 6)
-            self._inactivity.reset_timer()
-            self.update()
+        if self._teleport.handle_mouse_move(event):
             event.accept()
             return
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        if event.button() == Qt.MouseButton.LeftButton and self._is_lightning_aiming:
-            self._is_lightning_aiming = False
-            self._inactivity.set_paused(False)
-            target_pos = event.globalPosition().toPoint()
-            if self._lightning_overlay is not None:
-                self._lightning_overlay.deactivate()
-
-            self._surge_ticks = max(self._surge_ticks, 10)
-            self.update()
+        if self._teleport.handle_mouse_release(event):
             event.accept()
-
-            # Запускаем процедуру телепортации в целевую точку
-            self._teleport_to_point(target_pos)
             return
-
         super().mouseReleaseEvent(event)
-
-    def _cancel_lightning_aiming(self) -> None:
-        self._is_lightning_aiming = False
-        self._inactivity.set_paused(False)
-        if self._lightning_overlay is not None:
-            self._lightning_overlay.deactivate()
-        self.update()
-
-    def _teleport_to_point(self, target_center_point: QPoint) -> None:
-        """Телепортирует Капри в указанную точку с эффектом красных молний."""
-        w = self.width()
-        h = self.height()
-        target_top_left = QPoint(target_center_point.x() - w // 2, target_center_point.y() - h // 2)
-
-        from_rect = QRect(self.geometry())
-        to_rect = QRect(target_top_left.x(), target_top_left.y(), w, h)
-
-        # Если точка осталась той же самой (микро-клик), просто сохраняем
-        dx = abs(from_rect.center().x() - to_rect.center().x())
-        dy = abs(from_rect.center().y() - to_rect.center().y())
-        if dx < 12 and dy < 12:
-            return
-
-        # Находим экран для целевой точки
-        target_screen = None
-        for scr in QGuiApplication.screens():
-            if scr.geometry().contains(target_center_point):
-                target_screen = scr
-                break
-        if target_screen is None:
-            target_screen = self.screen() or QGuiApplication.primaryScreen()
-
-        screen_rect = target_screen.geometry() if target_screen is not None else to_rect
-
-        # Завершаем старые оверлеи если были
-        if self._teleport_overlay_out is not None:
-            try:
-                self._teleport_overlay_out.close()
-            except Exception:
-                pass
-            self._teleport_overlay_out = None
-        if self._teleport_overlay_in is not None:
-            try:
-                self._teleport_overlay_in.close()
-            except Exception:
-                pass
-            self._teleport_overlay_in = None
-
-        def on_out_peak() -> None:
-            self.hide()
-
-        def on_out_finished() -> None:
-            if self._closing:
-                return
-
-            # Перемещаем окно в целевую позицию
-            self.setGeometry(to_rect)
-            wh = self.windowHandle()
-            if wh is not None and target_screen is not None:
-                wh.setScreen(target_screen)
-
-            # Сохраняем новую позицию
-            set_config_value("window.position", {"x": to_rect.x(), "y": to_rect.y()})
-            set_config_value("window.overlay_position", {"x": to_rect.x(), "y": to_rect.y()})
-
-            self.set_pose("crouch")
-
-            def on_in_peak() -> None:
-                self.show()
-                self.raise_()
-                self.set_pose("sit")
-                self.update()
-
-            def on_in_finished() -> None:
-                self._teleport_overlay_in = None
-                self.show()
-                self.raise_()
-                self._surge_ticks = 8
-                self.update()
-
-            self._teleport_overlay_in = TransitionOverlay(
-                screen_rect,
-                to_rect,
-                "in",
-                target=self,
-                on_peak=on_in_peak,
-            )
-            self._teleport_overlay_in.finished.connect(on_in_finished)
-            self._teleport_overlay_in.start()
-
-        self.set_pose("crouch")
-        self._teleport_overlay_out = TransitionOverlay(
-            self.screen().geometry() if self.screen() else from_rect,
-            from_rect,
-            "out",
-            target=self,
-            on_peak=on_out_peak,
-        )
-        self._teleport_overlay_out.finished.connect(on_out_finished)
-        self._teleport_overlay_out.start()
 
     def changeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().changeEvent(event)
@@ -750,89 +501,6 @@ class CapriWindow(QWidget):
             lambda *_, window=speech: self._forget_speech(window)
         )
         return speech
-
-    def _toggle_voice(self) -> str:
-        if self._voice.is_busy:
-            return "Подождите, идёт распознавание."
-        if self._voice.is_listening:
-            self._voice.stop()
-            set_config_value("audio.voice_enabled", False)
-            return "Голосовой ввод отключён."
-        else:
-            preload_model_async()
-            self._voice.start()
-            set_config_value("audio.voice_enabled", True)
-            if self._voice.is_listening:
-                return "Слушаю. Скажи «Капри» и команду."
-            return "Микрофон недоступен."
-
-    def _on_voice_text(self, text: str) -> None:
-        command = self._voice_command(text)
-        if command is None:
-            return
-        self._inactivity.reset_timer()
-
-        # Если HUD активен (была триггер фраза или ожидался ответ), показываем распознанный текст
-        if self._voice_command_armed or self._flow.awaiting_reply:
-            hud = self._ensure_voice_hud()
-            hud.set_recognized_text(text, keep_ms=2500)
-
-        if command:
-            self._disarm_voice_command()
-            result = self.process_input(command)
-            self.speak(result)
-            return
-        self._arm_voice_command()
-
-    def _voice_command(self, text: str) -> str | None:
-        command = command_after_trigger(text)
-        if command is not None:
-            return command
-        if self._flow.awaiting_reply:
-            return text.strip()
-        if self._voice_command_armed:
-            return text.strip()
-        return None
-
-    @property
-    def _voice_command_armed(self) -> bool:
-        return time.monotonic() < self._voice_armed_until
-
-    def _arm_voice_command(self) -> None:
-        self._voice_armed_until = (
-            time.monotonic() + VOICE_COMMAND_WINDOW_MS / 1000
-        )
-        self._voice_window_timer.start(VOICE_COMMAND_WINDOW_MS)
-        hud = self._ensure_voice_hud()
-        hud.show_hud(status="LISTENING_COMMAND", mode="TRIGGER_DETECTED")
-        self._greet_trigger()
-
-    def _disarm_voice_command(self) -> None:
-        self._voice_armed_until = 0.0
-        self._voice_window_timer.stop()
-        if not self._flow.awaiting_reply:
-            if self._voice_hud is not None:
-                self._voice_hud.hide_hud(delay_ms=2200)
-
-    def _on_voice_window_expired(self) -> None:
-        self._voice_armed_until = 0.0
-        if not self._flow.awaiting_reply:
-            if self._voice_hud is not None:
-                self._voice_hud.hide_hud(delay_ms=300)
-
-    def _greet_trigger(self) -> None:
-        self.speak(random.choice(WAKE_LINES))
-
-    def _wake_voice_if_needed(self) -> None:
-        voice_enabled = get_config_value("audio.voice_enabled", True)
-        if voice_enabled and not self._voice.is_listening and not self._voice.is_busy:
-            self._voice.start()
-
-    def _on_voice_listening(self, active: bool) -> None:
-        pass
-
-    def _on_voice_status(self, text: str) -> None:
-        pass
 
     def _toggle_glitches(self) -> str:
         enabled = self._glitches.toggle()
@@ -978,11 +646,11 @@ class CapriWindow(QWidget):
         if mic_desc:
             for dev in QMediaDevices.audioInputs():
                 if dev.description() == mic_desc:
-                    self._voice.set_device(dev)
+                    self._voice_coord.set_device(dev)
                     found_mic = True
                     break
         if not found_mic:
-            self._voice.set_device(None)
+            self._voice_coord.set_device(None)
 
         glitches_enabled = get_config_value("effects.glitches_enabled", True)
         self._glitches.set_enabled(bool(glitches_enabled))
@@ -1005,16 +673,6 @@ class CapriWindow(QWidget):
 
         effects_sound = get_config_value("audio.effects_sound_enabled", True)
         speech_sfx.set_effects_sound_enabled(bool(effects_sound))
-
-        saved_scale = get_config_value("appearance.scale", 100)
-        try:
-            scale_val = int(saved_scale)
-            if scale_val in (50, 75, 100, 125, 150):
-                self._scale_percent = scale_val
-                for name in list(self._raw_pixmaps.keys()):
-                    self._apply_scale_for_pose(name)
-        except (ValueError, TypeError):
-            pass
 
         saved_pose = get_config_value("appearance.overlay_pose") or get_config_value("appearance.pose", "sit")
         self.set_pose(str(saved_pose))
@@ -1044,7 +702,7 @@ class CapriWindow(QWidget):
         self.speak(f"Монитор: {screen.name()}")
 
     def set_designated_microphone(self, device: QAudioDevice | None) -> None:
-        self._voice.set_device(device)
+        self._voice_coord.set_device(device)
         desc = device.description() if device and not device.isNull() else ""
         set_config_value("audio.designated_microphone", desc if desc else None)
         name = desc if desc else "По умолчанию"
@@ -1078,11 +736,11 @@ class CapriWindow(QWidget):
 
     @property
     def scale_percent(self) -> int:
-        return self._scale_percent
+        return self._sprite_manager.scale_percent
 
     @property
     def selected_microphone(self) -> QAudioDevice | None:
-        return self._voice.selected_device
+        return self._voice_coord.selected_device
 
     @property
     def is_speaking(self) -> bool:
@@ -1101,7 +759,7 @@ class CapriWindow(QWidget):
         set_config_value("effects.glitch_intensity", intensity)
 
     def toggle_voice(self) -> str:
-        return self._toggle_voice()
+        return self._voice_coord.toggle_voice()
 
     def show_context_menu(self, pos: QPoint) -> None:
         self._inactivity.set_paused(True)
@@ -1110,39 +768,6 @@ class CapriWindow(QWidget):
             menu.exec(pos)
         finally:
             self._inactivity.set_paused(False)
-
-    def _init_tray(self) -> None:
-        icon = QIcon(str(CAPRI_ICON))
-        if icon.isNull():
-            pix = (
-                self._pixmap
-                if hasattr(self, "_pixmap") and not self._pixmap.isNull()
-                else QPixmap(32, 32)
-            )
-            icon = QIcon(pix)
-
-        self.setWindowIcon(icon)
-        app = QApplication.instance()
-        if app is not None:
-            app.setWindowIcon(icon)
-
-        self._tray_icon = QSystemTrayIcon(icon, self)
-        self._tray_icon.setToolTip("CapriPet")
-
-        self._tray_menu = build_tray_context_menu(self)
-        self._tray_icon.setContextMenu(self._tray_menu)
-
-        self._tray_icon.activated.connect(self._on_tray_activated)
-        self._tray_icon.show()
-
-    def _on_tray_activated(
-        self, reason: QSystemTrayIcon.ActivationReason
-    ) -> None:
-        if reason in (
-            QSystemTrayIcon.ActivationReason.Trigger,
-            QSystemTrayIcon.ActivationReason.DoubleClick,
-        ):
-            self.activate_command_mode()
 
     def activate_command_mode(self) -> None:
         """Показывает Капри и переводит в режим немедленного ожидания команды."""
@@ -1160,8 +785,8 @@ class CapriWindow(QWidget):
         self.activateWindow()
         self._inactivity.reset_timer()
 
-        self._wake_voice_if_needed()
-        self._arm_voice_command()
+        self._voice_coord.wake_if_needed()
+        self._voice_coord._arm()
 
     def _greet(self) -> None:
         if self._speech is not None:
@@ -1181,6 +806,11 @@ class CapriWindow(QWidget):
         self._inactivity.show_with_callback(lambda: self.speak(phrase))
 
     def _forget_speech(self, window: SpeechWindow) -> None:
+        try:
+            if not self.isVisible() and not self.isHidden():
+                return
+        except RuntimeError:
+            return
         if self._speech is window:
             self._speech = None
             self._speaking = False
@@ -1237,8 +867,7 @@ class CapriWindow(QWidget):
                 pass
             self._model_init_overlay = None
         self._glitch_timer.stop()
-        self._voice_window_timer.stop()
-        self._voice.cancel()
+        self._voice_coord.voice.cancel()
         self._glitches.stop()
         close_all_speech()
 
