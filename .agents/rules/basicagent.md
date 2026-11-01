@@ -7,13 +7,13 @@ CapriPet targets **strictly two desktop operating systems: Linux and Windows**. 
 - **Linux:**
   - Handles Wayland (KWin / Mutter) and X11 environments.
   - `main.py` explicitly selects `QT_QPA_PLATFORM=xcb` under Wayland with XWayland to ensure consistent frameless window positioning and coordinate tracking.
-  - Configuration paths follow XDG (`$XDG_CONFIG_HOME/capri/config.json` or `~/.config/capri/config.json`).
+  - Configuration files default to `.capri/` inside the project root, falling back to XDG (`$XDG_CONFIG_HOME/capri/config.json` or `~/.config/capri/config.json`).
   - Audio fallbacks use system utilities (`pw-play`, `paplay`, `aplay`) or Qt `QSoundEffect`.
 - **Windows:**
   - Works natively with Windows Desktop Window Manager (DWM) and Multi-DPI displays.
   - Frameless click-through overlays use standard Qt tool window flags (`WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW`).
   - Cursor tracking and screen metrics leverage native Win32 APIs (`ctypes.windll.user32`) and Qt virtual screen geometry (`QGuiApplication.screens()`).
-  - Configuration path resolves via `%APPDATA%/capri/config.json`.
+  - Configuration files default to `.capri/` inside the project root, falling back to `%APPDATA%/capri/config.json`.
   - Audio uses native `winsound` / `QSoundEffect`.
 
 ## Environment & Tooling
@@ -86,7 +86,7 @@ Capri's visual identity uses **only** the following colors:
   - Position is computed by `pick_adjacent_position` (`capri/ui/placement.py`), preferring side placement (right/left) and falling back to above/below or minimum overlap if screen space is tight.
   - SFX are synthesized on the fly via `capri/ui/speech_sfx.py` into cached WAV files and played via system audio utilities (`pw-play`, `paplay`, `aplay`) or `QSoundEffect`.
 - **Configuration Management (`capri/core/settings.py`):**
-  - Settings load in priority order: `$XDG_CONFIG_HOME/capri/config.json` (`~/.config/capri/config.json`) -> `<repo>/.capri/config.json` -> `/tmp/capri_config.json`.
+  - Settings load in priority order: `<repo>/.capri/config.json` -> `$XDG_CONFIG_HOME/capri/config.json` (`~/.config/capri/config.json` on Linux, `%APPDATA%/capri/config.json` on Windows) -> `/tmp/capri_config.json`.
   - Saves are atomic: writes to `.tmp` file and replaces via `os.replace`.
 - **Audio & Voice (`capri/audio/`):**
   - Offline STT uses `vosk` with Russian acoustic model located at `models/vosk-model-ru-0.42/`.

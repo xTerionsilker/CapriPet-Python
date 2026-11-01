@@ -22,13 +22,14 @@
 - **JSON** (UTF-8, отступы `indent=2`, `ensure_ascii=False`).
 - Имя файла: `config.json`.
 
-### 2.2. Иерархия путей сохранения (XDG Base Directory)
-1. **Основной системный каталог:**
-   `$XDG_CONFIG_HOME/capri/config.json` (если переменная не задана: `~/.config/capri/config.json`).
-2. **Локальный каталог проекта (фолбэк):**
-   `<project_root>/.capri/config.json`
+### 2.2. Иерархия путей сохранения
+1. **Основное централизованное хранилище (локальный каталог проекта):**
+   `<project_root>/.capri/config.json` (единообразно для Linux и Windows).
+2. **Резервный системный каталог (фолбэк):**
+   - Linux: `$XDG_CONFIG_HOME/capri/config.json` (если переменная не задана: `~/.config/capri/config.json`).
+   - Windows: `%APPDATA%\capri\config.json`.
 3. **Временная системная директория (фолбэк при недоступности записи):**
-   `/tmp/capri_config.json`
+   `/tmp/capri_config.json` (или системный tempdir).
 
 ### 2.3. Обратная совместимость и миграция
 - Если файл `config.json` отсутствует, но обнаружен старый `settings.json`, модуль автоматически считывает из него поля (`designated_screen`, `designated_microphone`) и конвертирует их в новую структуру `config.json`.
@@ -182,7 +183,7 @@
 
 Пути поиска:
 1. `CAPRI_AI_CONFIG` (переменная окружения)
-2. `<project_root>/.capri/ai_config.json`
+2. `<project_root>/.capri/ai_config.json` (основное централизованное хранилище в проекте)
 3. `$XDG_CONFIG_HOME/capri/ai_config.json` (Linux) / `%APPDATA%\capri\ai_config.json` (Windows)
 
 ### 7.2. Схема `ai_config.json`

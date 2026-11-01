@@ -93,9 +93,11 @@ pip install -r requirements.txt
 
 ## Конфигурация
 
-Настройки автоматически сохраняются в кроссплатформенный каталог конфигурации:
-- **Linux:** `$XDG_CONFIG_HOME/capri/config.json` (по умолчанию `~/.config/capri/config.json`)
-- **Windows:** `%APPDATA%\capri\config.json` (по умолчанию `C:\Users\<Пользователь>\AppData\Roaming\capri\config.json`)
+Все настройки приложения централизованно сохраняются внутри репозитория в папке `.capri` (как для Windows, так и для Linux), с автоматическим резервным фолбэком в системный профиль пользователя:
+- **Основное централизованное хранилище (Win & Linux):** `<project_root>/.capri/` (`.capri/config.json`, `.capri/ai_config.json`, `.capri/spotify.json`)
+- **Резервный системный каталог (fallback):**
+  - **Linux:** `$XDG_CONFIG_HOME/capri/` (по умолчанию `~/.config/capri/`)
+  - **Windows:** `%APPDATA%\capri\` (по умолчанию `C:\Users\<Пользователь>\AppData\Roaming\capri\`)
 
 | Переменная окружения | Описание |
 | --- | --- |
@@ -109,13 +111,13 @@ pip install -r requirements.txt
 | `SPOTIFY_CLIENT_SECRET` | Client Secret для Spotify |
 | `QT_QPA_PLATFORM` | Переопределение платформенного бэкенда Qt |
 
-Ключи Spotify сохраняются вне репозитория: в файле `~/.config/capri/spotify.json` (Linux) или `%APPDATA%\capri\spotify.json` (Windows).
+Ключи Spotify сохраняются в `.capri/spotify.json` (папка `.capri` находится в `.gitignore` и не попадает в git) либо в системной папке конфигурации `~/.config/capri/spotify.json` (Linux) / `%APPDATA%\capri\spotify.json` (Windows).
 
 ### Настройка собственного AI API и Endpoint (`ai_config.json`)
 
-Поддержка AI вынесена в **отдельный конфигурационный файл** `ai_config.json` (пример в `ai_config.example.json`):
-- **Linux:** `$XDG_CONFIG_HOME/capri/ai_config.json` (или `.capri/ai_config.json`)
-- **Windows:** `%APPDATA%\capri\ai_config.json` (или `.capri/ai_config.json`)
+Поддержка AI вынесена в **отдельный конфигурационный файл** `.capri/ai_config.json` (пример в `ai_config.example.json`):
+- **Основной путь:** `.capri/ai_config.json` (внутри проекта)
+- **Альтернативный/системный путь:** `$XDG_CONFIG_HOME/capri/ai_config.json` (Linux) / `%APPDATA%\capri\ai_config.json` (Windows)
 
 Формат файла:
 ```json

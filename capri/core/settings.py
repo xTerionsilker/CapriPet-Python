@@ -72,9 +72,31 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     return result
 
 
+def _get_project_root() -> Path:
+    """Возвращает корень проекта CapriPet."""
+    return Path(__file__).resolve().parent.parent.parent
+
+
 def _resolve_config_dir() -> Path:
-    """Возвращает базовую директорию для хранения конфигурации с безопасным fallback."""
-    # 1. Системный каталог конфигурации (%APPDATA% для Windows, ~/.config для Linux)
+    """Возвращает базовую директорию для хранения конфигурации с безопасным fallback.
+    
+    Приоритет:
+    1. Локальный каталог проекта .capri (централизованное хранилище для Windows и Linux)
+    2. Системный каталог конфигурации (%APPDATA%/capri для Windows, $XDG_CONFIG_HOME/capri для Linux)
+    3. Временная директория системы (tempfile.gettempdir())
+    """
+    # 1. Централизованный каталог проекта .capri
+    local_dir = _get_project_root() / ".capri"
+    try:
+        local_dir.mkdir(parents=True, exist_ok=True)
+        test_file = local_dir / ".write_test"
+        test_file.touch()
+        test_file.unlink()
+        return local_dir
+    except OSError:
+        pass
+
+    # 2. Системный каталог конфигурации (%APPDATA% для Windows, ~/.config для Linux)
     if sys.platform == "win32":
         appdata = os.environ.get("APPDATA")
         base_config = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
@@ -88,14 +110,6 @@ def _resolve_config_dir() -> Path:
         test_file.touch()
         test_file.unlink()
         return home_dir
-    except OSError:
-        pass
-
-    # 2. Локальный каталог проекта .capri
-    local_dir = Path(__file__).resolve().parent.parent.parent / ".capri"
-    try:
-        local_dir.mkdir(parents=True, exist_ok=True)
-        return local_dir
     except OSError:
         pass
 

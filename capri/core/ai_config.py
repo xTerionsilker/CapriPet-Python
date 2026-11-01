@@ -4,7 +4,6 @@ import copy
 import json
 import logging
 import os
-import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -40,7 +39,10 @@ def _resolve_default_ai_config_path() -> Path:
     if env_path:
         return Path(env_path).expanduser().resolve()
 
-    # Проверка существующих файлов в известных местах
+    # Проверка существующих файлов в известных местах:
+    # 1. Централизованный каталог проекта .capri
+    # 2. Корень проекта
+    # 3. Системный/резервный каталог
     project_root = Path(__file__).resolve().parent.parent.parent
     candidates = [
         project_root / ".capri" / "ai_config.json",
@@ -51,13 +53,7 @@ def _resolve_default_ai_config_path() -> Path:
         if candidate.is_file():
             return candidate
 
-    # Если файл ещё не создан:
-    # 1. Если есть локальный каталог .capri в проекте, предпочитаем его
-    local_capri = project_root / ".capri"
-    if local_capri.is_dir():
-        return local_capri / "ai_config.json"
-
-    # 2. Иначе каталог конфигурации системы/пользователя
+    # Если файл ещё не создан, используем базовый config_dir (.capri с безопасным fallback)
     config_dir = _resolve_config_dir()
     temp_dir = Path(tempfile.gettempdir())
     if config_dir == temp_dir:
