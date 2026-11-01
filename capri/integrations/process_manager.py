@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import difflib
 import logging
 import os
 from typing import Any
 
 import psutil
+from rapidfuzz import fuzz
 
 from .app_launcher import phonetic_normalize, translit_ru_to_en
 from ..commands.registry import switch_layout
@@ -50,7 +50,7 @@ def _score_candidate(query: str, target: str) -> float:
     if q in t:
         return 80.0 + (len(q) / max(len(t), 1)) * 15.0
 
-    ratio = difflib.SequenceMatcher(None, q, t).ratio() * 100.0
+    ratio = fuzz.ratio(q, t)
 
     q_trans = translit_ru_to_en(q)
     t_trans = translit_ru_to_en(t)
@@ -59,7 +59,7 @@ def _score_candidate(query: str, target: str) -> float:
     if q_trans in t_trans:
         ratio = max(ratio, 75.0 + (len(q_trans) / max(len(t_trans), 1)) * 15.0)
 
-    trans_ratio = difflib.SequenceMatcher(None, q_trans, t_trans).ratio() * 100.0
+    trans_ratio = fuzz.ratio(q_trans, t_trans)
     ratio = max(ratio, trans_ratio)
 
     q_layout = switch_layout(q)
@@ -71,7 +71,7 @@ def _score_candidate(query: str, target: str) -> float:
     if q_norm and t_norm:
         if q_norm == t_norm:
             return max(ratio, 90.0)
-        norm_ratio = difflib.SequenceMatcher(None, q_norm, t_norm).ratio() * 100.0
+        norm_ratio = fuzz.ratio(q_norm, t_norm)
         ratio = max(ratio, norm_ratio)
 
     return ratio

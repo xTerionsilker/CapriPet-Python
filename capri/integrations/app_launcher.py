@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import configparser
-import difflib
 import os
 import re
 import shlex
@@ -9,6 +8,8 @@ import shutil
 import subprocess
 import sys
 from typing import Any
+
+from rapidfuzz import fuzz
 
 from ..commands.registry import switch_layout
 
@@ -200,8 +201,8 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
                 score = 70.0 + (len(cand) / max(len(token), 1)) * 15.0
             else:
                 ratio = max(
-                    difflib.SequenceMatcher(None, cand, token).ratio(),
-                    difflib.SequenceMatcher(None, cand, p_token).ratio(),
+                    fuzz.ratio(cand, token) / 100.0,
+                    fuzz.ratio(cand, p_token) / 100.0,
                 )
                 score = ratio * 70.0
 
@@ -221,8 +222,8 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
                 score = 55.0
             else:
                 ratio = max(
-                    difflib.SequenceMatcher(None, cand, token).ratio(),
-                    difflib.SequenceMatcher(None, cand, p_token).ratio(),
+                    fuzz.ratio(cand, token) / 100.0,
+                    fuzz.ratio(cand, p_token) / 100.0,
                 )
                 score = ratio * 40.0
 

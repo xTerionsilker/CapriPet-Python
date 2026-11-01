@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from difflib import SequenceMatcher
 from typing import Any, Callable
+
+from rapidfuzz import fuzz
 
 from ..core.fuzzy import MAX_TYPO_DISTANCE, edit_distance, keyword_score, similarity
 from .base import BaseCommand, CommandContext
@@ -244,7 +245,7 @@ class CommandRegistry:
             distance = edit_distance(normalized, key)
             if distance > limit:
                 continue
-            ratio = SequenceMatcher(None, normalized, key).ratio()
+            ratio = fuzz.ratio(normalized, key) / 100.0
             score = (distance, -ratio)
             if best_score is None or score < best_score:
                 best_score = score
