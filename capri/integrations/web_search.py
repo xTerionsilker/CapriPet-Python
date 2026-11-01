@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import json
-import re
+import logging
 from typing import Any
 import webbrowser
 from urllib.parse import quote_plus
 
-import requests
+import yt_dlp
 
-from ..core.user_agent import get_user_agent
+logger = logging.getLogger(__name__)
 
 
 def search_google(query: str) -> str:
@@ -21,59 +20,39 @@ def search_google(query: str) -> str:
 
 
 def fetch_youtube_top_videos(query: str, limit: int = 5) -> list[dict[str, str]]:
-    """Получает топ-видео с YouTube по поисковому запросу."""
+    """Получает топ-видео с YouTube по поисковому запросу через yt-dlp."""
     query = query.strip()
     if not query:
         return []
+
+    ydl_opts = {
+        "extract_flat": True,
+        "quiet": True,
+        "skip_download": True,
+        "no_warnings": True,
+    }
+
     try:
-        headers = {
-            "User-Agent": get_user_agent(),
-            "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
-        }
-        resp = requests.get(
-            "https://www.youtube.com/results",
-            params={"search_query": query},
-            headers=headers,
-            timeout=5,
-        )
-        if resp.status_code != 200:
-            return []
-        match = re.search(r"var ytInitialData = ({.*?});</script>", resp.text)
-        if not match:
-            return []
-        data = json.loads(match.group(1))
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            res = ydl.extract_info(f"ytsearch{limit}:{query}", download=False)
+            entries = res.get("entries") or []
 
-        videos: list[dict[str, str]] = []
-
-        def extract(obj: Any) -> None:
-            if isinstance(obj, dict):
-                if "videoRenderer" in obj:
-                    vr = obj["videoRenderer"]
-                    vid = vr.get("videoId")
-                    title = ""
-                    if "title" in vr and "runs" in vr["title"]:
-                        title = "".join(
-                            run.get("text", "") for run in vr["title"]["runs"]
-                        )
-                    elif "title" in vr and "simpleText" in vr["title"]:
-                        title = vr["title"]["simpleText"]
-                    if vid and title and not any(v["id"] == vid for v in videos):
-                        videos.append(
-                            {
-                                "id": str(vid),
-                                "title": str(title).strip(),
-                                "url": f"https://www.youtube.com/watch?v={vid}",
-                            }
-                        )
-                for v in obj.values():
-                    extract(v)
-            elif isinstance(obj, list):
-                for item in obj:
-                    extract(item)
-
-        extract(data)
-        return videos[:limit]
-    except Exception:
+            videos: list[dict[str, str]] = []
+            for entry in entries:
+                if not entry:
+                    continue
+                vid = entry.get("id")
+                title = entry.get("title") or ""
+                url = entry.get("url") or f"https://www.youtube.com/watch?v={vid}"
+                if vid:
+                    videos.append({
+                        "id": str(vid),
+                        "title": str(title).strip(),
+                        "url": str(url),
+                    })
+            return videos[:limit]
+    except Exception as exc:
+        logger.debug("Ошибка поиска видео через yt-dlp: %s", exc)
         return []
 
 
