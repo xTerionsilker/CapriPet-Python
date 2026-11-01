@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .ai import OllamaAskCommand
+from .ai import AskAICommand
 from .base import BaseCommand, CommandContext, CommandResult
 from .diagnostics import DebugCommand
 from .media import (
@@ -42,7 +42,7 @@ DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     PowerOffCommand,
     SuspendCommand,
     RebootCommand,
-    OllamaAskCommand,
+    AskAICommand,
     LocateMouseCommand,
     LaunchAppCommand,
     KillAppCommand,
@@ -87,6 +87,6 @@ __all__ = [
     "PowerOffCommand",
     "SuspendCommand",
     "RebootCommand",
-    "OllamaAskCommand",
+    "AskAICommand",
     "LocateMouseCommand",
 ]

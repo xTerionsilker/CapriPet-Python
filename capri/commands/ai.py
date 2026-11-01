@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 from .base import BaseCommand, CommandContext
-from ..integrations import ollama
+from ..integrations import ai_client
 
 
-class OllamaAskCommand(BaseCommand):
+class AskAICommand(BaseCommand):
     name = "слушай"
-    description = "спросить локальную модель Ollama."
+    description = "спросить нейросеть через API (настройки в ai_config.json)."
     takes_argument = True
     aliases = (
         "спроси модель",
-        "спроси локально",
-        "локальная модель",
         "нейросеть",
         "нейронка",
         "спроси нейросеть",
@@ -19,31 +17,33 @@ class OllamaAskCommand(BaseCommand):
         "спроси у модели",
         "ии",
         "спроси ии",
-        "оллама",
-        "квен",
-        "квэн",
+        "спроси ai",
+        "ai",
+        "аи",
+        "модель",
     )
     keywords = (
         "слушай",
-        "оллам",
-        "квен",
-        "квэн",
         "нейросет",
         "нейронк",
         "ии",
         "модел",
         "спроси",
         "спросить",
+        "ai",
+        "аи",
     )
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.action_bridge is not None:
-            return ctx.action_bridge.ask_ollama(query)
+            return ctx.action_bridge.ask_ai(query)
         # Синхронный fallback
         prompt = query.strip()
         if not prompt:
-            return "Что спросить у локальной модели?"
+            return "Что спросить у нейросети?"
         try:
-            return ollama.ask(prompt)
+            return ai_client.ask(prompt)
+        except ai_client.AIError as error:
+            return str(error)
         except Exception:
-            return "Локальная модель не ответила."
+            return "Нейросеть не ответила."

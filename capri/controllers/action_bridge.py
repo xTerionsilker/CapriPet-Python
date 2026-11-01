@@ -5,20 +5,20 @@ import threading
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ..effects.session_animations import SESSION_ACTION_LEAD_MS
-from ..integrations import app_launcher, ollama, process_manager, spotify, web_search
+from ..integrations import ai_client, app_launcher, process_manager, spotify, web_search
 from ..integrations.screen_lock import lock_commands, run_lock
 from ..integrations.system_power import power_commands, run_power
 
-OLLAMA_HISTORY_MESSAGES = 12
+AI_HISTORY_MESSAGES = 12
 
 
 class ActionBridge(QObject):
-    """Мост для выполнения длительных и системных действий (Ollama, Spotify, Power, Lock)."""
+    """Мост для выполнения длительных и системных действий (AI, Spotify, Power, Lock)."""
 
     speech_requested = Signal(str)
     session_animation_requested = Signal(str)
-    ollama_started = Signal()
-    ollama_finished = Signal()
+    ai_started = Signal()
+    ai_finished = Signal()
     youtube_results_ready = Signal(list)
     launch_app_results_ready = Signal(list)
     kill_app_results_ready = Signal(list)
@@ -28,62 +28,62 @@ class ActionBridge(QObject):
         self._lock_pending: list[list[str]] | None = None
         self._power_pending: list[list[str]] | None = None
 
-        self._ollama_history: list[dict[str, str]] = []
-        self._ollama_pending: str = ""
-        self._ollama_busy: bool = False
+        self._ai_history: list[dict[str, str]] = []
+        self._ai_pending: str = ""
+        self._ai_busy: bool = False
 
-    # --- Ollama ---
+    # --- AI Integration ---
 
-    def ask_ollama(self, prompt: str) -> str:
+    def ask_ai(self, prompt: str) -> str:
         prompt = prompt.strip()
         if not prompt:
-            return "Что спросить у локальной модели?"
-        if self._ollama_busy:
+            return "Что спросить у нейросети?"
+        if self._ai_busy:
             return "Я всё ещё жду ответ от модели."
-        history = list(self._ollama_history)
-        self._ollama_pending = prompt
-        self._ollama_busy = True
-        self.ollama_started.emit()
+        history = list(self._ai_history)
+        self._ai_pending = prompt
+        self._ai_busy = True
+        self.ai_started.emit()
         threading.Thread(
-            target=self._ask_ollama_worker,
+            target=self._ask_ai_worker,
             args=(prompt, history),
-            name="capri-ollama",
+            name="capri-ai",
             daemon=True,
         ).start()
         return "Думаю…"
 
-    def _ask_ollama_worker(
+    def _ask_ai_worker(
         self, prompt: str, history: list[dict[str, str]]
     ) -> None:
         try:
-            answer = ollama.ask(prompt, history=history)
-        except ollama.OllamaError as error:
-            self._on_ollama_failed(str(error))
+            answer = ai_client.ask(prompt, history=history)
+        except ai_client.AIError as error:
+            self._on_ai_failed(str(error))
             return
         except Exception:
-            self._on_ollama_failed("Локальная модель не ответила.")
+            self._on_ai_failed("Нейросеть не ответила.")
             return
-        self._on_ollama_reply(answer)
+        self._on_ai_reply(answer)
 
-    def _on_ollama_reply(self, answer: str) -> None:
-        prompt = self._ollama_pending
-        self._finish_ollama()
+    def _on_ai_reply(self, answer: str) -> None:
+        prompt = self._ai_pending
+        self._finish_ai()
         if prompt:
-            self._ollama_history.append({"role": "user", "content": prompt})
-            self._ollama_history.append(
+            self._ai_history.append({"role": "user", "content": prompt})
+            self._ai_history.append(
                 {"role": "assistant", "content": answer}
             )
-            del self._ollama_history[:-OLLAMA_HISTORY_MESSAGES]
+            del self._ai_history[:-AI_HISTORY_MESSAGES]
         self.speech_requested.emit(answer)
 
-    def _on_ollama_failed(self, message: str) -> None:
-        self._finish_ollama()
+    def _on_ai_failed(self, message: str) -> None:
+        self._finish_ai()
         self.speech_requested.emit(message)
 
-    def _finish_ollama(self) -> None:
-        self._ollama_busy = False
-        self._ollama_pending = ""
-        self.ollama_finished.emit()
+    def _finish_ai(self) -> None:
+        self._ai_busy = False
+        self._ai_pending = ""
+        self.ai_finished.emit()
 
     # --- Spotify ---
 
