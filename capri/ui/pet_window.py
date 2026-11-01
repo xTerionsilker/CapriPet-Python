@@ -19,7 +19,7 @@ from PySide6.QtGui import (
 from PySide6.QtMultimedia import QAudioDevice, QMediaDevices
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QWidget
 
-from ..audio.recognizer import preload_model_async
+from ..audio.recognizer import get_model_info, is_model_ready, preload_model_async
 from ..controllers.orchestrator import PetOrchestrator
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
@@ -382,7 +382,7 @@ class CapriWindow(QWidget):
             is_speaking=self._speaking,
             telemetry_tag=self._telemetry_tag,
         )
-        self._renderer.render(painter, self._pixmap, state)
+        self._renderer.render(painter, self.pixmap, state)
         painter.end()
 
     def _is_point_on_sprite(self, pos: QPoint) -> bool:
@@ -395,7 +395,7 @@ class CapriWindow(QWidget):
             event.ignore()
             return
 
-        self._inactivity.reset_timer()
+        self._orchestrator.inactivity.reset_timer()
         if event.button() == Qt.MouseButton.RightButton:
             if self._teleport.is_aiming:
                 self._teleport.cancel_aiming()
@@ -516,7 +516,7 @@ class CapriWindow(QWidget):
         self.move(cx, cy)
         set_config_value("window.position", {"x": cx, "y": cy})
         set_config_value("window.overlay_position", {"x": cx, "y": cy})
-        self._inactivity.reset_timer()
+        self._orchestrator.inactivity.reset_timer()
         self.speak(f"Монитор: {screen.name()}")
 
     def set_designated_microphone(self, device: QAudioDevice | None) -> None:
