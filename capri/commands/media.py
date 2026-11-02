@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .base import BaseCommand, CommandContext
+from ..integrations import spotify
 
 
 class SpotifyPlayCommand(BaseCommand):
