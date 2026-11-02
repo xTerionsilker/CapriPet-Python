@@ -49,8 +49,8 @@ if errorlevel 1 (
     echo [INFO] Зависимости успешно установлены.
 )
 
-REM 3. Запуск CapriPet
-".venv\Scripts\python.exe" main.py %*
+REM 3. Запуск CapriPet без консоли через pythonw.exe
+start "" ".venv\Scripts\pythonw.exe" main.py %*
 if errorlevel 1 (
     echo.
     echo [ERROR] CapriPet завершился с ошибкой (код !errorlevel!).
