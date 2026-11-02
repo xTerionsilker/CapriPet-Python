@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -12,7 +13,6 @@ from PySide6.QtCore import QPoint, QRect
 from PySide6.QtGui import QCursor, QGuiApplication
 
 logger = logging.getLogger(__name__)
-ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def get_active_window_rect() -> QRect | None:
@@ -121,11 +121,10 @@ def _get_kwin_active_window_rect() -> QRect | None:
         f'    console.log("{tag}:" + Math.round(w.x) + "," + Math.round(w.y) + "," + Math.round(w.width) + "," + Math.round(w.height));\n'
         f'}}\n'
     )
-    tmp_path = str(ROOT / f".kwin_win_{tag}.js")
-
     try:
-        with open(tmp_path, "w", encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
             f.write(script_content)
+            tmp_path = f.name
 
         res = subprocess.check_output(
             [qdbus, "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.loadScript", tmp_path],

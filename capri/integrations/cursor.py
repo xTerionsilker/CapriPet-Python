@@ -4,14 +4,13 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 from pathlib import Path
 
 from PySide6.QtCore import QPoint
 from PySide6.QtGui import QCursor, QGuiApplication
-
-ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def get_mouse_position() -> QPoint:
@@ -122,11 +121,11 @@ def _get_kwin_mouse_position() -> QPoint | None:
 
     tag = "CP_POS_" + uuid.uuid4().hex[:8]
     script_content = f'console.log("{tag}:" + workspace.cursorPos.x + "," + workspace.cursorPos.y);'
-    tmp_path = str(ROOT / f".kwin_pos_{tag}.js")
 
     try:
-        with open(tmp_path, "w", encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
             f.write(script_content)
+            tmp_path = f.name
 
         res = subprocess.check_output(
             [qdbus, "org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.loadScript", tmp_path],
