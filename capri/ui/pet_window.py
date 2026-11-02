@@ -715,11 +715,3 @@ class CapriWindow(QWidget):
         else:
             self._exit_overlay.finished.connect(self._finalize_quit)
 
-
-if __name__ == "__main__":
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-    from main import main
-
-    raise SystemExit(main())
