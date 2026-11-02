@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from .base import BaseCommand, CommandContext
-from ..integrations import ai_client
 
 
 class AskAICommand(BaseCommand):
@@ -37,13 +36,4 @@ class AskAICommand(BaseCommand):
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.action_bridge is not None:
             return ctx.action_bridge.ask_ai(query)
-        # Синхронный fallback
-        prompt = query.strip()
-        if not prompt:
-            return "Что спросить у нейросети?"
-        try:
-            return ai_client.ask(prompt)
-        except ai_client.AIError as error:
-            return str(error)
-        except Exception:
-            return "Нейросеть не ответила."
+        return "Действие недоступно: ActionBridge не инициализирован."

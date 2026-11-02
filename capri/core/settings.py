@@ -57,11 +57,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
 }
 
-LEGACY_KEY_MAP = {
-    "designated_screen": "screen.designated_screen",
-    "designated_microphone": "audio.designated_microphone",
-}
-
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Рекурсивно объединяет два словаря, создавая глубокую копию."""
@@ -139,36 +134,6 @@ class ConfigManager:
     @property
     def config_path(self) -> Path:
         return self._config_path
-
-    def _migrate_legacy_settings(self) -> dict[str, Any] | None:
-        """Проверяет наличие старого settings.json и мигрирует данные в новую структуру."""
-        legacy_candidates = [self._config_path.parent / "settings.json"]
-        if not self._is_custom_path:
-            legacy_candidates.extend([
-                Path.home() / ".config" / "capri" / "settings.json",
-                Path(__file__).resolve().parent.parent.parent / ".capri" / "settings.json",
-                Path("/tmp/capri_settings.json"),
-            ])
-
-        for legacy_path in legacy_candidates:
-            if legacy_path.is_file():
-                try:
-                    with open(legacy_path, "r", encoding="utf-8") as f:
-                        old_data = json.load(f)
-                    if not isinstance(old_data, dict):
-                        continue
-
-                    migrated = copy.deepcopy(DEFAULT_CONFIG)
-                    if "designated_screen" in old_data:
-                        migrated["screen"]["designated_screen"] = old_data["designated_screen"] or None
-                    if "designated_microphone" in old_data:
-                        migrated["audio"]["designated_microphone"] = old_data["designated_microphone"] or None
-
-                    logger.info("Миграция конфигурации из %s выполнена успешно.", legacy_path)
-                    return migrated
-                except Exception as e:
-                    logger.warning("Ошибка чтения устаревшего файла настроек %s: %s", legacy_path, e)
-        return None
 
     def _validate_and_sanitize(self, data: dict[str, Any]) -> dict[str, Any]:
         """Проверяет типы и границы критичных полей, восстанавливая дефолты при необходимости."""
@@ -256,19 +221,11 @@ class ConfigManager:
         return config
 
     def load_config(self, force_reload: bool = False) -> dict[str, Any]:
-        """Загружает конфигурацию из файла с фолбэком на дефолты и миграцию."""
+        """Загружает конфигурацию из файла с фолбэком на дефолты при отсутствии."""
         if self._cached_config is not None and not force_reload:
             return copy.deepcopy(self._cached_config)
 
         if not self._config_path.is_file():
-            # Попытка миграции старого settings.json
-            migrated = self._migrate_legacy_settings()
-            if migrated is not None:
-                config = self._validate_and_sanitize(migrated)
-                self.save_config(config)
-                self._cached_config = config
-                return copy.deepcopy(config)
-
             config = copy.deepcopy(DEFAULT_CONFIG)
             self._cached_config = config
             return copy.deepcopy(config)
@@ -305,9 +262,6 @@ class ConfigManager:
 
     def get_value(self, path: str, default: Any = None) -> Any:
         """Получает значение по пути dot-notation, например 'audio.sfx_volume'."""
-        if path in LEGACY_KEY_MAP:
-            path = LEGACY_KEY_MAP[path]
-
         config = self.load_config()
         keys = path.split(".")
         current: Any = config
@@ -320,9 +274,6 @@ class ConfigManager:
 
     def set_value(self, path: str, value: Any, auto_save: bool = True) -> None:
         """Устанавливает значение по dot-notation пути и опционально сохраняет файл."""
-        if path in LEGACY_KEY_MAP:
-            path = LEGACY_KEY_MAP[path]
-
         config = self.load_config()
         keys = path.split(".")
         current = config

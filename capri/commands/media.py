@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from .base import BaseCommand, CommandContext
-from ..integrations import spotify
 
 
 class SpotifyPlayCommand(BaseCommand):
@@ -33,11 +32,7 @@ class SpotifyPlayCommand(BaseCommand):
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.action_bridge is not None:
             return ctx.action_bridge.spotify_play(query)
-        # Fallback при прямом вызове без ActionBridge
-        query = query.strip()
-        if not query:
-            return "Что включить? Скажи: «спотифай <запрос>»."
-        return spotify.play(query)
+        return "Действие недоступно: ActionBridge не инициализирован."
 
 
 class SpotifyPauseCommand(BaseCommand):
