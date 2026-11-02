@@ -47,6 +47,7 @@ class VoiceCoordinator(QObject):
 
         self._voice = VoiceInput(always_on=False)
         self._voice.recognized.connect(self._on_voice_text)
+        self._voice.partial_recognized.connect(self._on_partial_voice_text)
         self._voice.failed.connect(self._speak_fn)
 
         self._voice_window_timer = QTimer(self)
@@ -101,6 +102,7 @@ class VoiceCoordinator(QObject):
         return self._hud
 
     def handle_awaiting_reply_changed(self, awaiting: bool) -> None:
+        self._voice.set_armed(awaiting or self.is_armed)
         if awaiting:
             hud = self.ensure_hud()
             hud.show_hud(status="WAITING_ARGUMENT", mode="AWAITING_INPUT")
@@ -116,6 +118,7 @@ class VoiceCoordinator(QObject):
     def _arm(self) -> None:
         self._voice_armed_until = time.monotonic() + VOICE_COMMAND_WINDOW_MS / 1000
         self._voice_window_timer.start(VOICE_COMMAND_WINDOW_MS)
+        self._voice.set_armed(True)
         hud = self.ensure_hud()
         hud.show_hud(status="LISTENING_COMMAND", mode="TRIGGER_DETECTED")
         self._speak_fn(random.choice(WAKE_LINES))
@@ -123,15 +126,25 @@ class VoiceCoordinator(QObject):
     def _disarm(self) -> None:
         self._voice_armed_until = 0.0
         self._voice_window_timer.stop()
+        self._voice.set_armed(False)
         if not self._window.input_flow.awaiting_reply:
             if self._hud is not None:
                 self._hud.hide_hud(delay_ms=2200)
 
     def _on_voice_window_expired(self) -> None:
         self._voice_armed_until = 0.0
+        self._voice.set_armed(False)
         if not self._window.input_flow.awaiting_reply:
             if self._hud is not None:
                 self._hud.hide_hud(delay_ms=300)
+
+    def _on_partial_voice_text(self, partial_text: str) -> None:
+        """Отображает частичный текст в HUD в реальном времени, если бот активен."""
+        if not partial_text:
+            return
+        if self.is_armed or self._window.input_flow.awaiting_reply:
+            hud = self.ensure_hud()
+            hud.set_recognized_text(partial_text, keep_ms=1500)
 
     def _resolve_command(self, text: str) -> str | None:
         command = command_after_trigger(text)

@@ -185,6 +185,15 @@ class VoskSpeechService:
             frame_size = channels * 2
             return b"".join(data[i : i + 2] for i in range(0, len(data), frame_size))
 
+    def create_recognizer(self, sample_rate: int, grammar: str | None = None) -> Any:
+        """Создает новый экземпляр KaldiRecognizer для потоковой обработки."""
+        import vosk
+
+        model = self.get_model()
+        if grammar:
+            return vosk.KaldiRecognizer(model, float(sample_rate), grammar)
+        return vosk.KaldiRecognizer(model, float(sample_rate))
+
     def recognize(self, data: bytes, *, channels: int, sample_rate: int) -> str | None:
         import vosk
 
@@ -244,6 +253,14 @@ def preload_model_async() -> None:
 
 def get_vosk_model() -> Any:
     return _service.get_model()
+
+
+def create_recognizer(sample_rate: int, grammar: str | None = None) -> Any:
+    return _service.create_recognizer(sample_rate, grammar=grammar)
+
+
+def to_mono(data: bytes, channels: int) -> bytes:
+    return _service.to_mono(data, channels)
 
 
 def recognize(data: bytes, *, channels: int, sample_rate: int) -> str | None:
