@@ -13,7 +13,6 @@ from .media import (
 from .pet_actions import (
     GlitchToggleCommand,
     LocateMouseCommand,
-    VoiceToggleCommand,
 )
 from .registry import CommandRegistry, switch_layout
 from .system import (
@@ -29,7 +28,6 @@ from .web import GoogleSearchCommand, UpdateCommand, YouTubeSearchCommand
 DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     DebugCommand,
     GlitchToggleCommand,
-    VoiceToggleCommand,
     GoogleSearchCommand,
     YouTubeSearchCommand,
     UpdateCommand,
@@ -75,7 +73,6 @@ __all__ = [
     "DEFAULT_COMMAND_CLASSES",
     "DebugCommand",
     "GlitchToggleCommand",
-    "VoiceToggleCommand",
     "GoogleSearchCommand",
     "YouTubeSearchCommand",
     "SpotifyPlayCommand",

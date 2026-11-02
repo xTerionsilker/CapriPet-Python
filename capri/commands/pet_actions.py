@@ -33,26 +33,6 @@ class GlitchToggleCommand(BaseCommand):
         return ctx.trigger_glitches()
 
 
-class VoiceToggleCommand(BaseCommand):
-    name = "голос"
-    description = "начать или остановить голосовой ввод."
-    aliases = (
-        "микрофон",
-        "слушать",
-        "говорить",
-        "голосовой ввод",
-        "запись",
-        "включить голос",
-        "выключить голос",
-        "включить микрофон",
-        "выключить микрофон",
-    )
-    keywords = ("голос", "микрофон", "слуша", "говори", "запис")
-
-    def execute(self, ctx: CommandContext, query: str = "") -> str | None:
-        return ctx.toggle_voice()
-
-
 class LocateMouseCommand(BaseCommand):
     name = "где мышь"
     description = "появиться на курсоре мыши и телепортировать его вместе с собой в центр экрана."

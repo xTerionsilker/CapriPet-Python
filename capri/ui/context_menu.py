@@ -73,7 +73,9 @@ class ContextMenuBuilder:
 
     def _add_quick_actions(self, parent_menu: QMenu) -> None:
         voice_listening = False
-        if hasattr(self.window, "_voice"):
+        if hasattr(self.window, "voice_coordinator"):
+            voice_listening = self.window.voice_coordinator.is_listening
+        elif hasattr(self.window, "_voice"):
             voice_listening = self.window._voice.is_listening
 
         voice_act = parent_menu.addAction("▶  [VOICE] Голосовой ввод")
@@ -147,7 +149,9 @@ class ContextMenuBuilder:
         mic_group.setExclusive(True)
 
         current_mic = getattr(self.window, "selected_microphone", None)
-        if current_mic is None and hasattr(self.window, "_voice"):
+        if current_mic is None and hasattr(self.window, "voice_coordinator"):
+            current_mic = self.window.voice_coordinator.selected_device
+        elif current_mic is None and hasattr(self.window, "_voice"):
             current_mic = self.window._voice.selected_device
 
         default_mic = QMediaDevices.defaultAudioInput()
