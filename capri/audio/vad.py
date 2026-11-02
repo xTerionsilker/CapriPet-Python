@@ -1,57 +1,103 @@
 from __future__ import annotations
 
-import array
-import math
+import logging
+from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
-class EnergyVAD:
-    """Адаптивный детектор речевой активности (VAD).
+class SileroVAD:
+    """Официальный детектор голосовой активности на базе нейросети Silero VAD (ONNX).
 
-    Отслеживает уровень фонового шума с фильтрацией импульсных помех
-    (кликов мыши, стука клавиатуры) и автоматически подстраивает порог речи.
+    Модель весит менее 2 МБ, запускается локально через onnxruntime и
+    с высокой точностью отличает человеческую речь от кликов мыши, стука клавиш и фонового шума.
     """
 
-    def __init__(
-        self,
-        sample_rate: int = 16_000,
-        initial_noise_rms: float = 120.0,
-        min_speech_threshold: float = 300.0,
-    ) -> None:
+    def __init__(self, sample_rate: int = 16_000, threshold: float = 0.5) -> None:
         self.sample_rate = sample_rate
-        self.noise_floor = initial_noise_rms
-        self.min_speech_threshold = min_speech_threshold
-        self._history: list[float] = []
+        self.threshold = threshold
+        self._session: Any = None
+        self._state: Any = None
+        self._available: bool | None = None
+        self._init_session()
 
-    def reset(self, initial_noise_rms: float = 120.0) -> None:
-        self.noise_floor = initial_noise_rms
-        self._history.clear()
+    def _find_model_path(self) -> Path | None:
+        project_root = Path(__file__).resolve().parents[2]
+        candidate = project_root / "models" / "silero_vad.onnx"
+        if candidate.exists():
+            return candidate
+        return None
 
-    @staticmethod
-    def calculate_rms(chunk: bytes) -> float:
-        if len(chunk) < 2:
-            return 0.0
-        usable = len(chunk) - (len(chunk) % 2)
-        samples = array.array("h")
-        samples.frombytes(chunk[:usable])
-        if not samples:
-            return 0.0
-        total = sum(s * s for s in samples)
-        return math.sqrt(total / len(samples))
+    def _init_session(self) -> None:
+        model_path = self._find_model_path()
+        if not model_path:
+            self._available = False
+            return
+
+        try:
+            import onnxruntime as ort
+            import numpy as np
+
+            opts = ort.SessionOptions()
+            opts.inter_op_num_threads = 1
+            opts.intra_op_num_threads = 1
+            opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            self._session = ort.InferenceSession(str(model_path), sess_options=opts)
+            self._state = np.zeros((2, 1, 128), dtype=np.float32)
+            self._available = True
+        except Exception as error:
+            logger.warning("Не удалось загрузить Silero VAD ONNX: %s", error)
+            self._available = False
+
+    @property
+    def is_available(self) -> bool:
+        return bool(self._available and self._session is not None)
+
+    def reset(self) -> None:
+        if self.is_available:
+            import numpy as np
+
+            self._state = np.zeros((2, 1, 128), dtype=np.float32)
 
     def is_speech(self, chunk: bytes) -> tuple[bool, float]:
-        """Определяет, содержит ли чанк речь, и возвращает (is_speech, rms_level)."""
-        rms = self.calculate_rms(chunk)
-        if rms <= 0.0:
+        """Возвращает (is_speech, probability)."""
+        if not self.is_available:
             return False, 0.0
 
-        speech_threshold = max(self.min_speech_threshold, self.noise_floor * 2.2)
+        try:
+            import numpy as np
 
-        # Если уровень явно ниже порога речи — плавно обновляем шумовой фон
-        if rms < speech_threshold:
-            self.noise_floor = self.noise_floor * 0.95 + rms * 0.05
-            is_active = False
-        else:
-            # Для отсева ультракоротких импульсных щелчков мыши (кликов)
-            is_active = True
+            # Переводим 16-битный PCM в float32 массив в диапазоне [-1.0, 1.0]
+            audio_data = np.frombuffer(chunk, dtype=np.int16).astype(np.float32) / 32768.0
+            if len(audio_data) == 0:
+                return False, 0.0
 
-        return is_active, rms
+            # Silero VAD ожидает чанки кратные 512 сэмплам при 16 кГц
+            chunk_size = 512
+            total_samples = len(audio_data)
+            max_prob = 0.0
+
+            sr_tensor = np.array(self.sample_rate, dtype=np.int64)
+
+            for i in range(0, total_samples, chunk_size):
+                sub_chunk = audio_data[i : i + chunk_size]
+                if len(sub_chunk) < chunk_size:
+                    # Дополняем нулями до 512 сэмплов
+                    padded = np.zeros(chunk_size, dtype=np.float32)
+                    padded[: len(sub_chunk)] = sub_chunk
+                    sub_chunk = padded
+
+                input_tensor = np.expand_dims(sub_chunk, axis=0)
+                out, self._state = self._session.run(
+                    None,
+                    {"input": input_tensor, "state": self._state, "sr": sr_tensor},
+                )
+                prob = float(out[0][0])
+                if prob > max_prob:
+                    max_prob = prob
+
+            return max_prob >= self.threshold, max_prob
+        except Exception as error:
+            logger.debug("Ошибка инференса Silero VAD: %s", error)
+            return False, 0.0

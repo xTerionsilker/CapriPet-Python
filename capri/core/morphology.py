@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import re
+from nltk.stem.snowball import SnowballStemmer
+
+_STEMMER = SnowballStemmer("russian")
 
 NUM_WORDS: dict[str, int] = {
     "ноль": 0,
@@ -41,80 +44,17 @@ NUM_WORDS: dict[str, int] = {
     "пятьсот": 500,
 }
 
-_PERFECTIVE_GERUND = re.compile(
-    r"(?:[ая](?:в|вши|вшись))$|(?:ив|ивши|ившись|ыв|ывши|ывшись)$"
-)
-_ADJECTIVE = re.compile(
-    r"(?:ее|ие|ые|ое|ими|ыми|ей|ий|ый|ой|ем|им|ым|ом|его|ого|ему|ому|их|ых|ую|юю|ая|яя|ою|ею)$"
-)
-_PARTICIPLE = re.compile(r"(?:[ая](?:ем|нн|вш|ющ|щ))$|(?:ивш|ывш|ующ)$")
-_REFLEXIVE = re.compile(r"(?:ся|сь)$")
-_VERB = re.compile(
-    r"(?:[ая](?:ла|на|ете|йте|ли|й|л|ем|н|ло|но|ет|ют|ны|ть|ешь|нно))$|(?:ила|ыла|ена|ейте|уйте|ите|или|ыли|ей|уй|ил|ыл|им|ым|ен|ило|ыло|ено|ят|ует|уют|ит|ыт|ены|ить|ыть|ишь|ую|ю)$"
-)
-_NOUN = re.compile(
-    r"(?:а|ев|ов|ие|ье|е|иями|ями|ами|еи|ии|и|ией|ей|ой|ий|й|иям|ям|ием|ем|ам|ом|о|у|ах|иях|ях|ы|ь|ию|ью|ю|ия|ья|я)$"
-)
-_SUPERLATIVE = re.compile(r"(?:ейш|ейше)$")
-_DERIVATIONAL = re.compile(r"(?:ост|ость)$")
-
 
 def stem_russian_word(word: str) -> str:
-    """Выполняет стемминг русского слова по алгоритму Snowball."""
-    word = word.lower().replace("ё", "е")
-    m = re.search(r"[аеиоуыэюя]", word)
-    if not m:
+    """Выполняет стемминг русского слова с использованием официального NLTK SnowballStemmer."""
+    clean = word.strip(".,!?:;-–—\"'«»").casefold()
+    if not clean:
         return word
-    rv_pos = m.start() + 1
-    rv = word[rv_pos:]
-    head = word[:rv_pos]
-
-    # Шаг 1: Гернундий / Возвратный / Прилагательное / Глагол / Существительное
-    m_pg = _PERFECTIVE_GERUND.search(rv)
-    if m_pg:
-        rv = rv[: m_pg.start()]
-    else:
-        m_ref = _REFLEXIVE.search(rv)
-        if m_ref:
-            rv = rv[: m_ref.start()]
-        m_adj = _ADJECTIVE.search(rv)
-        if m_adj:
-            rv = rv[: m_adj.start()]
-            m_part = _PARTICIPLE.search(rv)
-            if m_part:
-                rv = rv[: m_part.start()]
-        else:
-            m_verb = _VERB.search(rv)
-            if m_verb:
-                rv = rv[: m_verb.start()]
-            else:
-                m_noun = _NOUN.search(rv)
-                if m_noun:
-                    rv = rv[: m_noun.start()]
-
-    # Шаг 2: Удаление 'и'
-    if rv.endswith("и"):
-        rv = rv[:-1]
-
-    # Шаг 3: Производные суффиксы
-    m_der = _DERIVATIONAL.search(rv)
-    if m_der:
-        rv = rv[: m_der.start()]
-
-    # Шаг 4: Суперлатив, 'нн', 'ь'
-    m_sup = _SUPERLATIVE.search(rv)
-    if m_sup:
-        rv = rv[: m_sup.start()]
-    if rv.endswith("нн"):
-        rv = rv[:-1]
-    if rv.endswith("ь"):
-        rv = rv[:-1]
-
-    return head + rv
+    return _STEMMER.stem(clean)
 
 
 def stem_text(text: str) -> str:
-    """Возвращает нормализованную стеммированную строку."""
+    """Возвращает нормализованную стеммированную строку через NLTK Snowball."""
     tokens = text.lower().split()
     return " ".join(stem_russian_word(tok) for tok in tokens)
 

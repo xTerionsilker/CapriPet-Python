@@ -11,7 +11,7 @@ from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtMultimedia import QAudioDevice, QAudioFormat, QAudioSource, QMediaDevices
 
 from .recognizer import RecognitionError, check_available, create_recognizer, to_mono
-from .vad import EnergyVAD
+from .vad import SileroVAD
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class VoiceInput(QObject):
         self._last_error_at = float("-inf")
         self._status = ""
 
-        self._vad = EnergyVAD(sample_rate=_SAMPLE_RATE)
+        self._vad = SileroVAD(sample_rate=_SAMPLE_RATE)
 
         # Очередь чанков для потокового фонового распознавания
         self._audio_queue: queue.Queue[bytes | None] = queue.Queue()
