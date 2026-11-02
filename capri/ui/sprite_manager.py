@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Callable
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtGui import QBitmap, QImage, QPixmap, QRegion
 
 from ..core.settings import get_config_value, set_config_value
 
@@ -27,6 +27,7 @@ class SpriteManager:
         self._current_pose: str = "idle"
         self._current_pixmap: QPixmap = QPixmap()
         self._cached_hit_image: QImage | None = None
+        self._cached_mask_region: QRegion | None = None
 
         self._raw_pixmaps: dict[str, QPixmap] = {}
         self._pixmaps: dict[str, QPixmap] = {}
@@ -54,6 +55,10 @@ class SpriteManager:
     @property
     def cached_hit_image(self) -> QImage | None:
         return self._cached_hit_image
+
+    @property
+    def cached_mask_region(self) -> QRegion | None:
+        return self._cached_mask_region
 
     def _load_saved_scale(self) -> None:
         saved_scale = get_config_value("appearance.scale", 100)
@@ -93,6 +98,23 @@ class SpriteManager:
         self._pixmaps[name] = scaled
         return scaled
 
+    def _update_cached_image_and_mask(self) -> None:
+        """Обновляет кэшированное изображение и точный QRegion маски кликабельности."""
+        if self._current_pixmap.isNull():
+            self._cached_hit_image = None
+            self._cached_mask_region = None
+            return
+
+        self._cached_hit_image = self._current_pixmap.toImage()
+        w, h = self._cached_hit_image.width(), self._cached_hit_image.height()
+        alpha8 = self._cached_hit_image.convertToFormat(QImage.Format.Format_Alpha8)
+        raw_bytes = bytearray(alpha8.constBits()[:alpha8.sizeInBytes()])
+        table = bytes([0 if i <= 20 else 255 for i in range(256)])
+        thresh_bytes = raw_bytes.translate(table)
+        thresh_img = QImage(thresh_bytes, w, h, alpha8.bytesPerLine(), QImage.Format.Format_Alpha8)
+        mask_bitmap = QBitmap.fromImage(thresh_img.createMaskFromColor(0, Qt.MaskMode.MaskInColor))
+        self._cached_mask_region = QRegion(mask_bitmap)
+
     def set_sprite_scale(self, percent: int) -> bool:
         """Изменяет масштаб спрайтов. Возвращает True, если масштаб изменился."""
         if percent not in ALLOWED_SCALES or self._scale_percent == percent:
@@ -105,7 +127,7 @@ class SpriteManager:
 
         if self._current_pose in self._pixmaps:
             self._current_pixmap = self._pixmaps[self._current_pose]
-            self._cached_hit_image = self._current_pixmap.toImage()
+            self._update_cached_image_and_mask()
             if self._on_pose_changed:
                 self._on_pose_changed(self._current_pixmap, self._cached_hit_image, self._current_pose)
         return True
@@ -168,7 +190,7 @@ class SpriteManager:
             old_pose = self._current_pose
             self._current_pose = canonical_pose
             self._current_pixmap = chosen_pixmap
-            self._cached_hit_image = self._current_pixmap.toImage()
+            self._update_cached_image_and_mask()
             if self._on_pose_changed:
                 self._on_pose_changed(self._current_pixmap, self._cached_hit_image, self._current_pose)
             return old_pose != canonical_pose

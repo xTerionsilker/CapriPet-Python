@@ -190,6 +190,11 @@ class CapriWindow(QWidget):
             new_x = old_rect.center().x() - self.width() // 2
             new_y = old_rect.bottom() - self.height()
             self.move(new_x, new_y)
+        mask_region = self._sprite_manager.cached_mask_region
+        if mask_region is not None and not mask_region.isEmpty():
+            self.setMask(mask_region)
+        else:
+            self.clearMask()
         self.update()
 
     def set_sprite_scale(self, percent: int) -> None:
