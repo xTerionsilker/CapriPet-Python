@@ -85,11 +85,13 @@ Capri's visual identity uses **only** the following colors:
   - Anchors dynamically to Capri (`CapriWindow`), tracking movement in real time via `eventFilter` and a 25ms timer.
   - Position is computed by `pick_adjacent_position` (`capri/ui/placement.py`), preferring side placement (right/left) and falling back to above/below or minimum overlap if screen space is tight.
   - SFX are synthesized on the fly via `capri/ui/speech_sfx.py` into cached WAV files and played via system audio utilities (`pw-play`, `paplay`, `aplay`) or `QSoundEffect`.
-- **Configuration Management (`capri/core/settings.py`):**
+- **Configuration Management (`capri/core/settings.py` & `capri/core/ai_config.py`):**
+  - Settings are typed and validated using Pydantic v2 models (`CapriConfig`, `AIConfigModel`), ensuring declarative constraints, defaults, and boundary sanitization without manual dict merging.
   - Settings load in priority order: `<repo>/.capri/config.json` -> `$XDG_CONFIG_HOME/capri/config.json` (`~/.config/capri/config.json` on Linux, `%APPDATA%/capri/config.json` on Windows) -> `/tmp/capri_config.json`.
   - Saves are atomic: writes to `.tmp` file and replaces via `os.replace`.
 - **Audio & Voice (`capri/audio/`):**
-  - Offline STT uses `vosk` with Russian acoustic model located at `models/vosk-model-ru-0.42/`.
+  - Offline STT uses `vosk` with Russian acoustic model located at `models/vosk-model-ru-0.42/` or `models/vosk-model-small-ru-0.22`.
+  - Speech recognition lifecycle and model caching are encapsulated in `VoskSpeechService` (`capri/audio/recognizer.py`) with thread-safe `ModelStatus` state transitions (`UNLOADED`, `LOADING`, `READY`, `FAILED`).
   - Wake word detection (`"Капри"`) lives in `capri/core/wake_word.py`.
   - Recognition is fully offline and local; internet dependency has been removed.
   - Missing audio input devices or missing media assets fail gracefully without crashing the app.
@@ -100,4 +102,4 @@ Capri's visual identity uses **only** the following colors:
    - **Do not write wrapper adapters or legacy bridges:** Never re-introduce adapters (such as `FunctionalCommand`, alias functions, fake parameters, or `*args/**kwargs` unpackers) purely to support hypothetical old signatures.
    - **No deprecated alias methods or redundant properties:** When refactoring a class or module, migrate the callers directly instead of leaving obsolete functions/properties with comments like `# Для обратной совместимости`.
    - **Strict type signatures:** New and refactored functions must use strict, explicit keyword/positional parameters with complete type annotations.
-   - **Clean dependency contracts:** Standard libraries and ecosystem packages (`psutil`, `rapidfuzz`, `httpx`, `cyrtranslit`, `yt-dlp`) are canonical. Do not implement manual string parsing, hand-rolled typo matching, or custom subprocess scrapers where vetted dependencies are available.
+   - **Clean dependency contracts:** Standard libraries and ecosystem packages (`pydantic`, `psutil`, `rapidfuzz`, `httpx`, `fake-useragent`, `cyrtranslit`, `yt-dlp`) are canonical. Do not implement manual string parsing, hand-rolled typo matching, browser registry crawlers, or custom subprocess scrapers where vetted dependencies are available.

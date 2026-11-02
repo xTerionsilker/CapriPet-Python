@@ -13,6 +13,8 @@ CapriPet — это компактный десктопный кибер-пит�
 - [`httpx`](https://www.python-httpx.org/) (современный HTTP-клиент для AI API и Spotify)
 - [`cyrtranslit`](https://pypi.org/project/cyrtranslit/) (стандартизированная транслитерация при поиске приложений)
 - [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) (надёжный поиск видео на YouTube)
+- [`pydantic 2.0+`](https://docs.pydantic.dev/) (строгая типизация и валидация конфигураций)
+- [`fake-useragent`](https://pypi.org/project/fake-useragent/) (актуальные десктопные User-Agent для сетевых интеграций)
 - Работающий микрофон для голосового ввода
 - Клиент Spotify (в Linux требуется `dbus-send` / playerctl, в Windows поддерживается нативно через медиа-клавиши)
 - Любой AI API / Endpoint (OpenAI, OpenRouter, Groq, DeepSeek, локальные LM Studio / vLLM / LocalAI) для команды `слушай` (настраивается через отдельный файл `ai_config.json`)
