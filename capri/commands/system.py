@@ -42,10 +42,11 @@ class LockScreenCommand(BaseCommand):
 
 
 class PowerOffCommand(BaseCommand):
-    name = "я спать"
+    name = "выключи"
     description = "выключить компьютер."
     requires_confirmation = True
     aliases = (
+        "я спать",
         "выключи пк",
         "выключить пк",
         "выключи компьютер",
@@ -61,9 +62,9 @@ class PowerOffCommand(BaseCommand):
         "выключить",
     )
     keywords = (
+        "выключ",
         "спат",
         "спят",
-        "выключ",
         "шатдаун",
         "паверофф",
         "поверофф",
@@ -80,17 +81,17 @@ class PowerOffCommand(BaseCommand):
 
 
 class SuspendCommand(BaseCommand):
-    name = "я гулять"
+    name = "сон"
     description = "перевести компьютер в спящий режим."
     requires_confirmation = True
     aliases = (
+        "я гулять",
         "спящий режим",
         "перевести в спящий режим",
         "переведи в спящий режим",
         "режим сна",
         "усни",
         "уснуть",
-        "сон",
         "замри",
         "отдохни",
         "передохни",
