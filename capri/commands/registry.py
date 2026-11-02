@@ -140,7 +140,7 @@ class CommandRegistry:
 
         return None
 
-    def suggest(self, text: str) -> BaseCommand | None:
+    def suggest(self, text: str, min_confidence: float = 0.65) -> BaseCommand | None:
         normalized = self._normalize(text)
         if not normalized:
             return None
@@ -165,6 +165,11 @@ class CommandRegistry:
             if best_score is None or candidate > best_score:
                 best_score = candidate
                 best = command
+
+        # Отсекаем ложные подсказки при низком сходстве
+        if best_score is not None and best_score[0] < min_confidence:
+            return None
+
         return best
 
     def _argument_match(self, normalized: str) -> tuple[BaseCommand, str] | None:

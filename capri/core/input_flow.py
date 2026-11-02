@@ -193,6 +193,12 @@ class InputFlow(QObject):
             self._confirm_timer.start(CONFIRM_TIMEOUT_MS)
             self.awaiting_reply_changed.emit(True)
             return f"Ты имел в виду: «{suggestion.name}»? (да / нет)"
+
+        # Двухуровневый AI Fallback: если фраза не похожа ни на одну системную команду,
+        # направляем её в AI-клиент как живой вопрос/намерение
+        if self._registry.context is not None and self._registry.context.action_bridge is not None:
+            return self._registry.context.action_bridge.ask_ai(text)
+
         return f"Ты сказал: {text}"
 
     def clear(self) -> None:
