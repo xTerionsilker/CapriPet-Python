@@ -10,7 +10,11 @@ from PySide6.QtMultimedia import QAudioDevice
 from ..audio.recognizer import preload_model_async
 from ..audio.voice import VoiceInput
 from ..core.settings import get_config_value, set_config_value
-from ..core.wake_word import VOICE_COMMAND_WINDOW_MS, command_after_trigger
+from ..core.wake_word import (
+    VOICE_COMMAND_WINDOW_MS,
+    VOICE_FOLLOWUP_WINDOW_MS,
+    command_after_trigger,
+)
 from .voice_hud import CyberVoiceHud
 
 if TYPE_CHECKING:
@@ -168,7 +172,11 @@ class VoiceCoordinator(QObject):
             hud.set_recognized_text(text, keep_ms=2500)
 
         if command:
-            self._disarm()
+            # После успешного распознавания команды переводим микрофон в Follow-up окно:
+            # Capri остается готовым к следующим командам еще ~4.5 сек без повтора «Капри».
+            self._voice_armed_until = time.monotonic() + VOICE_FOLLOWUP_WINDOW_MS / 1000
+            self._voice_window_timer.start(VOICE_FOLLOWUP_WINDOW_MS)
+            self._voice.set_armed(True)
             self._on_command_ready(command)
             return
 
