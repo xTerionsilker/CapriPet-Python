@@ -5,6 +5,7 @@ from typing import Any
 from rapidfuzz import fuzz
 
 from ..core.fuzzy import MAX_TYPO_DISTANCE, edit_distance, keyword_score, similarity
+from ..core.morphology import normalize_spoken_numbers, stem_russian_word, stem_text
 from .base import BaseCommand, CommandContext
 
 ARGUMENT_PUNCTUATION = " \t,.:;–-!?()[]{}«»…\""
@@ -85,6 +86,13 @@ class CommandRegistry:
         if argument_match is not None:
             return argument_match
 
+        # Проверка с нормализацией числительных (например, 'громкость пятьдесят' -> 'громкость 50')
+        with_numbers = normalize_spoken_numbers(normalized)
+        if with_numbers != normalized:
+            arg_num = self._argument_match(with_numbers)
+            if arg_num is not None:
+                return arg_num
+
         switched = switch_layout(normalized)
         if switched != normalized:
             exact_switched = self._lookup.get(switched)
@@ -102,6 +110,11 @@ class CommandRegistry:
             closest_switched = self._closest(switched)
             if closest_switched is not None:
                 return self._lookup[closest_switched], ""
+
+        # Морфологический (стемминг) поиск без аргументов
+        stemmed_match = self._stemmed_match(normalized)
+        if stemmed_match is not None:
+            return stemmed_match
 
         return None
 
@@ -167,12 +180,31 @@ class CommandRegistry:
         for key, command in keys:
             if normalized == key:
                 return command, ""
-            if not normalized.startswith(key):
-                continue
-            rest = normalized[len(key) :]
-            if rest[:1].isalnum():
-                continue
-            return command, rest.lstrip(ARGUMENT_PUNCTUATION)
+            if normalized.startswith(key):
+                rest = normalized[len(key) :]
+                if not rest[:1].isalnum():
+                    return command, normalize_spoken_numbers(rest.lstrip(ARGUMENT_PUNCTUATION))
+
+        # Перестановка слов / Поиск ключевого действия в любой позиции фразы
+        # Выбираем ключ с максимальным числом совпавших слов
+        words = normalized.split()
+        best_perm_match: tuple[BaseCommand, str] | None = None
+        best_perm_len = 0
+
+        for key, command in keys:
+            key_words = key.split()
+            if len(key_words) > 1 and len(words) > len(key_words):
+                if all(kw in words for kw in key_words):
+                    indices = [words.index(kw) for kw in key_words]
+                    remaining = [w for i, w in enumerate(words) if i not in indices]
+                    if remaining and len(key_words) > best_perm_len:
+                        best_perm_len = len(key_words)
+                        arg_str = normalize_spoken_numbers(" ".join(remaining))
+                        best_perm_match = (command, arg_str)
+
+        if best_perm_match is not None:
+            return best_perm_match
+
         return None
 
     def _closest(self, normalized: str) -> str | None:
@@ -193,6 +225,15 @@ class CommandRegistry:
                 best_key = key
 
         return best_key
+
+    def _stemmed_match(self, normalized: str) -> tuple[BaseCommand, str] | None:
+        """Матчит команду на основе стемминга корней слов."""
+        stemmed_input = stem_text(normalized)
+        for command in self._commands:
+            for alias in (command.name, *command.aliases):
+                if stem_text(self._normalize(alias)) == stemmed_input:
+                    return command, ""
+        return None
 
     @staticmethod
     def _normalize(text: str) -> str:
