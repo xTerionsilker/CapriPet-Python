@@ -89,11 +89,15 @@ Capri's visual identity uses **only** the following colors:
   - Settings are typed and validated using Pydantic v2 models (`CapriConfig`, `AIConfigModel`), ensuring declarative constraints, defaults, and boundary sanitization without manual dict merging.
   - Settings load in priority order: `<repo>/.capri/config.json` -> `$XDG_CONFIG_HOME/capri/config.json` (`~/.config/capri/config.json` on Linux, `%APPDATA%/capri/config.json` on Windows) -> `/tmp/capri_config.json`.
   - Saves are atomic: writes to `.tmp` file and replaces via `os.replace`.
-- **Audio & Voice (`capri/audio/`):**
-  - Offline STT uses `vosk` with Russian acoustic model located at `models/vosk-model-ru-0.42/` or `models/vosk-model-small-ru-0.22`.
+- **Audio & Voice (`capri/audio/` & `capri/core/morphology.py`):**
+  - Offline STT uses `vosk` with Russian acoustic model located at `models/vosk-model-ru-0.42/` or `models/vosk-model-small-ru-0.22`, with optional `faster-whisper` hybrid backend support.
+  - Streaming audio input via `VoiceInput` (`capri/audio/voice.py`) feeding chunks continuously to `KaldiRecognizer` without blocking buffer accumulation.
+  - Adaptive noise-floor `EnergyVAD` (`capri/audio/vad.py`) eliminates false triggers from mouse clicks, keyboard presses, and background noise.
+  - Dynamic silence window: cuts silence timeout to ~400ms when armed for instantaneous execution.
+  - Wake word detection (`"Капри"`) in `capri/core/wake_word.py` uses hybrid regex + Damerau-Levenshtein fuzzy matching.
+  - Follow-up command window (`VOICE_FOLLOWUP_WINDOW_MS = 4500`) keeps Capri armed for chaining commands without repeating the wake word.
+  - Morphology & NLU in `capri/core/morphology.py` and `capri/commands/registry.py`: Snowball Russian stemmer, spoken number normalization (`пятьдесят` -> `50`), and slot permutation matching for free word order.
   - Speech recognition lifecycle and model caching are encapsulated in `VoskSpeechService` (`capri/audio/recognizer.py`) with thread-safe `ModelStatus` state transitions (`UNLOADED`, `LOADING`, `READY`, `FAILED`).
-  - Wake word detection (`"Капри"`) lives in `capri/core/wake_word.py`.
-  - Recognition is fully offline and local; internet dependency has been removed.
   - Missing audio input devices or missing media assets fail gracefully without crashing the app.
 
 ## Code Quality & Anti-Legacy Rules
