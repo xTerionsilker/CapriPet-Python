@@ -353,8 +353,8 @@ class CapriWindow(QWidget):
         self._model_init_overlay = None
 
     def hideEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        if self._is_lightning_aiming:
-            self._cancel_lightning_aiming()
+        if self._teleport.is_aiming:
+            self._teleport.cancel_aiming()
         self._glitch_timer.stop()
         super().hideEvent(event)
 
