@@ -135,3 +135,32 @@ class SpotifyPreviousCommand(BaseCommand):
         if ctx.action_bridge is not None:
             return ctx.action_bridge.spotify_previous()
         return spotify.previous_track()
+
+
+class SpotifyCurrentTrackCommand(BaseCommand):
+    name = "что играет"
+    description = "узнать, какой трек сейчас играет в Spotify."
+    aliases = (
+        "что сейчас играет",
+        "какой трек играет",
+        "какая песня играет",
+        "что за трек",
+        "что за песня",
+        "название трека",
+        "название песни",
+        "текущий трек",
+        "текущая песня",
+        "кто поет",
+        "кто поёт",
+        "че играет",
+        "че за трек",
+        "че за песня",
+        "какой трек",
+        "какая песня",
+    )
+    keywords = ("играет", "трек", "песн", "поет", "поёт", "назван")
+
+    def execute(self, ctx: CommandContext, query: str = "") -> str | None:
+        if ctx.action_bridge is not None:
+            return ctx.action_bridge.spotify_current_track()
+        return spotify.current_track()

@@ -119,6 +119,9 @@ class ActionBridge(QObject):
     def spotify_previous(self) -> str:
         return spotify.previous_track()
 
+    def spotify_current_track(self) -> str:
+        return spotify.current_track()
+
     # --- Screen Lock ---
 
     def lock_screen(self) -> str:

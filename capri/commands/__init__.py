@@ -4,6 +4,7 @@ from .ai import AskAICommand
 from .base import BaseCommand, CommandContext, CommandResult
 from .diagnostics import DebugCommand
 from .media import (
+    SpotifyCurrentTrackCommand,
     SpotifyNextCommand,
     SpotifyPauseCommand,
     SpotifyPlayCommand,
@@ -36,6 +37,7 @@ DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     SpotifyResumeCommand,
     SpotifyNextCommand,
     SpotifyPreviousCommand,
+    SpotifyCurrentTrackCommand,
     LockScreenCommand,
     PowerOffCommand,
     SuspendCommand,
@@ -80,6 +82,7 @@ __all__ = [
     "SpotifyResumeCommand",
     "SpotifyNextCommand",
     "SpotifyPreviousCommand",
+    "SpotifyCurrentTrackCommand",
     "LockScreenCommand",
     "PowerOffCommand",
     "SuspendCommand",

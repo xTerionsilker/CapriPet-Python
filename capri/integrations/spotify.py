@@ -60,6 +60,127 @@ def previous_track() -> str:
     return "Предыдущий трек."
 
 
+def current_track() -> str:
+    """Возвращает информацию о текущем воспроизводимом треке."""
+    if sys.platform == "win32":
+        info = _current_track_windows()
+    else:
+        info = _current_track_linux()
+
+    if not info:
+        return "Сейчас ничего не играет или Spotify закрыт."
+
+    title, artist = info
+    if title and artist:
+        return f"Сейчас играет: {artist} — {title}"
+    if title:
+        return f"Сейчас играет: {title}"
+    return f"Сейчас играет: {artist}"
+
+
+def _current_track_windows() -> tuple[str, str] | None:
+    try:
+        import ctypes
+
+        user32 = ctypes.windll.user32
+        titles: list[str] = []
+
+        # WNDENUMPROC callback
+        wnd_enum_proc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+        def enum_cb(hwnd: ctypes.c_void_p, _extra: ctypes.c_void_p) -> bool:
+            if not user32.IsWindowVisible(hwnd):
+                return True
+            length = user32.GetWindowTextLengthW(hwnd)
+            if length > 0:
+                buff = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, buff, length + 1)
+                text = buff.value.strip()
+                # Spotify window class or title checks
+                class_buf = ctypes.create_unicode_buffer(256)
+                user32.GetClassNameW(hwnd, class_buf, 256)
+                cls_name = class_buf.value
+                if "Spotify" in cls_name or "Spotify" in text or " — " in text or " - " in text:
+                    titles.append((cls_name, text))
+            return True
+
+        user32.EnumWindows(wnd_enum_proc(enum_cb), 0)
+
+        for cls_name, text in titles:
+            if cls_name == "Chrome_WidgetWin_0" and text and text != "Spotify" and text != "Spotify Free" and text != "Spotify Premium":
+                # Заголовок главного окна Spotify в Windows имеет вид: "Artist - Title" или "Artist — Title"
+                delimiter = " — " if " — " in text else (" - " if " - " in text else None)
+                if delimiter:
+                    parts = text.split(delimiter, 1)
+                    return parts[1].strip(), parts[0].strip()
+                return text, ""
+    except Exception:
+        pass
+    return None
+
+
+def _current_track_linux() -> tuple[str, str] | None:
+    # 1. Попытка через playerctl, если установлена
+    if shutil.which("playerctl") is not None:
+        try:
+            res = subprocess.run(
+                ["playerctl", "-p", "spotify", "metadata", "--format", "{{artist}}///{{title}}"],
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                parts = res.stdout.strip().split("///", 1)
+                artist = parts[0].strip()
+                title = parts[1].strip() if len(parts) > 1 else ""
+                if title or artist:
+                    return title, artist
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+    # 2. Попытка через dbus-send (MPRIS2)
+    if shutil.which("dbus-send") is not None:
+        try:
+            res = subprocess.run(
+                [
+                    "dbus-send",
+                    "--session",
+                    "--print-reply",
+                    f"--dest={_MPRIS_DEST}",
+                    _MPRIS_PATH,
+                    "org.freedesktop.DBus.Properties.Get",
+                    f"string:{_MPRIS_PLAYER}",
+                    "string:Metadata",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if res.returncode == 0 and res.stdout:
+                return _parse_mpris_metadata(res.stdout)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+
+    return None
+
+
+def _parse_mpris_metadata(output: str) -> tuple[str, str] | None:
+    import re
+
+    title_match = re.search(r'string\s+"xesam:title"\s+variant\s+string\s+"([^"]+)"', output)
+    title = title_match.group(1).strip() if title_match else ""
+
+    artists: list[str] = []
+    artist_section = re.search(r'string\s+"xesam:artist"\s+variant\s+array\s+\[(.*?)\]', output, re.DOTALL)
+    if artist_section:
+        artists = re.findall(r'string\s+"([^"]+)"', artist_section.group(1))
+    artist = ", ".join(artists).strip()
+
+    if title or artist:
+        return title, artist
+    return None
+
+
 def _search_uri(query: str) -> str:
     return "spotify:search:" + urllib.parse.quote(query.strip(), safe="")
 
