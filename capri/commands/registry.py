@@ -5,7 +5,7 @@ from typing import Any
 from rapidfuzz import fuzz
 
 from ..core.fuzzy import MAX_TYPO_DISTANCE, edit_distance, keyword_score, similarity
-from ..core.morphology import normalize_spoken_numbers, stem_russian_word, stem_text
+from ..core.morphology import normalize_spoken_numbers, stem_text
 from .base import BaseCommand, CommandContext
 
 ARGUMENT_PUNCTUATION = " \t,.:;–-!?()[]{}«»…\""
