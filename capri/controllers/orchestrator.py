@@ -93,6 +93,9 @@ class PetOrchestrator(QObject):
         self.actions.kill_app_results_ready.connect(
             self._on_kill_app_results_ready
         )
+        self.actions.update_check_finished.connect(
+            self._on_update_check_finished
+        )
 
     def _init_inactivity_settings(self) -> None:
         inactivity_ms = get_config_value(
@@ -318,3 +321,25 @@ class PetOrchestrator(QObject):
         prompt = "\n".join(lines) + f"\nСкажи номер (1–{len(procs)})"
         self.flow.expect_reply(_on_choice, timeout_ms=25_000)
         self._window.speak(prompt, hold_ms=25_000)
+
+    def _on_update_check_finished(
+        self, status: str, local_date: Any, remote_date: Any
+    ) -> None:
+        if self._window.is_closing:
+            return
+        if status == "update_available":
+            def _on_confirm(text: str) -> str:
+                from ..core.input_flow import AFFIRMATIVE_WORDS, _answer_words
+                words = _answer_words(text)
+                if words & AFFIRMATIVE_WORDS:
+                    self.actions.open_update_page()
+                    return "Открываю страницу обновлений на GitHub."
+                return "Хорошо, пока не открываю."
+
+            prompt = (
+                f"Доступно обновление! ({local_date} -> {remote_date}). "
+                "Открыть ссылку на GitHub? (да / нет)"
+            )
+            self.flow.expect_reply(_on_confirm, timeout_ms=20_000)
+            self._window.speak(prompt, hold_ms=20_000)
+

@@ -9,6 +9,7 @@ from . import (
     spotify,
     spotify_api,
     system_power,
+    updater,
     web_search,
     window_tracker,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "spotify",
     "spotify_api",
     "system_power",
+    "updater",
     "web_search",
     "window_tracker",
 ]

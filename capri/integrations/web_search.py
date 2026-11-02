@@ -69,7 +69,8 @@ def search_youtube(query: str) -> str:
 
 def open_update_page() -> str:
     """Открывает страницу репозитория проекта на GitHub в браузере по умолчанию."""
-    url = "https://github.com/xTerionsilker/CapriPet-Python"
-    webbrowser.open(url)
-    return "Открываю страницу обновлений."
+    from . import updater
+    return updater.open_update_page()
+
+
 

@@ -5,7 +5,7 @@ import threading
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ..effects.session_animations import SESSION_ACTION_LEAD_MS
-from ..integrations import ai_client, app_launcher, process_manager, spotify, web_search
+from ..integrations import ai_client, app_launcher, process_manager, spotify, updater, web_search
 from ..integrations.screen_lock import lock_commands, run_lock
 from ..integrations.system_power import power_commands, run_power
 
@@ -22,6 +22,7 @@ class ActionBridge(QObject):
     youtube_results_ready = Signal(list)
     launch_app_results_ready = Signal(list)
     kill_app_results_ready = Signal(list)
+    update_check_finished = Signal(str, object, object)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -204,7 +205,38 @@ class ActionBridge(QObject):
         self.kill_app_results_ready.emit(procs)
 
     def open_update_page(self) -> str:
-        return web_search.open_update_page()
+        return updater.open_update_page()
+
+    def check_updates(self) -> str:
+        threading.Thread(
+            target=self._check_updates_worker,
+            name="capri-update-check",
+            daemon=True,
+        ).start()
+        return "Проверяю наличие обновлений…"
+
+    def _check_updates_worker(self) -> None:
+        local_date = updater.read_local_version_date()
+        remote_date = updater.fetch_remote_version_date()
+        if remote_date is None:
+            self.speech_requested.emit(
+                "Не удалось получить данные об обновлении с GitHub."
+            )
+            return
+        if local_date is None:
+            self.speech_requested.emit(
+                "Локальный файл версий не найден или повреждён."
+            )
+            return
+
+        if remote_date > local_date:
+            self.update_check_finished.emit("update_available", local_date, remote_date)
+        elif remote_date == local_date:
+            self.speech_requested.emit("Установлена актуальная версия. Обновлять нечего.")
+        else:
+            self.speech_requested.emit(
+                f"Твоя версия ({local_date}) новее репозитория ({remote_date}). Ты из будущего!"
+            )
 
     def _queue_power(self, action: str, message: str) -> str:
         commands = power_commands(action)

@@ -88,6 +88,8 @@ class UpdateCommand(BaseCommand):
     )
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
+        if ctx.action_bridge is not None and hasattr(ctx.action_bridge, "check_updates"):
+            return ctx.action_bridge.check_updates()
         if ctx.action_bridge is not None and hasattr(ctx.action_bridge, "open_update_page"):
             return ctx.action_bridge.open_update_page()
         return web_search.open_update_page()
