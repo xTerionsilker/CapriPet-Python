@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .capri/
 .kwin_*.js
-models/
+models/*
+!models/PutVoskHere.txt
 
 

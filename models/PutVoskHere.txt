@@ -1,0 +1,12 @@
+Поместите сюда распакованную папку с моделью Vosk для распознавания русской речи.
+Рекомендуемая модель: vosk-model-small-ru-0.22 (или любая другая модель Vosk для русского языка).
+
+Ссылка для загрузки: https://alphacephei.com/vosk/models
+Пример итоговой структуры:
+models/
+├── PutVoskHere.txt
+└── vosk-model-small-ru-0.22/
+    ├── am
+    ├── conf
+    ├── graph
+    └── ivector
