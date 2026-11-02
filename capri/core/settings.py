@@ -7,66 +7,148 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, Optional
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 
-# Допустимые значения времени активности (мс): 5, 10 и 15 секунд.
 ACTIVITY_TIMEOUT_OPTIONS_MS: tuple[int, ...] = (5_000, 10_000, 15_000)
-
-# Допустимые уровни интенсивности экранных глитчей
 GLITCH_INTENSITY_OPTIONS: tuple[str, ...] = ("weak", "medium", "strong")
 
-DEFAULT_CONFIG: dict[str, Any] = {
-    "version": 1,
-    "screen": {
-        "designated_screen": None,
-    },
-    "audio": {
-        "designated_microphone": None,
-        "volume": 50,
-        "sfx_volume": 0.5,
-        "media_volume": 0.6,
-        "voice_enabled": True,
-        "speech_sound_enabled": True,
-        "effects_sound_enabled": True,
-    },
-    "appearance": {
-        "skin": "default",
-        "pose": "sit",
-        "overlay_pose": "sit",
-        "scale": 100,
-    },
-    "effects": {
-        "glitches_enabled": True,
-        "glitch_intensity": "weak",
-    },
-    "window": {
-        "position": None,
-        "overlay_position": None,
-        "terminal_position": None,
-    },
-    "behavior": {
-        "inactivity_timeout_ms": 5000,
-        "reminders_enabled": True,
-        "reminder_min_interval_ms": 600_000,
-        "reminder_max_interval_ms": 3_600_000,
-    },
-    "network": {
-        "user_agent": None,
-    },
-}
+
+class WindowPosition(BaseModel):
+    x: int
+    y: int
 
 
-def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
-    """Рекурсивно объединяет два словаря, создавая глубокую копию."""
-    result = copy.deepcopy(base)
-    for key, value in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _deep_merge(result[key], value)
-        else:
-            result[key] = copy.deepcopy(value)
-    return result
+class ScreenConfig(BaseModel):
+    designated_screen: Optional[str] = None
+
+
+class AudioConfig(BaseModel):
+    designated_microphone: Optional[str] = None
+    volume: int = 50
+    sfx_volume: float = Field(default=0.5, ge=0.0, le=1.0)
+    media_volume: float = Field(default=0.6, ge=0.0, le=1.0)
+    voice_enabled: bool = True
+    speech_sound_enabled: bool = True
+    effects_sound_enabled: bool = True
+
+    @field_validator("volume", mode="before")
+    @classmethod
+    def validate_volume(cls, v: Any) -> int:
+        try:
+            val = int(v)
+            return val if val in (25, 50, 75, 100) else 50
+        except Exception:
+            return 50
+
+    @field_validator("sfx_volume", "media_volume", mode="before")
+    @classmethod
+    def clamp_vol(cls, v: Any) -> float:
+        try:
+            return max(0.0, min(1.0, float(v)))
+        except Exception:
+            return 0.5
+
+
+class AppearanceConfig(BaseModel):
+    skin: str = "default"
+    pose: Literal["sit", "stay", "crouch"] = "sit"
+    overlay_pose: Literal["sit", "stay", "crouch"] = "sit"
+    scale: int = 100
+
+    @field_validator("scale", mode="before")
+    @classmethod
+    def validate_scale(cls, v: Any) -> int:
+        try:
+            val = int(v)
+            return val if val in (50, 75, 100, 125, 150) else 100
+        except Exception:
+            return 100
+
+    @field_validator("pose", "overlay_pose", mode="before")
+    @classmethod
+    def validate_pose(cls, v: Any) -> str:
+        return v if v in ("sit", "stay", "crouch") else "sit"
+
+    @model_validator(mode="before")
+    @classmethod
+    def sync_pose_fallback(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "overlay_pose" in data and "pose" not in data:
+                data["pose"] = data["overlay_pose"]
+        return data
+
+
+class EffectsConfig(BaseModel):
+    glitches_enabled: bool = True
+    glitch_intensity: Literal["weak", "medium", "strong"] = "weak"
+
+    @field_validator("glitch_intensity", mode="before")
+    @classmethod
+    def validate_intensity(cls, v: Any) -> str:
+        s = str(v).lower()
+        return s if s in GLITCH_INTENSITY_OPTIONS else "weak"
+
+
+class WindowConfig(BaseModel):
+    position: Optional[WindowPosition] = None
+    overlay_position: Optional[WindowPosition] = None
+    terminal_position: Optional[WindowPosition] = None
+
+    @field_validator("position", "overlay_position", "terminal_position", mode="before")
+    @classmethod
+    def validate_pos(cls, v: Any) -> Optional[dict[str, int]]:
+        if isinstance(v, dict) and "x" in v and "y" in v:
+            try:
+                return {"x": int(v["x"]), "y": int(v["y"])}
+            except Exception:
+                return None
+        return None
+
+
+class BehaviorConfig(BaseModel):
+    inactivity_timeout_ms: int = 5000
+    reminders_enabled: bool = True
+    reminder_min_interval_ms: int = 600_000
+    reminder_max_interval_ms: int = 3_600_000
+
+    @field_validator("inactivity_timeout_ms", mode="before")
+    @classmethod
+    def validate_timeout(cls, v: Any) -> int:
+        try:
+            val = int(v)
+            return val if val in ACTIVITY_TIMEOUT_OPTIONS_MS else 5_000
+        except Exception:
+            return 5_000
+
+    @model_validator(mode="after")
+    def validate_intervals(self) -> BehaviorConfig:
+        min_remind = max(5_000, int(self.reminder_min_interval_ms))
+        max_remind = max(min_remind, int(self.reminder_max_interval_ms))
+        self.reminder_min_interval_ms = min_remind
+        self.reminder_max_interval_ms = max_remind
+        return self
+
+
+class NetworkConfig(BaseModel):
+    user_agent: Optional[str] = None
+
+
+class CapriConfig(BaseModel):
+    version: int = 1
+    screen: ScreenConfig = Field(default_factory=ScreenConfig)
+    audio: AudioConfig = Field(default_factory=AudioConfig)
+    appearance: AppearanceConfig = Field(default_factory=AppearanceConfig)
+    effects: EffectsConfig = Field(default_factory=EffectsConfig)
+    window: WindowConfig = Field(default_factory=WindowConfig)
+    behavior: BehaviorConfig = Field(default_factory=BehaviorConfig)
+    network: NetworkConfig = Field(default_factory=NetworkConfig)
+
+
+DEFAULT_CONFIG: dict[str, Any] = CapriConfig().model_dump()
 
 
 def _get_project_root() -> Path:
@@ -75,13 +157,16 @@ def _get_project_root() -> Path:
 
 
 def _resolve_config_dir() -> Path:
-    """Возвращает базовую директорию для хранения конфигурации с безопасным fallback.
-    
-    Приоритет:
-    1. Локальный каталог проекта .capri (централизованное хранилище для Windows и Linux)
-    2. Системный каталог конфигурации (%APPDATA%/capri для Windows, $XDG_CONFIG_HOME/capri для Linux)
-    3. Временная директория системы (tempfile.gettempdir())
-    """
+    """Возвращает базовую директорию для хранения конфигурации с безопасным fallback."""
+    env_dir = os.environ.get("CAPRI_CONFIG_DIR")
+    if env_dir:
+        path = Path(env_dir).expanduser().resolve()
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            return path
+        except Exception as e:
+            logger.warning("Не удалось использовать CAPRI_CONFIG_DIR=%s: %s", env_dir, e)
+
     # 1. Централизованный каталог проекта .capri
     local_dir = _get_project_root() / ".capri"
     try:
@@ -111,11 +196,11 @@ def _resolve_config_dir() -> Path:
         pass
 
     # 3. Временная директория
-    temp_dir = Path(tempfile.gettempdir())
-    return temp_dir
+    return Path(tempfile.gettempdir())
 
 
 def _get_default_config_path() -> Path:
+    """Определяет путь к файлу конфигурации."""
     config_dir = _resolve_config_dir()
     temp_dir = Path(tempfile.gettempdir())
     if config_dir == temp_dir:
@@ -124,7 +209,7 @@ def _get_default_config_path() -> Path:
 
 
 class ConfigManager:
-    """Менеджер конфигурации CapriPet с поддержкой валидации, миграции и атомарной записи."""
+    """Менеджер конфигурации с Pydantic валидацией, кэшированием и атомарным сохранением."""
 
     def __init__(self, config_path: Path | None = None) -> None:
         self._is_custom_path = config_path is not None
@@ -136,92 +221,16 @@ class ConfigManager:
         return self._config_path
 
     def _validate_and_sanitize(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Проверяет типы и границы критичных полей, восстанавливая дефолты при необходимости."""
-        config = _deep_merge(DEFAULT_CONFIG, data)
-
-        # Проверка позы
-        if config["appearance"].get("overlay_pose") not in ("sit", "stay", "crouch"):
-            config["appearance"]["overlay_pose"] = "sit"
-        if config["appearance"].get("pose") not in ("sit", "stay", "crouch"):
-            config["appearance"]["pose"] = config["appearance"]["overlay_pose"]
-
-        # Общая громкость программы (в процентах)
+        """Валидирует данные через Pydantic-модель CapriConfig."""
         try:
-            volume = int(config["audio"].get("volume", DEFAULT_CONFIG["audio"]["volume"]))
-            if volume not in (25, 50, 75, 100):
-                volume = DEFAULT_CONFIG["audio"]["volume"]
-            config["audio"]["volume"] = volume
-        except (ValueError, TypeError):
-            config["audio"]["volume"] = DEFAULT_CONFIG["audio"]["volume"]
-
-        # Громкость
-        for vol_key in ("sfx_volume", "media_volume"):
-            try:
-                val = float(config["audio"].get(vol_key, DEFAULT_CONFIG["audio"][vol_key]))
-                config["audio"][vol_key] = max(0.0, min(1.0, val))
-            except (ValueError, TypeError):
-                config["audio"][vol_key] = DEFAULT_CONFIG["audio"][vol_key]
-
-        # Булевы флаги
-        config["audio"]["voice_enabled"] = bool(config["audio"].get("voice_enabled", True))
-        config["audio"]["speech_sound_enabled"] = bool(config["audio"].get("speech_sound_enabled", True))
-        config["audio"]["effects_sound_enabled"] = bool(config["audio"].get("effects_sound_enabled", True))
-        config["effects"]["glitches_enabled"] = bool(config["effects"].get("glitches_enabled", True))
-        intensity = str(config["effects"].get("glitch_intensity", "weak")).lower()
-        if intensity not in GLITCH_INTENSITY_OPTIONS:
-            intensity = "weak"
-        config["effects"]["glitch_intensity"] = intensity
-
-        # Масштаб спрайта питомца
-        try:
-            scale = int(config["appearance"].get("scale", 100))
-            if scale not in (50, 75, 100, 125, 150):
-                scale = 100
-            config["appearance"]["scale"] = scale
-        except (ValueError, TypeError):
-            config["appearance"]["scale"] = 100
-
-        # Время активности до скрытия питомца
-        try:
-            inactivity = int(config["behavior"].get("inactivity_timeout_ms", 5000))
-        except (ValueError, TypeError):
-            inactivity = ACTIVITY_TIMEOUT_OPTIONS_MS[0]
-        if inactivity not in ACTIVITY_TIMEOUT_OPTIONS_MS:
-            inactivity = ACTIVITY_TIMEOUT_OPTIONS_MS[0]
-        config["behavior"]["inactivity_timeout_ms"] = inactivity
-        config["behavior"]["reminders_enabled"] = bool(
-            config["behavior"].get("reminders_enabled", True)
-        )
-
-        # Диапазон интервалов напоминания (мс)
-        try:
-            min_remind = int(config["behavior"].get("reminder_min_interval_ms", 600_000))
-        except (ValueError, TypeError):
-            min_remind = 600_000
-        try:
-            max_remind = int(config["behavior"].get("reminder_max_interval_ms", 3_600_000))
-        except (ValueError, TypeError):
-            max_remind = 3_600_000
-
-        # Валидация: минимальный интервал не менее 5 секунд, max >= min
-        min_remind = max(5_000, min_remind)
-        max_remind = max(min_remind, max_remind)
-        config["behavior"]["reminder_min_interval_ms"] = min_remind
-        config["behavior"]["reminder_max_interval_ms"] = max_remind
-
-        # Координаты
-        for pos_key in ("position", "overlay_position", "terminal_position"):
-            pos = config["window"].get(pos_key)
-            if pos is not None:
-                if not (isinstance(pos, dict) and "x" in pos and "y" in pos and isinstance(pos["x"], (int, float)) and isinstance(pos["y"], (int, float))):
-                    config["window"][pos_key] = None
-                else:
-                    config["window"][pos_key] = {"x": int(pos["x"]), "y": int(pos["y"])}
-
-        return config
+            model = CapriConfig.model_validate(data if isinstance(data, dict) else {})
+            return model.model_dump()
+        except Exception as e:
+            logger.warning("Ошибка валидации настроек Pydantic: %s. Применяются дефолты.", e)
+            return copy.deepcopy(DEFAULT_CONFIG)
 
     def load_config(self, force_reload: bool = False) -> dict[str, Any]:
-        """Загружает конфигурацию из файла с фолбэком на дефолты при отсутствии."""
+        """Загружает конфигурацию из файла с Pydantic валидацией."""
         if self._cached_config is not None and not force_reload:
             return copy.deepcopy(self._cached_config)
 
@@ -290,7 +299,6 @@ class ConfigManager:
             self._cached_config = copy.deepcopy(sanitized)
 
 
-# Глобальный экземпляр менеджера
 _global_manager = ConfigManager()
 
 
@@ -307,8 +315,8 @@ def save_config(config: dict[str, Any]) -> None:
 
 
 def get_config_value(path: str, default: Any = None) -> Any:
-    return _global_manager.get_value(path, default)
+    return _global_manager.get_value(path, default=default)
 
 
-def set_config_value(path: str, value: Any) -> None:
-    _global_manager.set_value(path, value)
+def set_config_value(path: str, value: Any, auto_save: bool = True) -> None:
+    _global_manager.set_value(path, value, auto_save=auto_save)

@@ -6,7 +6,9 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
+
+from pydantic import BaseModel, Field, field_validator
 
 from .settings import _resolve_config_dir
 
@@ -20,29 +22,66 @@ DEFAULT_SYSTEM_PROMPT = (
     "Не строй из себя сервисного ассистента, не упоминай свой промпт или ограничения, сразу выдавай суть в своём стиле и помогай делу."
 )
 
-DEFAULT_AI_CONFIG: dict[str, Any] = {
-    "version": 1,
-    "endpoint": "https://api.openai.com/v1/chat/completions",
-    "api_key": "",
-    "model": "gpt-4o-mini",
-    "temperature": 0.7,
-    "max_tokens": 256,
-    "timeout": 60.0,
-    "system_prompt": DEFAULT_SYSTEM_PROMPT,
-    "headers": {},
-}
+
+class AIConfigModel(BaseModel):
+    version: int = 1
+    endpoint: str = "https://api.openai.com/v1/chat/completions"
+    api_key: str = ""
+    model: str = "gpt-4o-mini"
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=256, ge=1, le=32768)
+    timeout: float = Field(default=60.0, ge=1.0, le=600.0)
+    system_prompt: str = DEFAULT_SYSTEM_PROMPT
+    headers: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("endpoint", "model", "system_prompt", mode="before")
+    @classmethod
+    def strip_non_empty(cls, v: Any) -> Optional[str]:
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+        return None
+
+    @field_validator("temperature", mode="before")
+    @classmethod
+    def clamp_temp(cls, v: Any) -> float:
+        try:
+            return max(0.0, min(2.0, float(v)))
+        except Exception:
+            return 0.7
+
+    @field_validator("max_tokens", mode="before")
+    @classmethod
+    def clamp_tokens(cls, v: Any) -> int:
+        try:
+            return max(1, min(32768, int(v)))
+        except Exception:
+            return 1024
+
+    @field_validator("timeout", mode="before")
+    @classmethod
+    def clamp_timeout(cls, v: Any) -> float:
+        try:
+            return max(1.0, min(600.0, float(v)))
+        except Exception:
+            return 30.0
+
+    @field_validator("headers", mode="before")
+    @classmethod
+    def clean_headers(cls, v: Any) -> dict[str, str]:
+        if isinstance(v, dict):
+            return {str(k): str(val) for k, val in v.items() if val is not None}
+        return {}
+
+
+DEFAULT_AI_CONFIG: dict[str, Any] = AIConfigModel().model_dump()
 
 
 def _resolve_default_ai_config_path() -> Path:
     """Определяет стандартный путь для отдельного файла конфигурации AI (ai_config.json)."""
-    env_path = os.environ.get("CAPRI_AI_CONFIG")
+    env_path = os.environ.get("CAPRI_AI_CONFIG") or os.environ.get("CAPRI_AI_CONFIG_PATH")
     if env_path:
         return Path(env_path).expanduser().resolve()
 
-    # Проверка существующих файлов в известных местах:
-    # 1. Централизованный каталог проекта .capri
-    # 2. Корень проекта
-    # 3. Системный/резервный каталог
     project_root = Path(__file__).resolve().parent.parent.parent
     candidates = [
         project_root / ".capri" / "ai_config.json",
@@ -53,7 +92,6 @@ def _resolve_default_ai_config_path() -> Path:
         if candidate.is_file():
             return candidate
 
-    # Если файл ещё не создан, используем базовый config_dir (.capri с безопасным fallback)
     config_dir = _resolve_config_dir()
     temp_dir = Path(tempfile.gettempdir())
     if config_dir == temp_dir:
@@ -62,10 +100,9 @@ def _resolve_default_ai_config_path() -> Path:
 
 
 class AIConfigManager:
-    """Менеджер отдельной конфигурации AI с поддержкой кастомных API, эндпоинтов и ключей."""
+    """Менеджер конфигурации AI с Pydantic валидацией."""
 
     def __init__(self, config_path: Path | None = None) -> None:
-        self._is_custom_path = config_path is not None
         self._config_path = config_path or _resolve_default_ai_config_path()
         self._cached_config: dict[str, Any] | None = None
 
@@ -74,73 +111,25 @@ class AIConfigManager:
         return self._config_path
 
     def _validate_and_sanitize(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Проверяет типы полей конфигурации и подставляет дефолтные значения при необходимости."""
-        config = copy.deepcopy(DEFAULT_AI_CONFIG)
-        if not isinstance(data, dict):
-            return config
-
-        # Endpoint
-        endpoint = data.get("endpoint")
-        if isinstance(endpoint, str) and endpoint.strip():
-            config["endpoint"] = endpoint.strip()
-
-        # API Key
-        api_key = data.get("api_key")
-        if isinstance(api_key, str):
-            config["api_key"] = api_key.strip()
-
-        # Model
-        model = data.get("model")
-        if isinstance(model, str) and model.strip():
-            config["model"] = model.strip()
-
-        # Temperature
+        """Валидирует данные через Pydantic-модель AIConfigModel."""
         try:
-            temp = float(data.get("temperature", DEFAULT_AI_CONFIG["temperature"]))
-            config["temperature"] = max(0.0, min(2.0, temp))
-        except (ValueError, TypeError):
-            config["temperature"] = DEFAULT_AI_CONFIG["temperature"]
-
-        # Max tokens
-        try:
-            tokens = int(data.get("max_tokens", DEFAULT_AI_CONFIG["max_tokens"]))
-            config["max_tokens"] = max(1, min(32768, tokens))
-        except (ValueError, TypeError):
-            config["max_tokens"] = DEFAULT_AI_CONFIG["max_tokens"]
-
-        # Timeout
-        try:
-            timeout = float(data.get("timeout", DEFAULT_AI_CONFIG["timeout"]))
-            config["timeout"] = max(1.0, min(600.0, timeout))
-        except (ValueError, TypeError):
-            config["timeout"] = DEFAULT_AI_CONFIG["timeout"]
-
-        # System prompt
-        system_prompt = data.get("system_prompt")
-        if isinstance(system_prompt, str) and system_prompt.strip():
-            config["system_prompt"] = system_prompt.strip()
-
-        # Custom headers
-        headers = data.get("headers")
-        if isinstance(headers, dict):
-            config["headers"] = {
-                str(k): str(v) for k, v in headers.items() if v is not None
-            }
-
-        return config
+            model = AIConfigModel.model_validate(data if isinstance(data, dict) else {})
+            return model.model_dump()
+        except Exception as e:
+            logger.warning("Ошибка валидации настроек AI через Pydantic: %s. Применяются дефолты.", e)
+            return copy.deepcopy(DEFAULT_AI_CONFIG)
 
     def load_config(self, force_reload: bool = False) -> dict[str, Any]:
-        """Загружает отдельную конфигурацию AI из файла с фолбэком на дефолты."""
+        """Загружает конфигурацию AI из файла с Pydantic валидацией."""
         if self._cached_config is not None and not force_reload:
             return copy.deepcopy(self._cached_config)
 
         if not self._config_path.is_file():
             config = copy.deepcopy(DEFAULT_AI_CONFIG)
-            # Автоматически создаем начальный шаблон конфига для удобства пользователя
             try:
                 self.save_config(config)
             except Exception as e:
-                logger.debug("Не удалось создать начальный ai_config.json: %s", e)
+                logger.debug("Не удалось создать шаблон ai_config.json: %s", e)
             self._cached_config = config
             return copy.deepcopy(config)
 
@@ -148,26 +137,19 @@ class AIConfigManager:
             with open(self._config_path, "r", encoding="utf-8") as f:
                 raw_data = json.load(f)
             if not isinstance(raw_data, dict):
-                logger.warning(
-                    "Файл конфигурации AI %s поврежден (не словарь). Используются дефолты.",
-                    self._config_path,
-                )
+                logger.warning("Файл %s поврежден. Используются дефолты AI.", self._config_path)
                 config = copy.deepcopy(DEFAULT_AI_CONFIG)
             else:
                 config = self._validate_and_sanitize(raw_data)
         except Exception as e:
-            logger.warning(
-                "Ошибка чтения конфигурации AI из %s: %s. Используются дефолты.",
-                self._config_path,
-                e,
-            )
+            logger.warning("Ошибка чтения %s: %s. Используются дефолты AI.", self._config_path, e)
             config = copy.deepcopy(DEFAULT_AI_CONFIG)
 
         self._cached_config = config
         return copy.deepcopy(config)
 
     def save_config(self, config: dict[str, Any]) -> None:
-        """Атомарно сохраняет конфигурацию AI во временный файл и заменяет целевой."""
+        """Атомарно сохраняет конфигурацию AI."""
         target = self._config_path
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -182,33 +164,12 @@ class AIConfigManager:
             logger.warning("Не удалось сохранить конфигурацию AI в %s: %s", target, e)
 
     def get_value(self, key: str, default: Any = None) -> Any:
-        """Получает значение параметра конфигурации AI."""
         config = self.load_config()
-        if key in config:
-            return config[key]
-        keys = key.split(".")
-        current: Any = config
-        for k in keys:
-            if isinstance(current, dict) and k in current:
-                current = current[k]
-            else:
-                return default
-        return current if current is not None else default
+        return config.get(key, default)
 
     def set_value(self, key: str, value: Any, auto_save: bool = True) -> None:
-        """Устанавливает значение параметра конфигурации AI."""
         config = self.load_config()
-        if "." in key:
-            keys = key.split(".")
-            current = config
-            for k in keys[:-1]:
-                if k not in current or not isinstance(current[k], dict):
-                    current[k] = {}
-                current = current[k]
-            current[keys[-1]] = value
-        else:
-            config[key] = value
-
+        config[key] = value
         sanitized = self._validate_and_sanitize(config)
         if auto_save:
             self.save_config(sanitized)
@@ -217,6 +178,10 @@ class AIConfigManager:
 
 
 _global_ai_manager = AIConfigManager()
+
+
+def get_ai_config_path() -> Path:
+    return _global_ai_manager.config_path
 
 
 def get_ai_config_manager() -> AIConfigManager:
@@ -232,12 +197,8 @@ def save_ai_config(config: dict[str, Any]) -> None:
 
 
 def get_ai_config_value(key: str, default: Any = None) -> Any:
-    return _global_ai_manager.get_value(key, default)
+    return _global_ai_manager.get_value(key, default=default)
 
 
-def set_ai_config_value(key: str, value: Any) -> None:
-    _global_ai_manager.set_value(key, value)
-
-
-def get_ai_config_path() -> Path:
-    return _global_ai_manager.config_path
+def set_ai_config_value(key: str, value: Any, auto_save: bool = True) -> None:
+    _global_ai_manager.set_value(key, value, auto_save=auto_save)
