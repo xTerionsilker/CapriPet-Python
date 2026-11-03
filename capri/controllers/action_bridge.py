@@ -219,26 +219,29 @@ class ActionBridge(QObject):
         return "Проверяю наличие обновлений…"
 
     def _check_updates_worker(self) -> None:
-        local_date = updater.read_local_version_date()
-        remote_date = updater.fetch_remote_version_date()
-        if remote_date is None:
+        local_dt = updater.read_local_version_datetime()
+        remote_dt = updater.fetch_remote_version_datetime()
+        if remote_dt is None:
             self.speech_requested.emit(
                 "Не удалось получить данные об обновлении с GitHub."
             )
             return
-        if local_date is None:
+        if local_dt is None:
             self.speech_requested.emit(
                 "Локальный файл версий не найден или повреждён."
             )
             return
 
-        if remote_date > local_date:
-            self.update_check_finished.emit("update_available", local_date, remote_date)
-        elif remote_date == local_date:
+        local_str = updater.format_version_datetime(local_dt)
+        remote_str = updater.format_version_datetime(remote_dt)
+
+        if remote_dt > local_dt:
+            self.update_check_finished.emit("update_available", local_str, remote_str)
+        elif remote_dt == local_dt:
             self.speech_requested.emit("Установлена актуальная версия. Обновлять нечего.")
         else:
             self.speech_requested.emit(
-                f"Твоя версия ({local_date}) новее репозитория ({remote_date}). Ты из будущего!"
+                f"Твоя версия ({local_str}) новее репозитория ({remote_str}). Ты из будущего!"
             )
 
     def _queue_power(self, action: str, message: str) -> str:

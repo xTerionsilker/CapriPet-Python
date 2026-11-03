@@ -323,7 +323,7 @@ class PetOrchestrator(QObject):
         self._window.speak(prompt, hold_ms=25_000)
 
     def _on_update_check_finished(
-        self, status: str, local_date: Any, remote_date: Any
+        self, status: str, local_ver: Any, remote_ver: Any
     ) -> None:
         if self._window.is_closing:
             return
@@ -337,7 +337,7 @@ class PetOrchestrator(QObject):
                 return "Хорошо, пока не открываю."
 
             prompt = (
-                f"Доступно обновление! ({local_date} -> {remote_date}). "
+                f"Доступно обновление! ({local_ver} -> {remote_ver}). "
                 "Открыть ссылку на GitHub? (да / нет)"
             )
             self.flow.expect_reply(_on_confirm, timeout_ms=20_000)
