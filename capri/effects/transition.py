@@ -42,12 +42,12 @@ from ..ui.speech_sfx import get_speech_sfx
 
 
 class TransitionOverlay(QWidget):
-    """
-    Полноэкранный оверлей кибернетических переходов в духе Cyberpunk 2077:
-    Kiroshi-оптика, quickhack-панели, Breach Protocol, datamosh и ЭЛТ-схлопывание.
-    Палитра строго фирменная:
-    #F20D2E (45%), #0B0B0B (35%), #3CF12B (16%), #FFFFFF (2%), #1E70F0 (1.5%), #9922EE (0.5%).
-    """
+\
+\
+\
+\
+\
+
 
     finished = Signal()
 
@@ -71,7 +71,7 @@ class TransitionOverlay(QWidget):
         super().__init__(None, flags)
         self._screen_rect = QRect(screen_rect)
         self._window_rect = QRect(window_rect)
-        self._mode = mode  # "in", "out", или "lightning_to_point"
+        self._mode = mode
         self._target = target
         self._on_peak = on_peak
         self._target_point = target_point
@@ -113,12 +113,12 @@ class TransitionOverlay(QWidget):
         local_screen = QRect(
             0, 0, self._screen_rect.width(), self._screen_rect.height()
         )
-        # Локальные шины вокруг силуэта — эффект остаётся сфокусированным на Капри,
-        # а не превращает весь монитор в кашу из линий.
+
+
         outer_ring = self._local_window.adjusted(-320, -320, 320, 320)
 
         if mode == "lightning_to_point" and self._local_target_point is not None:
-            # Трассировка: пакеты данных тянутся от курсора к центру экрана
+
             starts = perimeter_circuit_points(self._local_window, 6)
             for s in starts:
                 self._bolts.append(
@@ -129,7 +129,7 @@ class TransitionOverlay(QWidget):
                     )
                 )
         elif mode == "out":
-            # Аварийный разрыв: короткие разряды вырываются из силуэта наружу
+
             starts = perimeter_circuit_points(self._local_window, bolt_count)
             ends = perimeter_circuit_points(outer_ring, bolt_count)
             for s, e in zip(starts, ends):
@@ -140,7 +140,7 @@ class TransitionOverlay(QWidget):
                         branch_chance=0.08,
                     )
                 )
-            # Пара дальних аварийных шин к границам экрана
+
             for s, e in zip(
                 perimeter_circuit_points(outer_ring, 3),
                 screen_bus_points(local_screen, 3),
@@ -153,7 +153,7 @@ class TransitionOverlay(QWidget):
                     )
                 )
         else:
-            # Материализация: шины сходятся к силуэту из ближней зоны
+
             starts = perimeter_circuit_points(outer_ring, bolt_count)
             ends = perimeter_circuit_points(self._local_window, bolt_count)
             for s, e in zip(starts, ends):
@@ -164,7 +164,7 @@ class TransitionOverlay(QWidget):
                         branch_chance=0.08,
                     )
                 )
-            # Редкие дальние пакеты из углов экрана
+
             for s, e in zip(
                 screen_bus_points(local_screen, 3),
                 perimeter_circuit_points(outer_ring, 3),
@@ -183,7 +183,7 @@ class TransitionOverlay(QWidget):
         self._timer.setInterval(16)
         self._timer.timeout.connect(self._tick)
 
-    def showEvent(self, event) -> None:  # noqa: N802
+    def showEvent(self, event) -> None:
         super().showEvent(event)
         wh = self.windowHandle()
         if wh is not None:
@@ -308,7 +308,7 @@ class TransitionOverlay(QWidget):
             self.finished.emit()
             self.close()
 
-    def paintEvent(self, _event) -> None:  # noqa: N802
+    def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
@@ -330,9 +330,6 @@ class TransitionOverlay(QWidget):
 
         painter.end()
 
-    # ------------------------------------------------------------------
-    # Общие экранные слои
-    # ------------------------------------------------------------------
 
     def _paint_screen_layer(self, painter: QPainter, p: float) -> None:
         """ЭЛТ-развёртка, сбои кадра и служебная телеметрия поверх всего экрана."""
@@ -375,7 +372,7 @@ class TransitionOverlay(QWidget):
                 painter, 28, 52, "CURSOR LOCK 100%", COLOR_WHITE, 9
             )
 
-        # Угловые метки оптики
+
         marker = with_alpha(COLOR_WHITE, 150)
         for x, y in (
             (full.left() + 12, full.top() + 12),
@@ -418,13 +415,10 @@ class TransitionOverlay(QWidget):
             y = max(8, point.y() - height - 78)
         return QRect(x, y, width, height)
 
-    # ------------------------------------------------------------------
-    # Появление
-    # ------------------------------------------------------------------
 
     def _paint_in(self, painter: QPainter, p: float, wr: QRect) -> None:
         """Появление: Kiroshi-оптика, quickhack-материализация и сборка силуэта."""
-        # 1. Прицел Kiroshi закрывается на силуэте
+
         if p < 0.80:
             reticle_p = min(1.0, p / 0.48)
             offset = int((1.0 - reticle_p) * 92)
@@ -439,13 +433,13 @@ class TransitionOverlay(QWidget):
                 locked=p > 0.36,
             )
 
-        # 2. Шины данных сходятся к границам спрайта
+
         if p < 0.70:
             bolt_t = min(1.0, p / 0.44)
             for bolt in self._bolts:
                 bolt.draw(painter, bolt_t)
 
-        # 3. Панель материализации
+
         if 0.04 <= p <= 0.96:
             panel = self._panel_rect(wr, 232, 32)
             draw_quickhack_panel(
@@ -457,13 +451,13 @@ class TransitionOverlay(QWidget):
                 status="MATERIALIZE",
             )
 
-        # 4. Пиксельная сборка с datamosh-разрывами
+
         if p >= 0.30 and self._target_pixmap is not None:
             rem = max(0.0, 1.0 - (p - 0.30) / 0.70)
             if rem > 0.04:
                 self._paint_pixel_matrix_assembly(painter, wr, rem)
 
-        # 5. Зелёный луч сканирует собирающийся силуэт
+
         if 0.34 <= p <= 0.92:
             sweep_p = (p - 0.34) / 0.58
             y = wr.top() + int(wr.height() * sweep_p)
@@ -474,12 +468,12 @@ class TransitionOverlay(QWidget):
                 wr.left(), y - 2, wr.width(), 1, with_alpha(COLOR_WHITE, 150)
             )
 
-        # 6. Вспышка перегрузки
+
         if 0.22 <= p <= 0.84:
             flash_p = (p - 0.22) / 0.62
             self._paint_cyber_flash(painter, wr, flash_p, scheme="crimson")
 
-        # 7. Октагональная ударная волна
+
         if p >= 0.42:
             wave_p = min(1.0, (p - 0.42) / 0.58)
             radius = snap_pixel(
@@ -502,18 +496,15 @@ class TransitionOverlay(QWidget):
         for spark in self._sparks:
             spark.draw(painter)
 
-    # ------------------------------------------------------------------
-    # Исчезновение
-    # ------------------------------------------------------------------
 
     def _paint_out(self, painter: QPainter, p: float, wr: QRect) -> None:
         """Исчезновение: Relic-сбой, datamosh, аварийные шины и ЭЛТ-схлопывание."""
-        # 1. Спрайт разъезжается цифровыми срезами
+
         if p < 0.38 and self._target_pixmap is not None:
             tear_intensity = min(1.0, p / 0.34)
             self._paint_pixel_matrix_assembly(painter, wr, tear_intensity)
 
-        # 2. Прицел теряет цель
+
         if p < 0.52:
             CyberKiroshiReticle.draw(
                 painter,
@@ -525,7 +516,7 @@ class TransitionOverlay(QWidget):
                 locked=False,
             )
 
-        # 3. Панель аварийного отключения
+
         if p <= 0.72:
             panel = self._panel_rect(wr, 232, 32)
             draw_quickhack_panel(
@@ -537,12 +528,12 @@ class TransitionOverlay(QWidget):
                 status="DISCONNECT",
             )
 
-        # 4. Вспышка перегрузки
+
         if 0.22 <= p <= 0.82:
             flash_p = (p - 0.22) / 0.60
             self._paint_cyber_flash(painter, wr, flash_p, scheme="crimson")
 
-        # 5. Разряды вырываются наружу
+
         if p >= 0.26:
             bolt_t = min(1.0, (p - 0.26) / 0.45)
             fade = 1.0
@@ -553,7 +544,7 @@ class TransitionOverlay(QWidget):
                 bolt.draw(painter, bolt_t)
             painter.setOpacity(1.0)
 
-        # 6. ЭЛТ-схлопывание в лазерную линию
+
         if 0.36 <= p <= 0.74:
             collapse_p = (p - 0.36) / 0.38
             line_w = snap_pixel(
@@ -592,7 +583,7 @@ class TransitionOverlay(QWidget):
                 COLOR_WHITE,
             )
 
-        # 7. Красная волна разрыва
+
         if p >= 0.42:
             wave_p = min(1.0, (p - 0.42) / 0.58)
             radius = snap_pixel(int(self.width() * 0.55 * wave_p))
@@ -607,15 +598,12 @@ class TransitionOverlay(QWidget):
         for spark in self._sparks:
             spark.draw(painter)
 
-    # ------------------------------------------------------------------
-    # Захват курсора
-    # ------------------------------------------------------------------
 
     def _paint_lightning_to_point(
         self, painter: QPainter, p: float, wr: QRect, target_pt: QPoint
     ) -> None:
         """Захват курсора: Breach Protocol, трассировка и материализация Капри в центре."""
-        # 1. Матрица Breach Protocol вокруг курсора
+
         if p < 0.78:
             grid_rect = wr.adjusted(-28, -28, 28, 28)
             draw_breach_grid(
@@ -627,7 +615,7 @@ class TransitionOverlay(QWidget):
                 color=COLOR_ACID_GREEN,
             )
 
-        # 2. Поток глифов вокруг курсора
+
         if p < 0.80:
             draw_hex_stream(
                 painter,
@@ -637,7 +625,7 @@ class TransitionOverlay(QWidget):
                 color=COLOR_ACID_GREEN,
             )
 
-        # 3. Прицел на курсоре
+
         if p <= 0.86:
             cursor_p = min(1.0, p / 0.22) * (1.0 - max(0.0, (p - 0.72) / 0.14))
             CyberKiroshiReticle.draw(
@@ -650,7 +638,7 @@ class TransitionOverlay(QWidget):
                 locked=True,
             )
 
-        # 4. Силовые кабели тянутся от курсора в центр
+
         bolt_t = min(1.0, p / 0.58)
         fade = 1.0
         if p > 0.84:
@@ -662,7 +650,7 @@ class TransitionOverlay(QWidget):
 
         self._paint_data_packets(painter, wr.center(), target_pt, p)
 
-        # 5. Приёмный прицел и панель быстрого взлома в целевой точке
+
         if p >= 0.20:
             recv_p = min(1.0, (p - 0.20) / 0.60)
             target_rect = QRect(target_pt.x() - 62, target_pt.y() - 62, 124, 124)
@@ -686,7 +674,7 @@ class TransitionOverlay(QWidget):
                 status="LOCKING" if p < 0.72 else "LOCKED",
             )
 
-        # 6. Финал: вспышка и ударная волна
+
         if p >= 0.55:
             flash_p = (p - 0.55) / 0.45
             radius = snap_pixel(int(96 * flash_p))
@@ -756,9 +744,6 @@ class TransitionOverlay(QWidget):
                         COLOR_WHITE,
                     )
 
-    # ------------------------------------------------------------------
-    # Вспышка и цифровая разборка
-    # ------------------------------------------------------------------
 
     def _paint_cyber_flash(
         self,
@@ -767,10 +752,10 @@ class TransitionOverlay(QWidget):
         flash_p: float,
         scheme: str = "crimson",
     ) -> None:
-        """
-        Перегрузка оптики: хроматическое расслоение, срезанные панели,
-        октагональные волны и обсидиановый дизеринг.
-        """
+\
+\
+\
+
         if flash_p <= 0.22:
             intensity = flash_p / 0.22
         else:
@@ -783,15 +768,14 @@ class TransitionOverlay(QWidget):
         primary_neon = COLOR_CRIMSON if scheme == "crimson" else COLOR_ACID_GREEN
         secondary_neon = COLOR_ACID_GREEN if scheme == "crimson" else COLOR_CRIMSON
 
-        # 1. Красная засветка экрана
+
         screen_alpha = int(66 * intensity)
         if screen_alpha > 0:
             painter.fillRect(
                 self.rect(), with_alpha(primary_neon, screen_alpha)
             )
 
-        # 2. Хроматическое ядро вспышки: горизонтальные datamosh-срезы,
-        # а не сплошные цветные прямоугольники.
+
         shift = PIXEL_SIZE * 2
         core_alpha = int(150 * intensity)
         bands = 7
@@ -822,7 +806,7 @@ class TransitionOverlay(QWidget):
                 )
         painter.fillRect(wr, with_alpha(COLOR_WHITE, int(215 * intensity)))
 
-        # 3. Срезанные аварийные панели по краям экрана
+
         if intensity > 0.28:
             band_h = max(10, wr.height() // 10)
             for rect in (
@@ -846,7 +830,7 @@ class TransitionOverlay(QWidget):
                     painter, rect, intensity=intensity * 0.85, color=secondary_neon
                 )
 
-        # 4. Октагональные волны
+
         wave_radius = snap_pixel(int(max_dim * 1.7 * flash_p))
         if wave_radius > PIXEL_SIZE * 2:
             wave_alpha = int(225 * intensity)
@@ -864,7 +848,7 @@ class TransitionOverlay(QWidget):
                     with_alpha(secondary_neon, int(wave_alpha * 0.7)),
                 )
 
-        # 5. Bayer-дизеринг вокруг силуэта
+
         dither_zone = wr.adjusted(
             -PIXEL_SIZE * 18,
             -PIXEL_SIZE * 18,
@@ -913,7 +897,7 @@ class TransitionOverlay(QWidget):
                 dst = QRect(left + dx, top + sy, w, sh)
                 painter.drawPixmap(dst, self._target_pixmap, src)
 
-                # Хроматический шлейф среза (редкий, чтобы не пересвечивать кадр)
+
                 if intensity > 0.35 and random.random() < 0.32:
                     chroma_dx = dx + random.choice((-4, 4))
                     painter.setOpacity(0.35)
@@ -924,7 +908,7 @@ class TransitionOverlay(QWidget):
                     )
                     painter.setOpacity(1.0)
 
-        # Неоновые полосы по палитре Капри
+
         bar_count = int(4 + 22 * intensity)
         for _ in range(bar_count):
             by = top + snap_pixel(random.randint(0, max(0, h - PIXEL_SIZE)))
@@ -934,7 +918,7 @@ class TransitionOverlay(QWidget):
             )
             painter.fillRect(left, by, w, bh, col)
 
-        # Цифровые пиксельные блоки (байты шума)
+
         block_count = int(22 + 150 * intensity)
         for _ in range(block_count):
             bx = left + snap_pixel(random.randint(0, max(0, w - PIXEL_SIZE)))

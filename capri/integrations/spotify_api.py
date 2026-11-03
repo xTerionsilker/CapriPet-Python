@@ -98,13 +98,13 @@ def load_credentials() -> tuple[str, str] | None:
 
 
 def config_path() -> Path:
-    # 1. Централизованный каталог проекта .capri
+
     project_root = Path(__file__).resolve().parent.parent.parent
     local_spotify = project_root / ".capri" / "spotify.json"
     if local_spotify.is_file():
         return local_spotify
 
-    # 2. Системный каталог конфигурации (%APPDATA% для Windows, ~/.config для Linux)
+
     if sys.platform == "win32":
         appdata = os.environ.get("APPDATA")
         base = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
@@ -115,7 +115,7 @@ def config_path() -> Path:
     if system_spotify.is_file():
         return system_spotify
 
-    # По умолчанию для новых файлов используем .capri в проекте (если доступен), иначе системный путь
+
     local_dir = project_root / ".capri"
     try:
         local_dir.mkdir(parents=True, exist_ok=True)

@@ -78,7 +78,7 @@ def _score_candidate(query: str, target: str) -> float:
 
 
 def _score_process_group(query: str, name: str, cmds: list[str]) -> float:
-    # Очищаем расширение .exe при сопоставлении
+
     clean_name = name
     if clean_name.lower().endswith(".exe"):
         clean_name = clean_name[:-4]
@@ -104,10 +104,10 @@ def find_matching_processes(query: str, limit: int = 5) -> list[dict[str, Any]]:
     if not processes:
         return []
 
-    # Текущий процесс CapriPet не предлагаем убивать
+
     cur_pid = os.getpid()
 
-    # Группировка процессов по имени
+
     groups: dict[str, dict[str, Any]] = {}
     for p in processes:
         if p["pid"] == cur_pid:

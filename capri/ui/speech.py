@@ -60,17 +60,17 @@ _CHEVRONS = {
 
 
 class CyberHudBubble(QWidget):
-    """
-    Sci-Fi HUD диалоговое облачко в эстетике Cyberpunk:
-    - Анимированное появление: лазерный луч -> голографическое развёртывание
-    - Анимированное исчезновение: цифровой глитч -> CRT-схлопывание в лазерную линию -> угасание
-    - Направленный кибер-разъем/шеврон (◀ / ▶ / ▼ / ▲), указывающий прямо на Капри
-    - Скошенный угол (chamfer) в правом верхнем углу
-    - Киберпанк-палитра: Neon Crimson (#F20D2E) и Acid Green (#3CF12B) на Obsidian Black (#0B0B0B)
-    - Отрисовка сканлайнов (scanlines) и скан-линии развёртки
-    - Верхний заголовок терминала [CAPRI://NET_LINK] с направлением
-    - Пиксельная неоновая тень/свечение со смещением
-    """
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+
 
     def __init__(
         self,
@@ -84,10 +84,10 @@ class CyberHudBubble(QWidget):
         self._title = title
         self._chamfer = chamfer
         self._shadow_offset = shadow_offset
-        self._pointer_direction = "left"  # left, right, down, up, none
+        self._pointer_direction = "left"
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
-        # Фазы анимации: "opening", "idle", "closing", "closed"
+
         self._anim_phase: str = "opening"
         self._anim_progress: float = 0.0
         self._anim_duration: float = 0.25
@@ -95,7 +95,7 @@ class CyberHudBubble(QWidget):
         self._anim_callback: Callable[[], None] | None = None
 
         self._anim_timer = QTimer(self)
-        self._anim_timer.setInterval(16)  # ~60 FPS
+        self._anim_timer.setInterval(16)
         self._anim_timer.timeout.connect(self._on_anim_tick)
 
     def set_title(self, title: str) -> None:
@@ -164,7 +164,7 @@ class CyberHudBubble(QWidget):
             if cb is not None:
                 cb()
 
-    def paintEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
@@ -181,33 +181,31 @@ class CyberHudBubble(QWidget):
         phase = self._anim_phase
         prog = self._anim_progress
 
-        # ==============================================================
-        # 1. АНИМАЦИЯ ПОЯВЛЕНИЯ: Лазерная вспышка -> Голографический разворот
-        # ==============================================================
+
         if phase == "opening":
             if prog < 0.22:
-                # Фаза 1: Горизонтальный лазерный луч разворачивается по ширине
+
                 p1 = prog / 0.22
                 w_beam = max(14, int(bw * (1.0 - (1.0 - p1) ** 2)))
                 x_start = (bw - w_beam) // 2
 
-                # Ореол неонового свечения (розовый)
+
                 painter.fillRect(
                     x_start - 6, y_mid - 4, w_beam + 12, 8,
                     QColor(255, 30, 70, int(190 * p1)),
                 )
-                # Тело лазерного луча (циан)
+
                 painter.fillRect(
                     x_start, y_mid - 2, w_beam, 4,
                     QColor(0, 240, 255, 240),
                 )
-                # Белое горячее ядро в центре
+
                 core_w = max(1, w_beam - 8)
                 painter.fillRect(
                     x_start + 4, y_mid - 1, core_w, 2,
                     QColor(255, 255, 255, 255),
                 )
-                # Хроматические искры на концах луча
+
                 painter.fillRect(
                     x_start - 4, y_mid - 3, 3, 6,
                     QColor(255, 30, 70, 220),
@@ -218,26 +216,25 @@ class CyberHudBubble(QWidget):
                 )
                 return
 
-            # Фаза 2: Развертывание по вертикали из центра
+
             p2 = (prog - 0.22) / 0.78
-            e_h = 1.0 - (1.0 - p2) ** 3  # ease-out cubic
+            e_h = 1.0 - (1.0 - p2) ** 3
             h_cur = max(6, int(bh * e_h))
             y_top = max(0, y_mid - h_cur // 2)
             y_bot = y_top + h_cur
 
             painter.setClipRect(QRect(-12, y_top, w + 24, h_cur + so + 12))
             intensity = (1.0 - p2) * 0.7
-        # ==============================================================
-        # 2. АНИМАЦИЯ ИСЧЕЗНОВЕНИЯ: Глитч -> CRT-схлопывание в лазер
-        # ==============================================================
+
+
         elif phase == "closing":
             if prog < 0.25:
-                # Фаза 1: Ударная волна глитча и десинхронизация
+
                 intensity = 1.0
             elif prog < 0.75:
-                # Фаза 2: Схлопывание по вертикали в горизонтальную линию
+
                 p_c = (prog - 0.25) / 0.50
-                e_c = p_c ** 2  # ускоряющееся схлопывание
+                e_c = p_c ** 2
                 h_cur = max(4, int(bh * (1.0 - e_c)))
                 y_top = y_mid - h_cur // 2
                 y_bot = y_top + h_cur
@@ -245,7 +242,7 @@ class CyberHudBubble(QWidget):
                 painter.setClipRect(QRect(-12, y_top, w + 24, h_cur + so + 12))
                 intensity = 0.8
             else:
-                # Фаза 3: Схлопывание горизонтального луча в точку и угасание
+
                 p_h = (prog - 0.75) / 0.25
                 w_beam = max(2, int(bw * (1.0 - p_h ** 2)))
                 x_start = (bw - w_beam) // 2
@@ -270,12 +267,12 @@ class CyberHudBubble(QWidget):
         is_glitch = intensity > 0.05
         shake_x = int(random.uniform(-4, 4) * intensity) if is_glitch else 0
 
-        # Геометрия контура с интегрированным кибер-разъемом / шевроном к Капри
+
         dir_ = self._pointer_direction
         path = QPainterPath()
         path.moveTo(shake_x, 0)
 
-        # Верхняя грань
+
         if dir_ == "up":
             path.lineTo(x_mid - 12 + shake_x, 0)
             path.lineTo(x_mid - 5 + shake_x, 6)
@@ -283,10 +280,10 @@ class CyberHudBubble(QWidget):
             path.lineTo(x_mid + 12 + shake_x, 0)
         path.lineTo(bw - c + shake_x, 0)
 
-        # Скошенный угол
+
         path.lineTo(bw + shake_x, c)
 
-        # Правая грань
+
         if dir_ == "right":
             path.lineTo(bw + shake_x, y_mid - 12)
             path.lineTo(bw + shake_x - 6, y_mid - 5)
@@ -294,7 +291,7 @@ class CyberHudBubble(QWidget):
             path.lineTo(bw + shake_x, y_mid + 12)
         path.lineTo(bw + shake_x, bh)
 
-        # Нижняя грань
+
         if dir_ == "down":
             path.lineTo(x_mid + 12 + shake_x, bh)
             path.lineTo(x_mid + 5 + shake_x, bh - 6)
@@ -302,7 +299,7 @@ class CyberHudBubble(QWidget):
             path.lineTo(x_mid - 12 + shake_x, bh)
         path.lineTo(shake_x, bh)
 
-        # Левая грань
+
         if dir_ == "left":
             path.lineTo(shake_x, y_mid + 12)
             path.lineTo(shake_x + 6, y_mid + 5)
@@ -310,15 +307,15 @@ class CyberHudBubble(QWidget):
             path.lineTo(shake_x, y_mid - 12)
         path.closeSubpath()
 
-        # 1. Пиксельная неоновая тень/свечение со смещением (+so, +so)
+
         shadow_path = path.translated(so, so)
         shadow_alpha = int(90 + 50 * intensity) if is_glitch else 90
         painter.fillPath(shadow_path, QColor(242, 13, 46, shadow_alpha))
 
-        # 2. Глубокий темный фон (#0B0B0B)
+
         painter.fillPath(path, QColor(11, 11, 11, 248))
 
-        # 3. Сканлайны (алый / кислотно-зеленый с низкой прозрачностью)
+
         painter.save()
         painter.setClipPath(path)
         scanline_alpha = (
@@ -331,14 +328,14 @@ class CyberHudBubble(QWidget):
         for y in range(0, bh, 3):
             painter.drawLine(shake_x - 10, y, bw + shake_x + 10, y)
 
-        # Анимированная бегущая линия голографической развёртки
+
         if phase in ("opening", "closing") or is_glitch:
             sweep_y = int(bh * ((time.monotonic() * 2.5) % 1.0))
             painter.fillRect(shake_x - 10, sweep_y, bw + 20, 2, QColor(242, 13, 46, 110))
 
         painter.restore()
 
-        # 4. Хроматические RGB-аберрации при переходе
+
         if is_glitch and intensity > 0.08:
             dx = int(random.uniform(2, 6) * intensity)
             red_path = path.translated(-dx, 0)
@@ -346,16 +343,16 @@ class CyberHudBubble(QWidget):
             green_shift = path.translated(dx, 0)
             painter.strokePath(green_shift, QPen(QColor(60, 241, 43, int(160 * intensity)), 2))
 
-        # 5. Основная рамка (Neon Crimson #F20D2E)
+
         crimson_pen = QPen(QColor(NEON_CRIMSON), 2)
         painter.strokePath(path, crimson_pen)
 
-        # 6. Акценты кислотно-зеленым (#3CF12B)
+
         accent_pen = QPen(QColor(ACID_GREEN), 2)
         painter.setPen(accent_pen)
-        # Подсветка скошенного угла
+
         painter.drawLine(bw - c + shake_x, 0, bw + shake_x, c)
-        # Угловые засечки киберпанк HUD
+
         painter.drawLine(shake_x, 0, shake_x + 10, 0)
         painter.drawLine(shake_x, 0, shake_x, 10)
         painter.drawLine(shake_x, bh - 10, shake_x, bh)
@@ -363,7 +360,7 @@ class CyberHudBubble(QWidget):
         painter.drawLine(bw - 10 + shake_x, bh, bw + shake_x, bh)
         painter.drawLine(bw + shake_x, bh - 10, bw + shake_x, bh)
 
-        # 7. Индикаторный неоновый шеврон внутри направляющего разъёма
+
         chevron_color = QColor(NEON_CRIMSON) if is_glitch else QColor(ACID_GREEN)
         painter.setPen(QPen(chevron_color, 2))
         if dir_ == "left":
@@ -375,7 +372,7 @@ class CyberHudBubble(QWidget):
         elif dir_ == "up":
             painter.drawLine(x_mid + shake_x, 3, x_mid + shake_x, 1)
 
-        # 8. Случайные срезы (Slice Jitter) при анимациях
+
         if is_glitch and intensity > 0.15:
             for _ in range(random.randint(2, 4)):
                 sy = random.randint(0, bh - 1)
@@ -386,7 +383,7 @@ class CyberHudBubble(QWidget):
                 slice_color.setAlpha(int(random.randint(40, 100) * intensity))
                 painter.fillRect(sx, sy, sw, sh, slice_color)
 
-        # 9. Верхняя терминальная плашка / заголовок с направлением на Капри
+
         font = QFont("Press Start 2P")
         font.setPixelSize(9)
         font.setBold(True)
@@ -403,7 +400,7 @@ class CyberHudBubble(QWidget):
             title_with_dir,
         )
 
-        # 10. Неоновые лазерные границы при раскрытии / схлопывании
+
         if phase == "opening" and prog >= 0.22 and prog < 0.95:
             painter.fillRect(0, y_top - 1, bw, 2, QColor(242, 13, 46, 230))
             painter.fillRect(0, y_bot - 1, bw, 2, QColor(60, 241, 43, 230))
@@ -443,16 +440,16 @@ class SpeechWindow(QFrame):
         self._finished = False
         self._phase = "opening"
 
-        # Определение целевого виджета Капри для позиционирования
+
         self._target_widget: QWidget | None = self._resolve_target(parent)
         self._current_active_target: QWidget | None = self._target_widget
         self._last_target_geom: QRect | None = None
         self._side: str = "right"
 
-        # Начальная прозрачность для плавного появления
+
         self.setWindowOpacity(0.0)
 
-        # Расчет полной высоты для предотвращения обрезания строк
+
         doc = QTextDocument()
         font = QFont("Press Start 2P")
         font.setPixelSize(13)
@@ -507,7 +504,7 @@ class SpeechWindow(QFrame):
         self._cursor_timer.setInterval(480)
         self._cursor_timer.timeout.connect(self._on_cursor_tick)
 
-        # Таймер слежения за положением Капри (для идеальной синхронизации при перетаскивании)
+
         self._follow_timer = QTimer(self)
         self._follow_timer.setInterval(25)
         self._follow_timer.timeout.connect(self._check_and_follow_target)
@@ -532,7 +529,7 @@ class SpeechWindow(QFrame):
         if widget is not None:
             return widget
 
-        # Если widget не передан, ищем активного Капри среди верхнеуровневых окон
+
         app = QGuiApplication.instance()
         if app is not None:
             for w in app.topLevelWidgets():
@@ -540,7 +537,7 @@ class SpeechWindow(QFrame):
                     return w
         return None
 
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802 (Qt naming)
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if watched is self._current_active_target:
             if event.type() in (QEvent.Type.Move, QEvent.Type.Resize):
                 self._check_and_follow_target()
@@ -606,7 +603,7 @@ class SpeechWindow(QFrame):
         else:
             self.start_close()
 
-    def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def showEvent(self, event) -> None:
         super().showEvent(event)
         if not self._clock.isValid() and self._phase == "opening":
             self._bubble.set_title("[CAPRI://NET_LINK]")
@@ -628,7 +625,7 @@ class SpeechWindow(QFrame):
         self._clock.start()
         self._timer.start()
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self.skip()
         else:
@@ -658,7 +655,7 @@ class SpeechWindow(QFrame):
     def _real_close(self) -> None:
         super().close()
 
-    def close(self, immediate: bool = False) -> bool:  # noqa: A003
+    def close(self, immediate: bool = False) -> bool:
         if immediate:
             self._real_close()
             return True
@@ -667,7 +664,7 @@ class SpeechWindow(QFrame):
             return True
         return super().close()
 
-    def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def closeEvent(self, event) -> None:
         self._follow_timer.stop()
         self._bubble.stop_animations()
         self._cursor_timer.stop()
@@ -783,7 +780,7 @@ class SpeechWindow(QFrame):
             )
             self._side = chosen_side
 
-            # Преобразуем сторону расположения облачка в направление к Капри
+
             dir_to_capri = {
                 "right": "left",
                 "left": "right",

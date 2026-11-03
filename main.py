@@ -32,8 +32,7 @@ def _prefer_xwayland() -> None:
 def main() -> int:
     _prefer_xwayland()
 
-    # Прогреваем Vosk и определяем User-Agent параллельно с инициализацией Qt,
-    # чтобы первый триггер и сетевые запросы обрабатывались без задержек.
+
     if get_config_value("audio.voice_enabled", True):
         preload_model_async()
     init_user_agent_async()

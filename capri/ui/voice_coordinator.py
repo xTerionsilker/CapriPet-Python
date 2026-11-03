@@ -172,8 +172,8 @@ class VoiceCoordinator(QObject):
             hud.set_recognized_text(text, keep_ms=2500)
 
         if command:
-            # После успешного распознавания команды переводим микрофон в Follow-up окно:
-            # Capri остается готовым к следующим командам еще ~4.5 сек без повтора «Капри».
+
+
             self._voice_armed_until = time.monotonic() + VOICE_FOLLOWUP_WINDOW_MS / 1000
             self._voice_window_timer.start(VOICE_FOLLOWUP_WINDOW_MS)
             self._voice.set_armed(True)

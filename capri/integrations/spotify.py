@@ -85,7 +85,7 @@ def _current_track_windows() -> tuple[str, str] | None:
         user32 = ctypes.windll.user32
         titles: list[str] = []
 
-        # WNDENUMPROC callback
+
         wnd_enum_proc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
 
         def enum_cb(hwnd: ctypes.c_void_p, _extra: ctypes.c_void_p) -> bool:
@@ -96,7 +96,7 @@ def _current_track_windows() -> tuple[str, str] | None:
                 buff = ctypes.create_unicode_buffer(length + 1)
                 user32.GetWindowTextW(hwnd, buff, length + 1)
                 text = buff.value.strip()
-                # Spotify window class or title checks
+
                 class_buf = ctypes.create_unicode_buffer(256)
                 user32.GetClassNameW(hwnd, class_buf, 256)
                 cls_name = class_buf.value
@@ -108,7 +108,7 @@ def _current_track_windows() -> tuple[str, str] | None:
 
         for cls_name, text in titles:
             if cls_name == "Chrome_WidgetWin_0" and text and text != "Spotify" and text != "Spotify Free" and text != "Spotify Premium":
-                # Заголовок главного окна Spotify в Windows имеет вид: "Artist - Title" или "Artist — Title"
+
                 delimiter = " — " if " — " in text else (" - " if " - " in text else None)
                 if delimiter:
                     parts = text.split(delimiter, 1)
@@ -120,7 +120,7 @@ def _current_track_windows() -> tuple[str, str] | None:
 
 
 def _current_track_linux() -> tuple[str, str] | None:
-    # 1. Попытка через playerctl, если установлена
+
     if shutil.which("playerctl") is not None:
         try:
             res = subprocess.run(
@@ -138,7 +138,7 @@ def _current_track_linux() -> tuple[str, str] | None:
         except (OSError, subprocess.TimeoutExpired):
             pass
 
-    # 2. Попытка через dbus-send (MPRIS2)
+
     if shutil.which("dbus-send") is not None:
         try:
             res = subprocess.run(
@@ -215,7 +215,7 @@ def _send_win_media_key(vk_code: int) -> bool:
         import ctypes
 
         keybd_event = ctypes.windll.user32.keybd_event
-        # KEYEVENTF_EXTENDEDKEY = 0x0001, KEYEVENTF_KEYUP = 0x0002
+
         keybd_event(vk_code, 0, 1, 0)
         keybd_event(vk_code, 0, 1 | 2, 0)
         return True
@@ -225,8 +225,8 @@ def _send_win_media_key(vk_code: int) -> bool:
 
 def _player_call(method: str) -> bool:
     if sys.platform == "win32":
-        # Windows Virtual-Key Codes для мультимедиа:
-        # VK_MEDIA_NEXT_TRACK = 0xB0, VK_MEDIA_PREV_TRACK = 0xB1, VK_MEDIA_PLAY_PAUSE = 0xB3
+
+
         key_map = {
             "Play": 0xB3,
             "Pause": 0xB3,

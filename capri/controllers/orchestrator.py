@@ -33,15 +33,15 @@ class PetOrchestrator(QObject):
         self._started_at = time.monotonic()
         self._session_overlay: SessionAnimationOverlay | None = None
 
-        # Команды и обработка ввода
+
         self.commands = CommandRegistry()
         self.flow = InputFlow(self.commands, self._window)
 
-        # Мост фоновых действий
+
         self.actions = ActionBridge(self)
         self._connect_action_signals()
 
-        # Координатор голосового ввода
+
         self.voice_coordinator = VoiceCoordinator(
             self._window,
             on_command_ready=self.handle_command,
@@ -51,7 +51,7 @@ class PetOrchestrator(QObject):
             self.voice_coordinator.handle_awaiting_reply_changed
         )
 
-        # Контроллер неактивности (таймаут скрытия)
+
         self.inactivity = InactivityManager(
             main_window=self._window,
             is_closing=lambda: getattr(self._window, "is_closing", False),
@@ -60,7 +60,7 @@ class PetOrchestrator(QObject):
         )
         self._init_inactivity_settings()
 
-        # Напоминания о присутствии
+
         min_remind_ms = int(get_config_value("behavior.reminder_min_interval_ms", 600_000))
         max_remind_ms = int(get_config_value("behavior.reminder_max_interval_ms", 3_600_000))
         self.reminder = PresenceReminder(
@@ -160,7 +160,7 @@ class PetOrchestrator(QObject):
         if self._window.is_closing or self._window.is_speaking or self.inactivity.is_paused:
             return
 
-        # 1. Засекаем активное окно пользователя (или экран под курсором)
+
         target_rect = get_active_window_rect()
         effects = getattr(self._window, "effects", None)
 
@@ -169,7 +169,7 @@ class PetOrchestrator(QObject):
                 return
 
             if target_rect is not None and target_rect.isValid():
-                # Выбираем позицию для Капри рядом с активным окном
+
                 screen = self.inactivity.get_target_screen()
                 screen_area = screen.geometry() if screen is not None else target_rect
                 pet_w = self._window.width()
@@ -184,7 +184,7 @@ class PetOrchestrator(QObject):
                 )
 
                 if self._window.isVisible():
-                    # Телепортируем или перемещаем к активному окну
+
                     teleport_ctrl = getattr(self._window, "_teleport", None)
                     if teleport_ctrl is not None:
                         from PySide6.QtCore import QPoint
@@ -195,7 +195,7 @@ class PetOrchestrator(QObject):
                         self._window.move(target_x, target_y)
                     self._window.speak(phrase)
                 else:
-                    # Устанавливаем координаты перед показом
+
                     self._window.move(target_x, target_y)
                     self.inactivity.show_with_callback(lambda: self._window.speak(phrase))
             else:
@@ -204,7 +204,7 @@ class PetOrchestrator(QObject):
                 else:
                     self.inactivity.show_with_callback(lambda: self._window.speak(phrase))
 
-        # Запускаем концентрированный глитч над окном перед появлением
+
         if effects is not None and target_rect is not None and target_rect.isValid():
             effects.glitch_burst(
                 target_rect,
@@ -342,4 +342,3 @@ class PetOrchestrator(QObject):
             )
             self.flow.expect_reply(_on_confirm, timeout_ms=20_000)
             self._window.speak(prompt, hold_ms=20_000)
-

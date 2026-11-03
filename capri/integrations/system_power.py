@@ -54,13 +54,13 @@ def power_commands(action: str) -> list[list[str]]:
 
 def run_power(commands: list[list[str]]) -> bool:
     if sys.platform == "win32":
-        # Проверяем, если команда относится к спящему режиму
+
         for command in commands:
             if any("powrprof" in arg.lower() for arg in command):
                 try:
                     import ctypes
 
-                    # SetSuspendState(bHibernate, bForce, bWakeupEventsDisabled)
+
                     if ctypes.windll.powrprof.SetSuspendState(0, 1, 0):
                         return True
                 except Exception:

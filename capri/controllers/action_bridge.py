@@ -33,7 +33,6 @@ class ActionBridge(QObject):
         self._ai_pending: str = ""
         self._ai_busy: bool = False
 
-    # --- AI Integration ---
 
     def ask_ai(self, prompt: str) -> str:
         prompt = prompt.strip()
@@ -86,7 +85,6 @@ class ActionBridge(QObject):
         self._ai_pending = ""
         self.ai_finished.emit()
 
-    # --- Spotify ---
 
     def spotify_play(self, query: str) -> str:
         query = query.strip()
@@ -122,7 +120,6 @@ class ActionBridge(QObject):
     def spotify_current_track(self) -> str:
         return spotify.current_track()
 
-    # --- Screen Lock ---
 
     def lock_screen(self) -> str:
         commands = lock_commands()
@@ -141,7 +138,6 @@ class ActionBridge(QObject):
         if not run_lock(commands):
             self.speech_requested.emit("Не удалось заблокировать экран.")
 
-    # --- System Power ---
 
     def power_off(self) -> str:
         return self._queue_power("poweroff", "Выключаю ПК.")
@@ -152,7 +148,6 @@ class ActionBridge(QObject):
     def reboot(self) -> str:
         return self._queue_power("reboot", "Перезагружаю ПК.")
 
-    # --- Web Search ---
 
     def search_google(self, query: str) -> str:
         return web_search.search_google(query)

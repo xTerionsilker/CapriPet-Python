@@ -105,7 +105,7 @@ def _parse_selected_number(text: str, max_number: int = 5) -> int | None:
         if 1 <= num <= max_number:
             return num
 
-    # Проверка отдельных слов и переключений раскладки
+
     words = _answer_words(text)
     for w in words:
         if w in NUMBER_WORDS_MAP:
@@ -213,4 +213,3 @@ class InputFlow(QObject):
         else:
             reply = self._registry.dispatch(command.name)
         return reply if reply is not None else "Готово."
-

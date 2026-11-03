@@ -180,11 +180,8 @@ class ModelInitOverlay(QWidget):
                 pass
         self.close()
 
-    # ------------------------------------------------------------------
-    # Отрисовка
-    # ------------------------------------------------------------------
 
-    def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
+    def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         p = self._progress
@@ -241,14 +238,14 @@ class ModelInitOverlay(QWidget):
 
         painter.fillRect(panel, _with_alpha(COLOR_OBSIDIAN, base_alpha))
 
-        # Сканлайны и лёгкий шум внутри панели.
+
         painter.save()
         painter.setClipRect(panel)
         painter.setPen(QPen(_with_alpha(COLOR_CRIMSON, 20), 1))
         for y in range(panel.top() + 2, panel.bottom(), 3):
             painter.drawLine(panel.left() + 2, y, panel.right() - 2, y)
 
-        # Бегущая полоса сканирования.
+
         if appear >= 1.0 and not failed:
             sweep = (self._elapsed // 4) % max(1, panel.height())
             painter.fillRect(
@@ -274,7 +271,7 @@ class ModelInitOverlay(QWidget):
                 )
         painter.restore()
 
-        # Двойная рамка и срезанный угол.
+
         painter.setPen(QPen(_with_alpha(accent, base_alpha), 2))
         painter.drawRect(panel.adjusted(1, 1, -1, -1))
         painter.setPen(QPen(_with_alpha(COLOR_WHITE, int(120 * appear)), 1))
@@ -290,7 +287,7 @@ class ModelInitOverlay(QWidget):
             panel.right() - cut, panel.top() + 1, panel.right() - 1, panel.top() + cut
         )
 
-        # Заголовок HUD.
+
         header = QRect(panel.left() + 18, panel.top() + 14, panel.width() - 36, 18)
         painter.setFont(_font(9))
         painter.setPen(_with_alpha(COLOR_ACID_GREEN, int(230 * appear)))
@@ -307,7 +304,7 @@ class ModelInitOverlay(QWidget):
         painter.setPen(QPen(_with_alpha(COLOR_CRIMSON, int(210 * appear)), 1))
         painter.drawLine(panel.left() + 18, line_y, panel.right() - 18, line_y)
 
-        # Заголовок и состояние.
+
         title = QRect(panel.left() + 18, panel.top() + 52, panel.width() - 36, 30)
         if online:
             title_text = "VOSK CORE // ONLINE"
@@ -364,7 +361,7 @@ class ModelInitOverlay(QWidget):
             self._model_name.upper(),
         )
 
-        # Сегментированный прогресс-бар.
+
         bar = QRect(panel.left() + 18, panel.top() + 146, panel.width() - 36, 20)
         painter.setPen(QPen(_with_alpha(COLOR_VIOLET, int(190 * appear)), 1))
         painter.drawRect(bar)
@@ -399,7 +396,7 @@ class ModelInitOverlay(QWidget):
             state_text,
         )
 
-        # Телеметрия загрузки.
+
         telemetry = QRect(panel.left() + 18, panel.top() + 200, panel.width() - 36, 46)
         painter.setFont(_font(7))
         rows = (
@@ -427,7 +424,7 @@ class ModelInitOverlay(QWidget):
                 value,
             )
 
-        # Угловые засечки и акцентные штрихи.
+
         painter.setPen(QPen(_with_alpha(COLOR_ACID_GREEN, int(220 * appear)), 2))
         painter.drawLine(panel.left() + 8, panel.bottom() - 8, panel.left() + 8, panel.bottom() - 28)
         painter.drawLine(panel.left() + 8, panel.bottom() - 8, panel.left() + 30, panel.bottom() - 8)

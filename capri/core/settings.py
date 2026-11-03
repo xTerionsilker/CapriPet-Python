@@ -167,7 +167,7 @@ def _resolve_config_dir() -> Path:
         except Exception as e:
             logger.warning("Не удалось использовать CAPRI_CONFIG_DIR=%s: %s", env_dir, e)
 
-    # 1. Централизованный каталог проекта .capri
+
     local_dir = _get_project_root() / ".capri"
     try:
         local_dir.mkdir(parents=True, exist_ok=True)
@@ -178,7 +178,7 @@ def _resolve_config_dir() -> Path:
     except OSError:
         pass
 
-    # 2. Системный каталог конфигурации (%APPDATA% для Windows, ~/.config для Linux)
+
     if sys.platform == "win32":
         appdata = os.environ.get("APPDATA")
         base_config = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
@@ -195,7 +195,7 @@ def _resolve_config_dir() -> Path:
     except OSError:
         pass
 
-    # 3. Временная директория
+
     return Path(tempfile.gettempdir())
 
 

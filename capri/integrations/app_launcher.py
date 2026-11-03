@@ -117,7 +117,7 @@ def _scan_windows_applications() -> list[dict[str, Any]]:
                         }
 
     try:
-        import winreg  # type: ignore
+        import winreg
 
         for hkey in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
             try:
@@ -171,14 +171,14 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
     exec_base = re.sub(r"\.(exe|desktop)$", "", exec_bin.lower())
     comment = app.get("comment", "").lower()
 
-    # Точные совпадения целиком
+
     for cand in candidates:
         if cand == name or cand == exec_base:
             return 100.0
 
     best = 0.0
 
-    # Проверка слов в названии и исполняемом файле
+
     name_tokens = re.split(r"[\s\-_\.]+", f"{name} {exec_base}")
     for token in name_tokens:
         if not token:
@@ -203,7 +203,7 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
             if score > best:
                 best = score
 
-    # Проверка слов в описании (comment)
+
     comment_tokens = re.split(r"[\s\-_\.]+", comment)
     for token in comment_tokens:
         if not token:
@@ -237,12 +237,12 @@ def find_matching_applications(query: str, limit: int = 5) -> list[dict[str, Any
     scored: list[tuple[float, dict[str, Any]]] = []
     for app in apps:
         score = _score_application(trimmed, app)
-        if score >= 25.0:  # порог релевантности
+        if score >= 25.0:
             scored.append((score, app))
 
     scored.sort(key=lambda x: x[0], reverse=True)
 
-    # Убираем дубликаты по названию
+
     seen_names: set[str] = set()
     result: list[dict[str, Any]] = []
     for _, app in scored:
@@ -264,7 +264,7 @@ def launch_application(app: dict[str, Any]) -> bool:
 
     try:
         if sys.platform == "win32":
-            os.startfile(exec_cmd)  # type: ignore[attr-defined]
+            os.startfile(exec_cmd)
             return True
 
         cmd_parts = _clean_exec_command(exec_cmd)

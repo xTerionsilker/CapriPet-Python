@@ -49,16 +49,16 @@ def _is_fuzzy_wake_word(word: str) -> bool:
 
 
 def command_after_trigger(text: str) -> str | None:
-    """Извлекает команду после активационной фразы.
+\
+\
+\
+\
 
-    Сначала проверяет явные паттерны через регулярное выражение,
-    а затем выполняет нечеткий поиск первого слова/токенов с опечатками Vosk.
-    """
     normalized = voice_normalized(text)
     if not normalized:
         return None
 
-    # 1. Быстрый regex матч
+
     match = VOICE_TRIGGER_RE.search(normalized)
     if match is not None:
         tokens = text.split()
@@ -66,7 +66,7 @@ def command_after_trigger(text: str) -> str | None:
         before = len(normalized[: match.start()].split())
         return " ".join(tokens[before + consumed:]).strip()
 
-    # 2. Нечеткий поиск триггерного слова в начале фразы
+
     tokens = text.split()
     if not tokens:
         return None
@@ -75,7 +75,7 @@ def command_after_trigger(text: str) -> str | None:
     if _is_fuzzy_wake_word(first):
         return " ".join(tokens[1:]).strip()
 
-    # Проверка двухсловного триггера (например, «кап ри», «как при»)
+
     if len(tokens) >= 2:
         combined = (tokens[0] + tokens[1]).casefold()
         if _is_fuzzy_wake_word(combined):

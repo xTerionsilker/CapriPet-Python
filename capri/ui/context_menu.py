@@ -22,7 +22,7 @@ class ContextMenuBuilder:
         """Создает и настраивает контекстное меню."""
         menu = CyberMenu(self.window if isinstance(self.window, QWidget) else None)
 
-        # 0. Тактический мета-заголовок терминала
+
         hdr = menu.addAction("▶ CAPRI//NEURAL_LINK [ONLINE]")
         hdr.setEnabled(False)
         menu.addSeparator()
@@ -40,27 +40,27 @@ class ContextMenuBuilder:
             menu.setDefaultAction(call_act)
             menu.addSeparator()
 
-        # 1. Быстрые действия и переключатели (верхний приоритет)
+
         self._add_quick_actions(menu)
 
         menu.addSeparator()
 
-        # 2. Аудиоинтерфейс (Звук, Микрофон, Громкость)
+
         self._add_audio_section(menu)
 
         menu.addSeparator()
 
-        # 3. Визуальный блок и дисплей (Масштаб, Глитчи, Монитор)
+
         self._add_visual_section(menu)
 
         menu.addSeparator()
 
-        # 4. Поведение и система (Таймаут сна, Напоминания)
+
         self._add_behavior_section(menu)
 
         menu.addSeparator()
 
-        # 5. Завершение работы
+
         quit_act = menu.addAction("✖  [SYS.HALT] Завершить работу")
         quit_act.triggered.connect(self.window.close)
 
@@ -101,19 +101,19 @@ class ContextMenuBuilder:
         )
 
     def _add_audio_section(self, parent_menu: QMenu) -> None:
-        # Аудио-блок
+
         self._add_sound_menu(parent_menu)
         self._add_volume_menu(parent_menu)
         self._add_microphone_menu(parent_menu)
 
     def _add_visual_section(self, parent_menu: QMenu) -> None:
-        # Визуальные настройки
+
         self._add_scale_menu(parent_menu)
         self._add_glitch_intensity_menu(parent_menu)
         self._add_screen_menu(parent_menu)
 
     def _add_behavior_section(self, parent_menu: QMenu) -> None:
-        # Поведение
+
         self._add_activity_timeout_menu(parent_menu)
         self._add_reminder_toggle(parent_menu)
 

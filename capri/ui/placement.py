@@ -118,44 +118,44 @@ def pick_adjacent_position(
     preferred_side: str | None = None,
     margin: int = 12,
 ) -> tuple[int, int, str]:
-    """Размещает окно строго рядом с целевым прямоугольником target (Капри).
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
 
-    Возвращает (x, y, side), где side: 'right' | 'left' | 'top' | 'bottom'.
-    Порядок приоритетов:
-    1. preferred_side (если передана и помещается без пересечения с target)
-    2. Боковая сторона с наибольшим свободным пространством (справа или слева)
-    3. Противоположная боковая сторона
-    4. Сверху (top) над target
-    5. Снизу (bottom) под target
-    6. Позиция с наименьшим пересечением, если экран слишком мал.
-    """
     safe_left = area.left() + margin
     safe_right = area.right() - margin
     safe_top = area.top() + margin
     safe_bottom = area.bottom() - margin
 
-    # 1. Справа
+
     rx = target.right() + gap
     ry = target.center().y() - height // 2
     ry_clamped = max(safe_top, min(ry, safe_bottom - height))
     right_rect = QRect(rx, ry_clamped, width, height)
     fits_right = (rx + width <= safe_right) and not right_rect.intersects(target)
 
-    # 2. Слева
+
     lx = target.left() - gap - width
     ly = target.center().y() - height // 2
     ly_clamped = max(safe_top, min(ly, safe_bottom - height))
     left_rect = QRect(lx, ly_clamped, width, height)
     fits_left = (lx >= safe_left) and not left_rect.intersects(target)
 
-    # 3. Сверху
+
     tx = target.center().x() - width // 2
     tx_clamped = max(safe_left, min(tx, safe_right - width))
     ty = target.top() - gap - height
     top_rect = QRect(tx_clamped, ty, width, height)
     fits_top = (ty >= safe_top) and not top_rect.intersects(target)
 
-    # 4. Снизу
+
     bx = target.center().x() - width // 2
     bx_clamped = max(safe_left, min(bx, safe_right - width))
     by = target.bottom() + gap
@@ -169,12 +169,12 @@ def pick_adjacent_position(
         "bottom": (bx_clamped, by, fits_bottom, bottom_rect),
     }
 
-    # Если preferred_side задана и помещается без перекрытия
+
     if preferred_side and preferred_side in candidates and candidates[preferred_side][2]:
         x, y, _, _ = candidates[preferred_side]
         return x, y, preferred_side
 
-    # Проверяем, с какой стороны от target больше места
+
     space_right = max(0, safe_right - target.right() - gap)
     space_left = max(0, target.left() - safe_left - gap)
 
@@ -183,14 +183,13 @@ def pick_adjacent_position(
     else:
         ordered_sides = ["left", "right", "top", "bottom"]
 
-    # Ищем первую сторону, которая помещается полностью
+
     for side in ordered_sides:
         x, y, fits, _ = candidates[side]
         if fits:
             return x, y, side
 
-    # Если ни одна сторона не поместилась идеально (узкий экран/большое окно):
-    # выбираем позицию с минимальным перекрытием с target
+
     best_side = ordered_sides[0]
     best_overlap = float("inf")
     best_x, best_y = candidates[best_side][0], candidates[best_side][1]
@@ -216,4 +215,3 @@ def pick_side_position(
     """Размещает окно строго рядом с целевым прямоугольником target."""
     x, y, _ = pick_adjacent_position(area, target, width, height, gap=gap)
     return x, y
-

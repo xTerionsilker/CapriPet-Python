@@ -13,4 +13,3 @@ __all__ = [
     "play_session_animation",
     "TransitionOverlay",
 ]
-

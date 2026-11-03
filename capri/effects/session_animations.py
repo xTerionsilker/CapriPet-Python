@@ -25,7 +25,7 @@ from .transition_fx import (
 )
 from ..ui.speech_sfx import get_speech_sfx
 
-# Длительность сессионной анимации. Действие выполняется после её завершения.
+
 SESSION_ANIMATION_DURATION_MS = 1500
 SESSION_ACTION_LEAD_MS = 1800
 
@@ -278,7 +278,7 @@ class SessionAnimationOverlay(QWidget):
         rate *= 0.65 + self._glitch_power(p)
         if random.random() > rate * dt:
             return
-        accent: QColor = self._profile["accent"]  # type: ignore[assignment]
+        accent: QColor = self._profile["accent"]
         for _ in range(2):
             x = wr.center().x() + random.randint(-wr.width() // 2, wr.width() // 2)
             y = wr.center().y() + random.randint(-wr.height() // 2, wr.height() // 2)
@@ -309,16 +309,13 @@ class SessionAnimationOverlay(QWidget):
                 )
             )
 
-    # ------------------------------------------------------------------
-    # Отрисовка
-    # ------------------------------------------------------------------
 
-    def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
+    def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         p = self._progress
-        accent: QColor = self._profile["accent"]  # type: ignore[assignment]
-        counter: QColor = self._profile["counter"]  # type: ignore[assignment]
+        accent: QColor = self._profile["accent"]
+        counter: QColor = self._profile["counter"]
 
         backdrop = 110 + 45 * math.sin(p * math.pi) + 120 * (p ** 2)
         painter.fillRect(self.rect(), _with_alpha(COLOR_OBSIDIAN, int(backdrop)))
@@ -388,7 +385,7 @@ class SessionAnimationOverlay(QWidget):
         wr = self._local_window
         power = self._glitch_power(p)
 
-        # Горизонтальные разрывы кадра и хроматические сдвиги.
+
         tear_count = (rng.randint(5, 13) if burst else rng.randint(0, 2)) * max(1, int(power))
         for _ in range(tear_count):
             y = snap_pixel(rng.randint(0, max(0, h - 1)))
@@ -412,7 +409,7 @@ class SessionAnimationOverlay(QWidget):
                 painter.fillRect(shift, y, w, band_h, _with_alpha(COLOR_CRIMSON, min(230, int(45 + 55 * power))))
                 painter.fillRect(-shift, y + PIXEL_SIZE, w, band_h, _with_alpha(COLOR_ACID_GREEN, min(220, int(35 + 45 * power))))
 
-        # Датамош-блоки, вырванные из спрайта Капри.
+
         if burst and self._target_pixmap is not None and not self._target_pixmap.isNull():
             pw = self._target_pixmap.width()
             ph = self._target_pixmap.height()
@@ -435,7 +432,7 @@ class SessionAnimationOverlay(QWidget):
                     ),
                 )
 
-        # Плотный цифровой шум и битые пиксельные кластеры.
+
         noise_base = rng.randint(45, 150) if burst else rng.randint(6, 18)
         noise_count = int(noise_base * (0.65 + power * 0.9))
         for _ in range(noise_count):
@@ -450,7 +447,7 @@ class SessionAnimationOverlay(QWidget):
                 _with_alpha(pick_palette_color(), rng.randint(70, min(255, int(150 + 65 * power)))),
             )
 
-        # Аварийная телеметрия в случайных местах экрана.
+
         if burst and rng.random() < min(0.98, 0.55 + 0.2 * power):
             phrase = rng.choice(_GLITCH_PHRASES)
             painter.setFont(_font(rng.choice((8, 10, 12, 16))))
@@ -464,7 +461,7 @@ class SessionAnimationOverlay(QWidget):
             painter.setPen(_with_alpha(COLOR_WHITE, rng.randint(180, 255)))
             painter.drawText(tx, ty, phrase)
 
-        # Аварийные боковые шины и обсидиановые вырезы.
+
         if burst:
             edge_h = snap_pixel(rng.randint(PIXEL_SIZE * 8, max(PIXEL_SIZE * 9, h // 8)))
             edge_y = snap_pixel(rng.randint(0, max(0, h - edge_h)))
@@ -522,7 +519,7 @@ class SessionAnimationOverlay(QWidget):
                 )
 
         if coverage >= 0.985:
-            # Финальная перегрузка: экран полностью уходит в RGB-кашу.
+
             shift = PIXEL_SIZE * 3
             painter.fillRect(
                 self.rect().translated(-shift, 0),

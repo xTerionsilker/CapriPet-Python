@@ -29,14 +29,14 @@ def get_mouse_position() -> QPoint:
         except Exception:
             pass
 
-    # 1. Сначала пробуем получить координаты через KWin Wayland DBus (KDE Plasma)
+
     kwin_pos = _get_kwin_mouse_position()
     if kwin_pos is not None:
         return kwin_pos
 
-    # 2. Фолбэк на стандартный QCursor.pos()
+
     pos = QCursor.pos()
-    # Проверка на валидность (в Wayland без прав чтения часто возвращаются 0,0 или гигантские числа)
+
     if pos.x() < 50000 and pos.y() < 50000:
         return pos
 
@@ -58,7 +58,7 @@ def move_mouse_to(
         except Exception:
             pass
 
-    # 1. Если это KDE Wayland, переключаем активный экран на нужный монитор и центрируем
+
     if screen_index is None:
         for idx, scr in enumerate(QGuiApplication.screens()):
             if scr.geometry().contains(target_point):
@@ -66,18 +66,18 @@ def move_mouse_to(
                 break
 
     if screen_index is not None:
-        # Переключаем KWin на нужный монитор и центрируем мышь на нём
+
         _invoke_kwin_shortcut(f"Switch to Screen {screen_index}")
         time.sleep(0.04)
         _invoke_kwin_shortcut("MoveMouseToCenter")
 
-    # 2. Стандартный Qt QCursor.setPos (отлично работает в X11/XWayland)
+
     try:
         QCursor.setPos(x, y)
     except Exception:
         pass
 
-    # 3. xdotool (если доступен в X11/XWayland)
+
     if shutil.which("xdotool"):
         try:
             subprocess.run(
@@ -88,7 +88,7 @@ def move_mouse_to(
         except Exception:
             pass
 
-    # 4. ydotool (Wayland uinput)
+
     if shutil.which("ydotool"):
         try:
             subprocess.run(

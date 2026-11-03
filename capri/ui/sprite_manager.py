@@ -82,7 +82,7 @@ class SpriteManager:
             raw = QPixmap(420, 420)
             self._raw_pixmaps[name] = raw
 
-        # 100% размер спрайта — базовый размер (width / 1.5, height / 1.5)
+
         base_width = max(1, int(raw.width() / 1.5))
         base_height = max(1, int(raw.height() / 1.5))
         scale_factor = self._scale_percent / 100.0
@@ -151,12 +151,12 @@ class SpriteManager:
                     self.load_pixmap(variant_key, file)
                     self._pose_variants[pose_name].append(variant_key)
 
-        # Псевдонимы категорий (sit -> idle, stay -> thinking, crouch -> other)
+
         self._pose_variants["sit"] = self._pose_variants["idle"]
         self._pose_variants["stay"] = self._pose_variants["thinking"]
         self._pose_variants["crouch"] = self._pose_variants["other"]
 
-        # Устанавливаем базовые ключи категорий
+
         for category in ("idle", "other", "thinking", "sit", "stay", "crouch"):
             variants = self._pose_variants.get(category)
             if variants:

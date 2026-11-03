@@ -44,19 +44,19 @@ class PetRenderer:
 
         severity = self._calculate_severity(state)
 
-        # 1. Хроматическое RGB-расслоение (Holographic Chromatic Desync)
+
         self._draw_chromatic_aberration(painter, pixmap, severity)
 
-        # 2. Базовый спрайт со слайсовыми смещениями (Tearing)
+
         self._draw_sliced_pixmap(painter, pixmap, w, h, severity)
 
-        # 3. Внутренние глитчи по силуэту Капри (CompositionMode_SourceAtop)
+
         self._draw_silhouette_glitches(painter, w, h, severity, state.is_pose_transition)
 
-        # 4. Выступающие за силуэт кибер-искры (CompositionMode_SourceOver)
+
         self._draw_sparks(painter, w, h, severity)
 
-        # 5. Цифровой HUD-индикатор телеметрии
+
         self._draw_hud_telemetry(painter, w, h, severity, state)
 
     def _calculate_severity(self, state: PetRenderState) -> float:
@@ -84,13 +84,13 @@ class PetRenderer:
                 if severity > 0.7
                 else random.choice((-8, -4, 4, 8))
             )
-            # Алый левый фантомный слой (#F20D2E)
+
             painter.save()
             painter.setOpacity(random.uniform(0.25, 0.45))
             painter.drawPixmap(-chroma_shift, 0, pixmap)
             painter.restore()
 
-            # Кислотно-зеленый правый фантомный слой (#3CF12B)
+
             painter.save()
             painter.setOpacity(random.uniform(0.20, 0.40))
             painter.drawPixmap(chroma_shift, 0, pixmap)
@@ -142,7 +142,7 @@ class PetRenderer:
             QPainter.CompositionMode.CompositionMode_SourceAtop
         )
 
-        # а) Кибер-сканлайны CRT (каждые 4 пикселя)
+
         scan_alpha = (
             random.randint(25, 60) if severity > 0.4 else random.randint(15, 35)
         )
@@ -152,7 +152,7 @@ class PetRenderer:
         for y in range(0, h, PIXEL_SIZE):
             painter.drawLine(0, y, w, y)
 
-        # б) Горизонтальные цифровые глитч-полосы в палитре Капри
+
         bar_count = (
             random.randint(5, 10)
             if severity > 0.7
@@ -167,7 +167,7 @@ class PetRenderer:
             c.setAlpha(random.randint(160, 245))
             painter.fillRect(bx, by, bw, bh, c)
 
-        # в) Пиксельные блоки байтов памяти (Byte Dumps)
+
         block_count = (
             random.randint(8, 16)
             if severity > 0.6
@@ -182,7 +182,7 @@ class PetRenderer:
             c.setAlpha(random.randint(170, 255))
             painter.fillRect(bx, by, bw, bh, c)
 
-        # г) Телеметрические микро-глифы внутри силуэта при перегрузке
+
         if severity > 0.5 and random.random() < 0.7:
             font = QFont("Press Start 2P")
             font.setStyleHint(QFont.StyleHint.Monospace)
@@ -197,7 +197,7 @@ class PetRenderer:
             )
             painter.drawText(gx, gy, glyph)
 
-        # д) Эффект цифровой сборки/разборки при смене позы (Байеровский дизеринг)
+
         if is_pose_transition:
             dissolve_color = QColor(
                 COLOR_CRIMSON if random.random() < 0.6 else COLOR_OBSIDIAN

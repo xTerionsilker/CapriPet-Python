@@ -19,10 +19,10 @@ class AIError(RuntimeError):
 
 
 def normalize_endpoint(raw_url: str) -> str:
-    """Нормализует URL эндпоинта AI API.
+\
+\
+\
 
-    Если указан базовый путь /v1, автоматически добавляет /chat/completions.
-    """
     url = raw_url.strip()
     if not url:
         return "https://api.openai.com/v1/chat/completions"
@@ -34,7 +34,7 @@ def normalize_endpoint(raw_url: str) -> str:
             url = f"https://{url}"
 
     url = url.rstrip("/")
-    # Если передан базовый путь API вида .../v1, дополняем до стандартного chat/completions
+
     if url.endswith("/v1"):
         url = f"{url}/chat/completions"
 
@@ -105,7 +105,7 @@ def _extract_response_text(data: Any) -> str:
     if not isinstance(data, dict):
         return ""
 
-    # 1. Формат OpenAI Chat Completions: choices[0].message.content
+
     choices = data.get("choices")
     if isinstance(choices, list) and choices:
         first = choices[0]
@@ -119,7 +119,7 @@ def _extract_response_text(data: Any) -> str:
             if text:
                 return str(text).strip()
 
-    # 2. Формат Anthropic Messages: content[0].text
+
     content_list = data.get("content")
     if isinstance(content_list, list) and content_list:
         for item in content_list:
@@ -131,7 +131,7 @@ def _extract_response_text(data: Any) -> str:
         if isinstance(first_item, dict) and "text" in first_item:
             return str(first_item["text"]).strip()
 
-    # 3. Формат локальных моделей и сервисов: message.content или response
+
     msg = data.get("message")
     if isinstance(msg, dict) and msg.get("content"):
         return str(msg["content"]).strip()
@@ -179,7 +179,7 @@ def ask(
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    # Добавляем кастомные заголовки из конфига (например, для OpenRouter или прокси)
+
     for k, v in settings["headers"].items():
         headers[k] = str(v)
 

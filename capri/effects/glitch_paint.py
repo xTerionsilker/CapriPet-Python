@@ -16,7 +16,7 @@ from .transition_fx import (
     snap_pixel,
 )
 
-# Выборка киберпанк HUD-текстов для редких микро-артефактов (в духе Cyberpunk 2077 HUD)
+
 _HUD_MICRO_TAGS = (
     "RELIC_2.0 // SYNC",
     "KIROSHI_OPTICS // OK",
@@ -32,11 +32,11 @@ _HUD_MICRO_TAGS = (
 def paint_frame(
     painter: QPainter, width: int, height: int, intensity: str = "weak"
 ) -> None:
-    """Фоновый киберпанк-глитч экрана в стилистике Cyberpunk 2077:
+\
+\
+\
+\
 
-    деликатные микро-помехи интерфейса Kiroshi / Relic, сканлайны, шины данных и
-    микро-маркеры телеметрии в строгой палитре Капри с настраиваемой силой (weak/medium/strong).
-    """
     painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
     painter.fillRect(0, 0, width, height, Qt.GlobalColor.transparent)
     painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
@@ -61,7 +61,7 @@ def paint_scanlines(
     elif intensity == "medium":
         pen_color.setAlpha(random.randint(8, 16))
         step = PIXEL_SIZE * 2
-    else:  # weak
+    else:
         pen_color.setAlpha(random.randint(6, 12))
         step = PIXEL_SIZE * 2
 
@@ -102,7 +102,7 @@ def paint_slices(
         count = random.randint(2, 4)
     elif intensity == "medium":
         count = random.randint(1, 3)
-    else:  # weak
+    else:
         count = random.randint(1, 2)
 
     for _ in range(count):
@@ -125,7 +125,7 @@ def paint_slices(
         color.setAlpha(random.randint(*alpha_range))
         painter.fillRect(x, y, slice_width, slice_height, color)
 
-        # Тонкий хроматический след Cyberpunk 2077 (хроматическое расслоение алый/синий)
+
         ghost_chance = 0.85 if intensity == "strong" else 0.65
         if random.random() < ghost_chance:
             ghost_color = QColor(
@@ -158,16 +158,16 @@ def paint_circuit_traces(
     color.setAlpha(random.randint(*alpha_range))
     painter.fillRect(x1, y, w, PIXEL_SIZE, color)
 
-    # L-образный изгиб шины Cyberpunk
+
     if random.random() < 0.6:
         bend_len = PIXEL_SIZE * random.randint(3, 7)
         dir_y = 1 if (y + bend_len < height) else -1
         painter.fillRect(x1 + w - PIXEL_SIZE, y, PIXEL_SIZE, bend_len * dir_y, color)
-        # Конечный терминальный блок
+
         node_y = y + (bend_len * dir_y)
         painter.fillRect(x1 + w - PIXEL_SIZE * 2, node_y, PIXEL_SIZE * 3, PIXEL_SIZE, color)
     else:
-        # Прямоугольная терминальная точка
+
         painter.fillRect(x1 + w, y - PIXEL_SIZE, PIXEL_SIZE * 2, PIXEL_SIZE * 3, color)
 
 
@@ -179,9 +179,9 @@ def paint_kiroshi_brackets(
     if random.random() >= chance:
         return
 
-    # Выбираем позицию: либо угловые зоны экрана, либо случайная точка
+
     if random.random() < 0.6:
-        # Угловой отступ
+
         margin = 32
         corner = random.choice(((margin, margin), (width - margin - 40, margin),
                                (margin, height - margin - 40), (width - margin - 40, height - margin - 40)))
@@ -197,11 +197,11 @@ def paint_kiroshi_brackets(
     )
     bracket_color.setAlpha(random.randint(*alpha_range))
 
-    # Рисуем угол интерфейса
+
     painter.fillRect(bx, by, size, PIXEL_SIZE, bracket_color)
     painter.fillRect(bx, by, PIXEL_SIZE, size, bracket_color)
 
-    # Маленькая прицельная точка рядом
+
     dot_color = QColor(COLOR_WHITE)
     dot_color.setAlpha(random.randint(25, 50))
     painter.fillRect(bx + size + PIXEL_SIZE, by + PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE, dot_color)
@@ -230,7 +230,7 @@ def paint_cyber_markers(
     painter.setPen(text_color)
     painter.drawText(x, y, tag)
 
-    # Акцентная полоска под текстом
+
     bar_w = PIXEL_SIZE * random.randint(4, 10)
     painter.fillRect(x, y + 3, bar_w, 2, text_color)
 
@@ -245,7 +245,7 @@ def paint_subtle_noise(
     elif intensity == "medium":
         count = random.randint(12, 30)
         alpha_range = (20, 50)
-    else:  # weak
+    else:
         count = random.randint(6, 18)
         alpha_range = (15, 45)
 

@@ -16,31 +16,31 @@ logger = logging.getLogger(__name__)
 
 
 def get_active_window_rect() -> QRect | None:
-    """Возвращает прямоугольник QRect активного окна пользователя.
+\
+\
+\
+\
+\
+\
+\
 
-    Поддерживает:
-    - Windows (через Win32 API GetForegroundWindow / GetWindowRect)
-    - Linux KDE Plasma Wayland (через KWin Scripting)
-    - Linux X11 (через xdotool / xprop)
-    - Фолбэк на экран, где расположен курсор пользователя.
-    """
     if sys.platform == "win32":
         rect = _get_windows_active_window_rect()
         if rect is not None and rect.isValid():
             return rect
 
     if sys.platform.startswith("linux"):
-        # 1. Если KDE Wayland / KWin
+
         rect = _get_kwin_active_window_rect()
         if rect is not None and rect.isValid():
             return rect
 
-        # 2. Если X11 / XWayland с xdotool
+
         rect = _get_x11_active_window_rect()
         if rect is not None and rect.isValid():
             return rect
 
-    # Фолбэк: определяем экран, на котором находится курсор
+
     return get_active_screen_rect()
 
 
@@ -74,12 +74,12 @@ def _get_windows_active_window_rect() -> QRect | None:
         if not hwnd:
             return None
 
-        # Проверяем, не свернуто ли окно
+
         if user32.IsIconic(hwnd):
             return None
 
         rect = RECT()
-        # Попытка получить точные границы с учётом DwmGetWindowAttribute
+
         try:
             dwmapi = ctypes.windll.dwmapi
             DWMWA_EXTENDED_FRAME_BOUNDS = 9
@@ -114,7 +114,7 @@ def _get_kwin_active_window_rect() -> QRect | None:
         return None
 
     tag = "CP_WIN_" + uuid.uuid4().hex[:8]
-    # KWin Script: получаем геометрию workspace.activeWindow
+
     script_content = (
         f'var w = workspace.activeWindow;\n'
         f'if (w) {{\n'

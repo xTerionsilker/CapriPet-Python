@@ -86,7 +86,7 @@ class CommandRegistry:
         if argument_match is not None:
             return argument_match
 
-        # Проверка с нормализацией числительных (например, 'громкость пятьдесят' -> 'громкость 50')
+
         with_numbers = normalize_spoken_numbers(normalized)
         if with_numbers != normalized:
             arg_num = self._argument_match(with_numbers)
@@ -111,7 +111,7 @@ class CommandRegistry:
             if closest_switched is not None:
                 return self._lookup[closest_switched], ""
 
-        # Морфологический (стемминг) поиск без аргументов
+
         stemmed_match = self._stemmed_match(normalized)
         if stemmed_match is not None:
             return stemmed_match
@@ -166,7 +166,7 @@ class CommandRegistry:
                 best_score = candidate
                 best = command
 
-        # Отсекаем ложные подсказки при низком сходстве
+
         if best_score is not None and best_score[0] < min_confidence:
             return None
 
@@ -190,8 +190,7 @@ class CommandRegistry:
                 if not rest[:1].isalnum():
                     return command, normalize_spoken_numbers(rest.lstrip(ARGUMENT_PUNCTUATION))
 
-        # Перестановка слов / Поиск ключевого действия в любой позиции фразы
-        # Выбираем ключ с максимальным числом совпавших слов
+
         words = normalized.split()
         best_perm_match: tuple[BaseCommand, str] | None = None
         best_perm_len = 0

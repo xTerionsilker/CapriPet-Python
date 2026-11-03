@@ -71,6 +71,3 @@ def open_update_page() -> str:
     """Открывает страницу репозитория проекта на GitHub в браузере по умолчанию."""
     from . import updater
     return updater.open_update_page()
-
-
-

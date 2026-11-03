@@ -61,7 +61,7 @@ class GlitchBurstOverlay(QWidget):
         self._clock = QElapsedTimer()
         self._duration_ms = duration_ms
 
-    def showEvent(self, event) -> None:  # noqa: N802
+    def showEvent(self, event) -> None:
         super().showEvent(event)
         wh = self.windowHandle()
         if wh is not None:
@@ -91,7 +91,7 @@ class GlitchBurstOverlay(QWidget):
             return
         self.update()
 
-    def paintEvent(self, _event) -> None:  # noqa: N802
+    def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         w = self.width()
@@ -103,13 +103,13 @@ class GlitchBurstOverlay(QWidget):
         elapsed = self._clock.elapsed() if self._clock.isValid() else 0
         progress = min(1.0, elapsed / max(1, self._duration_ms))
 
-        # 1. Фоновая полупрозрачная вуаль кибер-помех (пульсирующая подложка)
+
         alpha = int(45 + 35 * math.sin(progress * math.pi * 3))
         bg_color = QColor(COLOR_OBSIDIAN)
         bg_color.setAlpha(alpha)
         painter.fillRect(0, 0, w, h, bg_color)
 
-        # 2. Неоновая рамка взлома по периметру активного окна (Cyberpunk hazard border)
+
         frame_alpha = int(180 + 75 * math.sin(progress * math.pi * 6))
         frame_color = QColor(COLOR_CRIMSON if random.random() < 0.75 else COLOR_ACID_GREEN)
         frame_color.setAlpha(min(255, max(0, frame_alpha)))
@@ -119,7 +119,7 @@ class GlitchBurstOverlay(QWidget):
         painter.fillRect(0, 0, bw, h, frame_color)
         painter.fillRect(w - bw, 0, bw, h, frame_color)
 
-        # 3. Крупные горизонтальные datamosh-срезы и полосы помех
+
         slice_count = random.randint(4, 9)
         for _ in range(slice_count):
             sy = snap_pixel(random.randint(0, max(0, h - 1)))
@@ -130,17 +130,17 @@ class GlitchBurstOverlay(QWidget):
             scolor.setAlpha(random.randint(110, 220))
             painter.fillRect(sx, sy, sw, sh, scolor)
 
-            # Хроматический сдвиг
+
             if random.random() < 0.8:
                 offset = random.choice((-20, -12, 12, 20))
                 ghost_color = QColor(COLOR_ELECTRIC_BLUE if offset > 0 else COLOR_CRIMSON)
                 ghost_color.setAlpha(random.randint(90, 180))
                 painter.fillRect(max(0, min(w - sw, sx + offset)), sy, sw // 2, sh, ghost_color)
 
-        # 4. Базовый HUD-глитч (сканлайны, шум, скобки Kiroshi)
+
         paint_frame(painter, w, h, intensity="strong")
 
-        # 5. Заметный HUD-баннер взлома по центру
+
         if 0.15 <= progress <= 0.85:
             banner_w = min(w - 40, max(260, w // 2))
             banner_h = 36
@@ -226,7 +226,7 @@ class GlitchOverlay(QWidget):
             self._set_amplitude(0.0)
             self.hide()
 
-    def showEvent(self, event) -> None:  # noqa: N802
+    def showEvent(self, event) -> None:
         super().showEvent(event)
         wh = self.windowHandle()
         if wh is not None:
@@ -255,7 +255,7 @@ class GlitchOverlay(QWidget):
         self._amplitude = value
         self.amplitude_changed.emit(value)
 
-    def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
+    def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         if self.width() > 0 and self.height() > 0:

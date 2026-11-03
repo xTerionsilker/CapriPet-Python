@@ -13,10 +13,10 @@ class CommandResult:
 
 @dataclass
 class CommandContext:
-    """Контекст для передачи окружения и колбэков в команды.
-    
-    Исключает прямую привязку к классу CapriWindow или циклическую зависимость.
-    """
+\
+\
+\
+
     speak: Callable[[str], Any]
     trigger_glitches: Callable[[], str]
     toggle_voice: Callable[[], str]
@@ -25,7 +25,7 @@ class CommandContext:
     get_config: Callable[[str, Any], Any]
     set_config: Callable[[str, Any], None]
     expect_reply: Callable[..., None] | None = None
-    action_bridge: Any = None  # ActionBridge для фоновых асинхронных операций
+    action_bridge: Any = None
     debug_info: Callable[[], dict[str, Any]] | None = None
 
 

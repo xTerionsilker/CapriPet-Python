@@ -215,5 +215,3 @@ class KillAppCommand(BaseCommand):
         if ctx.action_bridge is not None:
             return ctx.action_bridge.kill_app(trimmed)
         return f"Ищу процессы: {trimmed}"
-
-

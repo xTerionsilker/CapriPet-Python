@@ -36,9 +36,9 @@ def _generate_swoosh_wav(file_path: Path, sample_rate: int = 44100, duration: fl
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
-        # Частотный свип 350 Гц -> 1600 Гц с легкой нелинейностью
+
         freq = 350.0 + 1250.0 * (p ** 1.4)
-        # Огибающая громкости: быстрая атака 10%, затем плавный спад
+
         if p < 0.1:
             env = p / 0.1
         else:
@@ -62,9 +62,9 @@ def _generate_close_wav(file_path: Path, sample_rate: int = 44100, duration: flo
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
-        # Нисходящий свип 1400 Гц -> 300 Гц
+
         freq = 1400.0 - 1100.0 * (p ** 0.8)
-        # Огибающая: быстрая атака 8%, затем экспоненциальное затухание
+
         if p < 0.08:
             env = p / 0.08
         else:
@@ -88,9 +88,9 @@ def _generate_chirp_wav(file_path: Path, sample_rate: int = 44100, duration: flo
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
-        # Легкий нисходящий ретро-бип 1900 Гц -> 1400 Гц
+
         freq = 1900.0 - 500.0 * p
-        # Огибающая: быстрая атака (2 мс) и экспоненциальный спад
+
         if p < 0.1:
             env = p / 0.1
         else:
@@ -115,7 +115,7 @@ def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, du
     for i in range(num_samples):
         t = i / sample_rate
 
-        # 1. Начальный плазменный щелчок удара (0 - 25 мс)
+
         snap = 0.0
         if t < 0.025:
             snap_env = math.sin(math.pi * (t / 0.025))
@@ -123,7 +123,7 @@ def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, du
             noise = rng.uniform(-1.0, 1.0)
             snap = (0.5 * math.sin(2.0 * math.pi * snap_freq * t) + 0.5 * noise) * snap_env
 
-        # 2. Высоковольтная дуга / треск разряда (0 - 220 мс)
+
         arc = 0.0
         if t < 0.22:
             arc_p = t / 0.22
@@ -137,7 +137,7 @@ def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, du
             spark_spike = 1.9 if rng.random() < 0.04 else 0.0
             arc = (arc_buzz + spark_spike) * arc_env
 
-        # 3. Низкочастотный кибер-раскат грома (20 - 420 мс)
+
         boom = 0.0
         if t > 0.02:
             boom_t = t - 0.02
@@ -364,11 +364,11 @@ def _generate_session_reboot_wav(file_path: Path, sample_rate: int = 44100, dura
 
 
 class SpeechSFX(QObject):
-    """
-    Легковесный аудио-модуль для диалоговых облачков (SFX).
-    Обеспечивает надежное неблокирующее воспроизведение через системные утилиты
-    Linux (pw-play -> paplay -> aplay) с бесшовным фолбэком на QSoundEffect.
-    """
+\
+\
+\
+\
+
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -376,7 +376,7 @@ class SpeechSFX(QObject):
         self._speech_sound_enabled = True
         self._effects_sound_enabled = True
         self._volume = 0.5
-        self._throttle_interval = 0.045  # 45 мс минимальный интервал между бипами
+        self._throttle_interval = 0.045
         self._last_chirp_time = 0.0
         self._available = False
 
@@ -449,19 +449,19 @@ class SpeechSFX(QObject):
                 effect.setVolume(self._volume * 0.85)
                 self._session_effects[action] = effect
 
-            # Фолбэк QSoundEffect для swoosh
+
             swoosh = QSoundEffect(self)
             swoosh.setSource(QUrl.fromLocalFile(str(swoosh_path)))
             swoosh.setVolume(self._volume)
             self._swoosh_effect = swoosh
 
-            # Фолбэк QSoundEffect для close
+
             close_sfx = QSoundEffect(self)
             close_sfx.setSource(QUrl.fromLocalFile(str(close_path)))
             close_sfx.setVolume(self._volume)
             self._close_effect = close_sfx
 
-            # Фолбэки QSoundEffect для молний
+
             strike_sfx = QSoundEffect(self)
             strike_sfx.setSource(QUrl.fromLocalFile(str(strike_path)))
             strike_sfx.setVolume(self._volume)
@@ -477,7 +477,7 @@ class SpeechSFX(QObject):
             zap_sfx.setVolume(self._volume * 0.75)
             self._lightning_zap_effect = zap_sfx
 
-            # Пул эффектов для чирпов
+
             chirp_url = QUrl.fromLocalFile(str(chirp_path))
             self._chirp_pool = []
             for _ in range(3):
@@ -507,7 +507,7 @@ class SpeechSFX(QObject):
         if not self.is_enabled() or path is None:
             return
 
-        # Очистка завершившихся процессов
+
         self._processes = [p for p in self._processes if p.poll() is None]
 
         played_by_system = False
@@ -611,10 +611,10 @@ class SpeechSFX(QObject):
         self._play_file(path, self._session_effects.get(action))
 
     def play_chirp(self) -> None:
-        """
-        Воспроизводит ретро-бип при расшифровке глифа.
-        Защищен троттлингом (не чаще чем раз в 45 мс).
-        """
+\
+\
+\
+
         if not self.is_speech_sound_enabled() or self._chirp_path is None:
             return
         now = time.monotonic()

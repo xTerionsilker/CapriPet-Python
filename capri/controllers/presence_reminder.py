@@ -88,6 +88,6 @@ class PresenceReminder(QObject):
     def _fire(self) -> None:
         if not self._active:
             return
-        # Планируем следующий визит заранее, чтобы пауза не зависела от обработчика.
+
         self._schedule_next()
         self._on_remind(self._next_phrase())

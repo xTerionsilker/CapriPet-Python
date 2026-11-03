@@ -35,12 +35,12 @@ def get_virtual_screen_geometry() -> QRect:
 
 
 class LightningTetherOverlay(QWidget):
-    """
-    Полноэкранный прозрачный оверлей для визуализации прицеливания телепортации:
-    - От питомца (start_pos) до текущего положения курсора (target_pos) тянутся рваные красные кибер-молнии.
-    - В точке курсора отображается тактический прицел захвата координат (Kiroshi Reticle) и HUD-дальномер.
-    - Вокруг разряда и прицела летят пиксельные искры.
-    """
+\
+\
+\
+\
+\
+
 
     def __init__(self, parent: QWidget | None = None) -> None:
         flags = (
@@ -67,7 +67,7 @@ class LightningTetherOverlay(QWidget):
         self._start_time = 0.0
 
         self._anim_timer = QTimer(self)
-        self._anim_timer.setInterval(20)  # 50 FPS
+        self._anim_timer.setInterval(20)
         self._anim_timer.timeout.connect(self._on_tick)
 
         self._sfx_timer = QTimer(self)
@@ -134,7 +134,7 @@ class LightningTetherOverlay(QWidget):
         if dist < 8:
             return
 
-        # Основной центральный ствол молнии
+
         self._bolts.append(
             CyberPixelBolt(
                 local_start,
@@ -143,7 +143,7 @@ class LightningTetherOverlay(QWidget):
             )
         )
 
-        # Дополнительный вихревой разряд для объема
+
         if dist > 35:
             jitter_start = local_start + QPoint(random.randint(-12, 12), random.randint(-12, 12))
             jitter_target = local_target + QPoint(random.randint(-8, 8), random.randint(-8, 8))
@@ -160,11 +160,11 @@ class LightningTetherOverlay(QWidget):
         offset = self.geometry().topLeft()
         local_target = self._target_pos - offset
 
-        # Мерцание и перестройка молний
+
         for bolt in self._bolts:
             bolt.jitter()
 
-        # Рождение пиксельных искр вокруг цели
+
         if random.random() < 0.65:
             angle = random.uniform(0, math.tau)
             speed = random.uniform(40.0, 160.0)
@@ -184,7 +184,7 @@ class LightningTetherOverlay(QWidget):
                 )
             )
 
-        # Обновление существующих искр (step возвращает True пока искра жива)
+
         dt = 0.02
         self._sparks = [s for s in self._sparks if s.step(dt)]
 
@@ -197,7 +197,7 @@ class LightningTetherOverlay(QWidget):
             except Exception:
                 pass
 
-    def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
+    def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
@@ -205,15 +205,15 @@ class LightningTetherOverlay(QWidget):
         local_start = self._start_pos - offset
         local_target = self._target_pos - offset
 
-        # 1. Отрисовка всех молний
+
         for bolt in self._bolts:
             bolt.draw(painter, progress=1.0)
 
-        # 2. Отрисовка искр
+
         for spark in self._sparks:
             spark.draw(painter)
 
-        # 3. Тактический прицел Kiroshi в точке курсора
+
         reticle_size = 64
         reticle_rect = QRect(
             local_target.x() - reticle_size // 2,
@@ -235,7 +235,7 @@ class LightningTetherOverlay(QWidget):
             locked=True,
         )
 
-        # 4. Вспомогательная телеметрия: вектор направления и дистанция
+
         dx = self._target_pos.x() - self._start_pos.x()
         dy = self._target_pos.y() - self._start_pos.y()
         dist = int(math.hypot(dx, dy))
@@ -256,7 +256,7 @@ class LightningTetherOverlay(QWidget):
             tag,
         )
 
-        # Точка привязки к Капри (микро-крестик)
+
         anchor_rect = QRect(local_start.x() - 6, local_start.y() - 6, 12, 12)
         painter.setPen(QPen(COLOR_ACID_GREEN, 1))
         painter.drawRect(anchor_rect)

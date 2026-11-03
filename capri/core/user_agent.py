@@ -29,11 +29,11 @@ def init_user_agent_async() -> None:
 
 
 def get_user_agent() -> str:
-    """
-    Возвращает актуальный desktop User-Agent:
-    1. Если задан в конфиге (network.user_agent) — используется он.
-    2. Иначе генерируется через библиотеку fake-useragent (с безопасным fallback).
-    """
+\
+\
+\
+\
+
     global _resolved_user_agent
 
     if _resolved_user_agent is not None:

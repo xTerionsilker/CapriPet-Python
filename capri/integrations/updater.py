@@ -39,12 +39,12 @@ def parse_version_datetime(raw_text: str) -> datetime.datetime | None:
     clean = raw_text.strip()
     if not clean:
         return None
-    # Берём первую строку на случай комментариев или доп. данных
+
     first_line = clean.splitlines()[0].strip()
     try:
         dt = datetime.datetime.fromisoformat(first_line)
         if dt.tzinfo is not None:
-            # Приводим к наивному UTC времени для корректного сравнения
+
             dt = dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
         return dt
     except ValueError:
@@ -96,7 +96,6 @@ def fetch_remote_version_datetime() -> datetime.datetime | None:
         return None
 
 
-# Алиасы для обратной совместимости
 read_local_version_date = read_local_version_datetime
 fetch_remote_version_date = fetch_remote_version_datetime
 parse_version_date = parse_version_datetime

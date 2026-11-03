@@ -5,7 +5,7 @@ PIXEL_FONT = (
     '"DejaVu Sans Mono", monospace'
 )
 
-# Строгая палитра персонажа.
+
 NEON_CRIMSON = "#F20D2E"
 OBSIDIAN_BLACK = "#0B0B0B"
 ACID_GREEN = "#3CF12B"

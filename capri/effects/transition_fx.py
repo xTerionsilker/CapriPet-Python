@@ -7,16 +7,9 @@ from typing import List, Tuple
 from PySide6.QtCore import QPoint, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPolygon
 
-# --- Пиксельные константы ---
+
 PIXEL_SIZE = 4
 
-# --- Фирменная киберпанк-палитра Капри с процентным распределением ---
-# #F20D2E (45%)  - Доминантный неоновый алый
-# #0B0B0B (35%)  - Глубокий обсидиан / цифровой вакуум
-# #3CF12B (16%)  - Кислотный кибер-зелёный
-# #FFFFFF (2%)   - Ослепительное белое ядро перегрузки
-# #1E70F0 (1.5%) - Высоковольтный синий
-# #9922EE (0.5%) - Редкий неоновый ультрафиолет
 
 COLOR_CRIMSON = QColor("#F20D2E")
 COLOR_OBSIDIAN = QColor("#0B0B0B")
@@ -42,12 +35,11 @@ def pick_palette_color() -> QColor:
     return random.choices(PALETTE_COLORS, weights=PALETTE_WEIGHTS, k=1)[0]
 
 
-# Длительность переходов (мс) — чуть длиннее, чтобы раскрыть хакерскую последовательность
 DURATION_OUT_MS = 780
 DURATION_IN_MS = 720
 DURATION_POINT_MS = 680
 
-# Матрица дизеринга Байера 4x4
+
 BAYER_4X4 = (
     (0, 8, 2, 10),
     (12, 4, 14, 6),
@@ -72,16 +64,16 @@ def perimeter_circuit_points(rect: QRect, count: int) -> List[QPoint]:
         return result
     for _ in range(count):
         side = random.randrange(4)
-        if side == 0:  # Top
+        if side == 0:
             x = snap_pixel(random.randint(rect.left(), rect.right()))
             y = snap_pixel(rect.top())
-        elif side == 1:  # Right
+        elif side == 1:
             x = snap_pixel(rect.right())
             y = snap_pixel(random.randint(rect.top(), rect.bottom()))
-        elif side == 2:  # Bottom
+        elif side == 2:
             x = snap_pixel(random.randint(rect.left(), rect.right()))
             y = snap_pixel(rect.bottom())
-        else:  # Left
+        else:
             x = snap_pixel(rect.left())
             y = snap_pixel(random.randint(rect.top(), rect.bottom()))
         result.append(QPoint(x, y))
@@ -110,10 +102,10 @@ def screen_bus_points(screen: QRect, count: int) -> List[QPoint]:
 
 
 class CyberPixelSpark:
-    """
-    Пиксельная частица киберпанка: искры, биты данных и горизонтальные световые полоски,
-    распределенные строго по палитре Капри.
-    """
+\
+\
+\
+
 
     __slots__ = (
         "x",
@@ -137,7 +129,7 @@ class CyberPixelSpark:
         color: QColor | None = None,
         size: int = PIXEL_SIZE,
         life: float = 0.35,
-        kind: str = "spark",  # "spark", "bit", "bar"
+        kind: str = "spark",
     ) -> None:
         self.x = x
         self.y = y
@@ -154,7 +146,7 @@ class CyberPixelSpark:
         self.life -= dt
         if self.life <= 0:
             return False
-        # Дискретное движение с сопротивлением цифровой среды
+
         self.x += self.vx * dt
         self.y += self.vy * dt
         self.vx *= 0.94
@@ -179,13 +171,13 @@ class CyberPixelSpark:
             w = snap_pixel(self.size * 3)
             h = snap_pixel(self.size)
             painter.fillRect(px - w // 2, py, w, h, c)
-            # Если полоска алая или зеленая — подсвечиваем белым субпикселем
+
             if ratio > 0.45 and self.color != COLOR_OBSIDIAN:
                 wc = QColor(COLOR_WHITE)
                 wc.setAlpha(int(alpha * 0.8))
                 painter.fillRect(px - self.size // 2, py, self.size, h, wc)
         elif self.kind == "bit":
-            # Квадратный блок бита (4x4 или 8x8)
+
             painter.fillRect(px, py, self.size, self.size, c)
             if self.size >= PIXEL_SIZE * 2:
                 void_color = QColor(COLOR_OBSIDIAN)
@@ -198,15 +190,15 @@ class CyberPixelSpark:
                     void_color,
                 )
         else:
-            # Обычная пиксельная искра
+
             painter.fillRect(px, py, self.size, self.size, c)
 
 
 class CyberPixelBolt:
-    """
-    Настоящая рваная молния: случайные изломы вдоль направления, ответвления-форки
-    и мерцающее алое тело. Строго два цвета — чёрный #0B0B0B и алый #F20D2E.
-    """
+\
+\
+\
+
 
     def __init__(
         self,
@@ -237,7 +229,7 @@ class CyberPixelBolt:
         if dist < PIXEL_SIZE * 2:
             return
 
-        # Ломаная с резкими случайными изломами вдоль основного направления.
+
         steps = max(5, min(20, int(dist // 26)))
         nx = -dy / dist
         ny = dx / dist
@@ -252,7 +244,7 @@ class CyberPixelBolt:
             bx = sx + dx * t
             by = sy + dy * t
 
-            # Рваный random walk: молния мечется вокруг оси, но всегда возвращается к цели.
+
             offset += random.uniform(-1.0, 1.0) * max_offset * 0.55
             if random.random() < 0.18:
                 offset += random.choice((-1.0, 1.0)) * max_offset * 0.9
@@ -266,7 +258,7 @@ class CyberPixelBolt:
             if i == steps:
                 cur = QPoint(ex, ey)
 
-            # Дополнительный излом посередине длинного сегмента — именно молния, а не труба.
+
             seg_dx = cur.x() - prev.x()
             seg_dy = cur.y() - prev.y()
             seg_len = math.hypot(seg_dx, seg_dy)
@@ -288,7 +280,7 @@ class CyberPixelBolt:
             key_points.append(cur)
             prev = cur
 
-        # Ответвления-форки, как у настоящей молнии.
+
         forks = 0
         max_forks = max(1, int(steps * self._branch_chance))
         for i in range(1, len(key_points) - 2):
@@ -304,7 +296,7 @@ class CyberPixelBolt:
         self, origin: QPoint, main_nx: float, main_ny: float, main_dist: float
     ) -> List[Tuple[QPoint, QPoint]]:
         branch: List[Tuple[QPoint, QPoint]] = []
-        # Форк уходит в сторону от основной оси под случайным углом.
+
         angle_sign = 1.0 if random.random() < 0.5 else -1.0
         base_angle = math.atan2(main_ny, main_nx)
         rad = base_angle + angle_sign * random.uniform(0.45, 1.15)
@@ -328,7 +320,7 @@ class CyberPixelBolt:
         return branch
 
     def jitter(self) -> None:
-        # Молния должна мерцать и перестраиваться почти каждый кадр.
+
         if random.random() < 0.46:
             self._rebuild()
 
@@ -346,7 +338,7 @@ class CyberPixelBolt:
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
-        # 1. Чёрный контур молнии — строго #0B0B0B.
+
         black_pen = QPen(with_alpha(COLOR_OBSIDIAN, 245), PIXEL_SIZE * 2)
         black_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
         black_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
@@ -356,7 +348,7 @@ class CyberPixelBolt:
         for p1, p2 in visible_branches:
             painter.drawLine(p1, p2)
 
-        # 2. Алый ореол — строго #F20D2E, без зелёного/синего/белого.
+
         glow_pen = QPen(with_alpha(COLOR_CRIMSON, 70), PIXEL_SIZE * 3)
         glow_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
         glow_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
@@ -364,7 +356,7 @@ class CyberPixelBolt:
         for p1, p2 in visible_segments:
             painter.drawLine(p1, p2)
 
-        # 3. Раскалённое алое тело разряда с мерцанием по сегментам.
+
         red_pen = QPen(COLOR_CRIMSON, PIXEL_SIZE)
         red_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
         red_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
@@ -374,7 +366,7 @@ class CyberPixelBolt:
             painter.setPen(QPen(with_alpha(COLOR_CRIMSON, alpha), PIXEL_SIZE))
             painter.drawLine(p1, p2)
 
-        # Форки тоньше основного канала, но той же красно-чёрной палитры.
+
         branch_black = QPen(with_alpha(COLOR_OBSIDIAN, 225), PIXEL_SIZE)
         branch_black.setCapStyle(Qt.PenCapStyle.SquareCap)
         painter.setPen(branch_black)
@@ -386,7 +378,7 @@ class CyberPixelBolt:
         for p1, p2 in visible_branches:
             painter.drawLine(p1, p2)
 
-        # 4. Алые вспышки на концах разряда.
+
         for endpoint, size in (
             (self.start, PIXEL_SIZE * 2),
             (self.end, PIXEL_SIZE),
@@ -402,11 +394,11 @@ class CyberPixelBolt:
         painter.restore()
 
 class CyberHoloReticle:
-    """
-    Кибернетический голографический прицел захвата цели / точки появления.
-    Отрисовывает угловые скобки `[ + ]`, координатные риски и радарные маркеры
-    в палитре Капри (#F20D2E и #3CF12B с контрастом #0B0B0B).
-    """
+\
+\
+\
+\
+
 
     @staticmethod
     def draw(
@@ -441,7 +433,7 @@ class CyberHoloReticle:
         obsidian = QColor(COLOR_OBSIDIAN)
         obsidian.setAlpha(int(alpha * 0.95))
 
-        # Обсидиановая контрастная тень для идеальной читаемости
+
         sh = 2
         for ox, oy in ((-sh, 0), (sh, 0), (0, -sh), (0, sh)):
             painter.fillRect(l + ox, t + oy, corner_len, thickness, obsidian)
@@ -453,23 +445,23 @@ class CyberHoloReticle:
             painter.fillRect(r - corner_len + 1 + ox, b - thickness + 1 + oy, corner_len, thickness, obsidian)
             painter.fillRect(r - thickness + 1 + ox, b - corner_len + 1 + oy, thickness, corner_len, obsidian)
 
-        # 1. Верхний левый угол
+
         painter.fillRect(l, t, corner_len, thickness, c)
         painter.fillRect(l, t, thickness, corner_len, c)
 
-        # 2. Верхний правый угол
+
         painter.fillRect(r - corner_len + 1, t, corner_len, thickness, c)
         painter.fillRect(r - thickness + 1, t, thickness, corner_len, c)
 
-        # 3. Нижний левый угол
+
         painter.fillRect(l, b - thickness + 1, corner_len, thickness, c)
         painter.fillRect(l, b - corner_len + 1, thickness, corner_len, c)
 
-        # 4. Нижний правый угол
+
         painter.fillRect(r - corner_len + 1, b - thickness + 1, corner_len, thickness, c)
         painter.fillRect(r - thickness + 1, b - corner_len + 1, thickness, corner_len, c)
 
-        # 5. Центральное перекрестие (+) белого цвета (#FFFFFF)
+
         cross_sz = snap_pixel(PIXEL_SIZE * 2)
         white_c = QColor(COLOR_WHITE)
         white_c.setAlpha(alpha)
@@ -478,9 +470,9 @@ class CyberHoloReticle:
 
 
 class CyberShockwaveRing:
-    """
-    Расширяющаяся кибернетическая волна перегрузки со срезанными под 45° углами (Cyber Octagon).
-    """
+\
+\
+
 
     @staticmethod
     def draw(
@@ -517,11 +509,6 @@ class CyberShockwaveRing:
             p1 = pts[i]
             p2 = pts[(i + 1) % len(pts)]
             painter.drawLine(p1, p2)
-
-
-# ---------------------------------------------------------------------------
-# Cyberpunk 2077 / Kiroshi / quickhack primitives
-# ---------------------------------------------------------------------------
 
 
 def with_alpha(color: QColor, alpha: int) -> QColor:
@@ -583,7 +570,7 @@ def draw_scan_sweep(
             height,
             with_alpha(color, alpha),
         )
-    # Пиксельные обрывки по краям луча
+
     rng = random.Random(int(progress * 1000) + rect.width())
     for _ in range(7):
         bx = rng.randint(rect.left(), max(rect.left(), rect.right() - 40))
@@ -683,7 +670,7 @@ class CyberKiroshiReticle:
             int(alpha * 0.8),
         )
 
-        # Угловые скобки и перекрестие — базовая оптика
+
         CyberHoloReticle.draw(
             painter, rect, progress, color=color, bracket_offset=bracket_offset
         )
@@ -693,7 +680,7 @@ class CyberKiroshiReticle:
         radius = max(18, min(rect.width(), rect.height()) // 2 + bracket_offset)
         radius = snap_pixel(radius)
 
-        # Вращающееся кольцо тиков
+
         ticks = 24
         for i in range(ticks):
             ang = rotation + (math.tau * i / ticks)
@@ -708,14 +695,14 @@ class CyberKiroshiReticle:
             painter.setPen(QPen(tick_color, 2 if is_major else 1))
             painter.drawLine(x1, y1, x2, y2)
 
-        # Сегментированные дуги захвата
+
         arc_rect = QRectF(cx - radius - 16, cy - radius - 16, (radius + 16) * 2, (radius + 16) * 2)
         pen = QPen(with_alpha(color, int(alpha * 0.75)), 2)
         painter.setPen(pen)
         for start in (15, 105, 195, 285):
             painter.drawArc(arc_rect, int((start + math.degrees(rotation)) * 16), int(38 * 16))
 
-        # Обсидиановый контур под меткой цели
+
         if label:
             font = QFont("Monospace")
             font.setStyleHint(QFont.StyleHint.Monospace)
@@ -733,7 +720,7 @@ class CyberKiroshiReticle:
             if locked:
                 painter.fillRect(tx - 7, ty - 4, 3, 3, accent)
 
-        # Маркер захвата в центре
+
         if locked:
             size = snap_pixel(max(6, radius // 8))
             painter.fillRect(cx - size // 2, cy - size // 2, size, size, with_alpha(COLOR_WHITE, alpha))
@@ -780,7 +767,7 @@ def draw_quickhack_panel(
         percent_text,
     )
 
-    # Сегментированная полоса RAM / прогресса
+
     bar = QRect(rect.left() + 9, rect.bottom() - 10, rect.width() - 18, 5)
     segments = max(8, bar.width() // 6)
     gap = 2
@@ -835,7 +822,7 @@ def draw_breach_grid(
                     with_alpha(color, 55),
                 )
 
-    # Активная линия взлома
+
     line_y = rect.top() + int(rect.height() * progress)
     painter.fillRect(rect.left(), line_y, rect.width(), 2, with_alpha(color, 210))
     painter.fillRect(rect.left(), line_y - 2, rect.width(), 1, with_alpha(COLOR_WHITE, 120))

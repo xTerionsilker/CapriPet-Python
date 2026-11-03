@@ -104,7 +104,7 @@ class VoiceInput(QObject):
             else "По умолчанию"
         )
         self.device_changed.emit(desc)
-        # Если в данный момент шла запись, перезапускаем её с новым источником
+
         if self._capturing:
             self._poll_timer.stop()
             self._release_source()
@@ -114,7 +114,7 @@ class VoiceInput(QObject):
 
     def toggle(self) -> None:
         if self._always_on:
-            # Голосовой режим никогда не отключается.
+
             if not self._enabled and not self._busy:
                 self.start()
             return
@@ -136,7 +136,7 @@ class VoiceInput(QObject):
 
     def stop(self) -> None:
         if self._always_on:
-            # Никогда не отключаемся: игнорируем попытки остановки.
+
             return
         self._restart_timer.stop()
         if self._capturing:
@@ -228,7 +228,7 @@ class VoiceInput(QObject):
             self._capturing = False
             self._buffer.clear()
         if self._always_on:
-            # Не отключаем режим: планируем повторную попытку.
+
             self._set_status("")
             self.failed.emit(message)
             self._restart_timer.start(1000)

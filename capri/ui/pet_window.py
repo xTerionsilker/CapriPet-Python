@@ -48,17 +48,17 @@ ASSETS = ROOT / "assets"
 CAPRI_ICON = ASSETS / "capri_icon.png"
 VAR_ASSETS = ASSETS / "var"
 
-# Каталоги спрайтов по категориям поведения:
-IDLE_DIR = VAR_ASSETS / "idle"          # Появление, исчезновение, базовое состояние
-OTHER_DIR = VAR_ASSETS / "other"        # Ловля курсора и другие активные действия
-THINKING_DIR = VAR_ASSETS / "thinking"  # Размышления (команда «слушай»)
 
-# Основные спрайты по умолчанию для каждого состояния
+IDLE_DIR = VAR_ASSETS / "idle"
+OTHER_DIR = VAR_ASSETS / "other"
+THINKING_DIR = VAR_ASSETS / "thinking"
+
+
 OVERLAY_IDLE = IDLE_DIR / "1.png"
 OVERLAY_OTHER = OTHER_DIR / "1.png"
 OVERLAY_THINKING = THINKING_DIR / "1.png"
 
-# Обратная совместимость алиасов для старых импортов / конфигов
+
 OVERLAY_SIT = OVERLAY_IDLE
 OVERLAY_STAY = OVERLAY_THINKING
 OVERLAY_CROUCH = OVERLAY_OTHER
@@ -119,10 +119,10 @@ class CapriWindow(QWidget):
         self._renderer = PetRenderer()
         self._started_at = time.monotonic()
 
-        # Контроллеры вспомогательных подсистем
+
         self._teleport = TeleportController(self)
 
-        # Таймер анимации пиксельных глитчей
+
         self._glitch_timer = QTimer(self)
         self._glitch_timer.setInterval(70)
         self._glitch_timer.timeout.connect(self._on_glitch_tick)
@@ -261,7 +261,7 @@ class CapriWindow(QWidget):
         QShortcut(QKeySequence("Ctrl+Q"), self, self.close)
         QShortcut(QKeySequence("Ctrl+Space"), self, self._orchestrator.voice_coordinator.toggle_voice)
 
-    def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def showEvent(self, event) -> None:
         super().showEvent(event)
         self._glitch_timer.start()
         if not self._greeted:
@@ -352,7 +352,7 @@ class CapriWindow(QWidget):
     def _forget_model_init(self) -> None:
         self._model_init_overlay = None
 
-    def hideEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def hideEvent(self, event) -> None:
         if self._teleport.is_aiming:
             self._teleport.cancel_aiming()
         self._glitch_timer.stop()
@@ -367,7 +367,7 @@ class CapriWindow(QWidget):
         if self._pose_transition_ticks > 0:
             self._pose_transition_ticks -= 1
 
-        # Обновление киберпанк-телеметрии в нижнем индикаторе
+
         if self._anim_frame % 25 == 0:
             tags = (
                 "[CAPRI//ONLINE]",
@@ -380,14 +380,14 @@ class CapriWindow(QWidget):
             )
             self._telemetry_tag = random.choice(tags)
 
-        # Динамическая частота кадров глитча: высокая во время активности, экономная в простое
+
         if self._spawn_glitch_ticks > 0 or self._is_dragging or self._surge_ticks > 0:
             self._glitch_timer.setInterval(35)
         else:
             self._glitch_timer.setInterval(random.randint(65, 110))
         self.update()
 
-    def paintEvent(self, _event) -> None:  # noqa: N802 (Qt naming)
+    def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
@@ -407,7 +407,7 @@ class CapriWindow(QWidget):
         """Проверяет, попадает ли точка клика на непрозрачную часть спрайта Капри."""
         return self._sprite_manager.is_point_on_sprite(pos.x(), pos.y())
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def mousePressEvent(self, event) -> None:
         pos = event.position().toPoint()
         if not self._is_point_on_sprite(pos):
             event.ignore()
@@ -426,19 +426,19 @@ class CapriWindow(QWidget):
             return
         super().mousePressEvent(event)
 
-    def mouseMoveEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def mouseMoveEvent(self, event) -> None:
         if self._teleport.handle_mouse_move(event):
             event.accept()
             return
         super().mouseMoveEvent(event)
 
-    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def mouseReleaseEvent(self, event) -> None:
         if self._teleport.handle_mouse_release(event):
             event.accept()
             return
         super().mouseReleaseEvent(event)
 
-    def changeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def changeEvent(self, event) -> None:
         super().changeEvent(event)
         if event.type() == QEvent.Type.WindowStateChange and (
             self.isMaximized() or self.isFullScreen()
@@ -680,7 +680,7 @@ class CapriWindow(QWidget):
         if app is not None:
             app.quit()
 
-    def closeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+    def closeEvent(self, event) -> None:
         if self._closing:
             event.accept()
             return
@@ -719,4 +719,3 @@ class CapriWindow(QWidget):
             speech.destroyed.connect(self._finalize_quit)
         else:
             self._exit_overlay.finished.connect(self._finalize_quit)
-

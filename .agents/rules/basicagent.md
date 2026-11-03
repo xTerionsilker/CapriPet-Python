@@ -102,7 +102,12 @@ Capri's visual identity uses **only** the following colors:
 
 ## Code Quality & Anti-Legacy Rules
 
-1. **No Artificial Backward Compatibility:**
+1. **No Code Comments or Docstrings (Strict):**
+   - **Do not write comments:** Do not add inline or block comments (`# ...`) in code under any circumstances (except mandatory shebangs `#!/usr/bin/env ...` when applicable).
+   - **Do not write docstrings:** Do not add triple-quoted docstrings (`"""..."""` or `'''...'''`) to modules, classes, or functions.
+   - **Self-documenting code:** Rely entirely on clean code structure, expressive naming (functions, variables, classes), and strict type annotations to make logic self-evident.
+
+2. **No Artificial Backward Compatibility:**
    - **Do not write wrapper adapters or legacy bridges:** Never re-introduce adapters (such as `FunctionalCommand`, alias functions, fake parameters, or `*args/**kwargs` unpackers) purely to support hypothetical old signatures.
    - **No deprecated alias methods or redundant properties:** When refactoring a class or module, migrate the callers directly instead of leaving obsolete functions/properties with comments like `# Для обратной совместимости`.
    - **Strict type signatures:** New and refactored functions must use strict, explicit keyword/positional parameters with complete type annotations.

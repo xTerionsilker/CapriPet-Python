@@ -8,11 +8,11 @@ logger = logging.getLogger(__name__)
 
 
 class SileroVAD:
-    """Официальный детектор голосовой активности на базе нейросети Silero VAD (ONNX).
+\
+\
+\
+\
 
-    Модель весит менее 2 МБ, запускается локально через onnxruntime и
-    с высокой точностью отличает человеческую речь от кликов мыши, стука клавиш и фонового шума.
-    """
 
     def __init__(self, sample_rate: int = 16_000, threshold: float = 0.5) -> None:
         self.sample_rate = sample_rate
@@ -68,12 +68,12 @@ class SileroVAD:
         try:
             import numpy as np
 
-            # Переводим 16-битный PCM в float32 массив в диапазоне [-1.0, 1.0]
+
             audio_data = np.frombuffer(chunk, dtype=np.int16).astype(np.float32) / 32768.0
             if len(audio_data) == 0:
                 return False, 0.0
 
-            # Silero VAD ожидает чанки кратные 512 сэмплам при 16 кГц
+
             chunk_size = 512
             total_samples = len(audio_data)
             max_prob = 0.0
@@ -83,7 +83,7 @@ class SileroVAD:
             for i in range(0, total_samples, chunk_size):
                 sub_chunk = audio_data[i : i + chunk_size]
                 if len(sub_chunk) < chunk_size:
-                    # Дополняем нулями до 512 сэмплов
+
                     padded = np.zeros(chunk_size, dtype=np.float32)
                     padded[: len(sub_chunk)] = sub_chunk
                     sub_chunk = padded

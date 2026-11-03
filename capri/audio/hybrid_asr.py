@@ -17,11 +17,11 @@ class SpeechRecognitionBackend:
 
 
 class FasterWhisperBackend(SpeechRecognitionBackend):
-    """Опциональный локальный бэкенд Faster-Whisper.
+\
+\
+\
+\
 
-    Используется для точного распознавания свободной речи / длинных AI-запросов,
-    если установлен пакет faster-whisper.
-    """
 
     def __init__(self, model_size: str = "tiny", compute_type: str = "int8") -> None:
         self.model_size = model_size
@@ -33,7 +33,7 @@ class FasterWhisperBackend(SpeechRecognitionBackend):
         if self._available is not None:
             return self._available
         try:
-            import faster_whisper  # noqa: F401
+            import faster_whisper
             self._available = True
         except ImportError:
             self._available = False
@@ -53,7 +53,7 @@ class FasterWhisperBackend(SpeechRecognitionBackend):
         import io
         import wave
 
-        # Конвертируем сырой PCM в wav
+
         wav_buf = io.BytesIO()
         with wave.open(wav_buf, "wb") as wf:
             wf.setnchannels(channels)

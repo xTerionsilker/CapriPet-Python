@@ -141,7 +141,7 @@ class InactivityManager(QObject):
     def _hide_for_inactivity(self) -> None:
         if self._paused or self._is_closing() or self._transitioning:
             return
-        # Запрет скрытия, пока активно/отображается облачко с текстом
+
         if hasattr(self._main_window, "is_speaking"):
             if self._main_window.is_speaking:
                 self._inactivity_timer.start(500)
@@ -216,7 +216,7 @@ class InactivityManager(QObject):
         if on_pose_change is not None:
             on_pose_change("crouch")
 
-        # 1. Экран, где сейчас физически находится курсор
+
         cursor_screen = None
         for scr in QGuiApplication.screens():
             if scr.geometry().contains(cursor_pos):
@@ -225,7 +225,7 @@ class InactivityManager(QObject):
         if cursor_screen is None:
             cursor_screen = self.get_target_screen()
 
-        # 2. Целевой экран, куда перемещаем Капри и курсор
+
         target_screen = self.get_target_screen()
         target_screen_index = None
         for idx, scr in enumerate(QGuiApplication.screens()):
@@ -307,7 +307,7 @@ class InactivityManager(QObject):
 
         center_point = center_rect.center()
 
-        # Капри скрыта до появления в центре
+
         target.hide()
 
         def on_lightning_finished() -> None:
@@ -339,7 +339,7 @@ class InactivityManager(QObject):
             self._transition_overlay = overlay_in
             overlay_in.start()
 
-        # Шаг 1: Вспышка около курсора и молнии, вытягивающиеся в центр экрана
+
         overlay_lightning = TransitionOverlay(
             final_cursor_screen_rect,
             cursor_rect,
