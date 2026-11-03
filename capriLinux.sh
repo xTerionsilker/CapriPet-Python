@@ -4,35 +4,56 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# 1. Проверяем наличие виртуального окружения
+# 1. Check for virtual environment
 if [ ! -f ".venv/bin/python" ]; then
     if [ -f ".venv/Scripts/python.exe" ]; then
-        echo "[WARNING] Обнаружено Windows-окружение .venv! Удалите .venv перед запуском на Linux."
+        echo "[WARNING] Detected Windows-based .venv! Remove .venv before running on Linux."
     fi
 
-    echo "[INFO] Виртуальное окружение .venv не найдено. Создаём..."
+    echo "[INFO] Virtual environment .venv not found. Creating..."
     if command -v python3 >/dev/null 2>&1; then
         PYTHON_CMD="python3"
     elif command -v python >/dev/null 2>&1; then
         PYTHON_CMD="python"
     else
-        echo "[ERROR] Python не найден в системе! Установите Python 3.10+."
+        echo "[ERROR] Python not found in system! Please install Python 3.10+."
         exit 1
     fi
 
     "$PYTHON_CMD" -m venv .venv
-    echo "[INFO] Окружение .venv успешно создано."
+    echo "[INFO] Environment .venv successfully created."
 fi
 
-# 2. Проверяем установку зависимостей
+# 2. Check installed dependencies
 if ! ./.venv/bin/python -c "import PySide6; import vosk" >/dev/null 2>&1; then
-    echo "[INFO] Необходимые библиотеки не установлены. Устанавливаем зависимости из requirements.txt..."
+    echo "[INFO] Required libraries not installed. Installing dependencies from requirements.txt..."
     ./.venv/bin/python -m pip install --upgrade pip
     ./.venv/bin/pip install -r requirements.txt
-    echo "[INFO] Зависимости успешно установлены."
+    echo "[INFO] Dependencies successfully installed."
 fi
 
-# 3. Автогенерация ярлыка на рабочем столе и в меню приложений
+# 3. Download Silero VAD (ONNX) model if missing
+SILERO_URL="https://raw.githubusercontent.com/snakers4/silero-vad/master/src/silero_vad/data/silero_vad.onnx"
+if [ ! -f "models/silero_vad.onnx" ]; then
+    echo "[INFO] Silero VAD model not found. Downloading..."
+    mkdir -p models
+    if command -v curl >/dev/null 2>&1; then
+        curl -L -o "models/silero_vad.onnx" "$SILERO_URL" || true
+    elif command -v wget >/dev/null 2>&1; then
+        wget -O "models/silero_vad.onnx" "$SILERO_URL" || true
+    else
+        ./.venv/bin/python -c "import urllib.request; urllib.request.urlretrieve('$SILERO_URL', 'models/silero_vad.onnx')" 2>/dev/null || true
+    fi
+
+    if [ -f "models/silero_vad.onnx" ] && [ -s "models/silero_vad.onnx" ]; then
+        echo "[INFO] Silero VAD model successfully downloaded."
+    else
+        echo "[WARNING] Failed to download Silero VAD. VAD will be disabled."
+        rm -f "models/silero_vad.onnx"
+    fi
+fi
+
+# 4. Generate desktop and application menu shortcuts
 DESKTOP_DIR="$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")"
 ICON_PATH="$SCRIPT_DIR/assets/capri_icon.png"
 
@@ -53,32 +74,32 @@ EOF
     chmod +x "$target_file"
 }
 
-# Ярлык на Рабочем столе
+# Desktop shortcut
 if [ -d "$DESKTOP_DIR" ] && [ ! -f "$DESKTOP_DIR/CapriPet.desktop" ]; then
     create_desktop_entry "$DESKTOP_DIR/CapriPet.desktop"
-    # Для сред GNOME разрешаем запуск ярлыка, если gio доступен
+    # Allow launching on GNOME desktops if gio is available
     gio set "$DESKTOP_DIR/CapriPet.desktop" metadata::trusted true 2>/dev/null || true
-    echo "[INFO] Создан ярлык на рабочем столе: $DESKTOP_DIR/CapriPet.desktop"
+    echo "[INFO] Created desktop shortcut: $DESKTOP_DIR/CapriPet.desktop"
 fi
 
-# Ярлык в меню приложений пользователя (~/.local/share/applications)
+# Applications menu shortcut (~/.local/share/applications)
 USER_APPS_DIR="$HOME/.local/share/applications"
 if [ ! -f "$USER_APPS_DIR/CapriPet.desktop" ]; then
     mkdir -p "$USER_APPS_DIR"
     create_desktop_entry "$USER_APPS_DIR/CapriPet.desktop"
-    echo "[INFO] Создан ярлык в меню приложений: $USER_APPS_DIR/CapriPet.desktop"
+    echo "[INFO] Created application menu shortcut: $USER_APPS_DIR/CapriPet.desktop"
 fi
 
-# 4. Запуск CapriPet
+# 5. Launch CapriPet
 set +e
 ./.venv/bin/python main.py "$@"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
     echo
-    echo "[ERROR] CapriPet завершился с ошибкой (код $EXIT_CODE)."
+    echo "[ERROR] CapriPet exited with error (code $EXIT_CODE)."
     if [ -t 0 ] && [ -t 1 ]; then
-        read -r -p "Нажмите Enter для выхода..." dummy 2>/dev/null || true
+        read -r -p "Press Enter to exit..." dummy 2>/dev/null || true
     fi
     exit $EXIT_CODE
 fi
