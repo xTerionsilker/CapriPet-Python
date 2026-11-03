@@ -53,7 +53,41 @@ if [ ! -f "models/silero_vad.onnx" ]; then
     fi
 fi
 
-# 4. Generate desktop and application menu shortcuts
+# 4. Download Vosk speech recognition model if missing
+VOSK_FOUND=false
+for dir in models/vosk-model*; do
+    if [ -d "$dir" ]; then
+        VOSK_FOUND=true
+        break
+    fi
+done
+
+if [ "$VOSK_FOUND" = false ]; then
+    echo "[INFO] Vosk model not found in models/. Downloading vosk-model-small-ru-0.22..."
+    mkdir -p models
+    ./.venv/bin/python -c "
+import urllib.request
+import zipfile
+from pathlib import Path
+
+url = 'https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip'
+zip_path = Path('models/vosk-model-small-ru-0.22.zip')
+try:
+    print('Downloading Vosk model (~45MB)...')
+    urllib.request.urlretrieve(url, zip_path)
+    print('Extracting model...')
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall('models')
+    zip_path.unlink(missing_ok=True)
+    print('[INFO] Vosk model successfully installed.')
+except Exception as e:
+    print(f'[WARNING] Failed to download Vosk model: {e}')
+    if zip_path.exists():
+        zip_path.unlink()
+"
+fi
+
+# 5. Generate desktop and application menu shortcuts
 DESKTOP_DIR="$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")"
 ICON_PATH="$SCRIPT_DIR/assets/capri_icon.png"
 
@@ -90,7 +124,7 @@ if [ ! -f "$USER_APPS_DIR/CapriPet.desktop" ]; then
     echo "[INFO] Created application menu shortcut: $USER_APPS_DIR/CapriPet.desktop"
 fi
 
-# 5. Launch CapriPet
+# 6. Launch CapriPet
 set +e
 ./.venv/bin/python main.py "$@"
 EXIT_CODE=$?

@@ -65,7 +65,21 @@ if not exist "models\silero_vad.onnx" (
     )
 )
 
-REM 4. Launch CapriPet without console window via pythonw.exe
+REM 4. Download Vosk speech recognition model if missing
+set "VOSK_FOUND=0"
+for /d %%D in (models\vosk-model*) do (
+    set "VOSK_FOUND=1"
+)
+if "!VOSK_FOUND!"=="0" (
+    echo [INFO] Vosk model not found in models\. Downloading vosk-model-small-ru-0.22...
+    if not exist "models" mkdir "models"
+    ".venv\Scripts\python.exe" -c "import urllib.request, zipfile, os; zip_p='models/vosk-model-small-ru-0.22.zip'; print('Downloading Vosk model (~45MB)...'); urllib.request.urlretrieve('https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip', zip_p); print('Extracting model...'); zipfile.ZipFile(zip_p, 'r').extractall('models'); os.remove(zip_p); print('[INFO] Vosk model successfully installed.')"
+    if errorlevel 1 (
+        echo [WARNING] Failed to download Vosk model. Speech recognition might require manual setup.
+    )
+)
+
+REM 5. Launch CapriPet without console window via pythonw.exe
 start "" ".venv\Scripts\pythonw.exe" main.py %*
 if errorlevel 1 (
     echo.
