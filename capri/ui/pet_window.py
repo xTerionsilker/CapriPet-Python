@@ -301,7 +301,8 @@ class CapriWindow(QWidget):
             screen_rect = (
                 screen.geometry() if screen is not None else self.geometry()
             )
-            self.set_pose("crouch")
+            self.set_pose("idle")
+            self.hide()
             self._startup_overlay = TransitionOverlay(
                 screen_rect,
                 self.geometry(),
@@ -313,14 +314,17 @@ class CapriWindow(QWidget):
             self._startup_overlay.start()
 
     def _reveal_on_startup(self) -> None:
-        """Переход Капри из позы приземления в позу покоя на пике вспышки."""
-        self.set_pose("sit")
+        self.set_pose("idle")
+        self.show()
+        self.raise_()
         self.update()
         QTimer.singleShot(600, self._greet)
 
     def _on_startup_finished(self) -> None:
         self._startup_overlay = None
-        self.set_pose("sit")
+        self.set_pose("idle")
+        self.show()
+        self.raise_()
         self.update()
         self._start_model_init_animation()
 

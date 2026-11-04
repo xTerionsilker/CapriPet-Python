@@ -168,6 +168,9 @@ class InactivityManager(QObject):
         screen = self.get_target_screen()
         target = self.current_target_widget
         self.relocate_randomly()
+        if hasattr(target, "set_pose"):
+            target.set_pose("idle")
+        target.hide()
 
         screen_rect = (
             screen.geometry() if screen is not None else target.geometry()

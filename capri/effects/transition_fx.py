@@ -35,9 +35,9 @@ def pick_palette_color() -> QColor:
     return random.choices(PALETTE_COLORS, weights=PALETTE_WEIGHTS, k=1)[0]
 
 
-DURATION_OUT_MS = 780
-DURATION_IN_MS = 720
-DURATION_POINT_MS = 680
+DURATION_OUT_MS = 840
+DURATION_IN_MS = 1000
+DURATION_POINT_MS = 900
 
 
 BAYER_4X4 = (
@@ -80,25 +80,119 @@ def perimeter_circuit_points(rect: QRect, count: int) -> List[QPoint]:
     return result
 
 
-def screen_bus_points(screen: QRect, count: int) -> List[QPoint]:
-    """Точки ввода/вывода на границах экрана для цифровых шин."""
-    result: List[QPoint] = []
-    for _ in range(count):
-        side = random.randrange(4)
-        if side == 0:
-            x = snap_pixel(random.randint(screen.left(), screen.right()))
-            y = snap_pixel(screen.top())
-        elif side == 1:
-            x = snap_pixel(screen.right())
-            y = snap_pixel(random.randint(screen.top(), screen.bottom()))
-        elif side == 2:
-            x = snap_pixel(random.randint(screen.left(), screen.right()))
-            y = snap_pixel(screen.bottom())
-        else:
-            x = snap_pixel(screen.left())
-            y = snap_pixel(random.randint(screen.top(), screen.bottom()))
-        result.append(QPoint(x, y))
-    return result
+def random_offscreen_point(screen: QRect, target: QRect, margin: int = 70) -> QPoint:
+    side = random.choice(("top", "right", "bottom", "left"))
+    if side == "top":
+        x = random.randint(screen.left(), max(screen.left(), screen.right() - target.width()))
+        y = screen.top() - target.height() - margin
+    elif side == "bottom":
+        x = random.randint(screen.left(), max(screen.left(), screen.right() - target.width()))
+        y = screen.bottom() + margin
+    elif side == "left":
+        x = screen.left() - target.width() - margin
+        y = random.randint(screen.top(), max(screen.top(), screen.bottom() - target.height()))
+    else:
+        x = screen.right() + margin
+        y = random.randint(screen.top(), max(screen.top(), screen.bottom() - target.height()))
+    return snap_point(QPoint(x, y))
+
+
+def evaluate_bezier(p0: QPoint, p1: QPoint, p2: QPoint, t: float) -> QPoint:
+    inv = 1.0 - t
+    x = inv * inv * p0.x() + 2.0 * inv * t * p1.x() + t * t * p2.x()
+    y = inv * inv * p0.y() + 2.0 * inv * t * p1.y() + t * t * p2.y()
+    return QPoint(int(x), int(y))
+
+
+class CyberTrailFragment:
+    __slots__ = ("x", "y", "w", "h", "color", "life", "max_life")
+
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        w: int,
+        h: int,
+        color: QColor,
+        life: float = 0.36,
+    ) -> None:
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.color = color
+        self.life = life
+        self.max_life = max(0.001, life)
+
+    def step(self, dt: float) -> bool:
+        self.life -= dt
+        return self.life > 0.0
+
+    def draw(self, painter: QPainter) -> None:
+        if self.life <= 0.0:
+            return
+        ratio = max(0.0, min(1.0, self.life / self.max_life))
+        alpha = int(self.color.alpha() * (ratio ** 1.5))
+        if alpha <= 4:
+            return
+        painter.fillRect(self.x, self.y, self.w, self.h, with_alpha(self.color, alpha))
+
+
+def draw_glitch_mass(
+    painter: QPainter,
+    center: QPoint,
+    base_size: int,
+    intensity: float = 1.0,
+    seed: int = 0,
+) -> None:
+    rnd = random.Random(seed)
+    sz = max(PIXEL_SIZE * 3, snap_pixel(int(base_size)))
+    half = sz // 2
+    rect = QRect(center.x() - half, center.y() - half, sz, sz)
+
+    core_color = COLOR_CRIMSON if rnd.random() < 0.65 else COLOR_ACID_GREEN
+    painter.fillRect(rect, with_alpha(COLOR_OBSIDIAN, 220))
+
+    shift = snap_pixel(int((2 + 6 * intensity) * rnd.choice((-1, 1))))
+    shift_y = snap_pixel(int((1 + 3 * intensity) * rnd.choice((-1, 1))))
+    painter.fillRect(rect.translated(shift, shift_y), with_alpha(COLOR_CRIMSON, int(150 * intensity)))
+    painter.fillRect(rect.translated(-shift, -shift_y), with_alpha(COLOR_ELECTRIC_BLUE, int(130 * intensity)))
+    painter.fillRect(rect.translated(shift // 2, -shift // 2), with_alpha(COLOR_ACID_GREEN, int(110 * intensity)))
+
+    slices = int(3 + 8 * intensity)
+    for _ in range(slices):
+        sy = rnd.randint(rect.top(), max(rect.top(), rect.bottom() - PIXEL_SIZE))
+        sh = snap_pixel(rnd.choice((PIXEL_SIZE, PIXEL_SIZE * 2)))
+        sw = snap_pixel(rnd.randint(sz // 2, int(sz * 1.6)))
+        sx = center.x() - sw // 2 + snap_pixel(int(rnd.randint(-12, 12) * intensity))
+        c = pick_palette_color()
+        painter.fillRect(sx, sy, sw, sh, with_alpha(c, rnd.randint(160, 240)))
+
+    bits = int(6 + 16 * intensity)
+    for _ in range(bits):
+        bx = center.x() + snap_pixel(int(rnd.randint(-half - 12, half + 12) * intensity))
+        by = center.y() + snap_pixel(int(rnd.randint(-half - 12, half + 12) * intensity))
+        bsz = snap_pixel(rnd.choice((PIXEL_SIZE, PIXEL_SIZE * 2)))
+        painter.fillRect(bx, by, bsz, bsz, with_alpha(pick_palette_color(), rnd.randint(180, 255)))
+
+    painter.fillRect(
+        center.x() - PIXEL_SIZE,
+        center.y() - PIXEL_SIZE,
+        PIXEL_SIZE * 2,
+        PIXEL_SIZE * 2,
+        COLOR_WHITE,
+    )
+
+
+def is_reduced_motion_enabled() -> bool:
+    try:
+        import ctypes
+        val = ctypes.c_bool()
+        if ctypes.windll.user32.SystemParametersInfoW(0x1042, 0, ctypes.byref(val), 0):
+            return not val.value
+    except Exception:
+        pass
+    return False
 
 
 class CyberPixelSpark:
