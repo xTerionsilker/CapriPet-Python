@@ -2,10 +2,6 @@ from __future__ import annotations
 
 import os
 import re
-import shlex
-import shutil
-import subprocess
-import sys
 from typing import Any
 
 import cyrtranslit
@@ -15,7 +11,6 @@ from ..commands.registry import switch_layout
 
 
 def translit_ru_to_en(text: str) -> str:
-    """Транслитерирует русский текст в латиницу по стандарту."""
     t = text.lower().replace("кс", "x")
     return cyrtranslit.to_latin(t, "ru")
 
@@ -39,56 +34,6 @@ def phonetic_normalize(text: str) -> str:
             res.append(ch)
     normalized = "".join(res)
     return re.sub(r"([a-z])\1+", r"\1", normalized)
-
-
-def _clean_exec_command(exec_str: str) -> list[str]:
-    """Удаляет desktop spec field codes (%f, %F, %u, %U и т.д.) и разбивает команду на аргументы."""
-    cleaned = re.sub(r"%[a-zA-Z]", "", exec_str).strip()
-    try:
-        parts = shlex.split(cleaned)
-    except Exception:
-        parts = cleaned.split()
-    return parts
-
-
-def _scan_linux_applications() -> list[dict[str, Any]]:
-    from xdg.DesktopEntry import DesktopEntry
-    from xdg.Exceptions import ParsingError
-
-    desktop_dirs = [
-        "/usr/share/applications",
-        "/usr/local/share/applications",
-        os.path.expanduser("~/.local/share/applications"),
-    ]
-    apps: dict[str, dict[str, Any]] = {}
-    for base_dir in desktop_dirs:
-        if not os.path.exists(base_dir):
-            continue
-        for root, _, files in os.walk(base_dir):
-            for file_name in files:
-                if not file_name.endswith(".desktop"):
-                    continue
-                file_path = os.path.join(root, file_name)
-                try:
-                    entry = DesktopEntry(file_path)
-                except (ParsingError, UnicodeDecodeError, OSError):
-                    continue
-                if entry.getNoDisplay() or entry.getType() != "Application":
-                    continue
-                name = entry.getName()
-                exec_cmd = entry.getExec()
-                if not name or not exec_cmd:
-                    continue
-                apps.setdefault(
-                    file_name,
-                    {
-                        "name": name,
-                        "exec": exec_cmd,
-                        "comment": entry.getComment() or "",
-                        "path": file_path,
-                    },
-                )
-    return list(apps.values())
 
 
 def _scan_windows_applications() -> list[dict[str, Any]]:
@@ -146,10 +91,7 @@ def _scan_windows_applications() -> list[dict[str, Any]]:
 
 
 def get_installed_applications() -> list[dict[str, Any]]:
-    """Возвращает список установленных в системе приложений."""
-    if sys.platform == "win32":
-        return _scan_windows_applications()
-    return _scan_linux_applications()
+    return _scan_windows_applications()
 
 
 def _score_application(query: str, app: dict[str, Any]) -> float:
@@ -168,13 +110,11 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
     exec_base = re.sub(r"\.(exe|desktop)$", "", exec_bin.lower())
     comment = app.get("comment", "").lower()
 
-
     for cand in candidates:
         if cand == name or cand == exec_base:
             return 100.0
 
     best = 0.0
-
 
     name_tokens = re.split(r"[\s\-_\.]+", f"{name} {exec_base}")
     for token in name_tokens:
@@ -200,7 +140,6 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
             if score > best:
                 best = score
 
-
     comment_tokens = re.split(r"[\s\-_\.]+", comment)
     for token in comment_tokens:
         if not token:
@@ -225,7 +164,6 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
 
 
 def find_matching_applications(query: str, limit: int = 5) -> list[dict[str, Any]]:
-    """Находит до `limit` наиболее подходящих под запрос приложений."""
     trimmed = query.strip()
     if not trimmed:
         return []
@@ -238,7 +176,6 @@ def find_matching_applications(query: str, limit: int = 5) -> list[dict[str, Any
             scored.append((score, app))
 
     scored.sort(key=lambda x: x[0], reverse=True)
-
 
     seen_names: set[str] = set()
     result: list[dict[str, Any]] = []
@@ -254,41 +191,12 @@ def find_matching_applications(query: str, limit: int = 5) -> list[dict[str, Any
 
 
 def launch_application(app: dict[str, Any]) -> bool:
-    """Запускает выбранное приложение."""
     exec_cmd = app.get("exec", "")
     if not exec_cmd:
         return False
 
     try:
-        if sys.platform == "win32":
-            os.startfile(exec_cmd)
-            return True
-
-        cmd_parts = _clean_exec_command(exec_cmd)
-        if not cmd_parts:
-            return False
-
-        subprocess.Popen(
-            cmd_parts,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
+        os.startfile(exec_cmd)
         return True
     except Exception:
-        if sys.platform != "win32" and "path" in app:
-            desktop_name = os.path.basename(app["path"])
-            if shutil.which("gtk-launch"):
-                try:
-                    subprocess.Popen(
-                        ["gtk-launch", desktop_name],
-                        stdin=subprocess.DEVNULL,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        start_new_session=True,
-                    )
-                    return True
-                except Exception:
-                    pass
         return False

@@ -13,13 +13,12 @@ logger = logging.getLogger(__name__)
 _resolved_user_agent: Optional[str] = None
 _lock = threading.Lock()
 _DEFAULT_FALLBACK_UA = (
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/131.0.0.0 Safari/537.36"
 )
 
 
 def init_user_agent_async() -> None:
-    """Асинхронная инициализация User-Agent при запуске приложения."""
     thread = threading.Thread(
         target=get_user_agent,
         name="capri-user-agent-init",
@@ -29,11 +28,6 @@ def init_user_agent_async() -> None:
 
 
 def get_user_agent() -> str:
-\
-\
-\
-\
-
     global _resolved_user_agent
 
     if _resolved_user_agent is not None:

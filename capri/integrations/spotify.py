@@ -1,20 +1,13 @@
 from __future__ import annotations
 
-import asyncio
+import ctypes
 import logging
-import sys
 import urllib.parse
 import webbrowser
-from typing import Any
 
 from .spotify_api import SpotifyError, find_track
 
 logger = logging.getLogger(__name__)
-
-_MPRIS_DEST = "org.mpris.MediaPlayer2.spotify"
-_MPRIS_PATH = "/org/mpris/MediaPlayer2"
-_MPRIS_PLAYER = "org.mpris.MediaPlayer2.Player"
-_MPRIS_PROPERTIES = "org.freedesktop.DBus.Properties"
 
 
 def play(query: str) -> str:
@@ -65,7 +58,7 @@ def previous_track() -> str:
 
 
 def current_track() -> str:
-    info = _current_track_windows() if sys.platform == "win32" else _current_track_linux()
+    info = _current_track_windows()
     if not info:
         return "Сейчас ничего не играет или Spotify закрыт."
 
@@ -75,80 +68,6 @@ def current_track() -> str:
     if title:
         return f"Сейчас играет: {title}"
     return f"Сейчас играет: {artist}"
-
-
-async def _mpris_call(member: str) -> None:
-    from dbus_next import Message, MessageType
-    from dbus_next.aio import MessageBus
-
-    bus = await MessageBus().connect()
-    try:
-        reply = await bus.call(
-            Message(
-                destination=_MPRIS_DEST,
-                path=_MPRIS_PATH,
-                interface=_MPRIS_PLAYER,
-                member=member,
-            )
-        )
-    finally:
-        bus.disconnect()
-
-    if reply.message_type == MessageType.ERROR:
-        raise RuntimeError(f"{reply.error_name}: {reply.body[0] if reply.body else ''}")
-
-
-async def _mpris_property(name: str) -> Any:
-    from dbus_next import Message, MessageType
-    from dbus_next.aio import MessageBus
-
-    bus = await MessageBus().connect()
-    try:
-        reply = await bus.call(
-            Message(
-                destination=_MPRIS_DEST,
-                path=_MPRIS_PATH,
-                interface=_MPRIS_PROPERTIES,
-                member="Get",
-                signature="ss",
-                body=[_MPRIS_PLAYER, name],
-            )
-        )
-    finally:
-        bus.disconnect()
-
-    if reply.message_type == MessageType.ERROR:
-        raise RuntimeError(f"{reply.error_name}: {reply.body[0] if reply.body else ''}")
-    return reply.body[0]
-
-
-def _current_track_linux() -> tuple[str, str] | None:
-    try:
-        metadata = asyncio.run(_mpris_property("Metadata"))
-    except Exception as error:
-        logger.debug("MPRIS metadata query failed: %s", error)
-        return None
-
-    value = getattr(metadata, "value", metadata)
-    if not isinstance(value, dict):
-        return None
-
-    title = _variant_value(value.get("xesam:title"), "")
-    artists = _variant_value(value.get("xesam:artist"), [])
-    if isinstance(artists, str):
-        artists = [artists]
-    artist = ", ".join(str(item) for item in artists if item)
-
-    title = str(title).strip()
-    if title or artist:
-        return title, artist
-    return None
-
-
-def _variant_value(value: Any, default: Any) -> Any:
-    if value is None:
-        return default
-    return getattr(value, "value", value)
 
 
 def _search_uri(query: str) -> str:
@@ -164,8 +83,6 @@ def _open_uri(uri: str) -> bool:
 
 def _current_track_windows() -> tuple[str, str] | None:
     try:
-        import ctypes
-
         user32 = ctypes.windll.user32
         titles: list[tuple[str, str]] = []
 
@@ -207,8 +124,6 @@ def _current_track_windows() -> tuple[str, str] | None:
 
 def _send_win_media_key(vk_code: int) -> bool:
     try:
-        import ctypes
-
         keybd_event = ctypes.windll.user32.keybd_event
         keybd_event(vk_code, 0, 1, 0)
         keybd_event(vk_code, 0, 1 | 2, 0)
@@ -218,20 +133,12 @@ def _send_win_media_key(vk_code: int) -> bool:
 
 
 def _player_call(method: str) -> bool:
-    if sys.platform == "win32":
-        key_map = {
-            "Play": 0xB3,
-            "Pause": 0xB3,
-            "PlayPause": 0xB3,
-            "Next": 0xB0,
-            "Previous": 0xB1,
-        }
-        vk = key_map.get(method)
-        return _send_win_media_key(vk) if vk is not None else False
-
-    try:
-        asyncio.run(_mpris_call(method))
-        return True
-    except Exception as error:
-        logger.debug("MPRIS %s failed: %s", method, error)
-        return False
+    key_map = {
+        "Play": 0xB3,
+        "Pause": 0xB3,
+        "PlayPause": 0xB3,
+        "Next": 0xB0,
+        "Previous": 0xB1,
+    }
+    vk = key_map.get(method)
+    return _send_win_media_key(vk) if vk is not None else False

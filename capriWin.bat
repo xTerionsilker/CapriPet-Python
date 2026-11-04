@@ -4,9 +4,6 @@ cd /d "%~dp0"
 
 REM 1. Check for Windows virtual environment
 if not exist ".venv\Scripts\python.exe" (
-    if exist ".venv\bin\python" (
-        echo [WARNING] Detected Linux-based .venv. Remove it or recreate it for Windows!
-    )
     echo [INFO] Virtual environment .venv not found. Creating...
     
     set "PY_CMD="

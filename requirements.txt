@@ -12,8 +12,6 @@ numpy>=2.0.0
 openai>=1.109.0
 spotipy>=2.25.1
 requests>=2.32.0
-dbus-next>=0.2.3
 pymorphy3>=2.0.6
 platformdirs>=4.5.0
 python-dateutil>=2.9.0
-pyxdg>=0.28; sys_platform == "linux"
