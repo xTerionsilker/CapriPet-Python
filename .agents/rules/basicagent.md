@@ -31,9 +31,9 @@ The entire CapriPet interface must strictly adhere to the **Cyberpunk 2077 Milit
    - **Section Separators:** Crisp, thin technical divider lines (`1px`), dotted/dashed guides, or linear gradients fading into transparency.
 
 2. **CRT & Holo Display Elements:**
-   - **Scanlines:** Fine horizontal scanlines (`1px` lines every 2–3px with low alpha like `rgba(242, 13, 46, 0.07)`).
+   - **Scanlines:** Fine horizontal scanlines (`1px` lines every 2–3px with low alpha like `rgba(246, 2, 63, 0.07)`).
    - **Digital Noise & Glitch:** Occasional horizontal line tearing, chromatic shift hints, or momentary flickers during transitions.
-   - **Holographic Glow & Glass:** High-contrast solid Obsidian Black (`#0B0B0B`) bases with crisp neon borders; avoid generic translucent blur/aero unless it represents a CRT phosphorescent panel.
+   - **Holographic Glow & Glass:** High-contrast solid Obsidian Black (`#020106`) bases with crisp neon borders; avoid generic translucent blur/aero unless it represents a CRT phosphorescent panel.
 
 3. **Typography & Data Telemetry:**
    - **Font Stack:** Technical / terminal monospace fonts: `"Press Start 2P"`, `"Pixelify Sans"`, `"VT323"`, `"Terminus"`, `"JetBrains Mono"`, `"DejaVu Sans Mono"`, `monospace`.
@@ -47,12 +47,12 @@ Capri's visual identity uses **only** the following colors:
 
 | Color | Hex | Approx. share |
 | --- | --- | --- |
-| Neon crimson | `#F20D2E` | 45% |
-| Obsidian black | `#0B0B0B` | 35% |
-| Acid green | `#3CF12B` | 16% |
-| White | `#FFFFFF` | 2% |
-| Electric blue | `#1E70F0` | 1.5% |
-| Neon violet | `#9922EE` | 0.5% |
+| Neon crimson | `#F6023F` | 45% |
+| Obsidian black | `#020106` | 35% |
+| Acid green | `#06F868` | 16% |
+| White | `#F9F9F9` | 2% |
+| Electric blue | `#126EE9` | 1.5% |
+| Neon violet | `#9E1FDE` | 0.5% |
 
 **Mandatory rule:** no other colors are allowed. Any new or modified UI, HUD, glitch, transition, effect, particle, lightning, animation, or overlay must be built exclusively from this palette. Do not introduce extra hues, gradients to foreign colors, or hard-coded colors outside this list. Use the percentage shares as the intended visual balance, not as a requirement to use every color in every effect.
 
