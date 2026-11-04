@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-import os
-import shutil
-import subprocess
+import asyncio
+import logging
 import sys
 import urllib.parse
+import webbrowser
+from typing import Any
 
 from .spotify_api import SpotifyError, find_track
+
+logger = logging.getLogger(__name__)
 
 _MPRIS_DEST = "org.mpris.MediaPlayer2.spotify"
 _MPRIS_PATH = "/org/mpris/MediaPlayer2"
 _MPRIS_PLAYER = "org.mpris.MediaPlayer2.Player"
+_MPRIS_PROPERTIES = "org.freedesktop.DBus.Properties"
 
 
 def play(query: str) -> str:
@@ -61,12 +65,7 @@ def previous_track() -> str:
 
 
 def current_track() -> str:
-    """Возвращает информацию о текущем воспроизводимом треке."""
-    if sys.platform == "win32":
-        info = _current_track_windows()
-    else:
-        info = _current_track_linux()
-
+    info = _current_track_windows() if sys.platform == "win32" else _current_track_linux()
     if not info:
         return "Сейчас ничего не играет или Spotify закрыт."
 
@@ -78,13 +77,97 @@ def current_track() -> str:
     return f"Сейчас играет: {artist}"
 
 
+async def _mpris_call(member: str) -> None:
+    from dbus_next import Message, MessageType
+    from dbus_next.aio import MessageBus
+
+    bus = await MessageBus().connect()
+    try:
+        reply = await bus.call(
+            Message(
+                destination=_MPRIS_DEST,
+                path=_MPRIS_PATH,
+                interface=_MPRIS_PLAYER,
+                member=member,
+            )
+        )
+    finally:
+        bus.disconnect()
+
+    if reply.message_type == MessageType.ERROR:
+        raise RuntimeError(f"{reply.error_name}: {reply.body[0] if reply.body else ''}")
+
+
+async def _mpris_property(name: str) -> Any:
+    from dbus_next import Message, MessageType
+    from dbus_next.aio import MessageBus
+
+    bus = await MessageBus().connect()
+    try:
+        reply = await bus.call(
+            Message(
+                destination=_MPRIS_DEST,
+                path=_MPRIS_PATH,
+                interface=_MPRIS_PROPERTIES,
+                member="Get",
+                signature="ss",
+                body=[_MPRIS_PLAYER, name],
+            )
+        )
+    finally:
+        bus.disconnect()
+
+    if reply.message_type == MessageType.ERROR:
+        raise RuntimeError(f"{reply.error_name}: {reply.body[0] if reply.body else ''}")
+    return reply.body[0]
+
+
+def _current_track_linux() -> tuple[str, str] | None:
+    try:
+        metadata = asyncio.run(_mpris_property("Metadata"))
+    except Exception as error:
+        logger.debug("MPRIS metadata query failed: %s", error)
+        return None
+
+    value = getattr(metadata, "value", metadata)
+    if not isinstance(value, dict):
+        return None
+
+    title = _variant_value(value.get("xesam:title"), "")
+    artists = _variant_value(value.get("xesam:artist"), [])
+    if isinstance(artists, str):
+        artists = [artists]
+    artist = ", ".join(str(item) for item in artists if item)
+
+    title = str(title).strip()
+    if title or artist:
+        return title, artist
+    return None
+
+
+def _variant_value(value: Any, default: Any) -> Any:
+    if value is None:
+        return default
+    return getattr(value, "value", value)
+
+
+def _search_uri(query: str) -> str:
+    return "spotify:search:" + urllib.parse.quote(query.strip(), safe="")
+
+
+def _open_uri(uri: str) -> bool:
+    try:
+        return bool(webbrowser.open(uri))
+    except OSError:
+        return False
+
+
 def _current_track_windows() -> tuple[str, str] | None:
     try:
         import ctypes
 
         user32 = ctypes.windll.user32
-        titles: list[str] = []
-
+        titles: list[tuple[str, str]] = []
 
         wnd_enum_proc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
 
@@ -107,8 +190,11 @@ def _current_track_windows() -> tuple[str, str] | None:
         user32.EnumWindows(wnd_enum_proc(enum_cb), 0)
 
         for cls_name, text in titles:
-            if cls_name == "Chrome_WidgetWin_0" and text and text != "Spotify" and text != "Spotify Free" and text != "Spotify Premium":
-
+            if cls_name == "Chrome_WidgetWin_0" and text and text not in (
+                "Spotify",
+                "Spotify Free",
+                "Spotify Premium",
+            ):
                 delimiter = " — " if " — " in text else (" - " if " - " in text else None)
                 if delimiter:
                     parts = text.split(delimiter, 1)
@@ -119,103 +205,11 @@ def _current_track_windows() -> tuple[str, str] | None:
     return None
 
 
-def _current_track_linux() -> tuple[str, str] | None:
-
-    if shutil.which("playerctl") is not None:
-        try:
-            res = subprocess.run(
-                ["playerctl", "-p", "spotify", "metadata", "--format", "{{artist}}///{{title}}"],
-                capture_output=True,
-                text=True,
-                timeout=3,
-            )
-            if res.returncode == 0 and res.stdout.strip():
-                parts = res.stdout.strip().split("///", 1)
-                artist = parts[0].strip()
-                title = parts[1].strip() if len(parts) > 1 else ""
-                if title or artist:
-                    return title, artist
-        except (OSError, subprocess.TimeoutExpired):
-            pass
-
-
-    if shutil.which("dbus-send") is not None:
-        try:
-            res = subprocess.run(
-                [
-                    "dbus-send",
-                    "--session",
-                    "--print-reply",
-                    f"--dest={_MPRIS_DEST}",
-                    _MPRIS_PATH,
-                    "org.freedesktop.DBus.Properties.Get",
-                    f"string:{_MPRIS_PLAYER}",
-                    "string:Metadata",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if res.returncode == 0 and res.stdout:
-                return _parse_mpris_metadata(res.stdout)
-        except (OSError, subprocess.TimeoutExpired):
-            pass
-
-    return None
-
-
-def _parse_mpris_metadata(output: str) -> tuple[str, str] | None:
-    import re
-
-    title_match = re.search(r'string\s+"xesam:title"\s+variant\s+string\s+"([^"]+)"', output)
-    title = title_match.group(1).strip() if title_match else ""
-
-    artists: list[str] = []
-    artist_section = re.search(r'string\s+"xesam:artist"\s+variant\s+array\s+\[(.*?)\]', output, re.DOTALL)
-    if artist_section:
-        artists = re.findall(r'string\s+"([^"]+)"', artist_section.group(1))
-    artist = ", ".join(artists).strip()
-
-    if title or artist:
-        return title, artist
-    return None
-
-
-def _search_uri(query: str) -> str:
-    return "spotify:search:" + urllib.parse.quote(query.strip(), safe="")
-
-
-def _open_uri(uri: str) -> bool:
-    if sys.platform == "win32":
-        try:
-            os.startfile(uri)
-            return True
-        except OSError:
-            pass
-
-    for command in (["gio", "open", uri], ["xdg-open", uri]):
-        if shutil.which(command[0]) is None:
-            continue
-        try:
-            result = subprocess.run(
-                command,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=10,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            continue
-        if result.returncode == 0:
-            return True
-    return False
-
-
 def _send_win_media_key(vk_code: int) -> bool:
     try:
         import ctypes
 
         keybd_event = ctypes.windll.user32.keybd_event
-
         keybd_event(vk_code, 0, 1, 0)
         keybd_event(vk_code, 0, 1 | 2, 0)
         return True
@@ -225,8 +219,6 @@ def _send_win_media_key(vk_code: int) -> bool:
 
 def _player_call(method: str) -> bool:
     if sys.platform == "win32":
-
-
         key_map = {
             "Play": 0xB3,
             "Pause": 0xB3,
@@ -235,26 +227,11 @@ def _player_call(method: str) -> bool:
             "Previous": 0xB1,
         }
         vk = key_map.get(method)
-        if vk is not None:
-            return _send_win_media_key(vk)
-        return False
+        return _send_win_media_key(vk) if vk is not None else False
 
-    if shutil.which("dbus-send") is None:
-        return False
     try:
-        result = subprocess.run(
-            [
-                "dbus-send",
-                "--session",
-                f"--dest={_MPRIS_DEST}",
-                "--type=method_call",
-                _MPRIS_PATH,
-                f"{_MPRIS_PLAYER}.{method}",
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-        )
-    except (OSError, subprocess.TimeoutExpired):
+        asyncio.run(_mpris_call(method))
+        return True
+    except Exception as error:
+        logger.debug("MPRIS %s failed: %s", method, error)
         return False
-    return result.returncode == 0

@@ -177,13 +177,14 @@ class VoskSpeechService:
         if channels <= 1:
             return data
 
-        try:
-            import audioop
+        import numpy as np
 
-            return audioop.tomono(data, 2, 0.5, 0.5)
-        except Exception:
-            frame_size = channels * 2
-            return b"".join(data[i : i + 2] for i in range(0, len(data), frame_size))
+        samples = np.frombuffer(data, dtype=np.int16)
+        frame_count = samples.size // channels
+        if frame_count == 0:
+            return b""
+        frames = samples[: frame_count * channels].reshape(frame_count, channels)
+        return frames.mean(axis=1, dtype=np.float32).astype(np.int16).tobytes()
 
     def create_recognizer(self, sample_rate: int, grammar: str | None = None) -> Any:
         """Создает новый экземпляр KaldiRecognizer для потоковой обработки."""

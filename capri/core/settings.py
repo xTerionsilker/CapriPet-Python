@@ -4,11 +4,11 @@ import copy
 import json
 import logging
 import os
-import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Literal, Optional
 
+from platformdirs import user_config_dir
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
@@ -179,13 +179,7 @@ def _resolve_config_dir() -> Path:
         pass
 
 
-    if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA")
-        base_config = Path(appdata) if appdata else Path.home() / "AppData" / "Roaming"
-    else:
-        xdg = os.environ.get("XDG_CONFIG_HOME")
-        base_config = Path(xdg) if xdg else Path.home() / ".config"
-    home_dir = base_config / "capri"
+    home_dir = Path(user_config_dir("capri"))
     try:
         home_dir.mkdir(parents=True, exist_ok=True)
         test_file = home_dir / ".write_test"

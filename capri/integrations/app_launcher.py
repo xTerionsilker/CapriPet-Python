@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import configparser
 import os
 import re
 import shlex
@@ -53,6 +52,9 @@ def _clean_exec_command(exec_str: str) -> list[str]:
 
 
 def _scan_linux_applications() -> list[dict[str, Any]]:
+    from xdg.DesktopEntry import DesktopEntry
+    from xdg.Exceptions import ParsingError
+
     desktop_dirs = [
         "/usr/share/applications",
         "/usr/local/share/applications",
@@ -67,30 +69,25 @@ def _scan_linux_applications() -> list[dict[str, Any]]:
                 if not file_name.endswith(".desktop"):
                     continue
                 file_path = os.path.join(root, file_name)
-                cp = configparser.ConfigParser(interpolation=None)
                 try:
-                    cp.read(file_path, encoding="utf-8")
-                    if "Desktop Entry" not in cp:
-                        continue
-                    sec = cp["Desktop Entry"]
-                    if sec.get("NoDisplay", "false").lower() == "true":
-                        continue
-                    if sec.get("Type", "Application") != "Application":
-                        continue
-                    name = sec.get("Name")
-                    exec_cmd = sec.get("Exec")
-                    if not name or not exec_cmd:
-                        continue
-                    comment = sec.get("Comment", "")
-                    if file_name not in apps:
-                        apps[file_name] = {
-                            "name": name,
-                            "exec": exec_cmd,
-                            "comment": comment,
-                            "path": file_path,
-                        }
-                except Exception:
-                    pass
+                    entry = DesktopEntry(file_path)
+                except (ParsingError, UnicodeDecodeError, OSError):
+                    continue
+                if entry.getNoDisplay() or entry.getType() != "Application":
+                    continue
+                name = entry.getName()
+                exec_cmd = entry.getExec()
+                if not name or not exec_cmd:
+                    continue
+                apps.setdefault(
+                    file_name,
+                    {
+                        "name": name,
+                        "exec": exec_cmd,
+                        "comment": entry.getComment() or "",
+                        "path": file_path,
+                    },
+                )
     return list(apps.values())
 
 

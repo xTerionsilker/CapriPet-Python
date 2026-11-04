@@ -1,66 +1,60 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
-from typing import Any
+from typing import Any, Sequence
 
-import httpx
+import openai
+from openai import OpenAI
 
-from ..core.ai_config import get_ai_config_value, load_ai_config
+from ..core.ai_config import load_ai_config
 from ..core.user_agent import get_user_agent
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_ENDPOINT = "https://api.openai.com/v1/chat/completions"
+_CHAT_SUFFIX = "/chat/completions"
+
 
 class AIError(RuntimeError):
-    """Базовое исключение для ошибок взаимодействия с AI API."""
     pass
 
 
 def normalize_endpoint(raw_url: str) -> str:
-\
-\
-\
-
     url = raw_url.strip()
     if not url:
-        return "https://api.openai.com/v1/chat/completions"
+        return DEFAULT_ENDPOINT
 
     if "://" not in url:
-        if url.startswith("localhost") or url.startswith("127.0.0.1"):
+        if url.startswith(("localhost", "127.0.0.1")):
             url = f"http://{url}"
         else:
             url = f"https://{url}"
 
     url = url.rstrip("/")
-
     if url.endswith("/v1"):
-        url = f"{url}/chat/completions"
-
+        url = f"{url}{_CHAT_SUFFIX}"
     return url
 
 
+def _base_url(endpoint: str) -> str:
+    if endpoint.endswith(_CHAT_SUFFIX):
+        return endpoint[: -len(_CHAT_SUFFIX)]
+    return endpoint
+
+
 def get_ai_settings() -> dict[str, Any]:
-    """Возвращает текущие настройки AI с учетом переменных окружения."""
-    cfg = load_ai_config()
+    config = load_ai_config()
 
     endpoint = (
         os.environ.get("CAPRI_AI_ENDPOINT")
-        or cfg.get("endpoint")
-        or "https://api.openai.com/v1/chat/completions"
+        or config.get("endpoint")
+        or DEFAULT_ENDPOINT
     )
-    api_key = (
-        os.environ.get("CAPRI_AI_API_KEY")
-        or cfg.get("api_key")
-        or ""
-    )
-    model = (
-        os.environ.get("CAPRI_AI_MODEL")
-        or cfg.get("model")
-        or "gpt-4o-mini"
-    )
-    timeout = cfg.get("timeout", 60.0)
+    api_key = os.environ.get("CAPRI_AI_API_KEY") or config.get("api_key") or ""
+    model = os.environ.get("CAPRI_AI_MODEL") or config.get("model") or "gpt-4o-mini"
+
+    timeout = config.get("timeout", 60.0)
     try:
         if os.environ.get("CAPRI_AI_TIMEOUT"):
             timeout = float(os.environ["CAPRI_AI_TIMEOUT"])
@@ -68,150 +62,99 @@ def get_ai_settings() -> dict[str, Any]:
         pass
 
     return {
-        "endpoint": normalize_endpoint(endpoint),
+        "endpoint": normalize_endpoint(str(endpoint)),
         "api_key": str(api_key).strip(),
         "model": str(model).strip(),
-        "temperature": float(cfg.get("temperature", 0.7)),
-        "max_tokens": int(cfg.get("max_tokens", 256)),
+        "temperature": float(config.get("temperature", 0.7)),
+        "max_tokens": int(config.get("max_tokens", 256)),
         "timeout": float(timeout),
-        "system_prompt": str(cfg.get("system_prompt", "")).strip(),
-        "headers": dict(cfg.get("headers", {})),
+        "system_prompt": str(config.get("system_prompt", "")).strip(),
+        "headers": dict(config.get("headers", {})),
     }
 
 
-def _extract_error_detail(response: httpx.Response) -> str:
-    """Извлекает подробное описание ошибки из тела ответа HTTP."""
-    try:
-        body = response.json()
-    except Exception:
-        return ""
-
+def _error_detail(error: openai.APIStatusError) -> str:
+    body = getattr(error, "body", None)
     if isinstance(body, dict):
-        err = body.get("error")
-        if isinstance(err, dict):
-            msg = err.get("message")
-            if msg:
-                return str(msg).strip()
-        elif isinstance(err, str) and err.strip():
-            return err.strip()
-        msg = body.get("message") or body.get("detail")
-        if msg:
-            return str(msg).strip()
+        inner = body.get("error")
+        if isinstance(inner, dict) and inner.get("message"):
+            return str(inner["message"]).strip()
+        if isinstance(inner, str) and inner.strip():
+            return inner.strip()
+        for key in ("message", "detail"):
+            if body.get(key):
+                return str(body[key]).strip()
     return ""
 
 
-def _extract_response_text(data: Any) -> str:
-    """Извлекает текст ответа из различных форматов API (OpenAI, Anthropic и др.)."""
-    if not isinstance(data, dict):
-        return ""
+def _client(settings: dict[str, Any]) -> OpenAI:
+    headers = {"User-Agent": get_user_agent(), **settings["headers"]}
+    return OpenAI(
+        api_key=settings["api_key"] or "capri-local",
+        base_url=_base_url(settings["endpoint"]),
+        timeout=settings["timeout"],
+        max_retries=0,
+        default_headers=headers,
+    )
 
 
-    choices = data.get("choices")
-    if isinstance(choices, list) and choices:
-        first = choices[0]
-        if isinstance(first, dict):
-            msg = first.get("message")
-            if isinstance(msg, dict):
-                content = msg.get("content")
-                if content:
-                    return str(content).strip()
-            text = first.get("text")
-            if text:
-                return str(text).strip()
-
-
-    content_list = data.get("content")
-    if isinstance(content_list, list) and content_list:
-        for item in content_list:
-            if isinstance(item, dict) and item.get("type") == "text":
-                val = item.get("text")
-                if val:
-                    return str(val).strip()
-        first_item = content_list[0]
-        if isinstance(first_item, dict) and "text" in first_item:
-            return str(first_item["text"]).strip()
-
-
-    msg = data.get("message")
-    if isinstance(msg, dict) and msg.get("content"):
-        return str(msg["content"]).strip()
-
-    for key in ("response", "text", "answer", "output"):
-        val = data.get(key)
-        if isinstance(val, str) and val.strip():
-            return val.strip()
-
-    return ""
-
-
-def ask(
+def _build_messages(
     prompt: str,
-    *,
-    history: list[dict[str, str]] | tuple[dict[str, str], ...] = (),
-) -> str:
-    """Отправляет запрос к настроенному кастомному AI API / эндпоинту и возвращает текст ответа."""
-    settings = get_ai_settings()
-    endpoint = settings["endpoint"]
-    api_key = settings["api_key"]
-    model_name = settings["model"]
-    timeout = settings["timeout"]
-    system_prompt = settings["system_prompt"]
-
+    history: Sequence[dict[str, str]],
+    system_prompt: str,
+) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     messages.extend(history)
     messages.append({"role": "user", "content": prompt})
-
-    payload: dict[str, Any] = {
-        "model": model_name,
-        "messages": messages,
-        "temperature": settings["temperature"],
-        "max_tokens": settings["max_tokens"],
-        "stream": False,
-    }
-
-    headers: dict[str, str] = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": get_user_agent(),
-    }
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
+    return messages
 
 
-    for k, v in settings["headers"].items():
-        headers[k] = str(v)
+def ask(
+    prompt: str,
+    *,
+    history: Sequence[dict[str, str]] = (),
+) -> str:
+    settings = get_ai_settings()
+    endpoint = settings["endpoint"]
+    timeout = settings["timeout"]
+    model_name = settings["model"]
+    client = _client(settings)
 
     try:
-        with httpx.Client(timeout=timeout) as client:
-            response = client.post(endpoint, json=payload, headers=headers)
-            response.raise_for_status()
-            raw_data = response.json()
-    except httpx.HTTPStatusError as error:
-        detail = _extract_error_detail(error.response)
-        code = error.response.status_code
-        if code in (401, 403):
-            msg = detail or "проверь api_key в ai_config.json"
-            raise AIError(f"Ошибка авторизации AI API ({code}): {msg}.") from error
-        if code == 404:
-            msg = detail or f"проверь URL {endpoint} и модель {model_name} в ai_config.json"
-            raise AIError(f"AI эндпоинт или модель не найдены (404): {msg}.") from error
-        if code == 429:
-            msg = detail or "превышен лимит запросов, попробуй позже"
-            raise AIError(f"Лимит запросов к AI API исчерпан (429): {msg}.") from error
-        msg = detail or f"HTTP {code}"
-        raise AIError(f"AI API ответил ошибкой: {msg}.") from error
-    except httpx.TimeoutException as error:
+        completion = client.chat.completions.create(
+            model=model_name,
+            messages=_build_messages(prompt, history, settings["system_prompt"]),
+            temperature=settings["temperature"],
+            max_tokens=settings["max_tokens"],
+            stream=False,
+        )
+    except openai.AuthenticationError as error:
+        detail = _error_detail(error) or "проверь api_key в ai_config.json"
+        raise AIError(f"Ошибка авторизации AI API ({error.status_code}): {detail}.") from error
+    except openai.NotFoundError as error:
+        detail = _error_detail(error) or f"проверь URL {endpoint} и модель {model_name} в ai_config.json"
+        raise AIError(f"AI эндпоинт или модель не найдены (404): {detail}.") from error
+    except openai.RateLimitError as error:
+        detail = _error_detail(error) or "превышен лимит запросов, попробуй позже"
+        raise AIError(f"Лимит запросов к AI API исчерпан (429): {detail}.") from error
+    except openai.APITimeoutError as error:
         raise AIError(f"AI сервис не ответил за {timeout:.0f} сек.") from error
-    except httpx.RequestError as error:
+    except openai.APIConnectionError as error:
         raise AIError(
             f"Не удалось подключиться к AI эндпоинту ({endpoint}): {error}."
         ) from error
-    except json.JSONDecodeError as error:
-        raise AIError("AI сервис вернул некорректный ответ (не JSON).") from error
+    except openai.APIStatusError as error:
+        detail = _error_detail(error) or f"HTTP {error.status_code}"
+        raise AIError(f"AI API ответил ошибкой: {detail}.") from error
+    except openai.OpenAIError as error:
+        raise AIError(f"AI сервис вернул некорректный ответ: {error}.") from error
 
-    answer = _extract_response_text(raw_data)
+    if not completion.choices:
+        raise AIError("AI модель ответила пустым текстом.")
+
+    answer = (completion.choices[0].message.content or "").strip()
     if not answer:
         raise AIError("AI модель ответила пустым текстом.")
     return answer

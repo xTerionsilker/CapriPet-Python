@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
+from rapidfuzz import process
+from rapidfuzz.distance import DamerauLevenshtein
 
-from rapidfuzz import fuzz
-
-from ..core.fuzzy import MAX_TYPO_DISTANCE, edit_distance, keyword_score, similarity
+from ..core.fuzzy import MAX_TYPO_DISTANCE, keyword_score, similarity
 from ..core.morphology import normalize_spoken_numbers, stem_text
 from .base import BaseCommand, CommandContext
 
@@ -212,23 +211,14 @@ class CommandRegistry:
         return None
 
     def _closest(self, normalized: str) -> str | None:
-        limit = min(
-            MAX_TYPO_DISTANCE, max(1, len(normalized) // 5)
+        limit = min(MAX_TYPO_DISTANCE, max(1, len(normalized) // 5))
+        match = process.extractOne(
+            normalized,
+            self._lookup.keys(),
+            scorer=DamerauLevenshtein.distance,
+            score_cutoff=limit,
         )
-        best_key: str | None = None
-        best_score: tuple[int, float] | None = None
-
-        for key in self._lookup:
-            distance = edit_distance(normalized, key)
-            if distance > limit:
-                continue
-            ratio = fuzz.ratio(normalized, key) / 100.0
-            score = (distance, -ratio)
-            if best_score is None or score < best_score:
-                best_score = score
-                best_key = key
-
-        return best_key
+        return match[0] if match is not None else None
 
     def _stemmed_match(self, normalized: str) -> tuple[BaseCommand, str] | None:
         """Матчит команду на основе стемминга корней слов."""
