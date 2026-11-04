@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from .placement import pick_adjacent_position
 from .speech_sfx import get_speech_sfx
+from .fonts import get_terminal_font, get_hud_font
 from .theme import (
     ACID_GREEN,
     ELECTRIC_BLUE,
