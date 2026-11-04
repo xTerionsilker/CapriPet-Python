@@ -4,10 +4,7 @@ import logging
 import math
 from pathlib import Path
 import random
-import shutil
 import struct
-import subprocess
-import sys
 import tempfile
 import time
 import wave
@@ -18,19 +15,7 @@ from PySide6.QtMultimedia import QSoundEffect
 logger = logging.getLogger(__name__)
 
 
-def _find_system_player() -> str | None:
-    """Ищет доступную системную утилиту воспроизведения Linux: pw-play -> paplay -> aplay."""
-    if sys.platform == "win32":
-        return None
-    for cmd in ("pw-play", "paplay", "aplay"):
-        path = shutil.which(cmd)
-        if path:
-            return path
-    return None
-
-
 def _generate_swoosh_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.10) -> None:
-    """Генерирует короткий футуристический кибер-свуш (восходящий частотный свип ~100 мс)."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     for i in range(num_samples):
@@ -56,7 +41,6 @@ def _generate_swoosh_wav(file_path: Path, sample_rate: int = 44100, duration: fl
 
 
 def _generate_close_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.10) -> None:
-    """Генерирует звук кибер-деактивации / закрытия (нисходящий частотный свип 1400 -> 300 Гц)."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     for i in range(num_samples):
@@ -82,7 +66,6 @@ def _generate_close_wav(file_path: Path, sample_rate: int = 44100, duration: flo
 
 
 def _generate_chirp_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.02) -> None:
-    """Генерирует ретро-чирп/бип терминала (~20 мс, 1900-1400 Гц)."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     for i in range(num_samples):
@@ -108,7 +91,6 @@ def _generate_chirp_wav(file_path: Path, sample_rate: int = 44100, duration: flo
 
 
 def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.42) -> None:
-    """Генерирует мощный киберпанк-удар молнии: плазменный щелчок, высоковольтный треск и саб-басовый гром."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(1337)
@@ -161,7 +143,6 @@ def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, du
 
 
 def _generate_lightning_arc_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.20) -> None:
-    """Генерирует треск электрической дуги при пробегании молнии."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(2049)
@@ -188,7 +169,6 @@ def _generate_lightning_arc_wav(file_path: Path, sample_rate: int = 44100, durat
 
 
 def _generate_lightning_zap_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.08) -> None:
-    """Генерирует быстрый высоковольтный микроразряд (кибер-зэп)."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(777)
@@ -211,7 +191,6 @@ def _generate_lightning_zap_wav(file_path: Path, sample_rate: int = 44100, durat
 
 
 def _generate_session_lock_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.72) -> None:
-    """Генерирует сервоприводный зажим и два подтверждающих кибер-бипа блокировки."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(2024)
@@ -254,7 +233,6 @@ def _generate_session_lock_wav(file_path: Path, sample_rate: int = 44100, durati
 
 
 def _generate_session_power_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.95) -> None:
-    """Генерирует падение энергии ядра: нисходящий свип, треск реле и глухой удар."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(404)
@@ -292,7 +270,6 @@ def _generate_session_power_wav(file_path: Path, sample_rate: int = 44100, durat
 
 
 def _generate_session_suspend_wav(file_path: Path, sample_rate: int = 44100, duration: float = 1.05) -> None:
-    """Генерирует крио-погружение: низкий пульс, дыхание стазиса и одиночный сонный бип."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     for i in range(num_samples):
@@ -325,7 +302,6 @@ def _generate_session_suspend_wav(file_path: Path, sample_rate: int = 44100, dur
 
 
 def _generate_session_reboot_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.95) -> None:
-    """Генерирует загрузочную кибер-последовательность: восходящее арпеджио и бинарный стрекот."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(777)
@@ -364,11 +340,6 @@ def _generate_session_reboot_wav(file_path: Path, sample_rate: int = 44100, dura
 
 
 class SpeechSFX(QObject):
-\
-\
-\
-\
-
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -380,8 +351,6 @@ class SpeechSFX(QObject):
         self._last_chirp_time = 0.0
         self._available = False
 
-        self._player_bin = _find_system_player()
-        self._processes: list[subprocess.Popen] = []
 
         self._swoosh_path: Path | None = None
         self._close_path: Path | None = None
@@ -491,45 +460,13 @@ class SpeechSFX(QObject):
             logger.warning("Не удалось инициализировать SFX звуки: %s. Работаем в беззвучном режиме.", exc)
             self._available = False
 
-    def _system_volume_args(self) -> list[str]:
-        """Возвращает аргументы громкости для выбранной системной утилиты воспроизведения."""
-        if not self._player_bin:
-            return []
-        player = Path(self._player_bin).name
-        if player == "pw-play":
-            return ["--volume", f"{self._volume:.3f}"]
-        if player == "paplay":
-            return [f"--volume={int(round(self._volume * 65536))}"]
-        return []
-
     def _play_file(self, path: Path | None, fallback_effect: QSoundEffect | None) -> None:
-        """Воспроизводит WAV файл через системную утилиту или QSoundEffect фолбэк."""
-        if not self.is_enabled() or path is None:
+        if not self.is_enabled() or fallback_effect is None:
             return
-
-
-        self._processes = [p for p in self._processes if p.poll() is None]
-
-        played_by_system = False
-        if self._player_bin:
-            try:
-                proc = subprocess.Popen(
-                    [self._player_bin, *self._system_volume_args(), str(path)],
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    close_fds=(sys.platform != "win32"),
-                )
-                self._processes.append(proc)
-                played_by_system = True
-            except Exception as exc:
-                logger.debug("Системный плеер %s завершился с ошибкой: %s", self._player_bin, exc)
-
-        if not played_by_system and fallback_effect is not None:
-            try:
-                fallback_effect.play()
-            except Exception as exc:
-                logger.debug("Фолбэк QSoundEffect ошибка: %s", exc)
+        try:
+            fallback_effect.play()
+        except Exception as exc:
+            logger.debug("QSoundEffect error: %s", exc)
 
     @property
     def is_available(self) -> bool:
@@ -574,47 +511,37 @@ class SpeechSFX(QObject):
             effect.setVolume(self._volume * 0.7)
 
     def play_swoosh(self) -> None:
-        """Воспроизводит звук открытия облачка (кибер-свуш)."""
         if not self.is_speech_sound_enabled():
             return
         self._play_file(self._swoosh_path, self._swoosh_effect)
 
     def play_close(self) -> None:
-        """Воспроизводит звук закрытия/деактивации облачка."""
         if not self.is_speech_sound_enabled():
             return
         self._play_file(self._close_path, self._close_effect)
 
     def play_lightning_strike(self) -> None:
-        """Воспроизводит мощный удар кибер-молнии."""
         if not self.is_effects_sound_enabled():
             return
         self._play_file(self._lightning_strike_path, self._lightning_strike_effect)
 
     def play_lightning_arc(self) -> None:
-        """Воспроизводит электрический треск бегущей дуги молнии."""
         if not self.is_effects_sound_enabled():
             return
         self._play_file(self._lightning_arc_path, self._lightning_arc_effect)
 
     def play_lightning_zap(self) -> None:
-        """Воспроизводит короткий электрический щелчок микроразряда."""
         if not self.is_effects_sound_enabled():
             return
         self._play_file(self._lightning_zap_path, self._lightning_zap_effect)
 
     def play_session_action(self, action: str) -> None:
-        """Воспроизводит характерный звук сессионной анимации Капри."""
         if not self.is_effects_sound_enabled():
             return
         path = self._session_paths.get(action)
         self._play_file(path, self._session_effects.get(action))
 
     def play_chirp(self) -> None:
-\
-\
-\
-
         if not self.is_speech_sound_enabled() or self._chirp_path is None:
             return
         now = time.monotonic()
@@ -633,24 +560,12 @@ class SpeechSFX(QObject):
         self._play_file(self._chirp_path, fallback)
 
     def stop_all(self, timeout: float = 0.3) -> None:
-        """Ожидает завершения или останавливает запущенные процессы воспроизведения."""
-        for p in self._processes:
-            try:
-                p.wait(timeout=timeout)
-            except Exception:
-                try:
-                    p.kill()
-                    p.wait(timeout=0.1)
-                except Exception:
-                    pass
-        self._processes.clear()
-
+        pass
 
 _instance: SpeechSFX | None = None
 
 
 def get_speech_sfx() -> SpeechSFX:
-    """Возвращает глобальный синглтон модуля SpeechSFX."""
     global _instance
     if _instance is None:
         _instance = SpeechSFX()
