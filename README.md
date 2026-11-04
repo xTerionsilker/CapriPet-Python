@@ -118,7 +118,7 @@ pip install -r requirements.txt
 
 ### Настройка собственного AI API и Endpoint (`ai_config.json`)
 
-Поддержка AI вынесена в **отдельный конфигурационный файл** `.capri/ai_config.json` (пример в `ai_config.example.json`):
+Поддержка AI вынесена в **отдельный конфигурационный файл** `.capri/ai_config.json`:
 - **Основной путь:** `.capri/ai_config.json` (внутри проекта)
 - **Альтернативный/системный путь:** `$XDG_CONFIG_HOME/capri/ai_config.json` (Linux) / `%APPDATA%\capri\ai_config.json` (Windows)
 
@@ -160,9 +160,9 @@ pip install -r requirements.txt
 
 ```text
 main.py                         # Главная точка входа приложения
-ai_config.example.json          # Пример отдельной конфигурации AI API и Endpoint
 capriLinux.sh                   # Скрипт быстрого запуска для Linux
 capriWin.bat                    # Скрипт быстрого запуска для Windows
+version.txt                     # Текущая версия приложения
 capri/
 ├── __init__.py
 ├── audio/                      # Голосовой ввод и распознавание речи
@@ -211,7 +211,9 @@ capri/
 │   ├── spotify.py              # Управление клиентом Spotify через D-Bus (dbus-send)
 │   ├── spotify_api.py          # Поиск и воспроизведение треков через Spotify Web API
 │   ├── system_power.py         # Выключение, перезагрузка и спящий режим системы
-│   └── web_search.py           # Поиск в Google и YouTube в веб-браузере
+│   ├── updater.py              # Проверка обновлений проекта через GitHub API / version.txt
+│   ├── web_search.py           # Поиск в Google и YouTube в веб-браузере
+│   └── window_tracker.py       # Определение геометрии активного окна (KWin, X11, Windows)
 └── ui/                         # Графический интерфейс на PySide6 (Qt)
     ├── context_menu.py         # Конструктор контекстного меню питомца и системного трея
     ├── cyber_menu.py           # Кастомное меню в стиле Cyberpunk 2077 (рамки, сканлайны)
@@ -228,7 +230,7 @@ capri/
     └── voice_hud.py            # Cyberpunk 2077 HUD голосового ввода над панелью задач (taskbar)
 assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
 docs/                           # Дополнительная документация и спецификации (config_spec.md)
-models/                         # Локальная акустическая модель Vosk (vosk-model-ru-0.42)
+models/                         # Папка моделей (Vosk, Silero VAD onnx)
 requirements.txt                # Зависимости проекта
 AGENTS.md                       # Инструкция и правила разработки для AI-агентов
 LICENSE                         # Лицензия MIT
