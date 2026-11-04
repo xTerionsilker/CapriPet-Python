@@ -127,11 +127,11 @@ class TransitionOverlay(QWidget):
         target_center = self._local_window.center()
 
         if mode == "in":
-            p0 = self._offscreen_point
+            p0 = self._offscreen_point if target_point is None else (target_point - offset)
             p2 = target_center
         else:
             p0 = target_center
-            p2 = self._offscreen_point
+            p2 = self._offscreen_point if target_point is None else (target_point - offset)
 
         mid_x = (p0.x() + p2.x()) // 2
         mid_y = (p0.y() + p2.y()) // 2

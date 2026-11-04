@@ -128,6 +128,7 @@ class TeleportController:
             self._window.hide()
 
         def on_out_finished() -> None:
+            self._teleport_overlay_out = None
             if self._window.is_closing:
                 return
 
@@ -139,12 +140,12 @@ class TeleportController:
             set_config_value("window.position", {"x": to_rect.x(), "y": to_rect.y()})
             set_config_value("window.overlay_position", {"x": to_rect.x(), "y": to_rect.y()})
 
-            self._window.set_pose("crouch")
+            self._window.set_pose("idle")
 
             def on_in_peak() -> None:
                 self._window.show()
                 self._window.raise_()
-                self._window.set_pose("sit")
+                self._window.set_pose("idle")
                 self._window.update()
 
             def on_in_finished() -> None:
@@ -160,17 +161,19 @@ class TeleportController:
                 "in",
                 target=self._window,
                 on_peak=on_in_peak,
+                target_point=from_rect.center(),
             )
             self._teleport_overlay_in.finished.connect(on_in_finished)
             self._teleport_overlay_in.start()
 
-        self._window.set_pose("crouch")
+        self._window.set_pose("idle")
         self._teleport_overlay_out = TransitionOverlay(
             self._window.screen().geometry() if self._window.screen() else from_rect,
             from_rect,
             "out",
             target=self._window,
             on_peak=on_out_peak,
+            target_point=to_rect.center(),
         )
         self._teleport_overlay_out.finished.connect(on_out_finished)
         self._teleport_overlay_out.start()
