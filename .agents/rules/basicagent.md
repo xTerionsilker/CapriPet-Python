@@ -1,33 +1,24 @@
 # AGENTS.md
 
-## Target Operating Systems & Cross-Platform Support
+## Target Operating Systems & Platform Support
 
-CapriPet targets **strictly two desktop operating systems: Linux and Windows**. All new features, windowing logic, input capturing, audio playback, file paths, and system integrations must support both platforms seamlessly:
+CapriPet targets **strictly Windows (Windows 10/11)**:
 
-- **Linux:**
-  - Handles Wayland (KWin / Mutter) and X11 environments.
-  - `main.py` explicitly selects `QT_QPA_PLATFORM=xcb` under Wayland with XWayland to ensure consistent frameless window positioning and coordinate tracking.
-  - Configuration files default to `.capri/` inside the project root, falling back to XDG (`$XDG_CONFIG_HOME/capri/config.json` or `~/.config/capri/config.json`).
-  - Audio fallbacks use system utilities (`pw-play`, `paplay`, `aplay`) or Qt `QSoundEffect`.
 - **Windows:**
   - Works natively with Windows Desktop Window Manager (DWM) and Multi-DPI displays.
   - Frameless click-through overlays use standard Qt tool window flags (`WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW`).
   - Cursor tracking and screen metrics leverage native Win32 APIs (`ctypes.windll.user32`) and Qt virtual screen geometry (`QGuiApplication.screens()`).
   - Configuration files default to `.capri/` inside the project root, falling back to `%APPDATA%/capri/config.json`.
-  - Audio uses native `winsound` / `QSoundEffect`.
+  - Audio uses Qt `QSoundEffect`.
 
 ## Environment & Tooling
 
-- **Python Interpreter:** Always use the local virtual environment (`./.venv/bin/python` on Linux, `.\.venv\Scripts\python.exe` on Windows). System Python lacks dependencies like `PySide6` and `vosk`.
-- **Run Application:** `./.venv/bin/python main.py`
-- **Headless Testing / Verification:** In terminal sessions without an X/Wayland display server, set `QT_QPA_PLATFORM=offscreen`:
-  ```bash
-  QT_QPA_PLATFORM=offscreen ./.venv/bin/python -c "from capri.ui.pet_window import CapriWindow; print('OK')"
-  ```
-- **Syntax & Linter Checks:**
-  ```bash
-  ./.venv/bin/python -m py_compile capri/**/*.py main.py
-  ./.venv/bin/pyflakes capri/ main.py
+- **Python Interpreter:** Always use the local virtual environment (`.\.venv\Scripts\python.exe`). System Python lacks dependencies like `PySide6` and `vosk`.
+- **Run Application:** `.\.venv\Scripts\python.exe main.py`
+- **Launch via batch script:** `capriWin.bat`
+- **Syntax & Compilation Checks:**
+  ```cmd
+  .\.venv\Scripts\python.exe -m py_compile capri/**/*.py main.py
   ```
 
 ## Visual Design & Cyberpunk Style Guide
@@ -84,10 +75,10 @@ Capri's visual identity uses **only** the following colors:
   - Displays cyber HUD speech bubbles (`CyberHudBubble`) with holographic deploy (open) and CRT beam collapse (close) animations.
   - Anchors dynamically to Capri (`CapriWindow`), tracking movement in real time via `eventFilter` and a 25ms timer.
   - Position is computed by `pick_adjacent_position` (`capri/ui/placement.py`), preferring side placement (right/left) and falling back to above/below or minimum overlap if screen space is tight.
-  - SFX are synthesized on the fly via `capri/ui/speech_sfx.py` into cached WAV files and played via system audio utilities (`pw-play`, `paplay`, `aplay`) or `QSoundEffect`.
+  - SFX are synthesized on the fly via `capri/ui/speech_sfx.py` into cached WAV files and played via `QSoundEffect`.
 - **Configuration Management (`capri/core/settings.py` & `capri/core/ai_config.py`):**
   - Settings are typed and validated using Pydantic v2 models (`CapriConfig`, `AIConfigModel`), ensuring declarative constraints, defaults, and boundary sanitization without manual dict merging.
-  - Settings load in priority order: `<repo>/.capri/config.json` -> `$XDG_CONFIG_HOME/capri/config.json` (`~/.config/capri/config.json` on Linux, `%APPDATA%/capri/config.json` on Windows) -> `/tmp/capri_config.json`.
+  - Settings load in priority order: `<repo>/.capri/config.json` -> `%APPDATA%/capri/config.json` -> `%TEMP%/capri_config.json`.
   - Saves are atomic: writes to `.tmp` file and replaces via `os.replace`.
 - **Audio & Voice (`capri/audio/` & `capri/core/morphology.py`):**
   - Offline STT uses `vosk` with Russian acoustic model located at `models/vosk-model-ru-0.42/` or `models/vosk-model-small-ru-0.22`, with optional `faster-whisper` hybrid backend support.
