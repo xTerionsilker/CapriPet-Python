@@ -1,4 +1,5 @@
 from __future__ import annotations
+from capri.ui.fonts import get_hud_font
 
 import math
 import random
@@ -150,7 +151,7 @@ class GlitchBurstOverlay(QWidget):
             painter.fillRect(bx, by, banner_w, 2, COLOR_CRIMSON)
             painter.fillRect(bx, by + banner_h - 2, banner_w, 2, COLOR_ACID_GREEN)
 
-            font = QFont("monospace", 10, QFont.Weight.Bold)
+            font = get_hud_font(12, bold=True)
             painter.setFont(font)
             painter.setPen(COLOR_CRIMSON if random.random() < 0.6 else COLOR_WHITE)
             hud_text = random.choice((

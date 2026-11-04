@@ -1,4 +1,5 @@
 from __future__ import annotations
+from capri.ui.fonts import get_hud_font
 
 import math
 import random
@@ -240,8 +241,7 @@ class LightningTetherOverlay(QWidget):
         dy = self._target_pos.y() - self._start_pos.y()
         dist = int(math.hypot(dx, dy))
 
-        font = QFont("Press Start 2P")
-        font.setPixelSize(8)
+        font = get_hud_font(10, bold=True)
         painter.setFont(font)
 
         tag = f"DIST: {dist:04d}px // VECTOR:[{dx:+04d},{dy:+04d}]"

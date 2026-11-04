@@ -43,7 +43,7 @@ QLabel#text {{
     background: transparent;
     color: {_TEXT_COLOR};
     font-family: {PIXEL_FONT};
-    font-size: 13px;
+    font-size: 18px;
     letter-spacing: 1px;
 }}
 """
@@ -384,9 +384,7 @@ class CyberHudBubble(QWidget):
                 painter.fillRect(sx, sy, sw, sh, slice_color)
 
 
-        font = QFont("Press Start 2P")
-        font.setPixelSize(9)
-        font.setBold(True)
+        font = get_hud_font(11, bold=True)
         painter.setFont(font)
 
         badge_rect = QRect(14 + shake_x, 5, max(10, bw - c - 20), 16)
@@ -451,8 +449,7 @@ class SpeechWindow(QFrame):
 
 
         doc = QTextDocument()
-        font = QFont("Press Start 2P")
-        font.setPixelSize(13)
+        font = get_terminal_font(18)
         doc.setDefaultFont(font)
         doc.setTextWidth(max(120, int(max_width)))
         doc.setHtml(escape(self._text).replace("\n", "<br>"))

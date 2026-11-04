@@ -1,9 +1,8 @@
 from pathlib import Path
 
-PIXEL_FONT = (
-    '"Press Start 2P", "Pixelify Sans", "VT323", "Terminus", '
-    '"DejaVu Sans Mono", monospace'
-)
+from capri.ui.fonts import CSS_CYBER_TERMINAL, CSS_CYBER_HUD, CSS_CYBER_UI
+
+PIXEL_FONT = CSS_CYBER_TERMINAL
 
 
 NEON_CRIMSON = "#F20D2E"
@@ -21,8 +20,8 @@ QMenu {{
     border: 1px solid {NEON_CRIMSON};
     padding: 6px 4px 6px 4px;
     color: {PURE_WHITE};
-    font-family: {PIXEL_FONT};
-    font-size: 11px;
+    font-family: {CSS_CYBER_UI};
+    font-size: 13px;
     letter-spacing: 0.5px;
 }}
 QMenu::item {{
@@ -157,8 +156,8 @@ QMenu {{
     border: 1px solid {NEON_CRIMSON};
     padding: 6px 4px 6px 4px;
     color: {PURE_WHITE};
-    font-family: {PIXEL_FONT};
-    font-size: 11px;
+    font-family: {CSS_CYBER_UI};
+    font-size: 13px;
     letter-spacing: 0.5px;
 }}
 QMenu::item {{

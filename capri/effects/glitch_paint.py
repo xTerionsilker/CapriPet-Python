@@ -1,4 +1,5 @@
 from __future__ import annotations
+from capri.ui.fonts import get_hud_font
 
 import random
 
@@ -219,7 +220,7 @@ def paint_cyber_markers(
     y = snap_pixel(random.randint(height // 10, max(height // 10 + 1, height - height // 10)))
 
     tag = random.choice(_HUD_MICRO_TAGS)
-    font = QFont("monospace", 7, QFont.Weight.Bold)
+    font = get_hud_font(9, bold=True)
     painter.setFont(font)
 
     text_color = QColor(COLOR_CRIMSON if random.random() < 0.70 else COLOR_ACID_GREEN)

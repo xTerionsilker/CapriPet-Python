@@ -1,4 +1,5 @@
 from __future__ import annotations
+from capri.ui.fonts import get_hud_font
 
 import math
 import random
@@ -72,11 +73,7 @@ _ACTION_PROFILES: dict[str, dict[str, object]] = {
 
 
 def _font(size: int) -> QFont:
-    font = QFont("Press Start 2P")
-    font.setStyleHint(QFont.StyleHint.Monospace)
-    font.setPixelSize(size)
-    font.setBold(True)
-    return font
+    return get_hud_font(size, bold=True)
 
 
 def _with_alpha(color: QColor, alpha: int) -> QColor:

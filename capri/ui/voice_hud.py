@@ -196,10 +196,7 @@ class CyberVoiceHud(QWidget):
         painter.fillRect(QRect(eq_x + 52, rect.top() + 10, 6, 6), rec_dot_color)
 
 
-        font_header = QFont()
-        font_header.setFamily(PIXEL_FONT)
-        font_header.setPixelSize(10)
-        font_header.setBold(True)
+        font_header = get_hud_font(12, bold=True)
         painter.setFont(font_header)
         painter.setPen(QColor(ACID_GREEN))
 
@@ -207,9 +204,7 @@ class CyberVoiceHud(QWidget):
         painter.drawText(rect.left() + cut + 20, rect.top() + 18, status_display)
 
 
-        font_sub = QFont()
-        font_sub.setFamily(PIXEL_FONT)
-        font_sub.setPixelSize(8)
+        font_sub = get_hud_font(10, bold=False)
         painter.setFont(font_sub)
         painter.setPen(QColor(ELECTRIC_BLUE))
         painter.drawText(rect.right() - 95, rect.top() + 14, "MIC//IN")
@@ -219,10 +214,7 @@ class CyberVoiceHud(QWidget):
         painter.drawLine(rect.left() + cut + 4, rect.top() + 24, rect.right() - 8, rect.top() + 24)
 
 
-        font_text = QFont()
-        font_text.setFamily(PIXEL_FONT)
-        font_text.setPixelSize(13)
-        font_text.setBold(True)
+        font_text = get_hud_font(13, bold=True)
         painter.setFont(font_text)
 
         display_text = self._recognized_text

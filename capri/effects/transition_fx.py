@@ -1,4 +1,5 @@
 from __future__ import annotations
+from capri.ui.fonts import get_hud_font
 
 import math
 import random
@@ -798,10 +799,7 @@ class CyberKiroshiReticle:
 
 
         if label:
-            font = QFont("Monospace")
-            font.setStyleHint(QFont.StyleHint.Monospace)
-            font.setPixelSize(10)
-            font.setBold(True)
+            font = get_hud_font(10, bold=True)
             painter.setFont(font)
             text = label.upper()
             metrics = painter.fontMetrics()
@@ -844,10 +842,7 @@ def draw_quickhack_panel(
     painter.setBrush(Qt.BrushStyle.NoBrush)
     painter.drawPolygon(panel)
 
-    font = QFont("Monospace")
-    font.setStyleHint(QFont.StyleHint.Monospace)
-    font.setPixelSize(9)
-    font.setBold(True)
+    font = get_hud_font(9, bold=True)
     painter.setFont(font)
 
     label_y = rect.top() + 12
@@ -935,10 +930,7 @@ def draw_hex_stream(
         return
     painter.save()
     painter.setClipRect(rect)
-    font = QFont("Monospace")
-    font.setStyleHint(QFont.StyleHint.Monospace)
-    font.setPixelSize(9)
-    font.setBold(True)
+    font = get_hud_font(9, bold=True)
     painter.setFont(font)
     glyphs = "01ABCDEF<>/\\#%&"
     rng = random.Random(2077 + rect.width())
@@ -967,10 +959,7 @@ def draw_glitch_text(
     size: int = 10,
 ) -> None:
     """Текст с хроматическим расслоением, как сбоящий HUD Relic."""
-    font = QFont("Monospace")
-    font.setStyleHint(QFont.StyleHint.Monospace)
-    font.setPixelSize(size)
-    font.setBold(True)
+    font = get_hud_font(size, bold=True)
     painter.save()
     painter.setFont(font)
     painter.setPen(with_alpha(COLOR_CRIMSON, 170))

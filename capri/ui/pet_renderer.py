@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 
+from capri.ui.fonts import get_hud_font
 from ..effects.transition_fx import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
@@ -184,10 +185,7 @@ class PetRenderer:
 
 
         if severity > 0.5 and random.random() < 0.7:
-            font = QFont("Press Start 2P")
-            font.setStyleHint(QFont.StyleHint.Monospace)
-            font.setPixelSize(8)
-            font.setBold(True)
+            font = get_hud_font(10, bold=True)
             painter.setFont(font)
             glyph = random.choice(("01", "FA", "ERR", "0x4F", "TX", "99%"))
             gx = snap_pixel(random.randint(w // 4, max(w // 4 + 1, 3 * w // 4)))
@@ -243,10 +241,7 @@ class PetRenderer:
         state: PetRenderState,
     ) -> None:
         if severity > 0.4 or state.is_speaking or state.is_dragging:
-            font = QFont("Press Start 2P")
-            font.setStyleHint(QFont.StyleHint.Monospace)
-            font.setPixelSize(7)
-            font.setBold(True)
+            font = get_hud_font(9, bold=True)
             painter.setFont(font)
 
             tag = (
