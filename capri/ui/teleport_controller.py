@@ -124,56 +124,46 @@ class TeleportController:
                 pass
             self._teleport_overlay_in = None
 
-        def on_out_peak() -> None:
-            self._window.hide()
-
-        def on_out_finished() -> None:
-            self._teleport_overlay_out = None
+        def on_peak() -> None:
             if self._window.is_closing:
                 return
-
             self._window.setGeometry(to_rect)
             wh = self._window.windowHandle()
             if wh is not None and target_screen is not None:
                 wh.setScreen(target_screen)
-
             set_config_value("window.position", {"x": to_rect.x(), "y": to_rect.y()})
             set_config_value("window.overlay_position", {"x": to_rect.x(), "y": to_rect.y()})
-
             self._window.set_pose("idle")
+            self._window.show()
+            self._window.raise_()
+            self._window.surge_ticks = 8
+            self._window.update()
 
-            def on_in_peak() -> None:
-                self._window.show()
-                self._window.raise_()
-                self._window.set_pose("idle")
-                self._window.update()
-
-            def on_in_finished() -> None:
-                self._teleport_overlay_in = None
-                self._window.show()
-                self._window.raise_()
-                self._window.surge_ticks = 8
-                self._window.update()
-
-            self._teleport_overlay_in = TransitionOverlay(
-                screen_rect,
-                to_rect,
-                "in",
-                target=self._window,
-                on_peak=on_in_peak,
-                target_point=from_rect.center(),
-            )
-            self._teleport_overlay_in.finished.connect(on_in_finished)
-            self._teleport_overlay_in.start()
+        def on_finished() -> None:
+            self._teleport_overlay_out = None
+            if self._window.is_closing:
+                return
+            self._window.set_pose("idle")
+            self._window.show()
+            self._window.raise_()
+            self._window.update()
 
         self._window.set_pose("idle")
-        self._teleport_overlay_out = TransitionOverlay(
-            self._window.screen().geometry() if self._window.screen() else from_rect,
-            from_rect,
-            "out",
-            target=self._window,
-            on_peak=on_out_peak,
-            target_point=to_rect.center(),
+        self._window.hide()
+
+        combined_screen_rect = (
+            self._window.screen().geometry().united(screen_rect)
+            if self._window.screen() is not None
+            else screen_rect
         )
-        self._teleport_overlay_out.finished.connect(on_out_finished)
+
+        self._teleport_overlay_out = TransitionOverlay(
+            combined_screen_rect,
+            to_rect,
+            "in",
+            target=self._window,
+            on_peak=on_peak,
+            target_point=from_rect.center(),
+        )
+        self._teleport_overlay_out.finished.connect(on_finished)
         self._teleport_overlay_out.start()
