@@ -44,7 +44,7 @@ QLabel#text {{
     background: transparent;
     color: {_TEXT_COLOR};
     font-family: {PIXEL_FONT};
-    font-size: 18px;
+    font-size: 13px;
     letter-spacing: 1px;
 }}
 """
@@ -450,7 +450,7 @@ class SpeechWindow(QFrame):
 
 
         doc = QTextDocument()
-        font = get_terminal_font(18)
+        font = get_terminal_font(13, bold=True)
         doc.setDefaultFont(font)
         doc.setTextWidth(max(120, int(max_width)))
         doc.setHtml(escape(self._text).replace("\n", "<br>"))
