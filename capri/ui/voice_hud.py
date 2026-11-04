@@ -20,12 +20,6 @@ _TASKBAR_MARGIN = 12
 
 
 class CyberVoiceHud(QWidget):
-\
-\
-\
-\
-\
-
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(
@@ -65,7 +59,6 @@ class CyberVoiceHud(QWidget):
         self._auto_hide_timer.timeout.connect(self._check_auto_hide)
 
     def show_hud(self, status: str, mode: str = "AWAITING_INPUT") -> None:
-        """Активирует HUD и центрирует его над панелью задач."""
         self._status_text = status.upper()
         self._mode_tag = f"CAPRI//{mode.upper()}"
         self._auto_hide_timer.stop()
@@ -76,7 +69,6 @@ class CyberVoiceHud(QWidget):
         self.update()
 
     def set_recognized_text(self, text: str, keep_ms: int = 2500) -> None:
-        """Обновляет распознанный текст с эффектом появления и таймером скрытия."""
         clean = text.strip()
         self._target_recognized_text = clean
         self._revealed_chars = 0
@@ -91,7 +83,6 @@ class CyberVoiceHud(QWidget):
         self.update()
 
     def hide_hud(self, delay_ms: int = 0) -> None:
-        """Скрывает HUD немедленно или с задержкой."""
         if delay_ms <= 0:
             self._auto_hide_timer.stop()
             self._anim_timer.stop()
@@ -107,7 +98,6 @@ class CyberVoiceHud(QWidget):
         self.hide_hud(0)
 
     def _reposition(self) -> None:
-        """Центрирует HUD по горизонтали и прижимает к панели задач (Linux/Windows)."""
         screen = QGuiApplication.primaryScreen()
         if screen is None:
             screens = QGuiApplication.screens()
@@ -124,19 +114,14 @@ class CyberVoiceHud(QWidget):
 
 
         if avail_geo.bottom() < full_geo.bottom() - 4:
-
             y = avail_geo.bottom() - self.height() - _TASKBAR_MARGIN
         elif avail_geo.top() > full_geo.top() + 4:
-
             y = avail_geo.bottom() - self.height() - _TASKBAR_MARGIN
         elif avail_geo.left() > full_geo.left() + 4:
-
             y = avail_geo.bottom() - self.height() - _TASKBAR_MARGIN
         elif avail_geo.right() < full_geo.right() - 4:
-
             y = avail_geo.bottom() - self.height() - _TASKBAR_MARGIN
         else:
-
 
             y = full_geo.bottom() - self.height() - (_TASKBAR_MARGIN + 36)
 
@@ -242,7 +227,6 @@ class CyberVoiceHud(QWidget):
 
         display_text = self._recognized_text
         if not display_text:
-
             dots = "." * ((self._anim_tick // 8) % 4)
             display_text = f"Слушаю{dots}"
             painter.setPen(QColor(PURE_WHITE))
