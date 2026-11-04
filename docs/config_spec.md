@@ -24,10 +24,9 @@
 
 ### 2.2. Иерархия путей сохранения
 1. **Основное централизованное хранилище (локальный каталог проекта):**
-   `<project_root>/.capri/config.json` (единообразно для Linux и Windows).
+   `<project_root>/.capri/config.json`.
 2. **Резервный системный каталог (фолбэк):**
-   - Linux: `$XDG_CONFIG_HOME/capri/config.json` (если переменная не задана: `~/.config/capri/config.json`).
-   - Windows: `%APPDATA%\capri\config.json`.
+   `%APPDATA%\capri\config.json`.
 3. **Временная системная директория (фолбэк при недоступности записи):**
    `/tmp/capri_config.json` (или системный tempdir).
 
@@ -184,7 +183,7 @@
 Пути поиска:
 1. `CAPRI_AI_CONFIG` (переменная окружения)
 2. `<project_root>/.capri/ai_config.json` (основное централизованное хранилище в проекте)
-3. `$XDG_CONFIG_HOME/capri/ai_config.json` (Linux) / `%APPDATA%\capri\ai_config.json` (Windows)
+3. `%APPDATA%\capri\ai_config.json`
 
 ### 7.2. Схема `ai_config.json`
 

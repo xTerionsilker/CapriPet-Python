@@ -4,11 +4,11 @@ CapriPet — это компактный десктопный кибер-пит�
 
 ## Требования
 
-- ОС: Linux (X11 / Wayland с XWayland) или Windows 10/11
+- ОС: Windows 10/11
 - [Python 3.10+](https://www.python.org/downloads/release/python-3148/)
 - [`vosk`](https://alphacephei.com/vosk/models) (локальное офлайн-распознавание речи; для русского языка рекомендую `vosk-model-small-ru-0.22`)
 - Работающий микрофон для голосового ввода
-- Клиент Spotify (в Linux требуется `dbus-send` / playerctl, в Windows поддерживается нативно через медиа-клавиши)
+- Клиент Spotify (поддерживается нативно через медиа-клавиши и Web API)
 - Любой AI API / Endpoint (OpenAI, OpenRouter, Groq, DeepSeek, локальные LM Studio / vLLM / LocalAI) для команды `слушай` (настраивается через отдельный файл `ai_config.json`)
 
 ## Установка и запуск
@@ -21,33 +21,17 @@ CapriPet — это компактный десктопный кибер-пит�
 - Автоматически загружают необходимые модели (Vosk для распознавания речи и Silero VAD) в папку `models/`, если они отсутствуют.
 - Запускают программу.
 
-- **Linux:**
-  ```bash
-  chmod +x capriLinux.sh
-  ./capriLinux.sh
-  ```
-- **Windows:**
-  Дважды кликните по файлу `capriWin.bat` или запустите в командной строке:
-  ```cmd
-  capriWin.bat
-  ```
+Дважды кликните по файлу `capriWin.bat` или запустите в командной строке:
+```cmd
+capriWin.bat
+```
 
 ---
 
-### Ручная установка и запуск
+### Ручная установка и запуск (PowerShell / CMD)
 
 Если вы предпочитаете настраивать окружение вручную:
 
-**Linux:**
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-./.venv/bin/python main.py
-```
-*Примечание для Wayland:* `main.py` автоматически активирует `QT_QPA_PLATFORM=xcb` при наличии XWayland для обеспечения стабильного позиционирования прозрачного окна без рамок.
-
-**Windows (PowerShell):**
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
@@ -96,11 +80,9 @@ pip install -r requirements.txt
 
 ## Конфигурация
 
-Все настройки приложения централизованно сохраняются внутри репозитория в папке `.capri` (как для Windows, так и для Linux), с автоматическим резервным фолбэком в системный профиль пользователя:
-- **Основное централизованное хранилище (Win & Linux):** `<project_root>/.capri/` (`.capri/config.json`, `.capri/ai_config.json`, `.capri/spotify.json`)
-- **Резервный системный каталог (fallback):**
-  - **Linux:** `$XDG_CONFIG_HOME/capri/` (по умолчанию `~/.config/capri/`)
-  - **Windows:** `%APPDATA%\capri\` (по умолчанию `C:\Users\<Пользователь>\AppData\Roaming\capri\`)
+Все настройки приложения централизованно сохраняются внутри репозитория в папке `.capri` с автоматическим резервным фолбэком в системный профиль пользователя:
+- **Основное централизованное хранилище:** `<project_root>/.capri/` (`.capri/config.json`, `.capri/ai_config.json`, `.capri/spotify.json`)
+- **Резервный системный каталог (fallback):** `%APPDATA%\capri\` (по умолчанию `C:\Users\<Пользователь>\AppData\Roaming\capri\`)
 
 | Переменная окружения | Описание |
 | --- | --- |
@@ -114,13 +96,13 @@ pip install -r requirements.txt
 | `SPOTIFY_CLIENT_SECRET` | Client Secret для Spotify |
 | `QT_QPA_PLATFORM` | Переопределение платформенного бэкенда Qt |
 
-Ключи Spotify сохраняются в `.capri/spotify.json` (папка `.capri` находится в `.gitignore` и не попадает в git) либо в системной папке конфигурации `~/.config/capri/spotify.json` (Linux) / `%APPDATA%\capri\spotify.json` (Windows).
+Ключи Spotify сохраняются в `.capri/spotify.json` (папка `.capri` находится в `.gitignore` и не попадает в git) либо в системной папке конфигурации `%APPDATA%\capri\spotify.json`.
 
 ### Настройка собственного AI API и Endpoint (`ai_config.json`)
 
 Поддержка AI вынесена в **отдельный конфигурационный файл** `.capri/ai_config.json`:
 - **Основной путь:** `.capri/ai_config.json` (внутри проекта)
-- **Альтернативный/системный путь:** `$XDG_CONFIG_HOME/capri/ai_config.json` (Linux) / `%APPDATA%\capri\ai_config.json` (Windows)
+- **Альтернативный/системный путь:** `%APPDATA%\capri\ai_config.json`
 
 Формат файла:
 ```json
@@ -146,21 +128,14 @@ pip install -r requirements.txt
 
 ### Источники приложений для команды «Запусти»
 
-Поиск установленных приложений выполняется локально без сторонних служб:
-- **Linux:** сканируются стандартные системные и пользовательские директории спецификации XDG Desktop Entry:
-  - `/usr/share/applications`
-  - `/usr/local/share/applications`
-  - `~/.local/share/applications`
-  - Учитываются только десктоп-файлы типа `Application` без флага `NoDisplay=true`.
-- **Windows:** сканируются системные ярлыки и зарегистрированные пути приложений:
-  - Папки меню «Пуск»: `%ProgramData%\Microsoft\Windows\Start Menu\Programs` и `%AppData%\Microsoft\Windows\Start Menu\Programs` (файлы `.lnk`)
-  - Системный реестр `App Paths` в разделах `HKEY_LOCAL_MACHINE` и `HKEY_CURRENT_USER` (`SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths`)
+Поиск установленных приложений выполняется локально без сторонних служб путем сканирования системных ярлыков и зарегистрированных путей Windows:
+- Папки меню «Пуск»: `%ProgramData%\Microsoft\Windows\Start Menu\Programs` и `%AppData%\Microsoft\Windows\Start Menu\Programs` (файлы `.lnk`)
+- Системный реестр `App Paths` в разделах `HKEY_LOCAL_MACHINE` и `HKEY_CURRENT_USER` (`SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths`)
 
 ## Структура проекта
 
 ```text
 main.py                         # Главная точка входа приложения
-capriLinux.sh                   # Скрипт быстрого запуска для Linux
 capriWin.bat                    # Скрипт быстрого запуска для Windows
 version.txt                     # Текущая версия приложения
 capri/
@@ -204,16 +179,16 @@ capri/
 │   └── transition_fx.py        # Палитра, шины и кадры эффекта перехода-молнии
 ├── integrations/               # Внешние интеграции и системные команды
 │   ├── ai_client.py            # Взаимодействие с внешними и локальными AI API/эндпоинтами
-│   ├── app_launcher.py         # Поиск и запуск установленных приложений (Linux/Windows)
+│   ├── app_launcher.py         # Поиск и запуск установленных приложений Windows
 │   ├── cursor.py               # Определение положения и центрирование курсора мыши
-│   ├── process_manager.py      # Мониторинг, группировка и завершение процессов (Linux/Windows)
+│   ├── process_manager.py      # Мониторинг, группировка и завершение процессов
 │   ├── screen_lock.py          # Блокировка экрана через системные утилиты
-│   ├── spotify.py              # Управление клиентом Spotify через D-Bus (dbus-send)
+│   ├── spotify.py              # Управление клиентом Spotify через медиа-клавиши
 │   ├── spotify_api.py          # Поиск и воспроизведение треков через Spotify Web API
 │   ├── system_power.py         # Выключение, перезагрузка и спящий режим системы
 │   ├── updater.py              # Проверка обновлений проекта через GitHub API / version.txt
 │   ├── web_search.py           # Поиск в Google и YouTube в веб-браузере
-│   └── window_tracker.py       # Определение геометрии активного окна (KWin, X11, Windows)
+│   └── window_tracker.py       # Определение геометрии активного окна (Win32 DWM)
 └── ui/                         # Графический интерфейс на PySide6 (Qt)
     ├── context_menu.py         # Конструктор контекстного меню питомца и системного трея
     ├── cyber_menu.py           # Кастомное меню в стиле Cyberpunk 2077 (рамки, сканлайны)
