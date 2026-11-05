@@ -10,7 +10,7 @@ from ..core.settings import set_config_value
 from ..effects.cursor_pointer import CursorPointerOverlay
 from ..effects.lightning_tether import LightningTetherOverlay
 from ..effects.transition import TransitionOverlay
-from ..integrations.cursor import get_mouse_position
+from ..integrations.cursor import get_mouse_position, move_mouse_to
 
 if TYPE_CHECKING:
     from .pet_window import CapriWindow
@@ -30,7 +30,9 @@ class TeleportController:
         self._tracking_timer: QTimer = QTimer()
         self._tracking_timer.setInterval(16)
         self._tracking_timer.timeout.connect(self._on_tracking_tick)
-        self._tracking_end_time: float = 0.0
+        self._pull_start_time: float = 0.0
+        self._pull_duration: float = 3.0
+        self._pull_initial_cursor: QPoint = QPoint(0, 0)
 
     @property
     def is_aiming(self) -> bool:
@@ -50,7 +52,7 @@ class TeleportController:
             self._pointer_overlay = CursorPointerOverlay()
         return self._pointer_overlay
 
-    def point_at_mouse(self, duration_seconds: float = 3.5) -> None:
+    def point_at_mouse(self, pull_duration_seconds: float = 3.0) -> None:
         if self._is_lightning_aiming:
             self.cancel_aiming()
 
@@ -64,7 +66,9 @@ class TeleportController:
         self._window.inactivity_manager.reset_timer()
         self._window.update()
 
-        self._tracking_end_time = time.monotonic() + duration_seconds
+        self._pull_start_time = time.monotonic()
+        self._pull_duration = max(3.0, float(pull_duration_seconds))
+        self._pull_initial_cursor = cursor_pos
         self._tracking_timer.start()
 
     def stop_pointing_at_mouse(self) -> None:
@@ -78,16 +82,34 @@ class TeleportController:
             self._window.update()
 
     def _on_tracking_tick(self) -> None:
-        if self._window.is_closing or time.monotonic() >= self._tracking_end_time:
+        if self._window.is_closing:
             self.stop_pointing_at_mouse()
             return
 
-        cursor_pos = get_mouse_position()
+        now = time.monotonic()
+        elapsed = now - self._pull_start_time
+        progress = max(0.0, min(1.0, elapsed / self._pull_duration))
+
         pet_center = self._window.geometry().center()
+        current_cursor = get_mouse_position()
+
+        # Интерполируем координаты от начальной точки курсора к центру Capri с плавным ускорением/торможением (ease-in-out)
+        t = progress * progress * (3.0 - 2.0 * progress)
+        target_x = round(self._pull_initial_cursor.x() + (pet_center.x() - self._pull_initial_cursor.x()) * t)
+        target_y = round(self._pull_initial_cursor.y() + (pet_center.y() - self._pull_initial_cursor.y()) * t)
+
+        move_mouse_to(target_x, target_y)
+        new_cursor = get_mouse_position()
+
         overlay = self._ensure_pointer_overlay()
-        overlay.update_positions(pet_center, cursor_pos)
+        overlay.update_positions(pet_center, new_cursor)
         self._window.surge_ticks = max(self._window.surge_ticks, 4)
         self._window.update()
+
+        # Завершаем прицеливание только тогда, когда прошло минимум времени и курсор достиг Capri
+        distance_to_pet = ((new_cursor.x() - pet_center.x()) ** 2 + (new_cursor.y() - pet_center.y()) ** 2) ** 0.5
+        if progress >= 1.0 or distance_to_pet <= 16:
+            self.stop_pointing_at_mouse()
 
     def handle_mouse_press(self, event) -> bool:
         if event.button() == Qt.MouseButton.RightButton:
