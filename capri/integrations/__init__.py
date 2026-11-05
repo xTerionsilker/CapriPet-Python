@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from . import (
-    ai_client,
     app_launcher,
     process_manager,
     spotify,
@@ -11,7 +10,6 @@ from . import (
 )
 
 __all__ = [
-    "ai_client",
     "app_launcher",
     "process_manager",
     "spotify",

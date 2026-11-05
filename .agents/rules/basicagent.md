@@ -81,8 +81,8 @@ Capri's visual identity uses **only** the following colors:
   - Anchors dynamically to Capri (`CapriWindow`), tracking movement in real time via `eventFilter` and a 25ms timer.
   - Position is computed by `pick_adjacent_position` (`capri/ui/pet_renderer.py`), preferring side placement (right/left) and falling back to above/below or minimum overlap if screen space is tight.
   - SFX are synthesized on the fly via `capri/ui/speech_sfx.py` into cached WAV files and played via `QSoundEffect`.
-- **Configuration Management (`capri/core/settings.py` & `capri/core/ai_config.py`):**
-  - Settings are typed and validated using Pydantic v2 models (`CapriConfig`, `AIConfigModel`), ensuring declarative constraints, defaults, and boundary sanitization without manual dict merging.
+- **Configuration Management (`capri/core/settings.py`):**
+  - Settings are typed and validated using Pydantic v2 models (`CapriConfig`), ensuring declarative constraints, defaults, and boundary sanitization without manual dict merging.
   - Settings load in priority order: `<repo>/.capri/config.json` -> `%APPDATA%/capri/config.json` -> `%TEMP%/capri_config.json`.
   - Saves are atomic: writes to `.tmp` file and replaces via `os.replace`.
 - **Audio & Voice (`capri/audio/` & `capri/core/morphology.py`):**

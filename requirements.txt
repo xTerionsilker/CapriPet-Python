@@ -9,7 +9,6 @@ pydantic==2.14.2
 fake-useragent==2.2.0
 onnxruntime==1.31.1
 numpy==2.5.4
-openai==3.45.0
 spotipy==2.26.0
 requests==2.34.2
 pymorphy3==2.0.6

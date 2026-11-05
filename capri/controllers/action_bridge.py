@@ -5,7 +5,7 @@ import threading
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ..effects.session_animations import SESSION_ACTION_LEAD_MS
-from ..integrations import ai_client, app_launcher, process_manager, spotify, web_search
+from ..integrations import app_launcher, process_manager, spotify, web_search
 from ..integrations.system_control import (
     lock_commands,
     power_commands,
@@ -13,16 +13,12 @@ from ..integrations.system_control import (
     run_power,
 )
 
-AI_HISTORY_MESSAGES = 12
-
 
 class ActionBridge(QObject):
-    """Мост для выполнения длительных и системных действий (AI, Spotify, Power, Lock)."""
+    """Мост для выполнения длительных и системных действий (Spotify, Power, Lock)."""
 
     speech_requested = Signal(str)
     session_animation_requested = Signal(str)
-    ai_started = Signal()
-    ai_finished = Signal()
     youtube_results_ready = Signal(list)
     launch_app_results_ready = Signal(list)
     kill_app_results_ready = Signal(list)
@@ -32,63 +28,6 @@ class ActionBridge(QObject):
         super().__init__(parent)
         self._lock_pending: list[list[str]] | None = None
         self._power_pending: list[list[str]] | None = None
-
-        self._ai_history: list[dict[str, str]] = []
-        self._ai_pending: str = ""
-        self._ai_busy: bool = False
-
-
-    def ask_ai(self, prompt: str) -> str:
-        prompt = prompt.strip()
-        if not prompt:
-            return "Что спросить у нейросети?"
-        if self._ai_busy:
-            return "Я всё ещё жду ответ от модели."
-        history = list(self._ai_history)
-        self._ai_pending = prompt
-        self._ai_busy = True
-        self.ai_started.emit()
-        threading.Thread(
-            target=self._ask_ai_worker,
-            args=(prompt, history),
-            name="capri-ai",
-            daemon=True,
-        ).start()
-        return "Думаю…"
-
-    def _ask_ai_worker(
-        self, prompt: str, history: list[dict[str, str]]
-    ) -> None:
-        try:
-            answer = ai_client.ask(prompt, history=history)
-        except ai_client.AIError as error:
-            self._on_ai_failed(str(error))
-            return
-        except Exception:
-            self._on_ai_failed("Нейросеть не ответила.")
-            return
-        self._on_ai_reply(answer)
-
-    def _on_ai_reply(self, answer: str) -> None:
-        prompt = self._ai_pending
-        self._finish_ai()
-        if prompt:
-            self._ai_history.append({"role": "user", "content": prompt})
-            self._ai_history.append(
-                {"role": "assistant", "content": answer}
-            )
-            del self._ai_history[:-AI_HISTORY_MESSAGES]
-        self.speech_requested.emit(answer)
-
-    def _on_ai_failed(self, message: str) -> None:
-        self._finish_ai()
-        self.speech_requested.emit(message)
-
-    def _finish_ai(self) -> None:
-        self._ai_busy = False
-        self._ai_pending = ""
-        self.ai_finished.emit()
-
 
     def spotify_play(self, query: str) -> str:
         query = query.strip()

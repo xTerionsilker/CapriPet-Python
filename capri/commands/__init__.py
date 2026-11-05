@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from .base import BaseCommand, CommandContext, CommandResult
 from .handlers import (
-    AskAICommand,
     DebugCommand,
     GlitchToggleCommand,
     GoogleSearchCommand,
@@ -40,7 +39,6 @@ DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     PowerOffCommand,
     SuspendCommand,
     RebootCommand,
-    AskAICommand,
     LocateMouseCommand,
     LaunchAppCommand,
     KillAppCommand,
@@ -85,6 +83,7 @@ __all__ = [
     "PowerOffCommand",
     "SuspendCommand",
     "RebootCommand",
-    "AskAICommand",
     "LocateMouseCommand",
+    "LaunchAppCommand",
+    "KillAppCommand",
 ]

@@ -87,8 +87,6 @@ class PetOrchestrator(QObject):
         self.actions.session_animation_requested.connect(
             self._on_session_animation_requested
         )
-        self.actions.ai_started.connect(self._on_ai_talking_start)
-        self.actions.ai_finished.connect(self._on_ai_talking_end)
         self.actions.youtube_results_ready.connect(
             self._on_youtube_results_ready
         )
@@ -234,14 +232,6 @@ class PetOrchestrator(QObject):
             )
         else:
             _after_glitch_or_direct()
-
-    def _on_ai_talking_start(self) -> None:
-        self._window.surge_ticks = max(self._window.surge_ticks, 24)
-        self._window.set_pose("stay")
-
-    def _on_ai_talking_end(self) -> None:
-        self._window.surge_ticks = max(self._window.surge_ticks, 8)
-        self._window.set_pose("sit")
 
     def _on_session_animation_requested(self, action: str) -> None:
         if self._window.is_closing:

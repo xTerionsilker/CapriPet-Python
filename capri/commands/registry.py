@@ -51,7 +51,6 @@ _EN_COMMAND_PREFIXES: dict[str, str] = {
     "spotify": "спотифай",
     "google": "гугл",
     "youtube": "ютуб",
-    "listen": "слушай",
     "where mouse": "где мышь",
     "where is mouse": "где мышь",
     "where is cursor": "где мышь",
