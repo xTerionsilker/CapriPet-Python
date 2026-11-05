@@ -15,9 +15,8 @@ from .transition import TransitionOverlay
 if TYPE_CHECKING:
     from ..ui.pet_window import CapriWindow
 
-
 class EffectsCoordinator(QObject):
-    """Централизованный фасад управления визуальными эффектами и оверлеями."""
+    
 
     def __init__(self, window: CapriWindow) -> None:
         super().__init__(window)
@@ -53,7 +52,7 @@ class EffectsCoordinator(QObject):
         intensity: str = "strong",
         on_finished: Callable[[], None] | None = None,
     ) -> GlitchBurstOverlay | None:
-        """Запускает концентрированный глитч над указанным прямоугольником."""
+        
         if getattr(self._window, "is_closing", False):
             return None
 
@@ -84,7 +83,7 @@ class EffectsCoordinator(QObject):
         return overlay
 
     def play_session(self, action: str) -> SessionAnimationOverlay | None:
-        """Запускает сессионную анимацию (lock, power_off, suspend, reboot)."""
+        
         if getattr(self._window, "is_closing", False):
             return None
 
@@ -104,7 +103,7 @@ class EffectsCoordinator(QObject):
         self._session_overlay = None
 
     def start_model_init(self) -> ModelInitOverlay | None:
-        """Запускает оверлей начальной калибровки модели Vosk."""
+        
         if getattr(self._window, "is_closing", False):
             return None
 
@@ -125,7 +124,7 @@ class EffectsCoordinator(QObject):
         self._model_init_overlay = None
 
     def stop_all(self) -> None:
-        """Останавливает все активные оверлеи и таймеры эффектов при выходе."""
+        
         self._glitches.stop()
         if self._burst_overlay is not None:
             try:

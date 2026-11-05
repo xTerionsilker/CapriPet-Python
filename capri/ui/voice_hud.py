@@ -19,7 +19,6 @@ from .theme import (
 _CORNER_CUT = 8
 _TASKBAR_MARGIN = 12
 
-
 class CyberVoiceHud(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -44,16 +43,13 @@ class CyberVoiceHud(QWidget):
         self._anim_tick = 0
         self._hide_timestamp = 0.0
 
-
         self._width = 460
         self._height = 76
         self.setFixedSize(self._width, self._height)
 
-
         self._anim_timer = QTimer(self)
         self._anim_timer.setInterval(45)
         self._anim_timer.timeout.connect(self._on_anim_tick)
-
 
         self._auto_hide_timer = QTimer(self)
         self._auto_hide_timer.setSingleShot(True)
@@ -110,9 +106,7 @@ class CyberVoiceHud(QWidget):
         full_geo = screen.geometry()
         avail_geo = screen.availableGeometry()
 
-
         x = avail_geo.left() + (avail_geo.width() - self.width()) // 2
-
 
         if avail_geo.bottom() < full_geo.bottom() - 4:
             y = avail_geo.bottom() - self.height() - _TASKBAR_MARGIN
@@ -125,7 +119,6 @@ class CyberVoiceHud(QWidget):
         else:
 
             y = full_geo.bottom() - self.height() - (_TASKBAR_MARGIN + 36)
-
 
         y = max(avail_geo.top() + 5, min(y, full_geo.bottom() - self.height() - 4))
         self.move(x, y)
@@ -144,20 +137,16 @@ class CyberVoiceHud(QWidget):
 
         rect = self.rect().adjusted(0, 0, -1, -1)
 
-
         painter.fillRect(rect, QColor(OBSIDIAN_BLACK))
 
-
-        scan_pen = QPen(QColor(242, 13, 46, 18), 1)
+        scan_pen = QPen(QColor(246, 2, 63, 18), 1)
         painter.setPen(scan_pen)
         for y in range(rect.top() + 2, rect.bottom(), 3):
             painter.drawLine(rect.left() + 2, y, rect.right() - 2, y)
 
-
         cut = _CORNER_CUT
         border_pen = QPen(QColor(NEON_CRIMSON), 1)
         painter.setPen(border_pen)
-
 
         painter.drawLine(rect.left() + cut, rect.top(), rect.right(), rect.top())
 
@@ -171,18 +160,14 @@ class CyberVoiceHud(QWidget):
 
         painter.drawLine(rect.left(), rect.top() + cut, rect.left() + cut, rect.top())
 
-
         painter.fillRect(QRect(rect.left() + cut + 6, rect.top() + 3, 4, 3), QColor(ACID_GREEN))
         painter.fillRect(QRect(rect.left() + cut + 12, rect.top() + 3, 8, 3), QColor(PURE_WHITE))
-
 
         painter.setPen(QPen(QColor(ACID_GREEN), 2))
         painter.drawLine(rect.left() + 2, rect.top() + cut + 4, rect.left() + 2, rect.bottom() - 6)
 
-
         painter.setPen(QPen(QColor(ELECTRIC_BLUE), 2))
         painter.drawLine(rect.right() - 2, rect.top() + 6, rect.right() - 2, rect.bottom() - cut - 4)
-
 
         eq_x = rect.right() - 95
         eq_y_base = rect.top() + 18
@@ -192,10 +177,8 @@ class CyberVoiceHud(QWidget):
             bar_color = QColor(ACID_GREEN) if i < 6 else QColor(NEON_CRIMSON)
             painter.fillRect(QRect(eq_x + i * 5, eq_y_base - bar_height + 12, 3, bar_height), bar_color)
 
-
-        rec_dot_color = QColor(NEON_CRIMSON) if (self._anim_tick // 6) % 2 == 0 else QColor(11, 11, 11)
+        rec_dot_color = QColor(NEON_CRIMSON) if (self._anim_tick // 6) % 2 == 0 else QColor(OBSIDIAN_BLACK)
         painter.fillRect(QRect(eq_x + 52, rect.top() + 10, 6, 6), rec_dot_color)
-
 
         font_header = get_hud_font(12, bold=True)
         painter.setFont(font_header)
@@ -204,16 +187,13 @@ class CyberVoiceHud(QWidget):
         status_display = f"▶ {self._mode_tag} // [{self._status_text}]"
         painter.drawText(rect.left() + cut + 20, rect.top() + 18, status_display)
 
-
         font_sub = get_hud_font(10, bold=False)
         painter.setFont(font_sub)
         painter.setPen(QColor(ELECTRIC_BLUE))
         painter.drawText(rect.right() - 95, rect.top() + 14, "MIC//IN")
 
-
         painter.setPen(QPen(QColor(NEON_CRIMSON), 1))
         painter.drawLine(rect.left() + cut + 4, rect.top() + 24, rect.right() - 8, rect.top() + 24)
-
 
         font_text = get_hud_font(13, bold=True)
         painter.setFont(font_text)
@@ -225,7 +205,6 @@ class CyberVoiceHud(QWidget):
             painter.setPen(QColor(PURE_WHITE))
         else:
             painter.setPen(QColor(PURE_WHITE))
-
 
         text_rect = QRect(rect.left() + cut + 14, rect.top() + 30, rect.width() - cut - 30, 36)
 

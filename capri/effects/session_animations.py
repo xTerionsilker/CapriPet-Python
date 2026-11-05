@@ -26,7 +26,6 @@ from .transition_fx import (
 )
 from ..ui.speech_sfx import get_speech_sfx
 
-
 SESSION_ANIMATION_DURATION_MS = 1500
 SESSION_ACTION_LEAD_MS = 1800
 
@@ -71,19 +70,16 @@ _ACTION_PROFILES: dict[str, dict[str, object]] = {
     },
 }
 
-
 def _font(size: int) -> QFont:
     return get_hud_font(size, bold=True)
-
 
 def _with_alpha(color: QColor, alpha: int) -> QColor:
     result = QColor(color)
     result.setAlpha(max(0, min(255, int(alpha))))
     return result
 
-
 class SessionAnimationOverlay(QWidget):
-    """Киберпанк-анимация Капри перед системными действиями сессии."""
+    
 
     finished = Signal()
 
@@ -214,7 +210,7 @@ class SessionAnimationOverlay(QWidget):
 
     @staticmethod
     def _glitch_power(p: float) -> float:
-        """Интенсивность глюков: растёт от 0.2 до 2.0 к концу анимации."""
+        
         t = max(0.0, min(1.0, (p - 0.12) / 0.88))
         return 0.2 + 1.8 * (t ** 1.6)
 
@@ -306,7 +302,6 @@ class SessionAnimationOverlay(QWidget):
                 )
             )
 
-
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
@@ -382,7 +377,6 @@ class SessionAnimationOverlay(QWidget):
         wr = self._local_window
         power = self._glitch_power(p)
 
-
         tear_count = (rng.randint(5, 13) if burst else rng.randint(0, 2)) * max(1, int(power))
         for _ in range(tear_count):
             y = snap_pixel(rng.randint(0, max(0, h - 1)))
@@ -406,7 +400,6 @@ class SessionAnimationOverlay(QWidget):
                 painter.fillRect(shift, y, w, band_h, _with_alpha(COLOR_CRIMSON, min(230, int(45 + 55 * power))))
                 painter.fillRect(-shift, y + PIXEL_SIZE, w, band_h, _with_alpha(COLOR_ACID_GREEN, min(220, int(35 + 45 * power))))
 
-
         if burst and self._target_pixmap is not None and not self._target_pixmap.isNull():
             pw = self._target_pixmap.width()
             ph = self._target_pixmap.height()
@@ -429,7 +422,6 @@ class SessionAnimationOverlay(QWidget):
                     ),
                 )
 
-
         noise_base = rng.randint(45, 150) if burst else rng.randint(6, 18)
         noise_count = int(noise_base * (0.65 + power * 0.9))
         for _ in range(noise_count):
@@ -444,7 +436,6 @@ class SessionAnimationOverlay(QWidget):
                 _with_alpha(pick_palette_color(), rng.randint(70, min(255, int(150 + 65 * power)))),
             )
 
-
         if burst and rng.random() < min(0.98, 0.55 + 0.2 * power):
             phrase = rng.choice(_GLITCH_PHRASES)
             painter.setFont(_font(rng.choice((8, 10, 12, 16))))
@@ -457,7 +448,6 @@ class SessionAnimationOverlay(QWidget):
             painter.drawText(tx + shift, ty, phrase)
             painter.setPen(_with_alpha(COLOR_WHITE, rng.randint(180, 255)))
             painter.drawText(tx, ty, phrase)
-
 
         if burst:
             edge_h = snap_pixel(rng.randint(PIXEL_SIZE * 8, max(PIXEL_SIZE * 9, h // 8)))
@@ -475,7 +465,7 @@ class SessionAnimationOverlay(QWidget):
         accent: QColor,
         counter: QColor,
     ) -> None:
-        """К финалу глюки разрастаются в сплошную пиксельную мозаику."""
+        
         if p < 0.58:
             return
 
@@ -908,13 +898,12 @@ class SessionAnimationOverlay(QWidget):
         painter.fillRect(arc.right() - 4, arc.top() + 2, 9, 4, _with_alpha(counter, 240))
         painter.fillRect(arc.right() + 1, arc.top() - 2, 4, 12, _with_alpha(counter, 240))
 
-
 def play_session_animation(
     target: QWidget,
     action: str,
     on_finished: Callable[[], None] | None = None,
 ) -> SessionAnimationOverlay:
-    """Запускает сессионную анимацию на экране, где находится Капри."""
+    
     screen = target.screen() or QGuiApplication.primaryScreen()
     screen_rect = screen.geometry() if screen is not None else target.geometry()
     overlay = SessionAnimationOverlay(

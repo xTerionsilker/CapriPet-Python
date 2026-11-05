@@ -13,9 +13,8 @@ if TYPE_CHECKING:
 
 CAPRI_ICON = Path(__file__).resolve().parent.parent.parent / "assets" / "capri_icon.png"
 
-
 class TrayManager:
-    """Управляет системным треем и его контекстным меню."""
+    
 
     def __init__(self, window: CapriWindow) -> None:
         self._window = window

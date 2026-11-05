@@ -46,14 +46,12 @@ from .transition_fx import (
 )
 from ..ui.speech_sfx import get_speech_sfx
 
-
 class TransitionOverlay(QWidget):
 \
 \
 \
 \
 \
-
 
     finished = Signal()
 
@@ -367,9 +365,8 @@ class TransitionOverlay(QWidget):
 
         painter.end()
 
-
     def _paint_screen_layer(self, painter: QPainter, p: float) -> None:
-        """ЭЛТ-развёртка, сбои кадра и служебная телеметрия поверх всего экрана."""
+        
         full = self.rect()
         draw_scanlines(painter, full, alpha=26, spacing=4)
 
@@ -409,7 +406,6 @@ class TransitionOverlay(QWidget):
                 painter, 28, 52, "CURSOR LOCK 100%", COLOR_WHITE, 9
             )
 
-
         marker = with_alpha(COLOR_WHITE, 150)
         for x, y in (
             (full.left() + 12, full.top() + 12),
@@ -427,7 +423,7 @@ class TransitionOverlay(QWidget):
         height: int = 32,
         prefer_below: bool = False,
     ) -> QRect:
-        """Размещает HUD-панель рядом с якорем, не выходя за границы экрана."""
+        
         width = max(160, min(width, self.width() - 16))
         x = anchor.center().x() - width // 2
         x = max(8, min(x, self.width() - width - 8))
@@ -451,7 +447,6 @@ class TransitionOverlay(QWidget):
         if y + height > self.height() - 8:
             y = max(8, point.y() - height - 78)
         return QRect(x, y, width, height)
-
 
     def _paint_in(self, painter: QPainter, p: float, wr: QRect) -> None:
         for tr in self._trail:
@@ -555,11 +550,10 @@ class TransitionOverlay(QWidget):
         for spark in self._sparks:
             spark.draw(painter)
 
-
     def _paint_lightning_to_point(
         self, painter: QPainter, p: float, wr: QRect, target_pt: QPoint
     ) -> None:
-        """Захват курсора: Breach Protocol, трассировка и материализация Капри в центре."""
+        
 
         if p < 0.78:
             grid_rect = wr.adjusted(-28, -28, 28, 28)
@@ -572,7 +566,6 @@ class TransitionOverlay(QWidget):
                 color=COLOR_ACID_GREEN,
             )
 
-
         if p < 0.80:
             draw_hex_stream(
                 painter,
@@ -581,7 +574,6 @@ class TransitionOverlay(QWidget):
                 columns=max(6, wr.width() // 12),
                 color=COLOR_ACID_GREEN,
             )
-
 
         if p <= 0.86:
             cursor_p = min(1.0, p / 0.22) * (1.0 - max(0.0, (p - 0.72) / 0.14))
@@ -595,7 +587,6 @@ class TransitionOverlay(QWidget):
                 locked=True,
             )
 
-
         bolt_t = min(1.0, p / 0.58)
         fade = 1.0
         if p > 0.84:
@@ -606,7 +597,6 @@ class TransitionOverlay(QWidget):
         painter.setOpacity(1.0)
 
         self._paint_data_packets(painter, wr.center(), target_pt, p)
-
 
         if p >= 0.20:
             recv_p = min(1.0, (p - 0.20) / 0.60)
@@ -630,7 +620,6 @@ class TransitionOverlay(QWidget):
                 title="TRACE ROUTE",
                 status="LOCKING" if p < 0.72 else "LOCKED",
             )
-
 
         if p >= 0.55:
             flash_p = (p - 0.55) / 0.45
@@ -661,7 +650,7 @@ class TransitionOverlay(QWidget):
         end: QPoint,
         p: float,
     ) -> None:
-        """Пакеты данных, бегущие по каналу от курсора к цели."""
+        
         dx = end.x() - start.x()
         dy = end.y() - start.y()
         dist = max(1.0, math.hypot(dx, dy))
@@ -701,7 +690,6 @@ class TransitionOverlay(QWidget):
                         COLOR_WHITE,
                     )
 
-
     def _paint_cyber_flash(
         self,
         painter: QPainter,
@@ -725,13 +713,11 @@ class TransitionOverlay(QWidget):
         primary_neon = COLOR_CRIMSON if scheme == "crimson" else COLOR_ACID_GREEN
         secondary_neon = COLOR_ACID_GREEN if scheme == "crimson" else COLOR_CRIMSON
 
-
         screen_alpha = int(66 * intensity)
         if screen_alpha > 0:
             painter.fillRect(
                 self.rect(), with_alpha(primary_neon, screen_alpha)
             )
-
 
         shift = PIXEL_SIZE * 2
         core_alpha = int(150 * intensity)
@@ -763,7 +749,6 @@ class TransitionOverlay(QWidget):
                 )
         painter.fillRect(wr, with_alpha(COLOR_WHITE, int(215 * intensity)))
 
-
         if intensity > 0.28:
             band_h = max(10, wr.height() // 10)
             for rect in (
@@ -787,7 +772,6 @@ class TransitionOverlay(QWidget):
                     painter, rect, intensity=intensity * 0.85, color=secondary_neon
                 )
 
-
         wave_radius = snap_pixel(int(max_dim * 1.7 * flash_p))
         if wave_radius > PIXEL_SIZE * 2:
             wave_alpha = int(225 * intensity)
@@ -804,7 +788,6 @@ class TransitionOverlay(QWidget):
                     wave_radius - PIXEL_SIZE * 6,
                     with_alpha(secondary_neon, int(wave_alpha * 0.7)),
                 )
-
 
         dither_zone = wr.adjusted(
             -PIXEL_SIZE * 18,
@@ -830,7 +813,7 @@ class TransitionOverlay(QWidget):
     def _paint_pixel_matrix_assembly(
         self, painter: QPainter, wr: QRect, intensity: float
     ) -> None:
-        """Datamosh-разборка спрайта: срезы, хроматический сдвиг и цифровые блоки."""
+        
         if wr.width() <= 0 or wr.height() <= 0:
             return
 
@@ -854,7 +837,6 @@ class TransitionOverlay(QWidget):
                 dst = QRect(left + dx, top + sy, w, sh)
                 painter.drawPixmap(dst, self._target_pixmap, src)
 
-
                 if intensity > 0.35 and random.random() < 0.32:
                     chroma_dx = dx + random.choice((-4, 4))
                     painter.setOpacity(0.35)
@@ -865,7 +847,6 @@ class TransitionOverlay(QWidget):
                     )
                     painter.setOpacity(1.0)
 
-
         bar_count = int(4 + 22 * intensity)
         for _ in range(bar_count):
             by = top + snap_pixel(random.randint(0, max(0, h - PIXEL_SIZE)))
@@ -874,7 +855,6 @@ class TransitionOverlay(QWidget):
                 pick_palette_color(), random.randint(140, 245)
             )
             painter.fillRect(left, by, w, bh, col)
-
 
         block_count = int(22 + 150 * intensity)
         for _ in range(block_count):

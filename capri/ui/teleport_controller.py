@@ -15,9 +15,8 @@ from ..integrations.cursor import get_mouse_position, move_mouse_to
 if TYPE_CHECKING:
     from .pet_window import CapriWindow
 
-
 class TeleportController:
-    """Управляет прицеливанием молнией и эффектом телепортации окна."""
+    
 
     def __init__(self, window: CapriWindow) -> None:
         self._window = window
@@ -93,7 +92,6 @@ class TeleportController:
         pet_center = self._window.geometry().center()
         current_cursor = get_mouse_position()
 
-        # Интерполируем координаты от начальной точки курсора к центру Capri с плавным ускорением/торможением (ease-in-out)
         t = progress * progress * (3.0 - 2.0 * progress)
         target_x = round(self._pull_initial_cursor.x() + (pet_center.x() - self._pull_initial_cursor.x()) * t)
         target_y = round(self._pull_initial_cursor.y() + (pet_center.y() - self._pull_initial_cursor.y()) * t)
@@ -106,7 +104,6 @@ class TeleportController:
         self._window.surge_ticks = max(self._window.surge_ticks, 4)
         self._window.update()
 
-        # Завершаем прицеливание только тогда, когда прошло минимум времени и курсор достиг Capri
         distance_to_pet = ((new_cursor.x() - pet_center.x()) ** 2 + (new_cursor.y() - pet_center.y()) ** 2) ** 0.5
         if progress >= 1.0 or distance_to_pet <= 16:
             self.stop_pointing_at_mouse()
@@ -171,7 +168,7 @@ class TeleportController:
         self._window.update()
 
     def teleport_to_point(self, target_center_point: QPoint) -> None:
-        """Телепортирует окно в указанную точку с эффектом красных молний."""
+        
         w = self._window.width()
         h = self._window.height()
         target_top_left = QPoint(target_center_point.x() - w // 2, target_center_point.y() - h // 2)

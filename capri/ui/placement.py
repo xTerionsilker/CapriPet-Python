@@ -8,7 +8,6 @@ GAP = 24
 
 OVERLAP_ATTEMPTS = 200
 
-
 def free_bands(area: QRect, blocked: QRect | None) -> list[QRect]:
     if blocked is None or blocked.isEmpty():
         return [area]
@@ -52,7 +51,6 @@ def free_bands(area: QRect, blocked: QRect | None) -> list[QRect]:
         )
     return bands
 
-
 def random_free_point(
     bands: list[QRect], width: int, height: int
 ) -> tuple[int, int] | None:
@@ -79,7 +77,6 @@ def random_free_point(
         choice -= span
     return None
 
-
 def least_overlap_point(
     area: QRect, blocked: QRect, width: int, height: int
 ) -> tuple[int, int]:
@@ -97,7 +94,6 @@ def least_overlap_point(
             best = (x, y)
     return best
 
-
 def pick_position(
     area: QRect, blocked: QRect | None, width: int, height: int
 ) -> tuple[int, int]:
@@ -107,7 +103,6 @@ def pick_position(
     if blocked is not None and not blocked.isEmpty():
         return least_overlap_point(area, blocked, width, height)
     return area.left(), area.top()
-
 
 def pick_adjacent_position(
     area: QRect,
@@ -134,13 +129,11 @@ def pick_adjacent_position(
     safe_top = area.top() + margin
     safe_bottom = area.bottom() - margin
 
-
     rx = target.right() + gap
     ry = target.center().y() - height // 2
     ry_clamped = max(safe_top, min(ry, safe_bottom - height))
     right_rect = QRect(rx, ry_clamped, width, height)
     fits_right = (rx + width <= safe_right) and not right_rect.intersects(target)
-
 
     lx = target.left() - gap - width
     ly = target.center().y() - height // 2
@@ -148,13 +141,11 @@ def pick_adjacent_position(
     left_rect = QRect(lx, ly_clamped, width, height)
     fits_left = (lx >= safe_left) and not left_rect.intersects(target)
 
-
     tx = target.center().x() - width // 2
     tx_clamped = max(safe_left, min(tx, safe_right - width))
     ty = target.top() - gap - height
     top_rect = QRect(tx_clamped, ty, width, height)
     fits_top = (ty >= safe_top) and not top_rect.intersects(target)
-
 
     bx = target.center().x() - width // 2
     bx_clamped = max(safe_left, min(bx, safe_right - width))
@@ -169,11 +160,9 @@ def pick_adjacent_position(
         "bottom": (bx_clamped, by, fits_bottom, bottom_rect),
     }
 
-
     if preferred_side and preferred_side in candidates and candidates[preferred_side][2]:
         x, y, _, _ = candidates[preferred_side]
         return x, y, preferred_side
-
 
     space_right = max(0, safe_right - target.right() - gap)
     space_left = max(0, target.left() - safe_left - gap)
@@ -183,12 +172,10 @@ def pick_adjacent_position(
     else:
         ordered_sides = ["left", "right", "top", "bottom"]
 
-
     for side in ordered_sides:
         x, y, fits, _ = candidates[side]
         if fits:
             return x, y, side
-
 
     best_side = ordered_sides[0]
     best_overlap = float("inf")
@@ -208,10 +195,9 @@ def pick_adjacent_position(
 
     return best_x, best_y, best_side
 
-
 def pick_side_position(
     area: QRect, target: QRect, width: int, height: int, gap: int = GAP
 ) -> tuple[int, int]:
-    """Размещает окно строго рядом с целевым прямоугольником target."""
+    
     x, y, _ = pick_adjacent_position(area, target, width, height, gap=gap)
     return x, y

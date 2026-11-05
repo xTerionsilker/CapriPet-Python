@@ -17,9 +17,8 @@ THINKING_DIR = VAR_DIR / "thinking"
 
 ALLOWED_SCALES = (50, 75, 100, 125, 150)
 
-
 class SpriteManager:
-    """Управляет загрузкой, кэшированием, масштабированием и вариациями спрайтов."""
+    
 
     def __init__(self, on_pose_changed: Callable[[QPixmap, QImage, str], None] | None = None) -> None:
         self._on_pose_changed = on_pose_changed
@@ -82,7 +81,6 @@ class SpriteManager:
             raw = QPixmap(420, 420)
             self._raw_pixmaps[name] = raw
 
-
         base_width = max(1, int(raw.width() / 1.5))
         base_height = max(1, int(raw.height() / 1.5))
         scale_factor = self._scale_percent / 100.0
@@ -99,7 +97,7 @@ class SpriteManager:
         return scaled
 
     def _update_cached_image_and_mask(self) -> None:
-        """Обновляет кэшированное изображение и точный QRegion маски кликабельности."""
+        
         if self._current_pixmap.isNull():
             self._cached_hit_image = None
             self._cached_mask_region = None
@@ -116,7 +114,7 @@ class SpriteManager:
         self._cached_mask_region = QRegion(mask_bitmap)
 
     def set_sprite_scale(self, percent: int) -> bool:
-        """Изменяет масштаб спрайтов. Возвращает True, если масштаб изменился."""
+        
         if percent not in ALLOWED_SCALES or self._scale_percent == percent:
             return False
 
@@ -151,11 +149,9 @@ class SpriteManager:
                     self.load_pixmap(variant_key, file)
                     self._pose_variants[pose_name].append(variant_key)
 
-
         self._pose_variants["sit"] = self._pose_variants["idle"]
         self._pose_variants["stay"] = self._pose_variants["thinking"]
         self._pose_variants["crouch"] = self._pose_variants["other"]
-
 
         for category in ("idle", "other", "thinking", "sit", "stay", "crouch"):
             variants = self._pose_variants.get(category)
@@ -171,7 +167,7 @@ class SpriteManager:
             self._apply_scale_for_pose("sit")
 
     def set_pose(self, pose: str) -> bool:
-        """Переключает спрайт позы питомца со случайным выбором вариации."""
+        
         canonical_pose = {
             "sit": "idle",
             "crouch": "other",
@@ -201,7 +197,7 @@ class SpriteManager:
         return self.set_pose(pose_name)
 
     def is_point_on_sprite(self, pos_x: int, pos_y: int) -> bool:
-        """Проверяет попадание точки на непрозрачную часть спрайта."""
+        
         img = self._cached_hit_image
         if img is None or img.isNull():
             return True

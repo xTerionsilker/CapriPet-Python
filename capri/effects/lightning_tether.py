@@ -23,9 +23,8 @@ from .transition_fx import (
 )
 from ..ui.speech_sfx import get_speech_sfx
 
-
 def get_virtual_screen_geometry() -> QRect:
-    """Возвращает объединенную геометрию всех экранов."""
+    
     screens = QGuiApplication.screens()
     if not screens:
         return QRect(0, 0, 1920, 1080)
@@ -34,14 +33,12 @@ def get_virtual_screen_geometry() -> QRect:
         rect = rect.united(scr.geometry())
     return rect
 
-
 class LightningTetherOverlay(QWidget):
 \
 \
 \
 \
 \
-
 
     def __init__(self, parent: QWidget | None = None) -> None:
         flags = (
@@ -76,7 +73,7 @@ class LightningTetherOverlay(QWidget):
         self._sfx_timer.timeout.connect(self._on_sfx_tick)
 
     def activate(self, start_pos: QPoint, target_pos: QPoint, origin_rect: QRect | None = None) -> None:
-        """Активирует оверлей и начинает отрисовку молнии."""
+        
         geo = get_virtual_screen_geometry()
         self.setGeometry(geo)
 
@@ -100,14 +97,14 @@ class LightningTetherOverlay(QWidget):
         self.update()
 
     def update_target(self, target_pos: QPoint) -> None:
-        """Обновляет конечную точку молнии (курсор)."""
+        
         if self._target_pos != target_pos:
             self._target_pos = target_pos
             self._rebuild_bolts()
             self.update()
 
     def update_start(self, start_pos: QPoint, origin_rect: QRect | None = None) -> None:
-        """Обновляет начальную точку (например, центр питомца)."""
+        
         self._start_pos = start_pos
         if origin_rect is not None:
             self._origin_rect = origin_rect
@@ -115,7 +112,7 @@ class LightningTetherOverlay(QWidget):
         self.update()
 
     def deactivate(self) -> None:
-        """Скрывает оверлей и останавливает анимацию."""
+        
         self._anim_timer.stop()
         self._sfx_timer.stop()
         self.hide()
@@ -135,8 +132,6 @@ class LightningTetherOverlay(QWidget):
         if dist < 8:
             return
 
-
-        # Динамические параметры в зависимости от дистанции натяжения
         tension = min(1.0, dist / 800.0)
         branch_rate = 0.28 + 0.35 * tension
 
@@ -148,7 +143,6 @@ class LightningTetherOverlay(QWidget):
             )
         )
 
-        # Дополнительные дуги разряда в зависимости от натяжения
         if dist > 35:
             jitter_start = local_start + QPoint(random.randint(-14, 14), random.randint(-14, 14))
             jitter_target = local_target + QPoint(random.randint(-10, 10), random.randint(-10, 10))
@@ -161,7 +155,6 @@ class LightningTetherOverlay(QWidget):
             )
 
         if dist > 250 or tension > 0.4:
-            # Третья высокочастотная дуга перегрузки при сильном натяжении
             arc_start = local_start + QPoint(random.randint(-8, 8), random.randint(-8, 8))
             arc_target = local_target + QPoint(random.randint(-12, 12), random.randint(-12, 12))
             self._bolts.append(
@@ -177,10 +170,8 @@ class LightningTetherOverlay(QWidget):
         offset = self.geometry().topLeft()
         local_target = self._target_pos - offset
 
-
         for bolt in self._bolts:
             bolt.jitter()
-
 
         if random.random() < 0.65:
             angle = random.uniform(0, math.tau)
@@ -200,7 +191,6 @@ class LightningTetherOverlay(QWidget):
                     kind=kind,
                 )
             )
-
 
         dt = 0.02
         self._sparks = [s for s in self._sparks if s.step(dt)]
@@ -222,14 +212,11 @@ class LightningTetherOverlay(QWidget):
         local_start = self._start_pos - offset
         local_target = self._target_pos - offset
 
-
         for bolt in self._bolts:
             bolt.draw(painter, progress=1.0)
 
-
         for spark in self._sparks:
             spark.draw(painter)
-
 
         reticle_size = 64
         reticle_rect = QRect(
@@ -244,10 +231,8 @@ class LightningTetherOverlay(QWidget):
         dist = int(math.hypot(dx, dy))
         tension = min(1.0, dist / 800.0)
 
-        # Скорость вращения и агрессивность анимации нарастают при натяжении
         rotation = elapsed * math.tau * (1.2 + tension * 2.5)
 
-        # Выбираем агрессивный статус rogue AI в зависимости от натяжения
         if tension > 0.65:
             hud_label = "BLACKWALL // BREACH"
         elif tension > 0.35:
@@ -281,7 +266,6 @@ class LightningTetherOverlay(QWidget):
             tag,
         )
 
-        # Процедурные гекс-глифы утечки данных вдоль луча
         if dist > 80:
             hex_samples = ("0xDEAD", "0xBEEF", "BREACH", "0x00FF", "NULL_PTR", "CORRUPT")
             rng_hex = random.Random(int(elapsed * 15) % 1000)
@@ -293,7 +277,6 @@ class LightningTetherOverlay(QWidget):
                 painter.fillRect(glyph_rect, with_alpha(COLOR_OBSIDIAN, 190))
                 painter.setPen(with_alpha(COLOR_CRIMSON, rng_hex.randint(180, 255)))
                 painter.drawText(glyph_rect, Qt.AlignmentFlag.AlignCenter, glyph)
-
 
         anchor_rect = QRect(local_start.x() - 6, local_start.y() - 6, 12, 12)
         painter.setPen(QPen(COLOR_ACID_GREEN, 1))

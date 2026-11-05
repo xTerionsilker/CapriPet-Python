@@ -27,7 +27,6 @@ from ..effects.transition_fx import (
 from ..ui.fonts import get_hud_font
 from ..ui.speech_sfx import get_speech_sfx
 
-
 def get_virtual_screen_geometry() -> QRect:
     screens = QGuiApplication.screens()
     if not screens:
@@ -36,7 +35,6 @@ def get_virtual_screen_geometry() -> QRect:
     for scr in screens[1:]:
         rect = rect.united(scr.geometry())
     return rect
-
 
 class CursorPointerOverlay(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:

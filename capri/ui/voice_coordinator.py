@@ -28,9 +28,8 @@ WAKE_LINES = (
     "Говори.",
 )
 
-
 class VoiceCoordinator(QObject):
-    """Координирует работу голосового ввода, таймеров триггер-фразы и HUD."""
+    
 
     def __init__(
         self,
@@ -143,7 +142,7 @@ class VoiceCoordinator(QObject):
                 self._hud.hide_hud(delay_ms=300)
 
     def _on_partial_voice_text(self, partial_text: str) -> None:
-        """Отображает частичный текст в HUD в реальном времени, если бот активен."""
+        
         if not partial_text:
             return
         if self.is_armed or self._window.input_flow.awaiting_reply:
@@ -172,7 +171,6 @@ class VoiceCoordinator(QObject):
             hud.set_recognized_text(text, keep_ms=2500)
 
         if command:
-
 
             self._voice_armed_until = time.monotonic() + VOICE_FOLLOWUP_WINDOW_MS / 1000
             self._voice_window_timer.start(VOICE_FOLLOWUP_WINDOW_MS)

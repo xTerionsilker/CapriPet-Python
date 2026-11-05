@@ -14,7 +14,6 @@ from PySide6.QtMultimedia import QSoundEffect
 
 logger = logging.getLogger(__name__)
 
-
 def _generate_swoosh_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.10) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
@@ -38,7 +37,6 @@ def _generate_swoosh_wav(file_path: Path, sample_rate: int = 44100, duration: fl
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
-
 
 def _generate_close_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.10) -> None:
     num_samples = int(sample_rate * duration)
@@ -64,7 +62,6 @@ def _generate_close_wav(file_path: Path, sample_rate: int = 44100, duration: flo
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-
 def _generate_chirp_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.02) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
@@ -89,9 +86,8 @@ def _generate_chirp_wav(file_path: Path, sample_rate: int = 44100, duration: flo
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-
 def _generate_teleport_drop_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.45) -> None:
-    """Генерирует тяжёлый бас-дроп и глитч-щелчок разрыва Черного заслона при завершении телепорта."""
+    
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(999)
@@ -99,20 +95,16 @@ def _generate_teleport_drop_wav(file_path: Path, sample_rate: int = 44100, durat
         t = i / sample_rate
         p = t / duration
 
-        # Суб-бас с экспоненциальным спадом частоты от 180 Гц до 35 Гц (Bass Drop)
         bass_freq = 35.0 + 145.0 * math.exp(-6.5 * p)
         sub_bass = math.sin(2.0 * math.pi * bass_freq * t)
 
-        # Сатурация и перегруз через гиперболический тангенс
         distorted_sub = math.tanh(sub_bass * 2.8) * 0.75
 
-        # Высокочастотный цифровой клик/щелчок в самом начале (0-35 мс)
         click = 0.0
         if t < 0.035:
             cp = t / 0.035
             click = rng.uniform(-1.0, 1.0) * (1.0 - cp) ** 2.0 * 0.65
 
-        # Электрический щелчок послезвучия разряда
         sparkle = 0.0
         if 0.05 < t < 0.20:
             sp = (t - 0.05) / 0.15
@@ -130,7 +122,6 @@ def _generate_teleport_drop_wav(file_path: Path, sample_rate: int = 44100, durat
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-
 def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.42) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
@@ -138,14 +129,12 @@ def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, du
     for i in range(num_samples):
         t = i / sample_rate
 
-
         snap = 0.0
         if t < 0.025:
             snap_env = math.sin(math.pi * (t / 0.025))
             snap_freq = 3400.0 - 2400.0 * (t / 0.025)
             noise = rng.uniform(-1.0, 1.0)
             snap = (0.5 * math.sin(2.0 * math.pi * snap_freq * t) + 0.5 * noise) * snap_env
-
 
         arc = 0.0
         if t < 0.22:
@@ -159,7 +148,6 @@ def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, du
             )
             spark_spike = 1.9 if rng.random() < 0.04 else 0.0
             arc = (arc_buzz + spark_spike) * arc_env
-
 
         boom = 0.0
         if t > 0.02:
@@ -181,7 +169,6 @@ def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, du
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
-
 
 def _generate_lightning_arc_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.20) -> None:
     num_samples = int(sample_rate * duration)
@@ -208,7 +195,6 @@ def _generate_lightning_arc_wav(file_path: Path, sample_rate: int = 44100, durat
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-
 def _generate_lightning_zap_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.08) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
@@ -229,7 +215,6 @@ def _generate_lightning_zap_wav(file_path: Path, sample_rate: int = 44100, durat
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
-
 
 def _generate_session_lock_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.72) -> None:
     num_samples = int(sample_rate * duration)
@@ -272,7 +257,6 @@ def _generate_session_lock_wav(file_path: Path, sample_rate: int = 44100, durati
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-
 def _generate_session_power_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.95) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
@@ -309,7 +293,6 @@ def _generate_session_power_wav(file_path: Path, sample_rate: int = 44100, durat
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-
 def _generate_session_suspend_wav(file_path: Path, sample_rate: int = 44100, duration: float = 1.05) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
@@ -340,7 +323,6 @@ def _generate_session_suspend_wav(file_path: Path, sample_rate: int = 44100, dur
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
-
 
 def _generate_session_reboot_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.95) -> None:
     num_samples = int(sample_rate * duration)
@@ -379,7 +361,6 @@ def _generate_session_reboot_wav(file_path: Path, sample_rate: int = 44100, dura
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-
 class SpeechSFX(QObject):
 
     def __init__(self, parent: QObject | None = None) -> None:
@@ -391,7 +372,6 @@ class SpeechSFX(QObject):
         self._throttle_interval = 0.045
         self._last_chirp_time = 0.0
         self._available = False
-
 
         self._swoosh_path: Path | None = None
         self._close_path: Path | None = None
@@ -463,18 +443,15 @@ class SpeechSFX(QObject):
                 effect.setVolume(self._volume * 0.85)
                 self._session_effects[action] = effect
 
-
             swoosh = QSoundEffect(self)
             swoosh.setSource(QUrl.fromLocalFile(str(swoosh_path)))
             swoosh.setVolume(self._volume)
             self._swoosh_effect = swoosh
 
-
             close_sfx = QSoundEffect(self)
             close_sfx.setSource(QUrl.fromLocalFile(str(close_path)))
             close_sfx.setVolume(self._volume)
             self._close_effect = close_sfx
-
 
             strike_sfx = QSoundEffect(self)
             strike_sfx.setSource(QUrl.fromLocalFile(str(strike_path)))
@@ -495,7 +472,6 @@ class SpeechSFX(QObject):
             drop_sfx.setSource(QUrl.fromLocalFile(str(drop_path)))
             drop_sfx.setVolume(self._volume * 0.95)
             self._teleport_drop_effect = drop_sfx
-
 
             chirp_url = QUrl.fromLocalFile(str(chirp_path))
             self._chirp_pool = []
@@ -620,7 +596,6 @@ class SpeechSFX(QObject):
         pass
 
 _instance: SpeechSFX | None = None
-
 
 def get_speech_sfx() -> SpeechSFX:
     global _instance

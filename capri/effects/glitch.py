@@ -23,9 +23,8 @@ from ..ui.speech_sfx import get_speech_sfx
 
 _BASE_INTERVAL_MS = 80
 
-
 class GlitchBurstOverlay(QWidget):
-    """Яркий оверлей концентрированного глитч-шторма Cyberpunk над целевым окном."""
+    
 
     finished = Signal()
 
@@ -104,12 +103,10 @@ class GlitchBurstOverlay(QWidget):
         elapsed = self._clock.elapsed() if self._clock.isValid() else 0
         progress = min(1.0, elapsed / max(1, self._duration_ms))
 
-
         alpha = int(45 + 35 * math.sin(progress * math.pi * 3))
         bg_color = QColor(COLOR_OBSIDIAN)
         bg_color.setAlpha(alpha)
         painter.fillRect(0, 0, w, h, bg_color)
-
 
         frame_alpha = int(180 + 75 * math.sin(progress * math.pi * 6))
         frame_color = QColor(COLOR_CRIMSON if random.random() < 0.75 else COLOR_ACID_GREEN)
@@ -119,7 +116,6 @@ class GlitchBurstOverlay(QWidget):
         painter.fillRect(0, h - bw, w, bw, frame_color)
         painter.fillRect(0, 0, bw, h, frame_color)
         painter.fillRect(w - bw, 0, bw, h, frame_color)
-
 
         slice_count = random.randint(4, 9)
         for _ in range(slice_count):
@@ -131,23 +127,20 @@ class GlitchBurstOverlay(QWidget):
             scolor.setAlpha(random.randint(110, 220))
             painter.fillRect(sx, sy, sw, sh, scolor)
 
-
             if random.random() < 0.8:
                 offset = random.choice((-20, -12, 12, 20))
                 ghost_color = QColor(COLOR_ELECTRIC_BLUE if offset > 0 else COLOR_CRIMSON)
                 ghost_color.setAlpha(random.randint(90, 180))
                 painter.fillRect(max(0, min(w - sw, sx + offset)), sy, sw // 2, sh, ghost_color)
 
-
         paint_frame(painter, w, h, intensity="strong")
-
 
         if 0.15 <= progress <= 0.85:
             banner_w = min(w - 40, max(260, w // 2))
             banner_h = 36
             bx = (w - banner_w) // 2
             by = (h - banner_h) // 2
-            painter.fillRect(bx, by, banner_w, banner_h, QColor(0, 0, 0, 220))
+            painter.fillRect(bx, by, banner_w, banner_h, with_alpha(COLOR_OBSIDIAN, 220))
             painter.fillRect(bx, by, banner_w, 2, COLOR_CRIMSON)
             painter.fillRect(bx, by + banner_h - 2, banner_w, 2, COLOR_ACID_GREEN)
 
@@ -163,7 +156,6 @@ class GlitchBurstOverlay(QWidget):
             painter.drawText(bx + 12, by + 23, hud_text)
 
         painter.end()
-
 
 class GlitchOverlay(QWidget):
 
@@ -262,7 +254,6 @@ class GlitchOverlay(QWidget):
         if self.width() > 0 and self.height() > 0:
             paint_frame(painter, self.width(), self.height(), self._intensity)
         painter.end()
-
 
 class GlitchManager(QObject):
 

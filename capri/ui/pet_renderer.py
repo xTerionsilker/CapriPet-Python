@@ -16,10 +16,9 @@ from ..effects.transition_fx import (
     snap_pixel,
 )
 
-
 @dataclass
 class PetRenderState:
-    """Состояние питомца для визуализатора."""
+    
     is_spawning: bool = False
     is_dragging: bool = False
     is_pose_transition: bool = False
@@ -27,9 +26,8 @@ class PetRenderState:
     is_speaking: bool = False
     telemetry_tag: str = "[CAPRI//ONLINE]"
 
-
 class PetRenderer:
-    """Рендерер спрайта питомца с процедурными кибер-глитчами, сканлайнами и эффектами."""
+    
 
     def render(
         self,
@@ -37,7 +35,7 @@ class PetRenderer:
         pixmap: QPixmap,
         state: PetRenderState,
     ) -> None:
-        """Отрисовывает спрайт питомца со всеми эффектами на переданный QPainter."""
+        
         w = pixmap.width()
         h = pixmap.height()
         if w <= 0 or h <= 0 or pixmap.isNull():
@@ -45,7 +43,6 @@ class PetRenderer:
 
         severity = self._calculate_severity(state)
 
-        # При Drag&Drop (натяжении цифрового поводка) добавляем высокочастотный джиттер спрайта
         shake_x = 0
         shake_y = 0
         if state.is_dragging:
@@ -53,19 +50,14 @@ class PetRenderer:
             shake_y = random.choice((-3, -1, 0, 1, 3))
             painter.translate(shake_x, shake_y)
 
-        # 1. Хроматическая аберрация (RGB-сдвиг)
         self._draw_chromatic_aberration(painter, pixmap, severity)
-
 
         self._draw_sliced_pixmap(painter, pixmap, w, h, severity)
 
-
         self._draw_silhouette_glitches(painter, w, h, severity, state.is_pose_transition)
-
 
         self._draw_sparks(painter, w, h, severity)
 
-        # 5. Кибер-телеметрия
         self._draw_hud_telemetry(painter, w, h, severity, state)
 
         if state.is_dragging and (shake_x != 0 or shake_y != 0):
@@ -101,7 +93,6 @@ class PetRenderer:
             painter.setOpacity(random.uniform(0.25, 0.45))
             painter.drawPixmap(-chroma_shift, 0, pixmap)
             painter.restore()
-
 
             painter.save()
             painter.setOpacity(random.uniform(0.20, 0.40))
@@ -154,7 +145,6 @@ class PetRenderer:
             QPainter.CompositionMode.CompositionMode_SourceAtop
         )
 
-
         scan_alpha = (
             random.randint(25, 60) if severity > 0.4 else random.randint(15, 35)
         )
@@ -163,7 +153,6 @@ class PetRenderer:
         painter.setPen(QPen(scan_color, 1))
         for y in range(0, h, PIXEL_SIZE):
             painter.drawLine(0, y, w, y)
-
 
         bar_count = (
             random.randint(5, 10)
@@ -179,7 +168,6 @@ class PetRenderer:
             c.setAlpha(random.randint(160, 245))
             painter.fillRect(bx, by, bw, bh, c)
 
-
         block_count = (
             random.randint(8, 16)
             if severity > 0.6
@@ -194,7 +182,6 @@ class PetRenderer:
             c.setAlpha(random.randint(170, 255))
             painter.fillRect(bx, by, bw, bh, c)
 
-
         if severity > 0.5 and random.random() < 0.7:
             font = get_hud_font(10, bold=True)
             painter.setFont(font)
@@ -205,7 +192,6 @@ class PetRenderer:
                 QColor(COLOR_ACID_GREEN if random.random() < 0.6 else COLOR_WHITE)
             )
             painter.drawText(gx, gy, glyph)
-
 
         if is_pose_transition:
             dissolve_color = QColor(

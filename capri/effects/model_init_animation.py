@@ -26,19 +26,16 @@ _STATUS_POLL_MS = 120
 _ONLINE_HOLD_MS = 750
 _FAILED_HOLD_MS = 1800
 
-
 def _font(size: int) -> QFont:
     return get_hud_font(size, bold=True)
-
 
 def _with_alpha(color: QColor, alpha: int) -> QColor:
     result = QColor(color)
     result.setAlpha(max(0, min(255, int(alpha))))
     return result
 
-
 class ModelInitOverlay(QWidget):
-    """Киберпанк-HUD инициализации нейромодели Vosk при запуске Капри."""
+    
 
     finished = Signal()
 
@@ -177,7 +174,6 @@ class ModelInitOverlay(QWidget):
                 pass
         self.close()
 
-
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
@@ -235,13 +231,11 @@ class ModelInitOverlay(QWidget):
 
         painter.fillRect(panel, _with_alpha(COLOR_OBSIDIAN, base_alpha))
 
-
         painter.save()
         painter.setClipRect(panel)
         painter.setPen(QPen(_with_alpha(COLOR_CRIMSON, 20), 1))
         for y in range(panel.top() + 2, panel.bottom(), 3):
             painter.drawLine(panel.left() + 2, y, panel.right() - 2, y)
-
 
         if appear >= 1.0 and not failed:
             sweep = (self._elapsed // 4) % max(1, panel.height())
@@ -268,7 +262,6 @@ class ModelInitOverlay(QWidget):
                 )
         painter.restore()
 
-
         painter.setPen(QPen(_with_alpha(accent, base_alpha), 2))
         painter.drawRect(panel.adjusted(1, 1, -1, -1))
         painter.setPen(QPen(_with_alpha(COLOR_WHITE, int(120 * appear)), 1))
@@ -283,7 +276,6 @@ class ModelInitOverlay(QWidget):
         painter.drawLine(
             panel.right() - cut, panel.top() + 1, panel.right() - 1, panel.top() + cut
         )
-
 
         header = QRect(panel.left() + 18, panel.top() + 14, panel.width() - 36, 18)
         painter.setFont(_font(9))
@@ -300,7 +292,6 @@ class ModelInitOverlay(QWidget):
         line_y = panel.top() + 38
         painter.setPen(QPen(_with_alpha(COLOR_CRIMSON, int(210 * appear)), 1))
         painter.drawLine(panel.left() + 18, line_y, panel.right() - 18, line_y)
-
 
         title = QRect(panel.left() + 18, panel.top() + 52, panel.width() - 36, 30)
         if online:
@@ -358,7 +349,6 @@ class ModelInitOverlay(QWidget):
             self._model_name.upper(),
         )
 
-
         bar = QRect(panel.left() + 18, panel.top() + 146, panel.width() - 36, 20)
         painter.setPen(QPen(_with_alpha(COLOR_VIOLET, int(190 * appear)), 1))
         painter.drawRect(bar)
@@ -393,7 +383,6 @@ class ModelInitOverlay(QWidget):
             state_text,
         )
 
-
         telemetry = QRect(panel.left() + 18, panel.top() + 200, panel.width() - 36, 46)
         painter.setFont(_font(7))
         rows = (
@@ -420,7 +409,6 @@ class ModelInitOverlay(QWidget):
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
                 value,
             )
-
 
         painter.setPen(QPen(_with_alpha(COLOR_ACID_GREEN, int(220 * appear)), 2))
         painter.drawLine(panel.left() + 8, panel.bottom() - 8, panel.left() + 8, panel.bottom() - 28)

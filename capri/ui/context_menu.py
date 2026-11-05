@@ -11,17 +11,15 @@ from ..core.settings import ACTIVITY_TIMEOUT_OPTIONS_MS
 from .cyber_menu import CyberMenu
 from .speech_sfx import get_speech_sfx
 
-
 class ContextMenuBuilder:
-    """Конструктор контекстного меню для питомца Капри."""
+    
 
     def __init__(self, window: Any) -> None:
         self.window = window
 
     def build(self, for_tray: bool = False) -> QMenu:
-        """Создает и настраивает контекстное меню."""
+        
         menu = CyberMenu(self.window if isinstance(self.window, QWidget) else None)
-
 
         hdr = menu.addAction("▶ CAPRI//NEURAL_LINK [ONLINE]")
         hdr.setEnabled(False)
@@ -40,26 +38,21 @@ class ContextMenuBuilder:
             menu.setDefaultAction(call_act)
             menu.addSeparator()
 
-
         self._add_quick_actions(menu)
 
         menu.addSeparator()
-
 
         self._add_audio_section(menu)
 
         menu.addSeparator()
 
-
         self._add_visual_section(menu)
 
         menu.addSeparator()
 
-
         self._add_behavior_section(menu)
 
         menu.addSeparator()
-
 
         quit_act = menu.addAction("✖  [SYS.HALT] Завершить работу")
         quit_act.triggered.connect(self.window.close)
@@ -306,14 +299,12 @@ class ContextMenuBuilder:
             )
             range_group.addAction(act)
 
-
 def build_pet_context_menu(window: Any, _pos: QPoint | None = None) -> QMenu:
-    """Функция построения контекстного меню для питомца."""
+    
     builder = ContextMenuBuilder(window)
     return builder.build(for_tray=False)
 
-
 def build_tray_context_menu(window: Any) -> QMenu:
-    """Функция построения контекстного меню для системного трея."""
+    
     builder = ContextMenuBuilder(window)
     return builder.build(for_tray=True)
