@@ -8,6 +8,18 @@ from PySide6.QtCore import QElapsedTimer, QObject, QRect, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPen, QScreen
 from PySide6.QtWidgets import QWidget
 
+from .transition_fx import (
+    COLOR_ACID_GREEN,
+    COLOR_CRIMSON,
+    COLOR_ELECTRIC_BLUE,
+    COLOR_OBSIDIAN,
+    COLOR_WHITE,
+    PIXEL_SIZE,
+    pick_palette_color,
+    snap_pixel,
+    with_alpha,
+)
+
 _BASE_INTERVAL_MS = 80
 
 _HUD_MICRO_TAGS = (
