@@ -8,7 +8,7 @@ import openai
 from openai import OpenAI
 
 from ..core.ai_config import load_ai_config
-from ..core.user_agent import get_user_agent
+from ..core.settings import get_user_agent
 
 logger = logging.getLogger(__name__)
 

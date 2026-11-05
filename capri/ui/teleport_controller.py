@@ -10,7 +10,7 @@ from ..core.settings import set_config_value
 from ..effects.cursor_pointer import CursorPointerOverlay
 from ..effects.lightning_tether import LightningTetherOverlay
 from ..effects.transition import TransitionOverlay
-from ..integrations.cursor import get_mouse_position, move_mouse_to
+from ..integrations.system_control import get_mouse_position, move_mouse_to
 
 if TYPE_CHECKING:
     from .pet_window import CapriWindow

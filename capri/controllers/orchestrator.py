@@ -11,8 +11,7 @@ from ..audio.recognizer import get_model_info
 from ..commands import CommandContext, register_default_commands
 from ..commands.registry import CommandRegistry
 from ..controllers.action_bridge import ActionBridge
-from ..controllers.inactivity_manager import InactivityManager
-from ..controllers.presence_reminder import PresenceReminder
+from ..controllers.inactivity_manager import InactivityManager, PresenceReminder
 from ..core.input_flow import InputFlow, _parse_selected_number
 from ..core.settings import ACTIVITY_TIMEOUT_OPTIONS_MS, get_config_value, set_config_value
 from ..effects.session_animations import (
@@ -26,7 +25,7 @@ from ..integrations.window_tracker import (
     get_foreground_hwnd,
     shake_window_hwnd,
 )
-from ..ui.placement import pick_adjacent_position
+from ..ui.pet_renderer import pick_adjacent_position
 from ..ui.voice_coordinator import VoiceCoordinator
 
 

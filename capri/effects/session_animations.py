@@ -1,5 +1,5 @@
 from __future__ import annotations
-from capri.ui.fonts import get_hud_font
+from capri.ui.theme import get_hud_font
 
 import math
 import random

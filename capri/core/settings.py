@@ -5,13 +5,22 @@ import json
 import logging
 import os
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any, Literal, Optional
 
+from fake_useragent import UserAgent
 from platformdirs import user_config_dir
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
+
+_resolved_user_agent: Optional[str] = None
+_ua_lock = threading.Lock()
+_DEFAULT_FALLBACK_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36"
+)
 
 ACTIVITY_TIMEOUT_OPTIONS_MS: tuple[int, ...] = (5_000, 10_000, 15_000)
 GLITCH_INTENSITY_OPTIONS: tuple[str, ...] = ("weak", "medium", "strong")
@@ -315,3 +324,42 @@ def get_config_value(path: str, default: Any = None) -> Any:
 
 def set_config_value(path: str, value: Any, auto_save: bool = True) -> None:
     _global_manager.set_value(path, value, auto_save=auto_save)
+
+
+def init_user_agent_async() -> None:
+    thread = threading.Thread(
+        target=get_user_agent,
+        name="capri-user-agent-init",
+        daemon=True,
+    )
+    thread.start()
+
+
+def get_user_agent() -> str:
+    global _resolved_user_agent
+
+    if _resolved_user_agent is not None:
+        return _resolved_user_agent
+
+    with _ua_lock:
+        if _resolved_user_agent is not None:
+            return _resolved_user_agent
+
+        try:
+            custom_ua = get_config_value("network.user_agent")
+            if custom_ua and isinstance(custom_ua, str) and custom_ua.strip():
+                _resolved_user_agent = custom_ua.strip()
+                logger.debug("Используется пользовательский User-Agent из конфига: %s", _resolved_user_agent)
+                return _resolved_user_agent
+        except Exception as e:
+            logger.debug("Не удалось прочитать User-Agent из конфига: %s", e)
+
+        try:
+            ua = UserAgent(platforms="pc", fallback=_DEFAULT_FALLBACK_UA)
+            _resolved_user_agent = str(ua.random)
+            logger.debug("Сгенерирован User-Agent через fake-useragent: %s", _resolved_user_agent)
+        except Exception as e:
+            logger.warning("Ошибка fake-useragent, используется fallback: %s", e)
+            _resolved_user_agent = _DEFAULT_FALLBACK_UA
+
+        return _resolved_user_agent

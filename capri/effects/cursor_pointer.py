@@ -24,7 +24,7 @@ from ..effects.transition_fx import (
     snap_pixel,
     with_alpha,
 )
-from ..ui.fonts import get_hud_font
+from ..ui.theme import get_hud_font
 from ..ui.speech_sfx import get_speech_sfx
 
 def get_virtual_screen_geometry() -> QRect:

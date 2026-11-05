@@ -1,12 +1,37 @@
 from .context_menu import (
     ContextMenuBuilder,
+    CyberMenu,
+    TrayManager,
     build_pet_context_menu,
     build_tray_context_menu,
 )
-from .pet_renderer import PetRenderState, PetRenderer
+from .pet_renderer import (
+    PetRenderState,
+    PetRenderer,
+    free_bands,
+    least_overlap_point,
+    pick_adjacent_position,
+    pick_position,
+    pick_side_position,
+    random_free_point,
+)
 from .pet_window import CapriWindow
 from .speech import SpeechWindow, show_text
-from .theme import APP_STYLE
+from .theme import (
+    APP_STYLE,
+    CSS_CYBER_HUD,
+    CSS_CYBER_TERMINAL,
+    CSS_CYBER_UI,
+    FONT_CYBER_HUD,
+    FONT_CYBER_TERMINAL,
+    FONT_CYBER_UI,
+    FONT_FAMILY,
+    get_font,
+    get_hud_font,
+    get_terminal_font,
+    get_ui_font,
+    init_fonts,
+)
 from .voice_hud import CyberVoiceHud
 
 __all__ = [
@@ -16,8 +41,28 @@ __all__ = [
     "show_text",
     "APP_STYLE",
     "ContextMenuBuilder",
+    "CyberMenu",
+    "TrayManager",
     "build_pet_context_menu",
     "build_tray_context_menu",
     "PetRenderer",
     "PetRenderState",
+    "free_bands",
+    "random_free_point",
+    "least_overlap_point",
+    "pick_position",
+    "pick_adjacent_position",
+    "pick_side_position",
+    "init_fonts",
+    "get_font",
+    "get_terminal_font",
+    "get_hud_font",
+    "get_ui_font",
+    "FONT_FAMILY",
+    "FONT_CYBER_TERMINAL",
+    "FONT_CYBER_HUD",
+    "FONT_CYBER_UI",
+    "CSS_CYBER_TERMINAL",
+    "CSS_CYBER_HUD",
+    "CSS_CYBER_UI",
 ]

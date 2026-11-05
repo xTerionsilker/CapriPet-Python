@@ -8,13 +8,15 @@ from PySide6.QtGui import QGuiApplication, QScreen
 from PySide6.QtWidgets import QWidget
 
 from ..effects.transition import TransitionOverlay
-from ..integrations.cursor import get_mouse_position, move_mouse_to_center
+from ..integrations.system_control import (
+    get_mouse_position,
+    move_mouse_to_center,
+)
 
 INACTIVITY_TIMEOUT_MS = 5_000
 
 
 class InactivityManager(QObject):
-    """Управление бездействием, скрытием/показом и анимациями переходов питомца."""
 
     def __init__(
         self,
@@ -42,7 +44,6 @@ class InactivityManager(QObject):
         self._timeout_ms = INACTIVITY_TIMEOUT_MS
 
     def set_timeout_ms(self, timeout_ms: int) -> None:
-        """Обновляет таймаут бездействия и перезапускает таймер при активности."""
         self._timeout_ms = max(500, int(timeout_ms))
         if self._inactivity_timer.isActive():
             self.reset_timer()
@@ -52,7 +53,6 @@ class InactivityManager(QObject):
         return self._paused
 
     def set_paused(self, paused: bool) -> None:
-        """Приостанавливает таймер бездействия (например, пока открыто контекстное меню)."""
         self._paused = paused
         if paused:
             self._inactivity_timer.stop()
@@ -68,7 +68,6 @@ class InactivityManager(QObject):
         return self._main_window
 
     def get_target_screen(self) -> QScreen:
-        """Возвращает целевой экран (выбранный пользователем или текущий экран окна)."""
         if self._get_designated_screen is not None:
             scr = self._get_designated_screen()
             if scr is not None:
@@ -114,7 +113,6 @@ class InactivityManager(QObject):
         erratic: bool = False,
         target_pos: tuple[int, int] | None = None,
     ) -> None:
-        """Показывает питомца и вызывает callback после завершения анимации появления."""
         if self._is_closing():
             return
         target = self.current_target_widget
@@ -224,7 +222,6 @@ class InactivityManager(QObject):
     def catch_mouse(
         self, on_pose_change: Callable[[str], None] | None = None
     ) -> str:
-        """Вспышка у курсора, молнии в центр и появление Капри с курсором на выбранном мониторе."""
         cursor_pos = get_mouse_position()
         target = self.current_target_widget
 
@@ -297,7 +294,6 @@ class InactivityManager(QObject):
         on_materialize: Callable[[], None] | None = None,
         on_finished: Callable[[], None] | None = None,
     ) -> None:
-        """Вспышка у курсора, молнии тянутся в центр, затем материализация Капри с курсором."""
         if self._transition_overlay is not None:
             try:
                 self._transition_overlay.close()
@@ -374,7 +370,6 @@ class InactivityManager(QObject):
         on_peak_in: Callable[[], None] | None = None,
         on_finished: Callable[[], None] | None = None,
     ) -> None:
-        """Телепортация виджета из from_rect в to_rect с пиксельными глитчами и молниями."""
         if self._transition_overlay is not None:
             try:
                 self._transition_overlay.close()
@@ -422,13 +417,84 @@ class InactivityManager(QObject):
             self._transition_overlay = overlay_in
             overlay_in.start()
 
-        overlay_out = TransitionOverlay(
-            screen_rect,
-            from_rect,
-            "out",
-            target=target,
-            on_peak=on_out_peak,
-        )
-        overlay_out.finished.connect(on_out_finished)
-        self._transition_overlay = overlay_out
-        overlay_out.start()
+MIN_REMINDER_INTERVAL_MS = 600_000
+MAX_REMINDER_INTERVAL_MS = 3_600_000
+
+REMINDER_PHRASES: tuple[str, ...] = (
+    "Я всё ещё здесь. Не забывай про меня.",
+    "Протокол одиночества активирован... Пошутила. Просто проверяю связь.",
+    "Капри в сети. Может, поговорим?",
+    "Эй, у тебя всё в порядке? Я на связи.",
+    "Система скучает. Верни меня в кадр хоть на секунду.",
+)
+
+
+class PresenceReminder(QObject):
+
+    def __init__(
+        self,
+        on_remind: Callable[[str], None],
+        parent: QObject | None = None,
+        min_interval_ms: int = MIN_REMINDER_INTERVAL_MS,
+        max_interval_ms: int = MAX_REMINDER_INTERVAL_MS,
+    ) -> None:
+        super().__init__(parent)
+        self._on_remind = on_remind
+        self._active = False
+        self._last_phrase: str | None = None
+        self._min_interval_ms = max(5_000, min_interval_ms)
+        self._max_interval_ms = max(self._min_interval_ms, max_interval_ms)
+
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self._fire)
+
+    @property
+    def min_interval_ms(self) -> int:
+        return self._min_interval_ms
+
+    @property
+    def max_interval_ms(self) -> int:
+        return self._max_interval_ms
+
+    def set_interval_range(self, min_ms: int, max_ms: int) -> None:
+        self._min_interval_ms = max(5_000, int(min_ms))
+        self._max_interval_ms = max(self._min_interval_ms, int(max_ms))
+        if self._active:
+            self._schedule_next()
+
+    @property
+    def is_active(self) -> bool:
+        return self._active
+
+    @property
+    def seconds_until_next(self) -> int | None:
+        if not self._active or not self._timer.isActive():
+            return None
+        return max(0, round(self._timer.remainingTime() / 1000))
+
+    def start(self) -> None:
+        self._active = True
+        self._schedule_next()
+
+    def stop(self) -> None:
+        self._active = False
+        self._timer.stop()
+
+    def _schedule_next(self) -> None:
+        if not self._active:
+            return
+        self._timer.start(random.randint(self._min_interval_ms, self._max_interval_ms))
+
+    def _next_phrase(self) -> str:
+        candidates = [p for p in REMINDER_PHRASES if p != self._last_phrase]
+        phrase = random.choice(candidates or list(REMINDER_PHRASES))
+        self._last_phrase = phrase
+        return phrase
+
+    def _fire(self) -> None:
+        if not self._active:
+            return
+        self._schedule_next()
+        self._on_remind(self._next_phrase())
+

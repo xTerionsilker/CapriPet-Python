@@ -8,9 +8,8 @@ from PySide6.QtWidgets import QApplication
 
 from capri import CapriWindow
 from capri.audio.recognizer import preload_model_async
-from capri.core.settings import get_config_value
-from capri.core.user_agent import init_user_agent_async
-from capri.ui.fonts import init_fonts
+from capri.core.settings import get_config_value, init_user_agent_async
+from capri.ui.theme import init_fonts
 
 
 def main() -> int:

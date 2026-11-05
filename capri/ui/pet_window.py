@@ -28,7 +28,7 @@ from ..core.settings import (
 )
 from ..effects.effects_coordinator import EffectsCoordinator
 from ..effects.transition import TransitionOverlay
-from .context_menu import build_pet_context_menu
+from .context_menu import TrayManager, build_pet_context_menu
 from .pet_renderer import PetRenderState, PetRenderer
 from .speech import (
     SpeechWindow,
@@ -39,7 +39,6 @@ from .speech import (
 from .speech_sfx import get_speech_sfx
 from .sprite_manager import SpriteManager
 from .teleport_controller import TeleportController
-from .tray_manager import TrayManager
 from .voice_coordinator import VoiceCoordinator
 from .voice_hud import CyberVoiceHud
 

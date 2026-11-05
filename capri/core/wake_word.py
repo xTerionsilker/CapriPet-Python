@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import re
+from rapidfuzz import fuzz
 from rapidfuzz.distance import DamerauLevenshtein
+
+MAX_TYPO_DISTANCE = 3
 
 VOICE_TRIGGER_RE = re.compile(
     r"(?<!\w)(?:"
@@ -34,6 +37,29 @@ _WAKE_TARGETS = (
 )
 
 
+def similarity(text: str, key: str) -> float:
+    if text == key:
+        return 1.0
+
+    whole = fuzz.ratio(text, key) / 100.0
+    tokens = fuzz.token_set_ratio(text, key) / 100.0
+    return max(whole, tokens * 0.95)
+
+
+def keyword_score(text: str, keywords: tuple[str, ...]) -> float:
+    if not keywords:
+        return 0.0
+    for keyword in keywords:
+        for word in re.findall(r"[\w-]+", text):
+            if word.startswith(keyword) or keyword in word:
+                return 0.95
+    return 0.0
+
+
+def edit_distance(left: str, right: str) -> int:
+    return int(DamerauLevenshtein.distance(left, right))
+
+
 def voice_normalized(text: str) -> str:
     return " ".join(text.casefold().split())
 
@@ -55,15 +81,9 @@ def _is_fuzzy_wake_word(word: str) -> bool:
 
 
 def command_after_trigger(text: str) -> str | None:
-\
-\
-\
-\
-
     normalized = voice_normalized(text)
     if not normalized:
         return None
-
 
     match = VOICE_TRIGGER_RE.search(normalized)
     if match is not None:
@@ -72,7 +92,6 @@ def command_after_trigger(text: str) -> str | None:
         before = len(normalized[: match.start()].split())
         return " ".join(tokens[before + consumed:]).strip()
 
-
     tokens = text.split()
     if not tokens:
         return None
@@ -80,7 +99,6 @@ def command_after_trigger(text: str) -> str | None:
     first = tokens[0]
     if _is_fuzzy_wake_word(first):
         return " ".join(tokens[1:]).strip()
-
 
     if len(tokens) >= 2:
         combined = (tokens[0] + tokens[1]).casefold()

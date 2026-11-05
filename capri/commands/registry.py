@@ -3,8 +3,8 @@ from __future__ import annotations
 from rapidfuzz import process
 from rapidfuzz.distance import DamerauLevenshtein
 
-from ..core.fuzzy import MAX_TYPO_DISTANCE, keyword_score, similarity
 from ..core.morphology import normalize_spoken_numbers, stem_text
+from ..core.wake_word import MAX_TYPO_DISTANCE, keyword_score, similarity
 from .base import BaseCommand, CommandContext
 
 ARGUMENT_PUNCTUATION = " \t,.:;–-!?()[]{}«»…\""
@@ -15,7 +15,6 @@ _LAYOUT_TRANSLATION = str.maketrans(_EN_KEYS + _RU_KEYS, _RU_KEYS + _EN_KEYS)
 
 
 def switch_layout(text: str) -> str:
-    """Переключает раскладку текста между en (QWERTY) и ru (ЙЦУКЕН)."""
     return text.translate(_LAYOUT_TRANSLATION)
 
 
@@ -63,7 +62,6 @@ _EN_COMMAND_PREFIXES: dict[str, str] = {
 
 
 def normalize_english_command(text: str) -> str:
-    """Отображает англоязычные команды и префиксы на русский эквивалент, оставляя аргументы нетронутыми."""
     clean = text.strip()
     lower = clean.lower()
 
@@ -80,8 +78,6 @@ def normalize_english_command(text: str) -> str:
 
 
 class CommandRegistry:
-    """Центральный реестр команд с поддержкой нечеткого поиска и контекста."""
-
     def __init__(self, context: CommandContext | None = None) -> None:
         self._commands: list[BaseCommand] = []
         self._lookup: dict[str, BaseCommand] = {}
@@ -99,7 +95,6 @@ class CommandRegistry:
         self._context = context
 
     def register(self, command: BaseCommand) -> BaseCommand:
-        """Регистрирует команду BaseCommand в реестре."""
         if not isinstance(command, BaseCommand):
             raise TypeError(f"Ожидается BaseCommand, получено {type(command).__name__}")
 
@@ -146,7 +141,6 @@ class CommandRegistry:
         if argument_match is not None:
             return argument_match
 
-
         with_numbers = normalize_spoken_numbers(normalized)
         if with_numbers != normalized:
             arg_num = self._argument_match(with_numbers)
@@ -170,7 +164,6 @@ class CommandRegistry:
             closest_switched = self._closest(switched)
             if closest_switched is not None:
                 return self._lookup[closest_switched], ""
-
 
         stemmed_match = self._stemmed_match(normalized)
         if stemmed_match is not None:
@@ -227,7 +220,6 @@ class CommandRegistry:
                 best_score = candidate
                 best = command
 
-
         if best_score is not None and best_score[0] < min_confidence:
             return None
 
@@ -250,7 +242,6 @@ class CommandRegistry:
                 rest = normalized[len(key) :]
                 if not rest[:1].isalnum():
                     return command, normalize_spoken_numbers(rest.lstrip(ARGUMENT_PUNCTUATION))
-
 
         words = normalized.split()
         best_perm_match: tuple[BaseCommand, str] | None = None
@@ -283,7 +274,6 @@ class CommandRegistry:
         return match[0] if match is not None else None
 
     def _stemmed_match(self, normalized: str) -> tuple[BaseCommand, str] | None:
-        """Матчит команду на основе стемминга корней слов."""
         stemmed_input = stem_text(normalized)
         for command in self._commands:
             for alias in (command.name, *command.aliases):

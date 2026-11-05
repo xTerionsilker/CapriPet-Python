@@ -5,9 +5,13 @@ import threading
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ..effects.session_animations import SESSION_ACTION_LEAD_MS
-from ..integrations import ai_client, app_launcher, process_manager, spotify, updater, web_search
-from ..integrations.screen_lock import lock_commands, run_lock
-from ..integrations.system_power import power_commands, run_power
+from ..integrations import ai_client, app_launcher, process_manager, spotify, web_search
+from ..integrations.system_control import (
+    lock_commands,
+    power_commands,
+    run_lock,
+    run_power,
+)
 
 AI_HISTORY_MESSAGES = 12
 
