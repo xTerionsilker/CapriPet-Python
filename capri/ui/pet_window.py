@@ -151,6 +151,10 @@ class CapriWindow(QWidget):
         return self._orchestrator
 
     @property
+    def teleport_controller(self) -> TeleportController:
+        return self._teleport
+
+    @property
     def commands(self):
         return self._orchestrator.commands
 

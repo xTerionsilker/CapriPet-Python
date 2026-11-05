@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QPoint, QRect, Qt
+from PySide6.QtCore import QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
 
 from ..core.settings import set_config_value
 from ..effects.lightning_tether import LightningTetherOverlay
 from ..effects.transition import TransitionOverlay
+from ..integrations.cursor import get_mouse_position
 
 if TYPE_CHECKING:
     from .pet_window import CapriWindow
@@ -23,14 +25,63 @@ class TeleportController:
         self._teleport_overlay_out: TransitionOverlay | None = None
         self._teleport_overlay_in: TransitionOverlay | None = None
 
+        self._tracking_timer: QTimer = QTimer()
+        self._tracking_timer.setInterval(25)
+        self._tracking_timer.timeout.connect(self._on_tracking_tick)
+        self._tracking_end_time: float = 0.0
+
     @property
     def is_aiming(self) -> bool:
         return self._is_lightning_aiming
+
+    @property
+    def is_tracking(self) -> bool:
+        return self._tracking_timer.isActive()
 
     def _ensure_lightning_overlay(self) -> LightningTetherOverlay:
         if self._lightning_overlay is None:
             self._lightning_overlay = LightningTetherOverlay()
         return self._lightning_overlay
+
+    def point_at_mouse(self, duration_seconds: float = 3.5) -> None:
+        if self._is_lightning_aiming:
+            self.cancel_aiming()
+
+        cursor_pos = get_mouse_position()
+        pet_center = self._window.geometry().center()
+        overlay = self._ensure_lightning_overlay()
+        overlay.activate(pet_center, cursor_pos, self._window.geometry())
+
+        self._window.surge_ticks = max(self._window.surge_ticks, 10)
+        self._window.inactivity_manager.set_paused(True)
+        self._window.inactivity_manager.reset_timer()
+        self._window.update()
+
+        self._tracking_end_time = time.monotonic() + duration_seconds
+        self._tracking_timer.start()
+
+    def stop_pointing_at_mouse(self) -> None:
+        if self._tracking_timer.isActive():
+            self._tracking_timer.stop()
+        if not self._is_lightning_aiming:
+            self._window.inactivity_manager.set_paused(False)
+            self._window.inactivity_manager.reset_timer()
+            if self._lightning_overlay is not None:
+                self._lightning_overlay.deactivate()
+            self._window.update()
+
+    def _on_tracking_tick(self) -> None:
+        if self._window.is_closing or time.monotonic() >= self._tracking_end_time:
+            self.stop_pointing_at_mouse()
+            return
+
+        cursor_pos = get_mouse_position()
+        pet_center = self._window.geometry().center()
+        overlay = self._ensure_lightning_overlay()
+        overlay.update_start(pet_center, self._window.geometry())
+        overlay.update_target(cursor_pos)
+        self._window.surge_ticks = max(self._window.surge_ticks, 4)
+        self._window.update()
 
     def handle_mouse_press(self, event) -> bool:
         if event.button() == Qt.MouseButton.RightButton:
@@ -81,6 +132,7 @@ class TeleportController:
         return False
 
     def cancel_aiming(self) -> None:
+        self.stop_pointing_at_mouse()
         self._is_lightning_aiming = False
         self._window.inactivity_manager.set_paused(False)
         if self._lightning_overlay is not None:

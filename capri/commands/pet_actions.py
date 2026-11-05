@@ -35,7 +35,7 @@ class GlitchToggleCommand(BaseCommand):
 
 class LocateMouseCommand(BaseCommand):
     name = "где мышь"
-    description = "появиться на курсоре мыши и телепортировать его вместе с собой в центр экрана."
+    description = "указать на курсор мыши прицелом молний в реальном времени."
     aliases = (
         "где курсор",
         "найди мышь",
@@ -50,11 +50,14 @@ class LocateMouseCommand(BaseCommand):
         "где мышка",
         "найди мышку",
         "поймай мышку",
+        "покажи мышь",
+        "покажи мышку",
+        "покажи курсор",
         "мышь",
         "курсор",
         "мышка",
     )
-    keywords = ("мыш", "мышь", "мышка", "курсор", "пойма", "потеря")
+    keywords = ("мыш", "мышь", "мышка", "курсор", "пойма", "потеря", "покаж")
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         return ctx.locate_mouse()

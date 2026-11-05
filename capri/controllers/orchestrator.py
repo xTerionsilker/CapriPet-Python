@@ -152,9 +152,8 @@ class PetOrchestrator(QObject):
         }
 
     def _locate_mouse(self) -> str:
-        return self.inactivity.catch_mouse(
-            on_pose_change=self._window.set_pose
-        )
+        self._window.teleport_controller.point_at_mouse()
+        return "Вот курсор!"
 
     def _on_reminder(self, phrase: str) -> None:
         if self._window.is_closing or self._window.is_speaking or self.inactivity.is_paused:
