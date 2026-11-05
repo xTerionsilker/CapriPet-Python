@@ -98,6 +98,31 @@ def random_offscreen_point(screen: QRect, target: QRect, margin: int = 70) -> QP
     return snap_point(QPoint(x, y))
 
 
+def nearest_offscreen_point(screen: QRect, target: QRect, margin: int = 70) -> QPoint:
+    """Вычисляет точку за пределами экрана у ближайшей к целевому прямоугольнику грани."""
+    dist_top = target.top() - screen.top()
+    dist_bottom = screen.bottom() - target.bottom()
+    dist_left = target.left() - screen.left()
+    dist_right = screen.right() - target.right()
+
+    min_dist = min(dist_top, dist_bottom, dist_left, dist_right)
+
+    if min_dist == dist_top:
+        x = target.x()
+        y = screen.top() - target.height() - margin
+    elif min_dist == dist_bottom:
+        x = target.x()
+        y = screen.bottom() + margin
+    elif min_dist == dist_left:
+        x = screen.left() - target.width() - margin
+        y = target.y()
+    else:
+        x = screen.right() + margin
+        y = target.y()
+
+    return snap_point(QPoint(x, y))
+
+
 def evaluate_bezier(p0: QPoint, p1: QPoint, p2: QPoint, t: float) -> QPoint:
     inv = 1.0 - t
     x = inv * inv * p0.x() + 2.0 * inv * t * p1.x() + t * t * p2.x()

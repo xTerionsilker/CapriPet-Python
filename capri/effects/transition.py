@@ -36,6 +36,7 @@ from .transition_fx import (
     draw_screen_glitch_bars,
     evaluate_bezier,
     is_reduced_motion_enabled,
+    nearest_offscreen_point,
     perimeter_circuit_points,
     pick_palette_color,
     random_offscreen_point,
@@ -121,9 +122,14 @@ class TransitionOverlay(QWidget):
         local_screen = QRect(
             0, 0, self._screen_rect.width(), self._screen_rect.height()
         )
-        self._offscreen_point = random_offscreen_point(
-            local_screen, self._local_window, margin=90
-        )
+        if mode == "out":
+            self._offscreen_point = nearest_offscreen_point(
+                local_screen, self._local_window, margin=90
+            )
+        else:
+            self._offscreen_point = random_offscreen_point(
+                local_screen, self._local_window, margin=90
+            )
         target_center = self._local_window.center()
 
         if mode == "in":
