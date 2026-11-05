@@ -107,3 +107,6 @@ Capri's visual identity uses **only** the following colors:
    - **No deprecated alias methods or redundant properties:** When refactoring a class or module, migrate the callers directly instead of leaving obsolete functions/properties with comments like `# Для обратной совместимости`.
    - **Strict type signatures:** New and refactored functions must use strict, explicit keyword/positional parameters with complete type annotations.
    - **Clean dependency contracts & standard libraries:** Standard libraries and established ecosystem packages (e.g. `pydantic`, `psutil`, `rapidfuzz`, `httpx`, `fake-useragent`, `cyrtranslit`, `yt-dlp`) are canonical. Do not implement manual string parsing, hand-rolled typo matching, browser registry crawlers, custom subprocess scrapers, or huge reinvented wheels where vetted PyPI libraries or standard ecosystem solutions can solve the problem cleanly and reliably. Feel free to adopt and install external libraries for integrations and complex OS/system tasks instead of writing brittle custom workarounds.
+
+3. **File Chunk Size Limit (Strict):**
+   - **Max 50 lines per tool call:** Whenever reading, editing, appending, or writing files, you must operate on at most 50 lines per individual tool call without exception.
