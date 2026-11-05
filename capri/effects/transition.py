@@ -19,6 +19,7 @@ from .transition_fx import (
     DURATION_IN_MS,
     DURATION_OUT_MS,
     DURATION_POINT_MS,
+    DURATION_ERRATIC_MS,
     PIXEL_SIZE,
     CyberKiroshiReticle,
     CyberPixelBolt,
@@ -85,6 +86,8 @@ class TransitionOverlay(QWidget):
             self._duration_ms = DURATION_OUT_MS
         elif mode == "lightning_to_point":
             self._duration_ms = DURATION_POINT_MS
+        elif mode == "erratic_in":
+            self._duration_ms = DURATION_ERRATIC_MS
         else:
             self._duration_ms = DURATION_IN_MS
 
@@ -130,7 +133,20 @@ class TransitionOverlay(QWidget):
             )
         target_center = self._local_window.center()
 
-        if mode == "in":
+        self._erratic_waypoints: List[QPoint] = []
+        if mode == "erratic_in":
+            p0 = self._offscreen_point if target_point is None else (target_point - offset)
+            p2 = target_center
+            num_jumps = random.randint(6, 9)
+            screen_w = max(100, local_screen.width() - 80)
+            screen_h = max(100, local_screen.height() - 80)
+            self._erratic_waypoints = [p0]
+            for _ in range(num_jumps):
+                rx = snap_pixel(random.randint(40, screen_w))
+                ry = snap_pixel(random.randint(40, screen_h))
+                self._erratic_waypoints.append(QPoint(rx, ry))
+            self._erratic_waypoints.append(p2)
+        elif mode == "in":
             p0 = self._offscreen_point if target_point is None else (target_point - offset)
             p2 = target_center
         else:
@@ -209,13 +225,14 @@ class TransitionOverlay(QWidget):
         peak_threshold = {
             "out": 0.35,
             "in": 0.65,
+            "erratic_in": 0.72,
             "lightning_to_point": 0.62,
         }.get(self._mode, 0.50)
         if p >= peak_threshold and not self._peak_called:
             self._peak_called = True
             try:
                 sfx = get_speech_sfx()
-                if self._mode == "in":
+                if self._mode in ("in", "erratic_in"):
                     sfx.play_lightning_strike()
                 elif self._mode == "lightning_to_point":
                     sfx.play_lightning_zap()
@@ -238,7 +255,27 @@ class TransitionOverlay(QWidget):
 
         current_center = wr.center()
         if not self._is_reduced_motion:
-            if self._mode == "in":
+            if self._mode == "erratic_in":
+                if p < 0.72 and len(self._erratic_waypoints) >= 2:
+                    flight_t = min(1.0, p / 0.72)
+                    total_segs = len(self._erratic_waypoints) - 1
+                    seg_float = flight_t * total_segs
+                    idx = min(int(seg_float), total_segs - 1)
+                    sub_t = seg_float - idx
+                    # Fast aggressive snap between random screen nodes with micro-dwell
+                    snap_t = sub_t ** 2.2 if sub_t < 0.8 else 1.0
+                    p_a = self._erratic_waypoints[idx]
+                    p_b = self._erratic_waypoints[idx + 1]
+                    cur_x = int(p_a.x() + (p_b.x() - p_a.x()) * snap_t)
+                    cur_y = int(p_a.y() + (p_b.y() - p_a.y()) * snap_t)
+                    jitter_range = int(14 * (1.0 - flight_t) + 3)
+                    current_center = QPoint(
+                        cur_x + random.randint(-jitter_range, jitter_range),
+                        cur_y + random.randint(-jitter_range, jitter_range),
+                    )
+                else:
+                    current_center = wr.center()
+            elif self._mode == "in":
                 flight_t = min(1.0, p / 0.65)
                 smooth_t = flight_t * flight_t * (3.0 - 2.0 * flight_t)
                 current_center = evaluate_bezier(self._p0, self._p1, self._p2, smooth_t)
@@ -265,7 +302,7 @@ class TransitionOverlay(QWidget):
         self._last_mass_center = current_center
 
         is_flying = (
-            (self._mode == "in" and p < 0.70)
+            (self._mode in ("in", "erratic_in") and p < (0.75 if self._mode == "erratic_in" else 0.70))
             or (self._mode == "out" and p >= 0.30)
         )
         if is_flying and not self._is_reduced_motion:
@@ -381,12 +418,12 @@ class TransitionOverlay(QWidget):
                 painter, 28, 36, "RELIC // SIGNAL DEGRADED", COLOR_CRIMSON, 11
             )
             draw_glitch_text(painter, 28, 52, "OPTICS OFFLINE", COLOR_WHITE, 9)
-        elif self._mode == "in":
+        elif self._mode in ("in", "erratic_in"):
             intensity = 0.18 + 0.45 * max(0.0, 1.0 - abs(p - 0.3) / 0.3)
             draw_screen_glitch_bars(painter, full, p, intensity)
             draw_scan_sweep(painter, full, (p * 1.25) % 1.0, COLOR_ACID_GREEN)
             draw_glitch_text(
-                painter, 28, 36, "KIROSHI OPTICS // BOOT", COLOR_ACID_GREEN, 10
+                painter, 28, 36, "KIROSHI OPTICS // BOOT" if self._mode == "in" else "ROGUE SIGNAL // ANOMALY", COLOR_ACID_GREEN, 10
             )
             draw_glitch_text(
                 painter,
@@ -452,7 +489,8 @@ class TransitionOverlay(QWidget):
         for tr in self._trail:
             tr.draw(painter)
 
-        if p < 0.65:
+        flight_cutoff = 0.72 if self._mode == "erratic_in" else 0.65
+        if p < flight_cutoff:
             mass_center = self._last_mass_center
             intensity = 0.8 + 0.2 * math.sin(p * 25.0)
             base_sz = max(18, int(min(wr.width(), wr.height()) * 0.16))
@@ -464,7 +502,7 @@ class TransitionOverlay(QWidget):
                 seed=int(p * 1000) + mass_center.x() + mass_center.y(),
             )
         else:
-            assembly_p = (p - 0.65) / 0.35
+            assembly_p = (p - flight_cutoff) / (1.0 - flight_cutoff)
             scale_overshoot = 1.0 + 0.08 * math.sin(assembly_p * math.pi)
             if assembly_p > 0.85:
                 scale_overshoot = 1.0
@@ -491,15 +529,19 @@ class TransitionOverlay(QWidget):
                     seed=int(p * 1000),
                 )
 
-            if 0.70 <= p <= 0.95:
-                sweep_p = (p - 0.70) / 0.25
+            sweep_start = flight_cutoff + 0.05 * (1.0 - flight_cutoff)
+            sweep_end = flight_cutoff + 0.85 * (1.0 - flight_cutoff)
+            if sweep_start <= p <= sweep_end:
+                sweep_p = (p - sweep_start) / max(0.01, sweep_end - sweep_start)
                 y = cur_rect.top() + int(cur_rect.height() * sweep_p)
                 painter.fillRect(
                     cur_rect.left(), y, cur_rect.width(), 2, with_alpha(COLOR_ACID_GREEN, 210)
                 )
 
-        if 0.62 <= p <= 0.88:
-            flash_p = (p - 0.62) / 0.26
+        flash_start = flight_cutoff - 0.03
+        flash_end = min(1.0, flight_cutoff + 0.23)
+        if flash_start <= p <= flash_end:
+            flash_p = (p - flash_start) / max(0.01, flash_end - flash_start)
             self._paint_cyber_flash(painter, wr, flash_p, scheme="crimson")
 
         for spark in self._sparks:

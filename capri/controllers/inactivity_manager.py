@@ -108,7 +108,12 @@ class InactivityManager(QObject):
         self._inactivity_timer.stop()
         self._inactivity_timer.start(self._timeout_ms)
 
-    def show_with_callback(self, callback: Callable[[], None]) -> None:
+    def show_with_callback(
+        self,
+        callback: Callable[[], None],
+        erratic: bool = False,
+        target_pos: tuple[int, int] | None = None,
+    ) -> None:
         """Показывает питомца и вызывает callback после завершения анимации появления."""
         if self._is_closing():
             return
@@ -119,7 +124,7 @@ class InactivityManager(QObject):
         if self._paused or self._transitioning:
             return
         self._pending_show_callbacks.append(callback)
-        self._start_show_transition()
+        self._start_show_transition(erratic=erratic, target_pos=target_pos)
 
     def relocate_randomly(self) -> None:
         target = self.current_target_widget
@@ -163,11 +168,18 @@ class InactivityManager(QObject):
         self._transition_overlay = overlay
         overlay.start()
 
-    def _start_show_transition(self) -> None:
+    def _start_show_transition(
+        self,
+        erratic: bool = False,
+        target_pos: tuple[int, int] | None = None,
+    ) -> None:
         self._transitioning = True
         screen = self.get_target_screen()
         target = self.current_target_widget
-        self.relocate_randomly()
+        if target_pos is not None:
+            target.move(target_pos[0], target_pos[1])
+        else:
+            self.relocate_randomly()
         if hasattr(target, "set_pose"):
             target.set_pose("idle")
         target.hide()
@@ -178,7 +190,7 @@ class InactivityManager(QObject):
         overlay = TransitionOverlay(
             screen_rect,
             target.geometry(),
-            "in",
+            "erratic_in" if erratic else "in",
             target=target,
             on_peak=self._reveal_target_on_show_peak,
         )

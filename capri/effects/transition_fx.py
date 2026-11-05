@@ -35,6 +35,7 @@ def pick_palette_color() -> QColor:
 DURATION_OUT_MS = 840
 DURATION_IN_MS = 1000
 DURATION_POINT_MS = 900
+DURATION_ERRATIC_MS = 1750
 
 BAYER_4X4 = (
     (0, 8, 2, 10),

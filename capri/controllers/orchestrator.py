@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import random
 import time
 from typing import Any, Callable
 
 from PySide6.QtCore import QObject
+from PySide6.QtGui import QGuiApplication
 
 from ..audio.recognizer import get_model_info
 from ..commands import CommandContext, register_default_commands
@@ -155,11 +157,15 @@ class PetOrchestrator(QObject):
         self._window.teleport_controller.point_at_mouse()
         return "Вот курсор!"
 
+    def trigger_reminder(self) -> None:
+        phrase = self.reminder._next_phrase()
+        self._on_reminder(phrase)
+
     def _on_reminder(self, phrase: str) -> None:
         if self._window.is_closing or self._window.is_speaking or self.inactivity.is_paused:
             return
 
-
+        screen = self.inactivity.get_target_screen()
         target_rect = get_active_window_rect()
         effects = getattr(self._window, "effects", None)
 
@@ -167,13 +173,12 @@ class PetOrchestrator(QObject):
             if self._window.is_closing:
                 return
 
-            if target_rect is not None and target_rect.isValid():
+            pet_w = self._window.width()
+            pet_h = self._window.height()
 
-                screen = self.inactivity.get_target_screen()
+            # Randomize destination point on screen or around active window
+            if target_rect is not None and target_rect.isValid() and random.random() < 0.6:
                 screen_area = screen.geometry() if screen is not None else target_rect
-                pet_w = self._window.width()
-                pet_h = self._window.height()
-
                 target_x, target_y, _ = pick_adjacent_position(
                     screen_area,
                     target_rect,
@@ -181,33 +186,39 @@ class PetOrchestrator(QObject):
                     pet_h,
                     gap=24,
                 )
-
-                if self._window.isVisible():
-
-                    teleport_ctrl = getattr(self._window, "_teleport", None)
-                    if teleport_ctrl is not None:
-                        from PySide6.QtCore import QPoint
-                        teleport_ctrl.teleport_to_point(
-                            QPoint(target_x + pet_w // 2, target_y + pet_h // 2)
-                        )
-                    else:
-                        self._window.move(target_x, target_y)
-                    self._window.speak(phrase)
-                else:
-
-                    self._window.move(target_x, target_y)
-                    self.inactivity.show_with_callback(lambda: self._window.speak(phrase))
             else:
-                if self._window.isVisible():
-                    self._window.speak(phrase)
+                target_screen = screen or self._window.screen() or QGuiApplication.primaryScreen()
+                geo = target_screen.availableGeometry() if target_screen is not None else self._window.geometry()
+                max_x = max(geo.left(), geo.right() - pet_w)
+                max_y = max(geo.top(), geo.bottom() - pet_h)
+                target_x = random.randint(geo.left(), max_x)
+                target_y = random.randint(geo.top(), max_y)
+
+            from PySide6.QtCore import QPoint
+            target_pt = QPoint(target_x + pet_w // 2, target_y + pet_h // 2)
+
+            if self._window.isVisible():
+                teleport_ctrl = getattr(self._window, "_teleport", None)
+                if teleport_ctrl is not None:
+                    teleport_ctrl.teleport_to_point(
+                        target_pt,
+                        mode="erratic_in",
+                        on_finished_callback=lambda: self._window.speak(phrase),
+                    )
                 else:
-                    self.inactivity.show_with_callback(lambda: self._window.speak(phrase))
+                    self._window.move(target_x, target_y)
+                    self._window.speak(phrase)
+            else:
+                self.inactivity.show_with_callback(
+                    lambda: self._window.speak(phrase),
+                    erratic=True,
+                    target_pos=(target_x, target_y),
+                )
 
-
-        if effects is not None and target_rect is not None and target_rect.isValid():
+        if effects is not None and target_rect is not None and target_rect.isValid() and random.random() < 0.4:
             effects.glitch_burst(
                 target_rect,
-                duration_ms=1300,
+                duration_ms=800,
                 intensity="strong",
                 on_finished=_after_glitch_or_direct,
             )

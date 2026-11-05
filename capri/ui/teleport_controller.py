@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING
 
 from PySide6.QtCore import QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
@@ -167,7 +167,12 @@ class TeleportController:
             self._lightning_overlay.deactivate()
         self._window.update()
 
-    def teleport_to_point(self, target_center_point: QPoint) -> None:
+    def teleport_to_point(
+        self,
+        target_center_point: QPoint,
+        mode: str = "in",
+        on_finished_callback: Callable[[], None] | None = None,
+    ) -> None:
         
         w = self._window.width()
         h = self._window.height()
@@ -178,7 +183,9 @@ class TeleportController:
 
         dx = abs(from_rect.center().x() - to_rect.center().x())
         dy = abs(from_rect.center().y() - to_rect.center().y())
-        if dx < 12 and dy < 12:
+        if dx < 12 and dy < 12 and mode != "erratic_in":
+            if on_finished_callback is not None:
+                on_finished_callback()
             return
 
         target_screen = None
@@ -232,6 +239,8 @@ class TeleportController:
             self._window.show()
             self._window.raise_()
             self._window.update()
+            if on_finished_callback is not None:
+                on_finished_callback()
 
         self._window.set_pose("idle")
         self._window.hide()
@@ -245,7 +254,7 @@ class TeleportController:
         self._teleport_overlay_out = TransitionOverlay(
             combined_screen_rect,
             to_rect,
-            "in",
+            mode,
             target=self._window,
             on_peak=on_peak,
             target_point=from_rect.center(),
