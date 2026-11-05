@@ -544,6 +544,13 @@ class CapriWindow(QWidget):
         name = desc if desc else "По умолчанию"
         self.speak(f"Микрофон: {name}")
 
+    def set_asr_backend(self, backend: str) -> None:
+        from ..audio.recognizer import set_backend, preload_model_async
+        set_backend(backend)
+        preload_model_async()
+        label = "Faster-Whisper" if backend == "whisper" else "Vosk"
+        self.speak(f"Модель речи: {label}")
+
     def set_speech_sound_enabled(self, enabled: bool) -> None:
         get_speech_sfx().set_speech_sound_enabled(enabled)
         set_config_value("audio.speech_sound_enabled", bool(enabled))

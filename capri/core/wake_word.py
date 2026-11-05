@@ -6,6 +6,7 @@ from rapidfuzz.distance import DamerauLevenshtein
 VOICE_TRIGGER_RE = re.compile(
     r"(?<!\w)(?:"
     r"капри[зс]?(?:\s*[-–—]?\s*(?:корд|корт|кард|корн|кор))?"
+    r"|capri(?:[sz]|corn|cord)?"
     r"|к[эео]при[зс]?"
     r"|ка[кп]\s+при"
     r")(?!\w)",
@@ -25,6 +26,11 @@ _WAKE_TARGETS = (
     "каприк",
     "каприкорд",
     "каприкорн",
+    "capri",
+    "capris",
+    "capriz",
+    "capricorn",
+    "capricord",
 )
 
 

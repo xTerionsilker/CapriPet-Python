@@ -34,6 +34,7 @@ class AudioConfig(BaseModel):
     voice_enabled: bool = True
     speech_sound_enabled: bool = True
     effects_sound_enabled: bool = True
+    asr_backend: Literal["vosk", "whisper"] = "vosk"
 
     @field_validator("volume", mode="before")
     @classmethod

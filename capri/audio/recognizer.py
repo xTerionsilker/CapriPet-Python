@@ -9,6 +9,8 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from ..core.settings import get_config_value, set_config_value
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,6 +34,18 @@ class VoskSpeechService:
         self._vosk_model: Any = None
         self._preload_thread: threading.Thread | None = None
         self._recognizers: dict[int, Any] = {}
+        self._whisper_backend: Any = None
+
+    def get_backend(self) -> str:
+        backend = str(get_config_value("audio.asr_backend", "vosk")).lower()
+        return "whisper" if backend == "whisper" else "vosk"
+
+    def set_backend(self, backend: str) -> None:
+        target = "whisper" if backend.lower() == "whisper" else "vosk"
+        set_config_value("audio.asr_backend", target)
+        logger.info("Бэкенд распознавания речи переключен на: %s", target)
+        with self._lock:
+            return self._status
 
     @property
     def status(self) -> ModelStatus:
@@ -40,7 +54,10 @@ class VoskSpeechService:
 
     @property
     def is_ready(self) -> bool:
+        backend = self.get_backend()
         with self._lock:
+            if backend == "whisper":
+                return self._whisper_backend is not None and getattr(self._whisper_backend, "_model", None) is not None
             return self._status == ModelStatus.READY and self._vosk_model is not None
 
     @property
@@ -54,6 +71,16 @@ class VoskSpeechService:
             return self._status == ModelStatus.FAILED
 
     def check_available(self) -> None:
+        backend = self.get_backend()
+        if backend == "whisper":
+            try:
+                import faster_whisper
+            except ImportError as error:
+                raise RecognitionError(
+                    "Для Faster-Whisper установите библиотеку: pip install faster-whisper"
+                ) from error
+            return
+
         try:
             import importlib
 
@@ -86,6 +113,26 @@ class VoskSpeechService:
         return None
 
     def get_model_info(self) -> dict[str, object]:
+        backend = self.get_backend()
+        if backend == "whisper":
+            whisper_available = True
+            try:
+                import faster_whisper
+            except ImportError:
+                whisper_available = False
+            wb = self._whisper_backend
+            initialized = wb is not None and getattr(wb, "_model", None) is not None
+            return {
+                "backend": "whisper",
+                "available": whisper_available,
+                "initialized": initialized,
+                "loading": False,
+                "failed": False,
+                "model_name": "whisper-base",
+                "model_version": "base",
+                "vosk_version": "",
+            }
+
         vosk_available = True
         vosk_version = ""
         try:
@@ -136,11 +183,23 @@ class VoskSpeechService:
 
     def _preload_worker(self) -> None:
         try:
-            self.get_model()
+            if self.get_backend() == "whisper":
+                backend = self.get_whisper_backend()
+                backend._get_model()
+            else:
+                self.get_model()
         except RecognitionError as error:
-            logger.warning("Не удалось прогреть модель Vosk: %s", error)
+            logger.warning("Не удалось прогреть модель распознавания: %s", error)
         except Exception:
-            logger.exception("Ошибка фоновой загрузки модели Vosk.")
+            logger.exception("Ошибка фоновой загрузки модели распознавания.")
+
+    def get_whisper_backend(self) -> Any:
+        with self._lock:
+            if self._whisper_backend is None:
+                from .hybrid_asr import FasterWhisperBackend
+
+                self._whisper_backend = FasterWhisperBackend()
+            return self._whisper_backend
 
     def get_model(self) -> Any:
         with self._lock:
@@ -196,6 +255,10 @@ class VoskSpeechService:
         return vosk.KaldiRecognizer(model, float(sample_rate))
 
     def recognize(self, data: bytes, *, channels: int, sample_rate: int) -> str | None:
+        if self.get_backend() == "whisper":
+            backend = self.get_whisper_backend()
+            return backend.recognize(data, channels=channels, sample_rate=sample_rate)
+
         import vosk
 
         model = self.get_model()
@@ -225,7 +288,11 @@ _service = VoskSpeechService()
 
 
 def get_backend() -> str:
-    return "vosk"
+    return _service.get_backend()
+
+
+def set_backend(backend: str) -> None:
+    _service.set_backend(backend)
 
 
 def check_available() -> None:

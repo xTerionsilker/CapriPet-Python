@@ -94,7 +94,7 @@ class ContextMenuBuilder:
         )
 
     def _add_audio_section(self, parent_menu: QMenu) -> None:
-
+        self._add_asr_model_menu(parent_menu)
         self._add_sound_menu(parent_menu)
         self._add_volume_menu(parent_menu)
         self._add_microphone_menu(parent_menu)
@@ -173,6 +173,28 @@ class ContextMenuBuilder:
                 lambda *_, d=dev: self.window.set_designated_microphone(d)
             )
             mic_group.addAction(act)
+
+    def _add_asr_model_menu(self, parent_menu: QMenu) -> None:
+        model_menu = self._add_submenu(parent_menu, "◇  [ASR.CORE] Модель распознавания")
+        group = QActionGroup(model_menu)
+        group.setExclusive(True)
+
+        from ..audio.recognizer import get_backend
+
+        current_backend = get_backend()
+        options = (
+            ("vosk", "Vosk (быстрая, легковесная, ru)"),
+            ("whisper", "Faster-Whisper (мультиязычная, ru/en)"),
+        )
+        for key, label in options:
+            act = model_menu.addAction(label)
+            act.setCheckable(True)
+            if current_backend == key:
+                act.setChecked(True)
+            act.triggered.connect(
+                lambda *_, k=key: self.window.set_asr_backend(k)
+            )
+            group.addAction(act)
 
     def _add_sound_menu(self, parent_menu: QMenu) -> None:
         sound_menu = self._add_submenu(parent_menu, "◇  [AUDIO.FX] Звуковые эффекты")
