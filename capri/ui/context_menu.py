@@ -183,6 +183,18 @@ class ContextMenuBuilder:
 
         self._add_activity_timeout_menu(parent_menu)
         self._add_reminder_toggle(parent_menu)
+        self._add_discord_rpc_toggle(parent_menu)
+
+    def _add_discord_rpc_toggle(self, parent_menu: QMenu) -> None:
+        orchestrator = getattr(self.window, "_orchestrator", None)
+        is_enabled = getattr(orchestrator, "_discord_enabled", True) if orchestrator else True
+
+        rpc_act = parent_menu.addAction("▶  [DISCORD] Discord Rich Presence")
+        rpc_act.setCheckable(True)
+        rpc_act.setChecked(is_enabled)
+        rpc_act.triggered.connect(
+            lambda checked: self.window.set_discord_enabled(checked)
+        )
 
     def _add_screen_menu(self, parent_menu: QMenu) -> None:
         screen_menu = self._add_submenu(parent_menu, "◇  [DISP] Монитор")

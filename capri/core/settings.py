@@ -147,6 +147,11 @@ class NetworkConfig(BaseModel):
     user_agent: Optional[str] = None
 
 
+class DiscordConfig(BaseModel):
+    enabled: bool = True
+    client_id: str = "1567968896277938266"
+
+
 class CapriConfig(BaseModel):
     version: int = 1
     screen: ScreenConfig = Field(default_factory=ScreenConfig)
@@ -156,6 +161,7 @@ class CapriConfig(BaseModel):
     window: WindowConfig = Field(default_factory=WindowConfig)
     behavior: BehaviorConfig = Field(default_factory=BehaviorConfig)
     network: NetworkConfig = Field(default_factory=NetworkConfig)
+    discord: DiscordConfig = Field(default_factory=DiscordConfig)
 
 
 DEFAULT_CONFIG: dict[str, Any] = CapriConfig().model_dump()

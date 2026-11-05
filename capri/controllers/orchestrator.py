@@ -18,6 +18,7 @@ from ..effects.session_animations import (
     SessionAnimationOverlay,
     play_session_animation,
 )
+from ..integrations.discord_rpc import DiscordRpcManager
 from ..integrations.app_launcher import launch_application
 from ..integrations.process_manager import kill_process_group
 from ..integrations.window_tracker import (
@@ -80,6 +81,17 @@ class PetOrchestrator(QObject):
         if self._reminders_enabled:
             self.reminder.start()
 
+        discord_client_id = str(
+            get_config_value("discord.client_id", "1567968896277938266")
+        )
+        self.discord_rpc = DiscordRpcManager(
+            client_id=discord_client_id,
+            parent=self,
+        )
+        self._discord_enabled = bool(
+            get_config_value("discord.enabled", True)
+        )
+
         self._register_commands()
 
     def _connect_action_signals(self) -> None:
@@ -115,8 +127,11 @@ class PetOrchestrator(QObject):
     def start(self) -> None:
         self.voice_coordinator.start_if_enabled()
         self.inactivity.start()
+        if self._discord_enabled:
+            self.discord_rpc.start()
 
     def stop(self) -> None:
+        self.discord_rpc.stop()
         self.inactivity.stop()
         self.reminder.stop()
         self.voice_coordinator.voice.cancel()
@@ -128,6 +143,12 @@ class PetOrchestrator(QObject):
             self._session_overlay = None
 
     def handle_command(self, text: str) -> None:
+        if self._discord_enabled:
+            preview = text[:28] + ("…" if len(text) > 28 else "")
+            self.discord_rpc.update_presence(
+                state="EXECUTING // COMMAND",
+                details=f"> {preview}",
+            )
         result = self.flow.handle(text)
         self._window.speak(result)
 
@@ -146,6 +167,14 @@ class PetOrchestrator(QObject):
         )
         self.commands.set_context(context)
         register_default_commands(self.commands)
+
+    def set_discord_enabled(self, enabled: bool) -> None:
+        self._discord_enabled = enabled
+        set_config_value("discord.enabled", enabled)
+        if enabled:
+            self.discord_rpc.start()
+        else:
+            self.discord_rpc.stop()
 
     def debug_info(self) -> dict[str, object]:
         return {

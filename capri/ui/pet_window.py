@@ -612,6 +612,11 @@ class CapriWindow(QWidget):
     def toggle_voice(self) -> str:
         return self._orchestrator.voice_coordinator.toggle_voice()
 
+    def set_discord_enabled(self, enabled: bool) -> None:
+        self._orchestrator.set_discord_enabled(enabled)
+        status = "вкл" if enabled else "выкл"
+        self.speak(f"Discord RPC: {status}")
+
     def show_context_menu(self, pos: QPoint) -> None:
         self._orchestrator.inactivity.set_paused(True)
         try:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from . import (
     app_launcher,
+    discord_rpc,
     process_manager,
     spotify,
     system_control,
@@ -11,6 +12,7 @@ from . import (
 
 __all__ = [
     "app_launcher",
+    "discord_rpc",
     "process_manager",
     "spotify",
     "system_control",
