@@ -18,6 +18,7 @@ from .transition_fx import (
     PIXEL_SIZE,
     pick_palette_color,
     snap_pixel,
+    with_alpha,
 )
 from ..ui.speech_sfx import get_speech_sfx
 

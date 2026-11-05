@@ -21,7 +21,11 @@ from ..effects.session_animations import (
 )
 from ..integrations.app_launcher import launch_application
 from ..integrations.process_manager import kill_process_group
-from ..integrations.window_tracker import get_active_window_rect
+from ..integrations.window_tracker import (
+    get_active_window_rect,
+    get_foreground_hwnd,
+    shake_window_hwnd,
+)
 from ..ui.placement import pick_adjacent_position
 from ..ui.voice_coordinator import VoiceCoordinator
 
@@ -166,6 +170,7 @@ class PetOrchestrator(QObject):
             return
 
         screen = self.inactivity.get_target_screen()
+        target_hwnd = get_foreground_hwnd()
         target_rect = get_active_window_rect()
         effects = getattr(self._window, "effects", None)
 
@@ -197,29 +202,35 @@ class PetOrchestrator(QObject):
             from PySide6.QtCore import QPoint
             target_pt = QPoint(target_x + pet_w // 2, target_y + pet_h // 2)
 
+            def _on_appeared() -> None:
+                self._window.speak(phrase)
+
             if self._window.isVisible():
                 teleport_ctrl = getattr(self._window, "_teleport", None)
                 if teleport_ctrl is not None:
                     teleport_ctrl.teleport_to_point(
                         target_pt,
                         mode="erratic_in",
-                        on_finished_callback=lambda: self._window.speak(phrase),
+                        on_finished_callback=_on_appeared,
                     )
                 else:
                     self._window.move(target_x, target_y)
-                    self._window.speak(phrase)
+                    _on_appeared()
             else:
                 self.inactivity.show_with_callback(
-                    lambda: self._window.speak(phrase),
+                    _on_appeared,
                     erratic=True,
                     target_pos=(target_x, target_y),
                 )
 
-        if effects is not None and target_rect is not None and target_rect.isValid() and random.random() < 0.4:
+        if target_hwnd is not None:
+            shake_window_hwnd(target_hwnd, duration_ms=900, intensity=16, parent=self)
+
+        if effects is not None and target_rect is not None and target_rect.isValid():
             effects.glitch_burst(
                 target_rect,
-                duration_ms=800,
-                intensity="strong",
+                duration_ms=950,
+                intensity="extreme",
                 on_finished=_after_glitch_or_direct,
             )
         else:
