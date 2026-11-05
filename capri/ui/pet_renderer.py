@@ -45,7 +45,15 @@ class PetRenderer:
 
         severity = self._calculate_severity(state)
 
+        # При Drag&Drop (натяжении цифрового поводка) добавляем высокочастотный джиттер спрайта
+        shake_x = 0
+        shake_y = 0
+        if state.is_dragging:
+            shake_x = random.choice((-4, -2, 0, 2, 4))
+            shake_y = random.choice((-3, -1, 0, 1, 3))
+            painter.translate(shake_x, shake_y)
 
+        # 1. Хроматическая аберрация (RGB-сдвиг)
         self._draw_chromatic_aberration(painter, pixmap, severity)
 
 
@@ -57,8 +65,11 @@ class PetRenderer:
 
         self._draw_sparks(painter, w, h, severity)
 
-
+        # 5. Кибер-телеметрия
         self._draw_hud_telemetry(painter, w, h, severity, state)
+
+        if state.is_dragging and (shake_x != 0 or shake_y != 0):
+            painter.translate(-shake_x, -shake_y)
 
     def _calculate_severity(self, state: PetRenderState) -> float:
         if state.is_spawning:

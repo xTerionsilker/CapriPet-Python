@@ -382,18 +382,26 @@ class CyberPixelBolt:
             seg_dx = cur.x() - prev.x()
             seg_dy = cur.y() - prev.y()
             seg_len = math.hypot(seg_dx, seg_dy)
-            if seg_len > 22 and random.random() < 0.65:
-                mx = prev.x() + seg_dx * random.uniform(0.35, 0.65)
-                my = prev.y() + seg_dy * random.uniform(0.35, 0.65)
-                snx = -seg_dy / max(1.0, seg_len)
-                sny = seg_dx / max(1.0, seg_len)
-                kink = random.uniform(-13.0, 13.0)
-                mid = QPoint(
-                    snap_pixel(mx + snx * kink),
-                    snap_pixel(my + sny * kink),
-                )
-                self.segments.append((prev, mid))
-                self.segments.append((mid, cur))
+            # В стиле Blackwall/Rogue AI: более агрессивные ломаные прямоугольные и диагональные скачки
+            if seg_len > 18 and random.random() < 0.75:
+                # Прямоугольный цифровой излом (манхэттенская геометрия шины данных)
+                if random.random() < 0.45:
+                    step_x = prev.x() + int(seg_dx * random.choice((0.3, 0.5, 0.7)))
+                    corner = QPoint(snap_pixel(step_x), snap_pixel(prev.y()))
+                    self.segments.append((prev, corner))
+                    self.segments.append((corner, cur))
+                else:
+                    mx = prev.x() + seg_dx * random.uniform(0.30, 0.70)
+                    my = prev.y() + seg_dy * random.uniform(0.30, 0.70)
+                    snx = -seg_dy / max(1.0, seg_len)
+                    sny = seg_dx / max(1.0, seg_len)
+                    kink = random.uniform(-18.0, 18.0)
+                    mid = QPoint(
+                        snap_pixel(mx + snx * kink),
+                        snap_pixel(my + sny * kink),
+                    )
+                    self.segments.append((prev, mid))
+                    self.segments.append((mid, cur))
             else:
                 self.segments.append((prev, cur))
 
@@ -484,6 +492,13 @@ class CyberPixelBolt:
         for p1, p2 in visible_segments:
             alpha = random.randint(185, 255)
             painter.setPen(QPen(with_alpha(COLOR_CRIMSON, alpha), PIXEL_SIZE))
+            painter.drawLine(p1, p2)
+
+        # Белое ядро перегрузки (Overdrive Core) в центре основной дуги
+        core_pen = QPen(with_alpha(COLOR_WHITE, random.randint(190, 255)), max(1, PIXEL_SIZE // 2))
+        core_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
+        painter.setPen(core_pen)
+        for p1, p2 in visible_segments:
             painter.drawLine(p1, p2)
 
 

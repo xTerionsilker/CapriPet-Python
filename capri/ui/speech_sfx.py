@@ -90,6 +90,47 @@ def _generate_chirp_wav(file_path: Path, sample_rate: int = 44100, duration: flo
         wf.writeframes(frames)
 
 
+def _generate_teleport_drop_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.45) -> None:
+    """Генерирует тяжёлый бас-дроп и глитч-щелчок разрыва Черного заслона при завершении телепорта."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(999)
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+
+        # Суб-бас с экспоненциальным спадом частоты от 180 Гц до 35 Гц (Bass Drop)
+        bass_freq = 35.0 + 145.0 * math.exp(-6.5 * p)
+        sub_bass = math.sin(2.0 * math.pi * bass_freq * t)
+
+        # Сатурация и перегруз через гиперболический тангенс
+        distorted_sub = math.tanh(sub_bass * 2.8) * 0.75
+
+        # Высокочастотный цифровой клик/щелчок в самом начале (0-35 мс)
+        click = 0.0
+        if t < 0.035:
+            cp = t / 0.035
+            click = rng.uniform(-1.0, 1.0) * (1.0 - cp) ** 2.0 * 0.65
+
+        # Электрический щелчок послезвучия разряда
+        sparkle = 0.0
+        if 0.05 < t < 0.20:
+            sp = (t - 0.05) / 0.15
+            sparkle = rng.uniform(-1.0, 1.0) * math.sin(2.0 * math.pi * 3200.0 * t) * (1.0 - sp) * 0.25
+
+        env = (1.0 - p) ** 1.4
+        val = math.tanh(distorted_sub * 0.8 + click + sparkle) * 0.85 * env
+        sample = int(val * 32767)
+        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(file_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(frames)
+
+
 def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.42) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
@@ -380,6 +421,7 @@ class SpeechSFX(QObject):
             strike_path = temp_dir / "cyber_lightning_strike.wav"
             arc_path = temp_dir / "cyber_lightning_arc.wav"
             zap_path = temp_dir / "cyber_lightning_zap.wav"
+            drop_path = temp_dir / "cyber_teleport_drop.wav"
 
             session_specs = {
                 "lock": ("cyber_session_lock.wav", _generate_session_lock_wav),
@@ -400,6 +442,8 @@ class SpeechSFX(QObject):
                 _generate_lightning_arc_wav(arc_path)
             if not zap_path.exists():
                 _generate_lightning_zap_wav(zap_path)
+            if not drop_path.exists():
+                _generate_teleport_drop_wav(drop_path)
 
             self._swoosh_path = swoosh_path
             self._close_path = close_path
@@ -407,6 +451,7 @@ class SpeechSFX(QObject):
             self._lightning_strike_path = strike_path
             self._lightning_arc_path = arc_path
             self._lightning_zap_path = zap_path
+            self._teleport_drop_path = drop_path
 
             for action, (filename, generator) in session_specs.items():
                 path = temp_dir / filename
@@ -445,6 +490,11 @@ class SpeechSFX(QObject):
             zap_sfx.setSource(QUrl.fromLocalFile(str(zap_path)))
             zap_sfx.setVolume(self._volume * 0.75)
             self._lightning_zap_effect = zap_sfx
+
+            drop_sfx = QSoundEffect(self)
+            drop_sfx.setSource(QUrl.fromLocalFile(str(drop_path)))
+            drop_sfx.setVolume(self._volume * 0.95)
+            self._teleport_drop_effect = drop_sfx
 
 
             chirp_url = QUrl.fromLocalFile(str(chirp_path))
@@ -505,6 +555,8 @@ class SpeechSFX(QObject):
             self._lightning_arc_effect.setVolume(self._volume * 0.85)
         if self._lightning_zap_effect is not None:
             self._lightning_zap_effect.setVolume(self._volume * 0.75)
+        if hasattr(self, "_teleport_drop_effect") and self._teleport_drop_effect is not None:
+            self._teleport_drop_effect.setVolume(self._volume * 0.95)
         for effect in self._session_effects.values():
             effect.setVolume(self._volume * 0.85)
         for effect in self._chirp_pool:
@@ -534,6 +586,11 @@ class SpeechSFX(QObject):
         if not self.is_effects_sound_enabled():
             return
         self._play_file(self._lightning_zap_path, self._lightning_zap_effect)
+
+    def play_teleport_drop(self) -> None:
+        if not self.is_effects_sound_enabled():
+            return
+        self._play_file(getattr(self, "_teleport_drop_path", None), getattr(self, "_teleport_drop_effect", None))
 
     def play_session_action(self, action: str) -> None:
         if not self.is_effects_sound_enabled():

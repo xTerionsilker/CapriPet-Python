@@ -136,23 +136,39 @@ class LightningTetherOverlay(QWidget):
             return
 
 
+        # Динамические параметры в зависимости от дистанции натяжения
+        tension = min(1.0, dist / 800.0)
+        branch_rate = 0.28 + 0.35 * tension
+
         self._bolts.append(
             CyberPixelBolt(
                 local_start,
                 local_target,
-                branch_chance=0.28,
+                branch_chance=branch_rate,
             )
         )
 
-
+        # Дополнительные дуги разряда в зависимости от натяжения
         if dist > 35:
-            jitter_start = local_start + QPoint(random.randint(-12, 12), random.randint(-12, 12))
-            jitter_target = local_target + QPoint(random.randint(-8, 8), random.randint(-8, 8))
+            jitter_start = local_start + QPoint(random.randint(-14, 14), random.randint(-14, 14))
+            jitter_target = local_target + QPoint(random.randint(-10, 10), random.randint(-10, 10))
             self._bolts.append(
                 CyberPixelBolt(
                     jitter_start,
                     jitter_target,
-                    branch_chance=0.35,
+                    branch_chance=min(0.65, branch_rate + 0.1),
+                )
+            )
+
+        if dist > 250 or tension > 0.4:
+            # Третья высокочастотная дуга перегрузки при сильном натяжении
+            arc_start = local_start + QPoint(random.randint(-8, 8), random.randint(-8, 8))
+            arc_target = local_target + QPoint(random.randint(-12, 12), random.randint(-12, 12))
+            self._bolts.append(
+                CyberPixelBolt(
+                    arc_start,
+                    arc_target,
+                    branch_chance=0.45,
                 )
             )
 
@@ -223,30 +239,39 @@ class LightningTetherOverlay(QWidget):
             reticle_size,
         )
         elapsed = time.monotonic() - self._start_time
-        rotation = elapsed * math.tau * 0.9
+        dx = self._target_pos.x() - self._start_pos.x()
+        dy = self._target_pos.y() - self._start_pos.y()
+        dist = int(math.hypot(dx, dy))
+        tension = min(1.0, dist / 800.0)
+
+        # Скорость вращения и агрессивность анимации нарастают при натяжении
+        rotation = elapsed * math.tau * (1.2 + tension * 2.5)
+
+        # Выбираем агрессивный статус rogue AI в зависимости от натяжения
+        if tension > 0.65:
+            hud_label = "BLACKWALL // BREACH"
+        elif tension > 0.35:
+            hud_label = "OVERDRIVE // OVERLOAD"
+        else:
+            hud_label = "CYBER // LEASH_LOCK"
 
         CyberKiroshiReticle.draw(
             painter,
             reticle_rect,
             progress=1.0,
             color=COLOR_CRIMSON,
-            bracket_offset=int(abs(math.sin(elapsed * 6.0)) * 6),
+            bracket_offset=int(abs(math.sin(elapsed * (8.0 + tension * 12.0))) * (6 + int(tension * 6))),
             rotation=rotation,
-            label="TELEPORT // LOCK",
+            label=hud_label,
             locked=True,
         )
-
-
-        dx = self._target_pos.x() - self._start_pos.x()
-        dy = self._target_pos.y() - self._start_pos.y()
-        dist = int(math.hypot(dx, dy))
 
         font = get_hud_font(10, bold=True)
         painter.setFont(font)
 
-        tag = f"DIST: {dist:04d}px // VECTOR:[{dx:+04d},{dy:+04d}]"
-        tag_rect = QRect(local_target.x() + 38, local_target.y() - 8, 220, 16)
-        painter.fillRect(tag_rect, with_alpha(COLOR_OBSIDIAN, 220))
+        tag = f"TENS: {int(tension * 100)}% // DISP:[{dx:+04d},{dy:+04d}] // VOLT:0x{(min(9999, int(dist * 12.5))):04X}"
+        tag_rect = QRect(local_target.x() + 38, local_target.y() - 8, 255, 16)
+        painter.fillRect(tag_rect, with_alpha(COLOR_OBSIDIAN, 230))
         painter.setPen(QPen(COLOR_CRIMSON, 1))
         painter.drawRect(tag_rect)
         painter.setPen(COLOR_WHITE)
@@ -255,6 +280,19 @@ class LightningTetherOverlay(QWidget):
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
             tag,
         )
+
+        # Процедурные гекс-глифы утечки данных вдоль луча
+        if dist > 80:
+            hex_samples = ("0xDEAD", "0xBEEF", "BREACH", "0x00FF", "NULL_PTR", "CORRUPT")
+            rng_hex = random.Random(int(elapsed * 15) % 1000)
+            for step_ratio in (0.3, 0.6, 0.85):
+                hx = int(local_start.x() + (local_target.x() - local_start.x()) * step_ratio)
+                hy = int(local_start.y() + (local_target.y() - local_start.y()) * step_ratio)
+                glyph = rng_hex.choice(hex_samples)
+                glyph_rect = QRect(hx + rng_hex.randint(-16, 16), hy + rng_hex.randint(-16, 16), 56, 12)
+                painter.fillRect(glyph_rect, with_alpha(COLOR_OBSIDIAN, 190))
+                painter.setPen(with_alpha(COLOR_CRIMSON, rng_hex.randint(180, 255)))
+                painter.drawText(glyph_rect, Qt.AlignmentFlag.AlignCenter, glyph)
 
 
         anchor_rect = QRect(local_start.x() - 6, local_start.y() - 6, 12, 12)
