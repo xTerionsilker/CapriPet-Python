@@ -53,9 +53,10 @@ capri/
     ├── voice_coordinator.py    # Координация распознавания речи, триггеров и Voice HUD
     └── voice_hud.py            # Cyberpunk 2077 HUD голосового ввода над taskbar
 assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
-docs/                           # Дополнительная документация и спецификации (config_spec.md)
+docs/                           # Дополнительная документация и спецификации (config_spec.md, architecture.md)
 models/                         # Папка моделей (Vosk, Silero VAD onnx)
 requirements.txt                # Зависимости проекта
-AGENTS.md                       # Инструкция и правила разработки для AI-агентов
+.agents/                        # Модульные правила и инструкции для AI-агентов (rules/)
+AGENTS.md                       # Главная точка входа правил разработки для AI-агентов
 LICENSE                         # Лицензия MIT
 ```
