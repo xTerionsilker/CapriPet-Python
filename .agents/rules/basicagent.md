@@ -65,7 +65,7 @@ Capri's visual identity uses **only** the following colors:
 
 - **`main.py`:** Application entry point. Instantiates `CapriWindow` and enters the Qt event loop.
 - **Orchestration & Business Logic:**
-  - `PetOrchestrator` (`capri/controllers/orchestrator.py`): Central controller decoupling business logic from UI. Owns `CommandRegistry` (`capri/commands/handlers.py`), `InputFlow`, `ActionBridge` (background integrations like AI APIs, Spotify, system and process management), `DiscordRpcManager` (`capri/integrations/discord_rpc.py` for rich status), and `InactivityManager` (which includes `PresenceReminder`).
+  - `PetOrchestrator` (`capri/controllers/orchestrator.py`): Central controller decoupling business logic from UI. Owns `CommandRegistry` (`capri/commands/handlers.py`), `InputFlow`, `ActionBridge` (background integrations like AI APIs, Spotify, system control, process management, safe cleanup via `system_cleaner`), `DiscordRpcManager` (`capri/integrations/discord_rpc.py` for rich status), and `InactivityManager` (which includes `PresenceReminder`).
 - **Representation of Capri (View Layer):**
   - `CapriWindow` (`capri/ui/pet_window.py`): Cleaned View widget responsible for geometry, transparency, Qt event routing, and rendering.
   - `SpriteManager` (`capri/ui/sprite_manager.py`): Manages multi-pose sprite loading, caching, scaling, and pixel alpha hit detection (`assets/var/{idle,other,thinking}/`).

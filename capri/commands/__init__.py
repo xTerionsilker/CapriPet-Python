@@ -3,6 +3,7 @@ from __future__ import annotations
 from .base import BaseCommand, CommandContext, CommandResult
 from .handlers import (
     DebugCommand,
+    CleanSystemCommand,
     GlitchToggleCommand,
     GoogleSearchCommand,
     KillAppCommand,
@@ -25,6 +26,7 @@ from .registry import CommandRegistry, switch_layout
 
 DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     DebugCommand,
+    CleanSystemCommand,
     GlitchToggleCommand,
     GoogleSearchCommand,
     YouTubeSearchCommand,
@@ -70,6 +72,7 @@ __all__ = [
     "create_default_registry",
     "DEFAULT_COMMAND_CLASSES",
     "DebugCommand",
+    "CleanSystemCommand",
     "GlitchToggleCommand",
     "GoogleSearchCommand",
     "YouTubeSearchCommand",

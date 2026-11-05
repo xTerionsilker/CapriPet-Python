@@ -5,7 +5,7 @@ import threading
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ..effects.session_animations import SESSION_ACTION_LEAD_MS
-from ..integrations import app_launcher, process_manager, spotify, web_search
+from ..integrations import app_launcher, process_manager, spotify, system_cleaner, web_search
 from ..integrations.system_control import (
     lock_commands,
     power_commands,
@@ -155,6 +155,26 @@ class ActionBridge(QObject):
             daemon=True,
         ).start()
         return "Проверяю наличие обновлений…"
+
+    def clean_system(self) -> str:
+        threading.Thread(
+            target=self._clean_system_worker,
+            name="capri-system-clean",
+            daemon=True,
+        ).start()
+        return "Начинаю безопасную очистку мусора и временных файлов…"
+
+    def _clean_system_worker(self) -> None:
+        try:
+            res = system_cleaner.perform_system_cleanup()
+            freed_str = system_cleaner.format_bytes(res.bytes_freed)
+            if res.files_deleted == 0 and res.bytes_freed == 0:
+                msg = "Система чиста: временных файлов и мусора в корзине не обнаружено."
+            else:
+                msg = f"Очистка завершена: удалено {res.files_deleted} объектов, освобождено {freed_str}."
+        except Exception:
+            msg = "Произошла ошибка при очистке системы."
+        self.speech_requested.emit(msg)
 
     def _check_updates_worker(self) -> None:
         local_dt = updater.read_local_version_datetime()

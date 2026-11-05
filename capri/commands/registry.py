@@ -57,6 +57,11 @@ _EN_COMMAND_PREFIXES: dict[str, str] = {
     "what is playing": "что играет",
     "what's playing": "что играет",
     "update": "обновление",
+    "clean": "очистить",
+    "cleanup": "очистить",
+    "clean disk": "очистить",
+    "clean system": "очистить",
+    "clear cache": "очистить",
 }
 
 

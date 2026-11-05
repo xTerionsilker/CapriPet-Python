@@ -4,7 +4,7 @@ from typing import Any
 import webbrowser
 
 from .base import BaseCommand, CommandContext
-from ..integrations import spotify, web_search
+from ..integrations import spotify, system_cleaner, web_search
 from ..integrations.system_control import (
     lock_commands,
     power_commands,
@@ -617,3 +617,56 @@ class KillAppCommand(BaseCommand):
         if ctx.action_bridge is not None:
             return ctx.action_bridge.kill_app(trimmed)
         return f"Ищу процессы: {trimmed}"
+
+
+class CleanSystemCommand(BaseCommand):
+    name = "очистить"
+    description = "безопасно очистить временные файлы системы и корзину."
+    aliases = (
+        "очистить систему",
+        "очисти",
+        "очисти систему",
+        "очисти пк",
+        "очисти компьютер",
+        "очистить пк",
+        "очистить компьютер",
+        "очистить диск",
+        "очисти диск",
+        "почистить",
+        "почисти",
+        "почисти систему",
+        "почисти пк",
+        "почисти компьютер",
+        "почистить систему",
+        "почистить пк",
+        "почистить компьютер",
+        "почистить диск",
+        "почисти диск",
+        "удали мусор",
+        "удалить мусор",
+        "очисти мусор",
+        "очистить мусор",
+        "очисти корзину",
+        "очистить корзину",
+        "очистка",
+        "очистка системы",
+        "очистка диска",
+        "очистка мусора",
+        "клининг",
+    )
+    keywords = (
+        "очист",
+        "почист",
+        "мусор",
+        "корзин",
+        "клининг",
+    )
+
+    def execute(self, ctx: CommandContext, query: str = "") -> str | None:
+        if ctx.action_bridge is not None:
+            return ctx.action_bridge.clean_system()
+        res = system_cleaner.perform_system_cleanup()
+        freed_str = system_cleaner.format_bytes(res.bytes_freed)
+        if res.files_deleted == 0 and res.bytes_freed == 0:
+            return "Система чиста: временных файлов и мусора в корзине не обнаружено."
+        return f"Очистка завершена: удалено {res.files_deleted} объектов, освобождено {freed_str}."
