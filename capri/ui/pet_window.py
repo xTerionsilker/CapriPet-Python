@@ -548,6 +548,7 @@ class CapriWindow(QWidget):
         set_backend(backend)
         preload_model_async()
         label = "Faster-Whisper" if backend == "whisper" else "Vosk"
+        self._orchestrator.update_discord_asr(backend)
         self.speak(f"Модель речи: {label}")
 
     def set_speech_sound_enabled(self, enabled: bool) -> None:

@@ -9,6 +9,7 @@ from PySide6.QtCore import QObject, QTimer
 logger = logging.getLogger(__name__)
 
 DEFAULT_CLIENT_ID = "1567968896277938266"
+GITHUB_REPO_URL = "https://github.com/xTerionsilker/CapriPet-Python"
 
 class DiscordRpcManager(QObject):
 
@@ -22,12 +23,15 @@ class DiscordRpcManager(QObject):
         self._rpc: Optional[object] = None
         self._connected: bool = False
         self._start_time: int = int(time.time())
-        self._current_state: str = "STATUS // SECURE"
-        self._current_details: str = "BLACKWALL BREACH DETECTED"
+        self._current_state: str = "ASR: Vosk | IDLE"
+        self._current_details: str = "Команда: нет"
         self._current_large_image: str = "capri_avatar"
         self._current_large_text: str = "CapriPet // Rogue AI"
         self._current_small_image: Optional[str] = "net_pulse"
         self._current_small_text: Optional[str] = "ONLINE"
+        self._buttons: list[dict[str, str]] = [
+            {"label": "Скачать проект", "url": GITHUB_REPO_URL}
+        ]
 
         self._poll_timer = QTimer(self)
         self._poll_timer.setInterval(15_000)
@@ -111,6 +115,7 @@ class DiscordRpcManager(QObject):
                 small_image=self._current_small_image,
                 small_text=self._current_small_text,
                 start=self._start_time,
+                buttons=self._buttons,
             )
         except Exception as exc:
             logger.debug("Discord RPC update error: %s", exc)

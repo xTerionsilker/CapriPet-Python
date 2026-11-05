@@ -91,6 +91,8 @@ class PetOrchestrator(QObject):
         self._discord_enabled = bool(
             get_config_value("discord.enabled", True)
         )
+        self._last_command: str = "нет"
+        self._sync_discord_status()
 
         self._register_commands()
 
@@ -143,12 +145,9 @@ class PetOrchestrator(QObject):
             self._session_overlay = None
 
     def handle_command(self, text: str) -> None:
+        self._last_command = text
         if self._discord_enabled:
-            preview = text[:28] + ("…" if len(text) > 28 else "")
-            self.discord_rpc.update_presence(
-                state="EXECUTING // COMMAND",
-                details=f"> {preview}",
-            )
+            self._sync_discord_status()
         result = self.flow.handle(text)
         self._window.speak(result)
 
@@ -172,9 +171,25 @@ class PetOrchestrator(QObject):
         self._discord_enabled = enabled
         set_config_value("discord.enabled", enabled)
         if enabled:
+            self._sync_discord_status()
             self.discord_rpc.start()
         else:
             self.discord_rpc.stop()
+
+    def update_discord_asr(self, backend: str) -> None:
+        if self._discord_enabled:
+            self._sync_discord_status(backend=backend)
+
+    def _sync_discord_status(self, backend: str | None = None) -> None:
+        if backend is None:
+            backend = str(get_config_value("audio.asr_backend", "vosk"))
+        asr_name = "Faster-Whisper" if backend == "whisper" else "Vosk"
+        last_cmd = self._last_command[:30] + ("…" if len(self._last_command) > 30 else "")
+        self.discord_rpc.update_presence(
+            state=f"Модель: {asr_name}",
+            details=f"Команда: {last_cmd}",
+            large_text="CapriPet // Cyber AI",
+        )
 
     def debug_info(self) -> dict[str, object]:
         return {
