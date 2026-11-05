@@ -99,67 +99,11 @@ pip install -r requirements.txt
 - Папки меню «Пуск»: `%ProgramData%\Microsoft\Windows\Start Menu\Programs` и `%AppData%\Microsoft\Windows\Start Menu\Programs` (файлы `.lnk`)
 - Системный реестр `App Paths` в разделах `HKEY_LOCAL_MACHINE` и `HKEY_CURRENT_USER` (`SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths`)
 
-## Структура проекта
+## Архитектура и структура проекта
 
-```text
-main.py                         # Главная точка входа приложения
-capriWin.bat                    # Скрипт быстрого запуска для Windows
-version.txt                     # Текущая версия приложения
-capri/
-├── __init__.py
-├── audio/                      # Голосовой ввод и распознавание речи
-│   ├── recognizer.py           # Распознавание речи (Vosk, Faster-Whisper ASR)
-│   └── voice.py                # Захват аудио с микрофона и VAD (Silero)
-├── commands/                   # Модульная система команд
-│   ├── __init__.py             # Центральный список команд и фабрика реестра
-│   ├── base.py                 # BaseCommand, CommandContext, CommandResult
-│   ├── handlers.py             # Обработчики всех стандартных команд
-│   └── registry.py             # Реестр команд, нечёткий поиск, переключение раскладки
-├── controllers/                # Контроллеры логики и жизненного цикла
-│   ├── action_bridge.py        # Мост асинхронных операций между UI и интеграциями
-│   ├── inactivity_manager.py   # Таймер неактивности и напоминания о присутствии
-│   └── orchestrator.py         # Центральный оркестратор логики: связь команд, аудио и UI
-├── core/                       # Ядро распознавания, конвейер и настройки
-│   ├── input_flow.py           # Конвейер обработки ввода и подтверждения команд
-│   ├── morphology.py           # Стемминг русской морфологии и парсер числительных
-│   ├── settings.py             # Сохранение настроек config.json и генерация User-Agent
-│   └── wake_word.py            # Детектор активационной фразы («Капри») и нечёткий поиск
-├── effects/                    # Визуальные эффекты и анимации
-│   ├── cursor_pointer.py       # Эффект прицеливания молниями на позицию курсора мыши
-│   ├── effects_coordinator.py  # Фасад управления эффектами, глитчами и оверлеями
-│   ├── glitch.py               # CRT/ЭЛТ-глитч-оверлей и алгоритмы искажений
-│   ├── lightning_tether.py     # Оверлей прицеливания молнией при перемещении Капри
-│   ├── model_init_animation.py # HUD-анимация инициализации модели Vosk при запуске
-│   ├── session_animations.py   # Киберпанк-анимации перед системными действиями
-│   ├── transition.py           # Процедурная кибер-анимация скрытия/появления
-│   └── transition_fx.py        # Палитра, шины и кадры эффекта перехода-молнии
-├── integrations/               # Внешние интеграции и системные команды
-│   ├── app_launcher.py         # Поиск и запуск установленных приложений Windows
-│   ├── discord_rpc.py          # Discord Rich Presence (статус, ASR модель, таймер, кнопка)
-│   ├── process_manager.py      # Мониторинг, группировка и завершение процессов
-│   ├── spotify.py              # Клиент и Web API для Spotify
-│   ├── system_cleaner.py       # Безопасная очистка корзины (Shell API) и временных файлов
-│   ├── system_control.py       # Питание, блокировка экрана и управление курсором
-│   ├── web_search.py           # Поиск в веб-браузере и проверка обновлений
-│   └── window_tracker.py       # Определение геометрии активного окна (Win32 DWM)
-└── ui/                         # Графический интерфейс на PySide6 (Qt)
-    ├── context_menu.py         # Контекстное меню, стиль Cyberpunk и системный трей
-    ├── pet_renderer.py         # Рендерер спрайта, сканлайны и позиционирование
-    ├── pet_window.py           # Окно питомца Qt (View-слой, геометрия и события)
-    ├── speech.py               # Диалоговые HUD-облачка с кибер-анимацией
-    ├── speech_sfx.py           # Процедурный синтез звуков речи на лету
-    ├── sprite_manager.py       # Менеджер загрузки, кэширования и масштабирования поз
-    ├── teleport_controller.py  # Контроллер перемещения окна через наведение молнией
-    ├── theme.py                # Цветовая палитра, шрифты и CSS-стили интерфейса
-    ├── voice_coordinator.py    # Координация распознавания речи, триггеров и Voice HUD
-    └── voice_hud.py            # Cyberpunk 2077 HUD голосового ввода над taskbar
-assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
-docs/                           # Дополнительная документация и спецификации (config_spec.md)
-models/                         # Папка моделей (Vosk, Silero VAD onnx)
-requirements.txt                # Зависимости проекта
-AGENTS.md                       # Инструкция и правила разработки для AI-агентов
-LICENSE                         # Лицензия MIT
-```
+Для удобства навигации подробные схемы вынесены в документацию:
+- [Архитектурная схема компонентов и диаграмма взаимодействия (Mermaid / C4)](docs/architecture.md)
+- [Полная файловая структура проекта (ASCII-дерево)](docs/project_structure.md)
 
 ## Лицензия
 
