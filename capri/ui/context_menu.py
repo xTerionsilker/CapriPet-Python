@@ -2,14 +2,25 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import QPoint
+from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QActionGroup, QGuiApplication
 from PySide6.QtMultimedia import QMediaDevices
-from PySide6.QtWidgets import QMenu, QWidget
+from PySide6.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QPushButton,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
+)
 
 from ..core.settings import ACTIVITY_TIMEOUT_OPTIONS_MS
 from .cyber_menu import CyberMenu
+from .fonts import CSS_CYBER_TERMINAL, CSS_CYBER_UI
 from .speech_sfx import get_speech_sfx
+from .theme import ACID_GREEN, NEON_CRIMSON, OBSIDIAN_BLACK, PURE_WHITE
 
 class ContextMenuBuilder:
     
@@ -311,15 +322,144 @@ class ContextMenuBuilder:
         curr_range = getattr(
             self.window, "reminder_interval_range", (600_000, 3_600_000)
         )
+        is_preset_matched = False
         for label, min_ms, max_ms in intervals:
             act = range_menu.addAction(label)
             act.setCheckable(True)
             if abs(curr_range[0] - min_ms) < 1000 and abs(curr_range[1] - max_ms) < 1000:
                 act.setChecked(True)
+                is_preset_matched = True
             act.triggered.connect(
                 lambda *_, mn=min_ms, mx=max_ms: self.window.set_reminder_interval_range(mn, mx)
             )
             range_group.addAction(act)
+
+        range_menu.addSeparator()
+        curr_min_m = max(1, round(curr_range[0] / 60_000))
+        curr_max_m = max(curr_min_m, round(curr_range[1] / 60_000))
+        custom_label = (
+            f"Своя частота ({curr_min_m} – {curr_max_m} мин)..."
+            if not is_preset_matched
+            else "Своя частота..."
+        )
+        custom_act = range_menu.addAction(custom_label)
+        custom_act.setCheckable(True)
+        if not is_preset_matched:
+            custom_act.setChecked(True)
+        custom_act.triggered.connect(self._prompt_custom_reminder_range)
+        range_group.addAction(custom_act)
+
+    def _prompt_custom_reminder_range(self) -> None:
+        parent_widget = self.window if isinstance(self.window, QWidget) else None
+        curr_range = getattr(
+            self.window, "reminder_interval_range", (600_000, 3_600_000)
+        )
+        init_min = max(1, round(curr_range[0] / 60_000))
+        init_max = max(init_min, round(curr_range[1] / 60_000))
+
+        dlg = QDialog(parent_widget)
+        dlg.setWindowTitle("ДИАПАЗОН НАПОМИНАНИЙ")
+        dlg.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.CustomizeWindowHint | Qt.WindowType.WindowTitleHint | Qt.WindowType.WindowCloseButtonHint)
+        dlg.setStyleSheet(
+            f"""
+            QDialog {{
+                background-color: {OBSIDIAN_BLACK};
+                border: 1px solid {NEON_CRIMSON};
+                color: {PURE_WHITE};
+                font-family: {CSS_CYBER_UI};
+            }}
+            QLabel {{
+                color: {PURE_WHITE};
+                font-size: 12px;
+            }}
+            QSpinBox {{
+                background-color: #110e1a;
+                border: 1px solid {NEON_CRIMSON};
+                color: {PURE_WHITE};
+                padding: 4px 8px;
+                font-family: {CSS_CYBER_TERMINAL};
+                font-size: 13px;
+                selection-background-color: {NEON_CRIMSON};
+            }}
+            QSpinBox:focus {{
+                border: 1px solid {ACID_GREEN};
+            }}
+            QPushButton {{
+                background-color: #110e1a;
+                border: 1px solid {NEON_CRIMSON};
+                color: {PURE_WHITE};
+                font-size: 12px;
+                padding: 6px 16px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                border-color: {ACID_GREEN};
+                color: {ACID_GREEN};
+            }}
+            QPushButton:pressed {{
+                background-color: rgba(246, 2, 63, 0.3);
+            }}
+            """
+        )
+
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(12)
+
+        header = QLabel("Настройка частоты автономных реплик (в минутах):")
+        header.setStyleSheet(f"color: {ACID_GREEN}; font-weight: bold; font-size: 12px;")
+        layout.addWidget(header)
+
+        inputs_layout = QHBoxLayout()
+        inputs_layout.setSpacing(10)
+
+        lbl_from = QLabel("От:")
+        spin_from = QSpinBox()
+        spin_from.setRange(1, 1440)
+        spin_from.setValue(init_min)
+        spin_from.setSuffix(" мин")
+
+        lbl_to = QLabel("До:")
+        spin_to = QSpinBox()
+        spin_to.setRange(1, 1440)
+        spin_to.setValue(init_max)
+        spin_to.setSuffix(" мин")
+
+        def _on_from_changed(val: int) -> None:
+            if spin_to.value() < val:
+                spin_to.setValue(val)
+
+        def _on_to_changed(val: int) -> None:
+            if spin_from.value() > val:
+                spin_from.setValue(val)
+
+        spin_from.valueChanged.connect(_on_from_changed)
+        spin_to.valueChanged.connect(_on_to_changed)
+
+        inputs_layout.addWidget(lbl_from)
+        inputs_layout.addWidget(spin_from)
+        inputs_layout.addWidget(lbl_to)
+        inputs_layout.addWidget(spin_to)
+        layout.addLayout(inputs_layout)
+
+        btns_layout = QHBoxLayout()
+        btns_layout.addStretch()
+        btn_cancel = QPushButton("ОТМЕНА")
+        btn_ok = QPushButton("ПРИМЕНИТЬ")
+        btn_cancel.clicked.connect(dlg.reject)
+        btn_ok.clicked.connect(dlg.accept)
+        btns_layout.addWidget(btn_cancel)
+        btns_layout.addWidget(btn_ok)
+        layout.addLayout(btns_layout)
+
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            min_m = spin_from.value()
+            max_m = max(min_m, spin_to.value())
+            min_ms = min_m * 60_000
+            max_ms = max_m * 60_000
+            self.window.set_reminder_interval_range(min_ms, max_ms)
+            if hasattr(self.window, "speak"):
+                self.window.speak(f"Частота напоминаний: {min_m}–{max_m} мин.")
 
 def build_pet_context_menu(window: Any, _pos: QPoint | None = None) -> QMenu:
     
