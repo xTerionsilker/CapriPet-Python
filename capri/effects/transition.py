@@ -36,6 +36,8 @@ from .transition_fx import (
     draw_scanlines,
     draw_screen_glitch_bars,
     evaluate_bezier,
+    evaluate_manhattan_path,
+    evaluate_vortex,
     is_reduced_motion_enabled,
     nearest_offscreen_point,
     perimeter_circuit_points,
@@ -160,12 +162,31 @@ class TransitionOverlay(QWidget):
         dist = max(1.0, math.hypot(dx, dy))
         nx = -dy / dist
         ny = dx / dist
-        curve_offset = random.randint(-140, 140)
+
+        self._kinematic_style = random.choice(("bezier", "bezier", "manhattan", "vortex", "dash"))
+        max_curve = min(360, max(80, int(dist * 0.45)))
+        sign = random.choice((-1, 1))
+        curve_offset = sign * random.randint(30, max_curve)
         p1 = QPoint(int(mid_x + nx * curve_offset), int(mid_y + ny * curve_offset))
         self._p0 = p0
         self._p1 = p1
         self._p2 = p2
         self._last_mass_center = p0
+        self._manhattan_mid_t = random.uniform(0.35, 0.65)
+        self._manhattan_orientation = random.choice((0, 1))
+        self._vortex_turns = random.uniform(1.2, 2.5) * random.choice((-1.0, 1.0))
+        self._vortex_radius = min(240.0, max(40.0, dist * random.uniform(0.18, 0.38)))
+
+        duration_factor = 1.0
+        if self._kinematic_style == "dash":
+            duration_factor = random.uniform(0.68, 0.82)
+        elif self._kinematic_style == "vortex":
+            duration_factor = random.uniform(1.10, 1.30)
+        elif self._kinematic_style == "manhattan":
+            duration_factor = random.uniform(0.95, 1.15)
+        else:
+            duration_factor = random.uniform(0.85, 1.15)
+        self._duration_ms = max(200, int(self._duration_ms * duration_factor))
 
         if mode == "lightning_to_point" and self._local_target_point is not None:
             starts = perimeter_circuit_points(self._local_window, 6)
@@ -262,7 +283,6 @@ class TransitionOverlay(QWidget):
                     seg_float = flight_t * total_segs
                     idx = min(int(seg_float), total_segs - 1)
                     sub_t = seg_float - idx
-                    # Fast aggressive snap between random screen nodes with micro-dwell
                     snap_t = sub_t ** 2.2 if sub_t < 0.8 else 1.0
                     p_a = self._erratic_waypoints[idx]
                     p_b = self._erratic_waypoints[idx + 1]
@@ -275,29 +295,55 @@ class TransitionOverlay(QWidget):
                     )
                 else:
                     current_center = wr.center()
-            elif self._mode == "in":
-                flight_t = min(1.0, p / 0.65)
-                smooth_t = flight_t * flight_t * (3.0 - 2.0 * flight_t)
-                current_center = evaluate_bezier(self._p0, self._p1, self._p2, smooth_t)
-                jitter_range = int(3 * (1.0 - smooth_t))
-                if jitter_range > 0:
-                    current_center = QPoint(
-                        current_center.x() + random.randint(-jitter_range, jitter_range),
-                        current_center.y() + random.randint(-jitter_range, jitter_range),
-                    )
-            elif self._mode == "out":
-                if p >= 0.35:
-                    flight_t = min(1.0, (p - 0.35) / 0.65)
-                    smooth_t = flight_t * flight_t * (3.0 - 2.0 * flight_t)
-                    current_center = evaluate_bezier(self._p0, self._p1, self._p2, smooth_t)
-                    jitter_range = int(3 * flight_t)
+            elif self._mode in ("in", "out"):
+                if self._mode == "in":
+                    flight_t = min(1.0, p / 0.65)
+                    jitter_factor = 1.0 - flight_t
+                else:
+                    if p >= 0.35:
+                        flight_t = min(1.0, (p - 0.35) / 0.65)
+                        jitter_factor = flight_t
+                    else:
+                        flight_t = 0.0
+                        jitter_factor = 0.0
+
+                if self._mode == "out" and p < 0.35:
+                    current_center = self._p0
+                else:
+                    if self._kinematic_style == "dash":
+                        smooth_t = flight_t ** 3 * (flight_t * (6.0 * flight_t - 15.0) + 10.0)
+                        current_center = QPoint(
+                            int(self._p0.x() + (self._p2.x() - self._p0.x()) * smooth_t),
+                            int(self._p0.y() + (self._p2.y() - self._p0.y()) * smooth_t),
+                        )
+                    elif self._kinematic_style == "manhattan":
+                        smooth_t = flight_t * flight_t * (3.0 - 2.0 * flight_t)
+                        current_center = evaluate_manhattan_path(
+                            self._p0,
+                            self._p2,
+                            self._manhattan_mid_t,
+                            smooth_t,
+                            self._manhattan_orientation,
+                        )
+                    elif self._kinematic_style == "vortex":
+                        smooth_t = flight_t * flight_t * (3.0 - 2.0 * flight_t)
+                        current_center = evaluate_vortex(
+                            self._p0,
+                            self._p2,
+                            smooth_t,
+                            self._vortex_turns,
+                            self._vortex_radius,
+                        )
+                    else:
+                        smooth_t = flight_t * flight_t * (3.0 - 2.0 * flight_t)
+                        current_center = evaluate_bezier(self._p0, self._p1, self._p2, smooth_t)
+
+                    jitter_range = int(5 * jitter_factor)
                     if jitter_range > 0:
                         current_center = QPoint(
                             current_center.x() + random.randint(-jitter_range, jitter_range),
                             current_center.y() + random.randint(-jitter_range, jitter_range),
                         )
-                else:
-                    current_center = self._p0
 
         self._last_mass_center = current_center
 

@@ -119,6 +119,34 @@ def evaluate_bezier(p0: QPoint, p1: QPoint, p2: QPoint, t: float) -> QPoint:
     y = inv * inv * p0.y() + 2.0 * inv * t * p1.y() + t * t * p2.y()
     return QPoint(int(x), int(y))
 
+def evaluate_manhattan_path(p0: QPoint, p2: QPoint, mid_t: float, t: float, orientation: int = 0) -> QPoint:
+    mid_x = int(p0.x() + (p2.x() - p0.x()) * mid_t)
+    mid_y = int(p0.y() + (p2.y() - p0.y()) * mid_t)
+    if orientation == 0:
+        c1 = QPoint(mid_x, p0.y())
+        c2 = QPoint(mid_x, p2.y())
+    else:
+        c1 = QPoint(p0.x(), mid_y)
+        c2 = QPoint(p2.x(), mid_y)
+
+    if t <= 0.33:
+        sub_t = t / 0.33
+        return QPoint(int(p0.x() + (c1.x() - p0.x()) * sub_t), int(p0.y() + (c1.y() - p0.y()) * sub_t))
+    elif t <= 0.66:
+        sub_t = (t - 0.33) / 0.33
+        return QPoint(int(c1.x() + (c2.x() - c1.x()) * sub_t), int(c1.y() + (c2.y() - c1.y()) * sub_t))
+    else:
+        sub_t = (t - 0.66) / 0.34
+        return QPoint(int(c2.x() + (p2.x() - c2.x()) * sub_t), int(c2.y() + (p2.y() - c2.y()) * sub_t))
+
+def evaluate_vortex(p0: QPoint, p2: QPoint, t: float, spiral_turns: float, max_radius: float) -> QPoint:
+    base_x = p0.x() + (p2.x() - p0.x()) * t
+    base_y = p0.y() + (p2.y() - p0.y()) * t
+    env = math.sin(t * math.pi)
+    r = max_radius * env
+    ang = t * math.tau * spiral_turns
+    return QPoint(int(base_x + math.cos(ang) * r), int(base_y + math.sin(ang) * r))
+
 class CyberTrailFragment:
     __slots__ = ("x", "y", "w", "h", "color", "life", "max_life")
 
