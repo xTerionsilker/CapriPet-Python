@@ -44,7 +44,7 @@
 - **`tests/test_sprite_manager.py`**:
   - Tests sprite scaling bounds and pixel alpha hit detection.
 - **`tests/test_context_menu.py`**:
-  - Tests cyber dialogs, window flags, and custom reminder range spinbox bounds.
+  - Tests cyber dialogs, window flags, custom reminder range spinbox bounds, and ContextMenuBuilder assembly (verifying quick action toggle ordering at the top of the menu).
 - **`tests/test_transition_kinematics.py`**:
   - Tests endpoint consistency and mathematical curves for procedural transition trajectories (Bezier, Manhattan, Vortex).
 
