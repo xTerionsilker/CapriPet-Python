@@ -44,12 +44,14 @@
 - **`tests/test_sprite_manager.py`**:
   - Tests sprite scaling bounds and pixel alpha hit detection.
 
-## Rules for Writing Tests
+## Rules for Writing & Executing Tests
 
 1. **Strict Code Quality Compliance:**
    - No comments (`#`) or docstrings in test code.
    - Strict static typing with explicit return types (`-> None`) on test methods.
 2. **Deterministic & Isolated:**
    - Unit tests must not trigger actual OS destructive operations (e.g. do not invoke `run_lock` or `run_power` without mocking).
-3. **Mandatory Test Verification:**
-   - When modifying core modules, commands, or imports, run both `py_compile` and `unittest` to ensure zero regressions before completing tasks.
+3. **Execution Timing & Pipeline (Strict):**
+   - **Do not run tests in the middle of development:** Never run unittests repeatedly during the research, inspection, or editing phases.
+   - **Run tests only once at the very end:** Complete all file edits, refactoring, and additions first. Run the test suite once as the final verification step.
+   - If tests fail, diagnose and fix the specific failures, then run a single verification pass.
