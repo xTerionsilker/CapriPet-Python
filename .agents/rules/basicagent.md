@@ -27,9 +27,16 @@ This file serves as the root dispatch guide for AI agents working on CapriPet. I
    - Core submodules: `controllers`, `ui`, `effects`, `core`, `commands`, `integrations`, `audio`.
 
 6. **[Mandatory Documentation Synchronization](docs_sync.md):**
-   - Strict requirement to proactively update `README.md`, `docs/architecture.md`, `docs/project_structure.md`, `docs/config_spec.md`, and agent rules concurrently with any code or structural change.
+   - Architectural documentation in `docs/`: system schemas & C4/sequence diagrams (`architecture.md`), Pydantic settings specification (`config_spec.md`), and codebase tree index (`project_structure.md`).
+   - Strict requirement to proactively update `README.md`, `docs/`, and agent rules concurrently with any code or structural change.
 
 7. **[Testing & Verification Rules](testing.md):**
    - Standard `unittest` framework, execution via `.\.venv\Scripts\python.exe -m unittest discover -s tests -v`.
+   - Pipeline discipline: execute tests only once at the very end of work, never iteratively during editing.
    - Coverage of imports, core settings, morphology, commands, and system integration specs.
+
+8. **[Git Commit Conventions](commit_conventions.md):**
+   - Strict Conventional Commits standard: `<type>(<scope>): <short description>`.
+   - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`.
+   - Imperative mood, lowercase, concise (under 72 chars), no trailing period, atomic changesets.
 

@@ -10,24 +10,27 @@
 flowchart TB
     %% Входные сигналы
     subgraph Inputs["1. Источники ввода"]
+        direction TB
         Mic["Микрофон (Аудиопоток)"]
         Hotkeys["Горячие клавиши (Ctrl+Space, Ctrl+Q)"]
-        Mouse["События мыши / Трей"]
+        Mouse["События мыши / Трей / DWM"]
     end
 
     %% Аудио подсистема
     subgraph AudioSubsystem["2. Аудио и распознавание (capri.audio)"]
+        direction TB
         Voice["voice.py<br/>(Захват звука, Silero VAD)"]
-        ASR["recognizer.py<br/>(Vosk / Faster-Whisper)"]
+        ASR["recognizer.py<br/>(Vosk / Faster-Whisper ASR)"]
         Voice -->|Фреймы речи| ASR
     end
 
     %% Ядро обработки
     subgraph CoreSubsystem["3. Конвейер ядра (capri.core)"]
+        direction TB
         WakeWord["wake_word.py<br/>(Детектор активации «Капри»)"]
         InputFlow["input_flow.py<br/>(Конвейер сессий и подтверждений)"]
-        Morphology["morphology.py<br/>(Нормализация, стемминг, числительные)"]
-        Settings["settings.py<br/>(Конфигурация .capri/config.json)"]
+        Morphology["morphology.py<br/>(Стемминг, нормализация числительных)"]
+        Settings["settings.py<br/>(Pydantic v2 .capri/config.json)"]
 
         WakeWord --> InputFlow
         Morphology -.-> InputFlow
@@ -35,38 +38,45 @@ flowchart TB
 
     %% Контроллеры и оркестрация
     subgraph Controllers["4. Контроллеры и управление (capri.controllers)"]
+        direction TB
         Orchestrator["orchestrator.py<br/>(Центральный оркестратор)"]
-        Inactivity["inactivity_manager.py<br/>(Таймер бездействия)"]
-        ActionBridge["action_bridge.py<br/>(Мост асинхронных операций)"]
+        Inactivity["inactivity_manager.py<br/>(Таймер неактивности + PresenceReminder)"]
+        ActionBridge["action_bridge.py<br/>(Асинхронный мост потоков)"]
     end
 
     %% Команды и интеграции
     subgraph CommandsSubsystem["5. Модульная система команд и интеграции"]
+        direction TB
         Registry["commands/registry.py<br/>(Реестр и нечёткий поиск)"]
-        Handlers["commands/handlers.py<br/>(Обработчики команд)"]
-        Integrations["integrations/<br/>(Spotify, Discord RPC, System, AppLauncher)"]
+        Handlers["commands/handlers.py<br/>(Обработчики действий)"]
+        Integrations["integrations/<br/>(Spotify, Discord RPC, AppLauncher, SystemControl, Cleaner)"]
 
         Registry --> Handlers
         Handlers --> Integrations
     end
 
     %% UI и Визуальные эффекты
-    subgraph VisualPresentation["6. Графический интерфейс и эффекты (PySide6)"]
-        PetWindow["ui/pet_window.py<br/>(Главное окно питомца)"]
-        PetRenderer["ui/pet_renderer.py<br/>(Рендерер спрайтов и глитчей)"]
-        SpeechHUD["ui/speech.py & speech_sfx.py<br/>(Облачка диалогов и звуки)"]
+    subgraph VisualPresentation["6. Графический интерфейс и эффекты (capri.ui / capri.effects)"]
+        direction TB
+        PetWindow["ui/pet_window.py<br/>(Главное окно питомца, View)"]
+        PetRenderer["ui/pet_renderer.py<br/>(Рендерер спрайтов и сканлайнов)"]
+        ContextMenu["ui/context_menu.py<br/>(Кибер-меню и настройки)"]
+        VoiceCoord["ui/voice_coordinator.py<br/>(Координатор ASR & HUD)"]
         VoiceHUD["ui/voice_hud.py<br/>(Cyberpunk Voice HUD над taskbar)"]
-        Effects["effects/effects_coordinator.py<br/>(Оверлеи, CRT-глитчи, молнии)"]
+        SpeechHUD["ui/speech.py & speech_sfx.py<br/>(CyberHudBubble и синтез SFX)"]
+        Effects["effects/effects_coordinator.py<br/>(CRT-глитчи, молнии, переходы)"]
 
         PetWindow --> PetRenderer
+        PetWindow --> ContextMenu
+        VoiceCoord --> VoiceHUD
     end
 
-    %% Связи между подсистемами
+    %% Связи между уровнями
     Mic --> Voice
     Hotkeys --> Orchestrator
     Mouse --> PetWindow
 
-    ASR -->|Распознанный текст| WakeWord
+    ASR -->|Поток распознанного текста| WakeWord
     InputFlow -->|Командная фраза / подтверждение| Orchestrator
 
     Orchestrator <--> Registry
@@ -74,10 +84,10 @@ flowchart TB
     ActionBridge --> Handlers
     Inactivity --> Orchestrator
 
-    Orchestrator -->|Состояние, речь, анимация| PetWindow
+    Orchestrator -->|Состояние позы, речь, анимация| PetWindow
+    Orchestrator -->|Координация статуса и текста ASR| VoiceCoord
     Orchestrator -->|Текст реплики| SpeechHUD
-    Orchestrator -->|Статус распознавания| VoiceHUD
-    Orchestrator -->|Запуск эффектов| Effects
+    Orchestrator -->|Запуск процедурных эффектов| Effects
 ```
 
 ---

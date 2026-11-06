@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
+from typing import Callable, Optional
 
 from PySide6.QtCore import QObject, QTimer
 
@@ -16,10 +16,12 @@ class DiscordRpcManager(QObject):
     def __init__(
         self,
         client_id: str = DEFAULT_CLIENT_ID,
+        track_provider: Optional[Callable[[], str]] = None,
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
         self._client_id: str = client_id
+        self._track_provider: Optional[Callable[[], str]] = track_provider
         self._rpc: Optional[object] = None
         self._connected: bool = False
         self._start_time: int = int(time.time())
@@ -34,7 +36,7 @@ class DiscordRpcManager(QObject):
         ]
 
         self._poll_timer = QTimer(self)
-        self._poll_timer.setInterval(15_000)
+        self._poll_timer.setInterval(5_000)
         self._poll_timer.timeout.connect(self._sync_presence)
 
     @property
@@ -103,13 +105,38 @@ class DiscordRpcManager(QObject):
             self.connect_rpc()
         else:
             self._push_presence()
+    def _resolve_track_info(self) -> Optional[str]:
+        if self._track_provider is None:
+            return None
+        try:
+            raw = self._track_provider()
+            if not raw:
+                return None
+            prefix = "Сейчас играет: "
+            if raw.startswith(prefix):
+                return raw[len(prefix):].strip()
+            return None
+        except Exception as exc:
+            logger.debug("Spotify track provider error: %s", exc)
+            return None
+
     def _push_presence(self) -> None:
         if not self._connected or self._rpc is None:
             return
+        track_info = self._resolve_track_info()
+        details_text = self._current_details
+        state_text = self._current_state
+        if track_info:
+            details_text = f"♫ {track_info}"
+            if len(details_text) > 120:
+                details_text = details_text[:119] + "…"
+            state_text = f"{self._current_details} | {self._current_state}"
+            if len(state_text) > 120:
+                state_text = state_text[:119] + "…"
         try:
             self._rpc.update(
-                state=self._current_state,
-                details=self._current_details,
+                state=state_text,
+                details=details_text,
                 large_image=self._current_large_image,
                 large_text=self._current_large_text,
                 small_image=self._current_small_image,

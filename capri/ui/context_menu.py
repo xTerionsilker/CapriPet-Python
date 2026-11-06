@@ -4,7 +4,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QPoint, QRect, Qt
-from PySide6.QtGui import QActionGroup, QColor, QGuiApplication, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtGui import (
+    QActionGroup,
+    QColor,
+    QGuiApplication,
+    QIcon,
+    QMouseEvent,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+)
 from PySide6.QtMultimedia import QMediaDevices
 from PySide6.QtWidgets import (
     QApplication,
@@ -31,6 +41,7 @@ from .theme import (
     NEON_VIOLET,
     OBSIDIAN_BLACK,
     PURE_WHITE,
+    get_hud_font,
 )
 
 if TYPE_CHECKING:
@@ -50,40 +61,253 @@ class CyberMenu(QMenu):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
         rect = self.rect().adjusted(0, 0, -1, -1)
-        painter.fillRect(rect, QColor(OBSIDIAN_BLACK))
+        w = rect.width()
+        h = rect.height()
+        c = 14
 
+        path = QPainterPath()
+        path.moveTo(0, 0)
+        path.lineTo(w - c, 0)
+        path.lineTo(w, c)
+        path.lineTo(w, h)
+        path.lineTo(0, h)
+        path.closeSubpath()
+
+        painter.fillPath(path, QColor(OBSIDIAN_BLACK))
+
+        painter.save()
+        painter.setClipPath(path)
         scan_pen = QPen(QColor(246, 2, 63, 14), 1)
         painter.setPen(scan_pen)
         for y in range(rect.top() + 3, rect.bottom(), 3):
-            painter.drawLine(rect.left() + 2, y, rect.right() - 2, y)
+            painter.drawLine(rect.left(), y, rect.right(), y)
+        painter.restore()
 
-        cut = _CORNER_CUT
-        border_pen = QPen(QColor(NEON_CRIMSON), 1)
-        painter.setPen(border_pen)
-        painter.drawLine(rect.left() + cut, rect.top(), rect.right() - cut, rect.top())
-        painter.drawLine(rect.right() - cut, rect.top(), rect.right(), rect.top() + cut)
-        painter.drawLine(rect.right(), rect.top() + cut, rect.right(), rect.bottom() - 3)
-        painter.drawLine(rect.right() - 3, rect.bottom(), rect.left() + cut, rect.bottom())
-        painter.drawLine(rect.left() + cut, rect.bottom(), rect.left(), rect.bottom() - cut)
-        painter.drawLine(rect.left(), rect.bottom() - cut, rect.left(), rect.top() + cut)
-        painter.drawLine(rect.left(), rect.top() + cut, rect.left() + cut, rect.top())
+        crimson_pen = QPen(QColor(NEON_CRIMSON), 1)
+        painter.strokePath(path, crimson_pen)
 
-        painter.setPen(QPen(QColor(ACID_GREEN), 2))
-        painter.drawLine(rect.left() + 1, rect.top() + cut + 2, rect.left() + 1, rect.top() + cut + 16)
-        painter.fillRect(QRect(rect.left() + 3, rect.top() + 3, 3, 3), QColor(ACID_GREEN))
+        accent_pen = QPen(QColor(ACID_GREEN), 2)
+        painter.setPen(accent_pen)
+        painter.drawLine(w - c, 0, w, c)
 
-        painter.fillRect(QRect(rect.right() - 24, rect.top() + 3, 12, 2), QColor(ACID_GREEN))
-        painter.fillRect(QRect(rect.right() - 10, rect.top() + 3, 6, 2), QColor(ELECTRIC_BLUE))
+        painter.drawLine(0, 0, 10, 0)
+        painter.drawLine(0, 0, 0, 10)
+        painter.drawLine(0, h - 10, 0, h)
+        painter.drawLine(0, h, 10, h)
+        painter.drawLine(w - 10, h, w, h)
+        painter.drawLine(w, h - 10, w, h)
 
-        painter.setPen(QPen(QColor(NEON_CRIMSON), 2))
-        painter.drawLine(rect.right() - 1, rect.bottom() - 16, rect.right() - 1, rect.bottom() - 2)
-        painter.drawLine(rect.right() - 16, rect.bottom() - 1, rect.right() - 2, rect.bottom() - 1)
-
-        painter.fillRect(QRect(rect.left() + cut + 2, rect.bottom() - 3, 10, 2), QColor(PURE_WHITE))
-        painter.fillRect(QRect(rect.left() + cut + 14, rect.bottom() - 3, 6, 2), QColor(NEON_VIOLET))
+        painter.fillRect(QRect(w - 24, 3, 10, 2), QColor(ACID_GREEN))
+        painter.fillRect(QRect(w - 12, 3, 6, 2), QColor(ELECTRIC_BLUE))
+        painter.fillRect(QRect(3, h - 5, 8, 2), QColor(PURE_WHITE))
 
         painter.end()
         super().paintEvent(event)
+
+class ReminderRangeDialog(QDialog):
+
+    def __init__(
+        self,
+        init_min: int,
+        init_max: int,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(
+            parent,
+            Qt.WindowType.Dialog
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint,
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowTitle("CAPRI // REMINDER_CONFIG")
+        self._drag_pos: QPoint | None = None
+        self._chamfer = 14
+        self._shadow_offset = 6
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 32, 18, 18)
+        layout.setSpacing(14)
+
+        header = QLabel("НАСТРОЙКА ЧАСТОТЫ РЕПЛИК (МИН)")
+        header.setStyleSheet(
+            f"color: {ACID_GREEN}; font-family: {CSS_CYBER_TERMINAL}; font-weight: bold; font-size: 11px; letter-spacing: 1px;"
+        )
+        layout.addWidget(header)
+
+        inputs_layout = QHBoxLayout()
+        inputs_layout.setSpacing(12)
+
+        lbl_from = QLabel("ОТ:")
+        lbl_from.setStyleSheet(f"color: {PURE_WHITE}; font-family: {CSS_CYBER_TERMINAL}; font-size: 11px; font-weight: bold;")
+        self.spin_from = QSpinBox()
+        self.spin_from.setRange(1, 1440)
+        self.spin_from.setValue(init_min)
+        self.spin_from.setSuffix(" МИН")
+
+        lbl_to = QLabel("ДО:")
+        lbl_to.setStyleSheet(f"color: {PURE_WHITE}; font-family: {CSS_CYBER_TERMINAL}; font-size: 11px; font-weight: bold;")
+        self.spin_to = QSpinBox()
+        self.spin_to.setRange(1, 1440)
+        self.spin_to.setValue(init_max)
+        self.spin_to.setSuffix(" МИН")
+
+        spin_style = f"""
+        QSpinBox {{
+            background-color: {OBSIDIAN_BLACK};
+            border: 1px solid {NEON_CRIMSON};
+            color: {PURE_WHITE};
+            padding: 5px 8px;
+            font-family: {CSS_CYBER_TERMINAL};
+            font-size: 12px;
+            font-weight: bold;
+            selection-background-color: {NEON_CRIMSON};
+        }}
+        QSpinBox:focus {{
+            border: 1px solid {ACID_GREEN};
+        }}
+        QSpinBox::up-button, QSpinBox::down-button {{
+            background-color: {OBSIDIAN_BLACK};
+            border-left: 1px solid {NEON_CRIMSON};
+            width: 16px;
+        }}
+        QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
+            background-color: rgba(246, 2, 63, 0.35);
+        }}
+        """
+        self.spin_from.setStyleSheet(spin_style)
+        self.spin_to.setStyleSheet(spin_style)
+
+        self.spin_from.valueChanged.connect(self._on_from_changed)
+        self.spin_to.valueChanged.connect(self._on_to_changed)
+
+        inputs_layout.addWidget(lbl_from)
+        inputs_layout.addWidget(self.spin_from)
+        inputs_layout.addWidget(lbl_to)
+        inputs_layout.addWidget(self.spin_to)
+        layout.addLayout(inputs_layout)
+
+        btns_layout = QHBoxLayout()
+        btns_layout.addStretch()
+
+        btn_cancel = QPushButton("ОТМЕНА")
+        btn_ok = QPushButton("ПРИМЕНИТЬ")
+        btn_cancel.clicked.connect(self.reject)
+        btn_ok.clicked.connect(self.accept)
+
+        btn_style = f"""
+        QPushButton {{
+            background-color: {OBSIDIAN_BLACK};
+            border: 1px solid {NEON_CRIMSON};
+            color: {PURE_WHITE};
+            font-family: {CSS_CYBER_UI};
+            font-size: 11px;
+            padding: 6px 16px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }}
+        QPushButton:hover {{
+            border-color: {ACID_GREEN};
+            color: {ACID_GREEN};
+            background-color: rgba(6, 248, 104, 0.1);
+        }}
+        QPushButton:pressed {{
+            background-color: rgba(246, 2, 63, 0.35);
+            border-color: {NEON_CRIMSON};
+            color: {PURE_WHITE};
+        }}
+        """
+        btn_cancel.setStyleSheet(btn_style)
+        btn_ok.setStyleSheet(btn_style)
+
+        btns_layout.addWidget(btn_cancel)
+        btns_layout.addWidget(btn_ok)
+        layout.addLayout(btns_layout)
+
+    def _on_from_changed(self, val: int) -> None:
+        if self.spin_to.value() < val:
+            self.spin_to.setValue(val)
+
+    def _on_to_changed(self, val: int) -> None:
+        if self.spin_from.value() > val:
+            self.spin_from.setValue(val)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if self._drag_pos is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        self._drag_pos = None
+        super().mouseReleaseEvent(event)
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+
+        w = self.width()
+        h = self.height()
+        c = self._chamfer
+        so = self._shadow_offset
+
+        bw = max(1, w - so)
+        bh = max(1, h - so)
+
+        path = QPainterPath()
+        path.moveTo(0, 0)
+        path.lineTo(bw - c, 0)
+        path.lineTo(bw, c)
+        path.lineTo(bw, bh)
+        path.lineTo(0, bh)
+        path.closeSubpath()
+
+        shadow_path = path.translated(so, so)
+        painter.fillPath(shadow_path, QColor(246, 2, 63, 85))
+
+        painter.fillPath(path, QColor(2, 1, 6, 248))
+
+        painter.save()
+        painter.setClipPath(path)
+        scanline_pen = QPen(QColor(246, 2, 63, 14), 1)
+        painter.setPen(scanline_pen)
+        for y in range(0, bh, 3):
+            painter.drawLine(0, y, bw, y)
+        painter.restore()
+
+        crimson_pen = QPen(QColor(NEON_CRIMSON), 2)
+        painter.strokePath(path, crimson_pen)
+
+        accent_pen = QPen(QColor(ACID_GREEN), 2)
+        painter.setPen(accent_pen)
+        painter.drawLine(bw - c, 0, bw, c)
+
+        painter.drawLine(0, 0, 10, 0)
+        painter.drawLine(0, 0, 0, 10)
+        painter.drawLine(0, bh - 10, 0, bh)
+        painter.drawLine(0, bh, 10, bh)
+        painter.drawLine(bw - 10, bh, bw, bh)
+        painter.drawLine(bw, bh - 10, bw, bh)
+
+        badge_rect = QRect(14, 6, max(10, bw - c - 20), 16)
+        painter.fillRect(QRect(12, 6, 175, 16), QColor(246, 2, 63, 40))
+        painter.setPen(QColor(ACID_GREEN))
+        painter.setFont(get_hud_font(10, bold=True))
+        painter.drawText(
+            badge_rect,
+            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+            "[CAPRI://AUTONOMY_RANGE]",
+        )
+
+        painter.fillRect(QRect(bw - 26, 7, 10, 2), QColor(ACID_GREEN))
+        painter.fillRect(QRect(bw - 13, 7, 6, 2), QColor(ELECTRIC_BLUE))
 
 class ContextMenuBuilder:
     
@@ -138,7 +362,32 @@ class ContextMenuBuilder:
         parent_menu.addMenu(submenu)
         return submenu
 
+    def _add_audio_section(self, parent_menu: QMenu) -> None:
+        self._add_asr_model_menu(parent_menu)
+        self._add_sound_menu(parent_menu)
+        self._add_volume_menu(parent_menu)
+        self._add_microphone_menu(parent_menu)
+
+    def _add_visual_section(self, parent_menu: QMenu) -> None:
+        self._add_scale_menu(parent_menu)
+        self._add_glitch_intensity_menu(parent_menu)
+        self._add_screen_menu(parent_menu)
+
+    def _add_behavior_section(self, parent_menu: QMenu) -> None:
+        self._add_activity_timeout_menu(parent_menu)
+        self._add_reminder_toggle(parent_menu)
+
     def _add_quick_actions(self, parent_menu: QMenu) -> None:
+        orchestrator = getattr(self.window, "_orchestrator", None)
+        rpc_enabled = getattr(orchestrator, "_discord_enabled", True) if orchestrator else True
+
+        rpc_act = parent_menu.addAction("▶  [DISCORD] Discord Rich Presence")
+        rpc_act.setCheckable(True)
+        rpc_act.setChecked(rpc_enabled)
+        rpc_act.triggered.connect(
+            lambda checked: self.window.set_discord_enabled(checked)
+        )
+
         voice_listening = False
         if hasattr(self.window, "voice_coordinator"):
             voice_listening = self.window.voice_coordinator.is_listening
@@ -165,35 +414,6 @@ class ContextMenuBuilder:
         glitch_act.setChecked(glitches_enabled)
         glitch_act.triggered.connect(
             lambda *_: self.window.process_input("глитч")
-        )
-
-    def _add_audio_section(self, parent_menu: QMenu) -> None:
-        self._add_asr_model_menu(parent_menu)
-        self._add_sound_menu(parent_menu)
-        self._add_volume_menu(parent_menu)
-        self._add_microphone_menu(parent_menu)
-
-    def _add_visual_section(self, parent_menu: QMenu) -> None:
-
-        self._add_scale_menu(parent_menu)
-        self._add_glitch_intensity_menu(parent_menu)
-        self._add_screen_menu(parent_menu)
-
-    def _add_behavior_section(self, parent_menu: QMenu) -> None:
-
-        self._add_activity_timeout_menu(parent_menu)
-        self._add_reminder_toggle(parent_menu)
-        self._add_discord_rpc_toggle(parent_menu)
-
-    def _add_discord_rpc_toggle(self, parent_menu: QMenu) -> None:
-        orchestrator = getattr(self.window, "_orchestrator", None)
-        is_enabled = getattr(orchestrator, "_discord_enabled", True) if orchestrator else True
-
-        rpc_act = parent_menu.addAction("▶  [DISCORD] Discord Rich Presence")
-        rpc_act.setCheckable(True)
-        rpc_act.setChecked(is_enabled)
-        rpc_act.triggered.connect(
-            lambda checked: self.window.set_discord_enabled(checked)
         )
 
     def _add_screen_menu(self, parent_menu: QMenu) -> None:
@@ -386,7 +606,7 @@ class ContextMenuBuilder:
 
         remind_menu.addSeparator()
         range_menu = remind_menu.addMenu("Частота напоминаний")
-        range_group = QActionGroup(self.window)
+        range_group = QActionGroup(range_menu)
 
         intervals = (
             ("Часто (1 – 5 мин)", 60_000, 300_000),
@@ -432,104 +652,10 @@ class ContextMenuBuilder:
         init_min = max(1, round(curr_range[0] / 60_000))
         init_max = max(init_min, round(curr_range[1] / 60_000))
 
-        dlg = QDialog(parent_widget)
-        dlg.setWindowTitle("ДИАПАЗОН НАПОМИНАНИЙ")
-        dlg.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.CustomizeWindowHint | Qt.WindowType.WindowTitleHint | Qt.WindowType.WindowCloseButtonHint)
-        dlg.setStyleSheet(
-            f"""
-            QDialog {{
-                background-color: {OBSIDIAN_BLACK};
-                border: 1px solid {NEON_CRIMSON};
-                color: {PURE_WHITE};
-                font-family: {CSS_CYBER_UI};
-            }}
-            QLabel {{
-                color: {PURE_WHITE};
-                font-size: 12px;
-            }}
-            QSpinBox {{
-                background-color: #110e1a;
-                border: 1px solid {NEON_CRIMSON};
-                color: {PURE_WHITE};
-                padding: 4px 8px;
-                font-family: {CSS_CYBER_TERMINAL};
-                font-size: 13px;
-                selection-background-color: {NEON_CRIMSON};
-            }}
-            QSpinBox:focus {{
-                border: 1px solid {ACID_GREEN};
-            }}
-            QPushButton {{
-                background-color: #110e1a;
-                border: 1px solid {NEON_CRIMSON};
-                color: {PURE_WHITE};
-                font-size: 12px;
-                padding: 6px 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                border-color: {ACID_GREEN};
-                color: {ACID_GREEN};
-            }}
-            QPushButton:pressed {{
-                background-color: rgba(246, 2, 63, 0.3);
-            }}
-            """
-        )
-
-        layout = QVBoxLayout(dlg)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(12)
-
-        header = QLabel("Настройка частоты автономных реплик (в минутах):")
-        header.setStyleSheet(f"color: {ACID_GREEN}; font-weight: bold; font-size: 12px;")
-        layout.addWidget(header)
-
-        inputs_layout = QHBoxLayout()
-        inputs_layout.setSpacing(10)
-
-        lbl_from = QLabel("От:")
-        spin_from = QSpinBox()
-        spin_from.setRange(1, 1440)
-        spin_from.setValue(init_min)
-        spin_from.setSuffix(" мин")
-
-        lbl_to = QLabel("До:")
-        spin_to = QSpinBox()
-        spin_to.setRange(1, 1440)
-        spin_to.setValue(init_max)
-        spin_to.setSuffix(" мин")
-
-        def _on_from_changed(val: int) -> None:
-            if spin_to.value() < val:
-                spin_to.setValue(val)
-
-        def _on_to_changed(val: int) -> None:
-            if spin_from.value() > val:
-                spin_from.setValue(val)
-
-        spin_from.valueChanged.connect(_on_from_changed)
-        spin_to.valueChanged.connect(_on_to_changed)
-
-        inputs_layout.addWidget(lbl_from)
-        inputs_layout.addWidget(spin_from)
-        inputs_layout.addWidget(lbl_to)
-        inputs_layout.addWidget(spin_to)
-        layout.addLayout(inputs_layout)
-
-        btns_layout = QHBoxLayout()
-        btns_layout.addStretch()
-        btn_cancel = QPushButton("ОТМЕНА")
-        btn_ok = QPushButton("ПРИМЕНИТЬ")
-        btn_cancel.clicked.connect(dlg.reject)
-        btn_ok.clicked.connect(dlg.accept)
-        btns_layout.addWidget(btn_cancel)
-        btns_layout.addWidget(btn_ok)
-        layout.addLayout(btns_layout)
-
+        dlg = ReminderRangeDialog(init_min, init_max, parent_widget)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            min_m = spin_from.value()
-            max_m = max(min_m, spin_to.value())
+            min_m = dlg.spin_from.value()
+            max_m = max(min_m, dlg.spin_to.value())
             min_ms = min_m * 60_000
             max_ms = max_m * 60_000
             self.window.set_reminder_interval_range(min_ms, max_ms)

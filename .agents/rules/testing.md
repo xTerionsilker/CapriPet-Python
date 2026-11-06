@@ -26,14 +26,36 @@
 - **`tests/test_commands.py`**:
   - Tests keyboard layout switching (`switch_layout`), command registry population, and command matching/dispatch logic.
 - **`tests/test_integrations.py`**:
-  - Tests command line specifications for system integrations (power management, screen locking).
+  - Tests command line specifications for system integrations (power management, screen locking) and Windows power hook events (suspend, shutdown, session changes).
+- **`tests/test_input_flow.py`**:
+  - Tests conversational flow parsing, spoken selection numbers, affirmation/negation sets, and layout switching.
+- **`tests/test_system_cleaner.py`**:
+  - Tests byte formatting conversions, data structures, and URL query handling.
+- **`tests/test_theme.py`**:
+  - Tests strict cyberpunk hex palette compliance and typography stack specifications.
+- **`tests/test_command_handlers.py`**:
+  - Tests command execution with mocked CommandContext and duration formatting.
+- **`tests/test_audio_recognizer.py`**:
+  - Tests ModelStatus state machine and speech backend isolation.
+- **`tests/test_process_manager.py`**:
+  - Tests fuzzy process matching and process iteration via psutil mocks.
+- **`tests/test_app_launcher.py`**:
+  - Tests transliteration and phonetic normalization algorithms.
+- **`tests/test_sprite_manager.py`**:
+  - Tests sprite scaling bounds and pixel alpha hit detection.
+- **`tests/test_context_menu.py`**:
+  - Tests cyber dialogs, window flags, custom reminder range spinbox bounds, and ContextMenuBuilder assembly (verifying quick action toggle ordering at the top of the menu).
+- **`tests/test_transition_kinematics.py`**:
+  - Tests endpoint consistency and mathematical curves for procedural transition trajectories (Bezier, Manhattan, Vortex).
 
-## Rules for Writing Tests
+## Rules for Writing & Executing Tests
 
 1. **Strict Code Quality Compliance:**
    - No comments (`#`) or docstrings in test code.
    - Strict static typing with explicit return types (`-> None`) on test methods.
 2. **Deterministic & Isolated:**
    - Unit tests must not trigger actual OS destructive operations (e.g. do not invoke `run_lock` or `run_power` without mocking).
-3. **Mandatory Test Verification:**
-   - When modifying core modules, commands, or imports, run both `py_compile` and `unittest` to ensure zero regressions before completing tasks.
+3. **Execution Timing & Pipeline (Strict):**
+   - **Do not run tests in the middle of development:** Never run unittests repeatedly during the research, inspection, or editing phases.
+   - **Run tests only once at the very end:** Complete all file edits, refactoring, and additions first. Run the test suite once as the final verification step.
+   - If tests fail, diagnose and fix the specific failures, then run a single verification pass.

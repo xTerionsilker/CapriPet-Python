@@ -86,6 +86,7 @@ class PetOrchestrator(QObject):
         )
         self.discord_rpc = DiscordRpcManager(
             client_id=discord_client_id,
+            track_provider=self.actions.spotify_current_track,
             parent=self,
         )
         self._discord_enabled = bool(
@@ -143,6 +144,15 @@ class PetOrchestrator(QObject):
             except Exception:
                 pass
             self._session_overlay = None
+
+    def pause(self) -> None:
+        self.inactivity.set_paused(True)
+        self.reminder.stop()
+        self.voice_coordinator.voice.cancel()
+
+    def resume(self) -> None:
+        self.inactivity.set_paused(False)
+        self.voice_coordinator.wake_if_needed()
 
     def handle_command(self, text: str) -> None:
         self._last_command = text
