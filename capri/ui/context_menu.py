@@ -61,37 +61,45 @@ class CyberMenu(QMenu):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
         rect = self.rect().adjusted(0, 0, -1, -1)
-        painter.fillRect(rect, QColor(OBSIDIAN_BLACK))
+        w = rect.width()
+        h = rect.height()
+        c = 14
 
+        path = QPainterPath()
+        path.moveTo(0, 0)
+        path.lineTo(w - c, 0)
+        path.lineTo(w, c)
+        path.lineTo(w, h)
+        path.lineTo(0, h)
+        path.closeSubpath()
+
+        painter.fillPath(path, QColor(OBSIDIAN_BLACK))
+
+        painter.save()
+        painter.setClipPath(path)
         scan_pen = QPen(QColor(246, 2, 63, 14), 1)
         painter.setPen(scan_pen)
         for y in range(rect.top() + 3, rect.bottom(), 3):
-            painter.drawLine(rect.left() + 2, y, rect.right() - 2, y)
+            painter.drawLine(rect.left(), y, rect.right(), y)
+        painter.restore()
 
-        cut = _CORNER_CUT
-        border_pen = QPen(QColor(NEON_CRIMSON), 1)
-        painter.setPen(border_pen)
-        painter.drawLine(rect.left() + cut, rect.top(), rect.right() - cut, rect.top())
-        painter.drawLine(rect.right() - cut, rect.top(), rect.right(), rect.top() + cut)
-        painter.drawLine(rect.right(), rect.top() + cut, rect.right(), rect.bottom() - 3)
-        painter.drawLine(rect.right() - 3, rect.bottom(), rect.left() + cut, rect.bottom())
-        painter.drawLine(rect.left() + cut, rect.bottom(), rect.left(), rect.bottom() - cut)
-        painter.drawLine(rect.left(), rect.bottom() - cut, rect.left(), rect.top() + cut)
-        painter.drawLine(rect.left(), rect.top() + cut, rect.left() + cut, rect.top())
+        crimson_pen = QPen(QColor(NEON_CRIMSON), 1)
+        painter.strokePath(path, crimson_pen)
 
-        painter.setPen(QPen(QColor(ACID_GREEN), 2))
-        painter.drawLine(rect.left() + 1, rect.top() + cut + 2, rect.left() + 1, rect.top() + cut + 16)
-        painter.fillRect(QRect(rect.left() + 3, rect.top() + 3, 3, 3), QColor(ACID_GREEN))
+        accent_pen = QPen(QColor(ACID_GREEN), 2)
+        painter.setPen(accent_pen)
+        painter.drawLine(w - c, 0, w, c)
 
-        painter.fillRect(QRect(rect.right() - 24, rect.top() + 3, 12, 2), QColor(ACID_GREEN))
-        painter.fillRect(QRect(rect.right() - 10, rect.top() + 3, 6, 2), QColor(ELECTRIC_BLUE))
+        painter.drawLine(0, 0, 10, 0)
+        painter.drawLine(0, 0, 0, 10)
+        painter.drawLine(0, h - 10, 0, h)
+        painter.drawLine(0, h, 10, h)
+        painter.drawLine(w - 10, h, w, h)
+        painter.drawLine(w, h - 10, w, h)
 
-        painter.setPen(QPen(QColor(NEON_CRIMSON), 2))
-        painter.drawLine(rect.right() - 1, rect.bottom() - 16, rect.right() - 1, rect.bottom() - 2)
-        painter.drawLine(rect.right() - 16, rect.bottom() - 1, rect.right() - 2, rect.bottom() - 1)
-
-        painter.fillRect(QRect(rect.left() + cut + 2, rect.bottom() - 3, 10, 2), QColor(PURE_WHITE))
-        painter.fillRect(QRect(rect.left() + cut + 14, rect.bottom() - 3, 6, 2), QColor(NEON_VIOLET))
+        painter.fillRect(QRect(w - 24, 3, 10, 2), QColor(ACID_GREEN))
+        painter.fillRect(QRect(w - 12, 3, 6, 2), QColor(ELECTRIC_BLUE))
+        painter.fillRect(QRect(3, h - 5, 8, 2), QColor(PURE_WHITE))
 
         painter.end()
         super().paintEvent(event)
@@ -354,7 +362,32 @@ class ContextMenuBuilder:
         parent_menu.addMenu(submenu)
         return submenu
 
+    def _add_audio_section(self, parent_menu: QMenu) -> None:
+        self._add_asr_model_menu(parent_menu)
+        self._add_sound_menu(parent_menu)
+        self._add_volume_menu(parent_menu)
+        self._add_microphone_menu(parent_menu)
+
+    def _add_visual_section(self, parent_menu: QMenu) -> None:
+        self._add_scale_menu(parent_menu)
+        self._add_glitch_intensity_menu(parent_menu)
+        self._add_screen_menu(parent_menu)
+
+    def _add_behavior_section(self, parent_menu: QMenu) -> None:
+        self._add_activity_timeout_menu(parent_menu)
+        self._add_reminder_toggle(parent_menu)
+
     def _add_quick_actions(self, parent_menu: QMenu) -> None:
+        orchestrator = getattr(self.window, "_orchestrator", None)
+        rpc_enabled = getattr(orchestrator, "_discord_enabled", True) if orchestrator else True
+
+        rpc_act = parent_menu.addAction("▶  [DISCORD] Discord Rich Presence")
+        rpc_act.setCheckable(True)
+        rpc_act.setChecked(rpc_enabled)
+        rpc_act.triggered.connect(
+            lambda checked: self.window.set_discord_enabled(checked)
+        )
+
         voice_listening = False
         if hasattr(self.window, "voice_coordinator"):
             voice_listening = self.window.voice_coordinator.is_listening
@@ -381,35 +414,6 @@ class ContextMenuBuilder:
         glitch_act.setChecked(glitches_enabled)
         glitch_act.triggered.connect(
             lambda *_: self.window.process_input("глитч")
-        )
-
-    def _add_audio_section(self, parent_menu: QMenu) -> None:
-        self._add_asr_model_menu(parent_menu)
-        self._add_sound_menu(parent_menu)
-        self._add_volume_menu(parent_menu)
-        self._add_microphone_menu(parent_menu)
-
-    def _add_visual_section(self, parent_menu: QMenu) -> None:
-
-        self._add_scale_menu(parent_menu)
-        self._add_glitch_intensity_menu(parent_menu)
-        self._add_screen_menu(parent_menu)
-
-    def _add_behavior_section(self, parent_menu: QMenu) -> None:
-
-        self._add_activity_timeout_menu(parent_menu)
-        self._add_reminder_toggle(parent_menu)
-        self._add_discord_rpc_toggle(parent_menu)
-
-    def _add_discord_rpc_toggle(self, parent_menu: QMenu) -> None:
-        orchestrator = getattr(self.window, "_orchestrator", None)
-        is_enabled = getattr(orchestrator, "_discord_enabled", True) if orchestrator else True
-
-        rpc_act = parent_menu.addAction("▶  [DISCORD] Discord Rich Presence")
-        rpc_act.setCheckable(True)
-        rpc_act.setChecked(is_enabled)
-        rpc_act.triggered.connect(
-            lambda checked: self.window.set_discord_enabled(checked)
         )
 
     def _add_screen_menu(self, parent_menu: QMenu) -> None:
@@ -602,7 +606,7 @@ class ContextMenuBuilder:
 
         remind_menu.addSeparator()
         range_menu = remind_menu.addMenu("Частота напоминаний")
-        range_group = QActionGroup(self.window)
+        range_group = QActionGroup(range_menu)
 
         intervals = (
             ("Часто (1 – 5 мин)", 60_000, 300_000),
