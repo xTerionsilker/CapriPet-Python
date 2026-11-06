@@ -35,3 +35,8 @@ This file serves as the root dispatch guide for AI agents working on CapriPet. I
    - Pipeline discipline: execute tests only once at the very end of work, never iteratively during editing.
    - Coverage of imports, core settings, morphology, commands, and system integration specs.
 
+8. **[Git Commit Conventions](commit_conventions.md):**
+   - Strict Conventional Commits standard: `<type>(<scope>): <short description>`.
+   - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`.
+   - Imperative mood, lowercase, concise (under 72 chars), no trailing period, atomic changesets.
+
