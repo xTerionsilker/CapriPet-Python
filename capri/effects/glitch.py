@@ -1,4 +1,5 @@
 from __future__ import annotations
+from capri.ui.theme import get_hud_font
 
 import math
 import random
@@ -7,7 +8,6 @@ from PySide6.QtCore import QElapsedTimer, QObject, QRect, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPen, QScreen
 from PySide6.QtWidgets import QWidget
 
-from .glitch_paint import paint_frame
 from .transition_fx import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
@@ -17,14 +17,225 @@ from .transition_fx import (
     PIXEL_SIZE,
     pick_palette_color,
     snap_pixel,
+    with_alpha,
 )
-from ..ui.speech_sfx import get_speech_sfx
 
 _BASE_INTERVAL_MS = 80
 
+_HUD_MICRO_TAGS = (
+    "RELIC_2.0 // SYNC",
+    "KIROSHI_OPTICS // OK",
+    "BUFFER_OVRFLW [0x7F]",
+    "NET_PULSE // 0.18ms",
+    "DAEMON_PROT // ACTIVE",
+    "MEM_CORRUPT: 0x3F",
+    "NEURAL_LINK :: 99.4%",
+    "TRACE_ROUTE // ICE",
+)
+
+def paint_frame(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+    painter.fillRect(0, 0, width, height, Qt.GlobalColor.transparent)
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+
+    paint_scanlines(painter, width, height, intensity)
+    paint_kiroshi_brackets(painter, width, height, intensity)
+    paint_slices(painter, width, height, intensity)
+    paint_tears(painter, width, height, intensity)
+    paint_circuit_traces(painter, width, height, intensity)
+    paint_cyber_markers(painter, width, height, intensity)
+    paint_subtle_noise(painter, width, height, intensity)
+
+def paint_scanlines(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    pen_color = QColor(COLOR_OBSIDIAN)
+    if intensity == "strong":
+        pen_color.setAlpha(random.randint(12, 22))
+        step = PIXEL_SIZE
+    elif intensity == "medium":
+        pen_color.setAlpha(random.randint(8, 16))
+        step = PIXEL_SIZE * 2
+    else:
+        pen_color.setAlpha(random.randint(6, 12))
+        step = PIXEL_SIZE * 2
+
+    painter.setPen(QPen(pen_color, 1))
+    for y in range(0, height, step):
+        painter.drawLine(0, y, width, y)
+
+def paint_tears(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    chance = 0.40 if intensity == "strong" else (0.28 if intensity == "medium" else 0.18)
+    if random.random() >= chance:
+        return
+
+    count = random.randint(1, 2) if intensity == "strong" else 1
+    for _ in range(count):
+        y = snap_pixel(random.randint(0, max(0, height - 1)))
+        band = random.choice((PIXEL_SIZE, PIXEL_SIZE * 2)) if intensity == "strong" else PIXEL_SIZE
+        tint = QColor(pick_palette_color())
+        alpha_range = (
+            (16, 35) if intensity == "strong" else ((12, 25) if intensity == "medium" else (8, 18))
+        )
+        tint.setAlpha(random.randint(*alpha_range))
+        painter.fillRect(0, y, width, band, tint)
+
+def paint_slices(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    chance = 0.65 if intensity == "strong" else (0.50 if intensity == "medium" else 0.40)
+    if random.random() >= chance:
+        return
+
+    if intensity == "strong":
+        count = random.randint(2, 4)
+    elif intensity == "medium":
+        count = random.randint(1, 3)
+    else:
+        count = random.randint(1, 2)
+
+    for _ in range(count):
+        y = snap_pixel(random.randint(0, max(0, height - 1)))
+        slice_height = (
+            random.choice((PIXEL_SIZE, PIXEL_SIZE * 2))
+            if intensity == "strong"
+            else PIXEL_SIZE
+        )
+        max_div = 3 if intensity == "strong" else 4
+        slice_width = snap_pixel(
+            random.randint(width // 15, max(width // 15 + 1, width // max_div))
+        )
+        x = snap_pixel(random.randint(0, max(0, width - slice_width)))
+
+        color = QColor(pick_palette_color())
+        alpha_range = (
+            (24, 48) if intensity == "strong" else ((20, 38) if intensity == "medium" else (16, 32))
+        )
+        color.setAlpha(random.randint(*alpha_range))
+        painter.fillRect(x, y, slice_width, slice_height, color)
+
+        ghost_chance = 0.85 if intensity == "strong" else 0.65
+        if random.random() < ghost_chance:
+            ghost_color = QColor(
+                COLOR_CRIMSON if random.random() < 0.75 else COLOR_ELECTRIC_BLUE
+            )
+            ghost_color.setAlpha(random.randint(10, 24))
+            ghost_offset = random.choice((-24, -16, -8, 8, 16, 24)) if intensity == "strong" else random.choice((-16, -8, 8, 16))
+            gx = max(0, min(width - 1, x + ghost_offset))
+            gw = min(slice_width // 2, width - gx)
+            if gw > 0:
+                painter.fillRect(gx, y, gw, slice_height, ghost_color)
+
+def paint_circuit_traces(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    chance = 0.35 if intensity == "strong" else (0.24 if intensity == "medium" else 0.15)
+    if random.random() >= chance:
+        return
+
+    y = snap_pixel(random.randint(height // 10, max(height // 10 + 1, height - height // 10)))
+    x1 = snap_pixel(random.randint(0, max(0, width - width // 3)))
+    w = snap_pixel(random.randint(width // 8, width // 3))
+
+    color = QColor(COLOR_ACID_GREEN if random.random() < 0.65 else COLOR_CRIMSON)
+    alpha_range = (
+        (30, 55) if intensity == "strong" else ((25, 45) if intensity == "medium" else (20, 38))
+    )
+    color.setAlpha(random.randint(*alpha_range))
+    painter.fillRect(x1, y, w, PIXEL_SIZE, color)
+
+    if random.random() < 0.6:
+        bend_len = PIXEL_SIZE * random.randint(3, 7)
+        dir_y = 1 if (y + bend_len < height) else -1
+        painter.fillRect(x1 + w - PIXEL_SIZE, y, PIXEL_SIZE, bend_len * dir_y, color)
+
+        node_y = y + (bend_len * dir_y)
+        painter.fillRect(x1 + w - PIXEL_SIZE * 2, node_y, PIXEL_SIZE * 3, PIXEL_SIZE, color)
+    else:
+        painter.fillRect(x1 + w, y - PIXEL_SIZE, PIXEL_SIZE * 2, PIXEL_SIZE * 3, color)
+
+def paint_kiroshi_brackets(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    chance = 0.28 if intensity == "strong" else (0.18 if intensity == "medium" else 0.12)
+    if random.random() >= chance:
+        return
+
+    if random.random() < 0.6:
+        margin = 32
+        corner = random.choice(((margin, margin), (width - margin - 40, margin),
+                               (margin, height - margin - 40), (width - margin - 40, height - margin - 40)))
+        bx, by = corner
+    else:
+        bx = snap_pixel(random.randint(width // 8, max(width // 8 + 1, width - width // 4)))
+        by = snap_pixel(random.randint(height // 8, max(height // 8 + 1, height - height // 4)))
+
+    size = PIXEL_SIZE * random.randint(3, 5)
+    bracket_color = QColor(COLOR_CRIMSON if random.random() < 0.75 else COLOR_ACID_GREEN)
+    alpha_range = (
+        (35, 60) if intensity == "strong" else ((28, 50) if intensity == "medium" else (22, 45))
+    )
+    bracket_color.setAlpha(random.randint(*alpha_range))
+
+    painter.fillRect(bx, by, size, PIXEL_SIZE, bracket_color)
+    painter.fillRect(bx, by, PIXEL_SIZE, size, bracket_color)
+
+    dot_color = QColor(COLOR_WHITE)
+    dot_color.setAlpha(random.randint(25, 50))
+    painter.fillRect(bx + size + PIXEL_SIZE, by + PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE, dot_color)
+
+def paint_cyber_markers(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    chance = 0.20 if intensity == "strong" else (0.13 if intensity == "medium" else 0.08)
+    if random.random() >= chance:
+        return
+
+    x = snap_pixel(random.randint(width // 10, max(width // 10 + 1, width - width // 3)))
+    y = snap_pixel(random.randint(height // 10, max(height // 10 + 1, height - height // 10)))
+
+    tag = random.choice(_HUD_MICRO_TAGS)
+    font = get_hud_font(9, bold=True)
+    painter.setFont(font)
+
+    text_color = QColor(COLOR_CRIMSON if random.random() < 0.70 else COLOR_ACID_GREEN)
+    alpha_range = (
+        (45, 75) if intensity == "strong" else ((35, 65) if intensity == "medium" else (30, 55))
+    )
+    text_color.setAlpha(random.randint(*alpha_range))
+    painter.setPen(text_color)
+    painter.drawText(x, y, tag)
+
+    bar_w = PIXEL_SIZE * random.randint(4, 10)
+    painter.fillRect(x, y + 3, bar_w, 2, text_color)
+
+def paint_subtle_noise(
+    painter: QPainter, width: int, height: int, intensity: str = "weak"
+) -> None:
+    if intensity == "strong":
+        count = random.randint(20, 50)
+        alpha_range = (25, 65)
+    elif intensity == "medium":
+        count = random.randint(12, 30)
+        alpha_range = (20, 50)
+    else:
+        count = random.randint(6, 18)
+        alpha_range = (15, 45)
+
+    for _ in range(count):
+        x = snap_pixel(random.randint(0, max(0, width - 1)))
+        y = snap_pixel(random.randint(0, max(0, height - 1)))
+        fleck = QColor(pick_palette_color())
+        fleck.setAlpha(random.randint(*alpha_range))
+        painter.fillRect(x, y, PIXEL_SIZE, PIXEL_SIZE, fleck)
+
 
 class GlitchBurstOverlay(QWidget):
-    """Яркий оверлей концентрированного глитч-шторма Cyberpunk над целевым окном."""
+    
 
     finished = Signal()
 
@@ -103,12 +314,10 @@ class GlitchBurstOverlay(QWidget):
         elapsed = self._clock.elapsed() if self._clock.isValid() else 0
         progress = min(1.0, elapsed / max(1, self._duration_ms))
 
-
         alpha = int(45 + 35 * math.sin(progress * math.pi * 3))
         bg_color = QColor(COLOR_OBSIDIAN)
         bg_color.setAlpha(alpha)
         painter.fillRect(0, 0, w, h, bg_color)
-
 
         frame_alpha = int(180 + 75 * math.sin(progress * math.pi * 6))
         frame_color = QColor(COLOR_CRIMSON if random.random() < 0.75 else COLOR_ACID_GREEN)
@@ -118,7 +327,6 @@ class GlitchBurstOverlay(QWidget):
         painter.fillRect(0, h - bw, w, bw, frame_color)
         painter.fillRect(0, 0, bw, h, frame_color)
         painter.fillRect(w - bw, 0, bw, h, frame_color)
-
 
         slice_count = random.randint(4, 9)
         for _ in range(slice_count):
@@ -130,27 +338,24 @@ class GlitchBurstOverlay(QWidget):
             scolor.setAlpha(random.randint(110, 220))
             painter.fillRect(sx, sy, sw, sh, scolor)
 
-
             if random.random() < 0.8:
                 offset = random.choice((-20, -12, 12, 20))
                 ghost_color = QColor(COLOR_ELECTRIC_BLUE if offset > 0 else COLOR_CRIMSON)
                 ghost_color.setAlpha(random.randint(90, 180))
                 painter.fillRect(max(0, min(w - sw, sx + offset)), sy, sw // 2, sh, ghost_color)
 
-
         paint_frame(painter, w, h, intensity="strong")
-
 
         if 0.15 <= progress <= 0.85:
             banner_w = min(w - 40, max(260, w // 2))
             banner_h = 36
             bx = (w - banner_w) // 2
             by = (h - banner_h) // 2
-            painter.fillRect(bx, by, banner_w, banner_h, QColor(0, 0, 0, 220))
+            painter.fillRect(bx, by, banner_w, banner_h, with_alpha(COLOR_OBSIDIAN, 220))
             painter.fillRect(bx, by, banner_w, 2, COLOR_CRIMSON)
             painter.fillRect(bx, by + banner_h - 2, banner_w, 2, COLOR_ACID_GREEN)
 
-            font = QFont("monospace", 10, QFont.Weight.Bold)
+            font = get_hud_font(12, bold=True)
             painter.setFont(font)
             painter.setPen(COLOR_CRIMSON if random.random() < 0.6 else COLOR_WHITE)
             hud_text = random.choice((
@@ -162,7 +367,6 @@ class GlitchBurstOverlay(QWidget):
             painter.drawText(bx + 12, by + 23, hud_text)
 
         painter.end()
-
 
 class GlitchOverlay(QWidget):
 
@@ -261,7 +465,6 @@ class GlitchOverlay(QWidget):
         if self.width() > 0 and self.height() > 0:
             paint_frame(painter, self.width(), self.height(), self._intensity)
         painter.end()
-
 
 class GlitchManager(QObject):
 

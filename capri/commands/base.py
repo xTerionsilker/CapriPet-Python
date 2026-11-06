@@ -6,17 +6,12 @@ from typing import Any, Callable
 
 @dataclass
 class CommandResult:
-    """Результат выполнения команды."""
     message: str | None = None
     success: bool = True
 
 
 @dataclass
 class CommandContext:
-\
-\
-\
-
     speak: Callable[[str], Any]
     trigger_glitches: Callable[[], str]
     toggle_voice: Callable[[], str]
@@ -30,8 +25,6 @@ class CommandContext:
 
 
 class BaseCommand:
-    """Базовый класс для всех команд питомца."""
-
     name: str = ""
     description: str = ""
     aliases: tuple[str, ...] = ()
@@ -47,5 +40,4 @@ class BaseCommand:
         return f"Подтверди: «{self.name}» — {desc}. (да / нет)"
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
-        """Выполняет команду и возвращает текстовый ответ (или None)."""
         raise NotImplementedError

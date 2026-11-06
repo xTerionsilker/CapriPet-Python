@@ -19,12 +19,15 @@ from .transition_fx import (
     DURATION_IN_MS,
     DURATION_OUT_MS,
     DURATION_POINT_MS,
+    DURATION_ERRATIC_MS,
     PIXEL_SIZE,
     CyberKiroshiReticle,
     CyberPixelBolt,
     CyberPixelSpark,
     CyberShockwaveRing,
+    CyberTrailFragment,
     draw_breach_grid,
+    draw_glitch_mass,
     draw_glitch_text,
     draw_hazard_frame,
     draw_hex_stream,
@@ -32,14 +35,17 @@ from .transition_fx import (
     draw_scan_sweep,
     draw_scanlines,
     draw_screen_glitch_bars,
+    evaluate_bezier,
+    is_reduced_motion_enabled,
+    nearest_offscreen_point,
     perimeter_circuit_points,
     pick_palette_color,
-    screen_bus_points,
+    random_offscreen_point,
     snap_pixel,
+    snap_point,
     with_alpha,
 )
 from ..ui.speech_sfx import get_speech_sfx
-
 
 class TransitionOverlay(QWidget):
 \
@@ -47,7 +53,6 @@ class TransitionOverlay(QWidget):
 \
 \
 \
-
 
     finished = Signal()
 
@@ -81,6 +86,8 @@ class TransitionOverlay(QWidget):
             self._duration_ms = DURATION_OUT_MS
         elif mode == "lightning_to_point":
             self._duration_ms = DURATION_POINT_MS
+        elif mode == "erratic_in":
+            self._duration_ms = DURATION_ERRATIC_MS
         else:
             self._duration_ms = DURATION_IN_MS
 
@@ -108,17 +115,59 @@ class TransitionOverlay(QWidget):
             (target_point - offset) if target_point is not None else None
         )
 
+        self._is_reduced_motion = is_reduced_motion_enabled()
         self._bolts: List[CyberPixelBolt] = []
-        bolt_count = 10
+        self._sparks: List[CyberPixelSpark] = []
+        self._trail: List[CyberTrailFragment] = []
+
         local_screen = QRect(
             0, 0, self._screen_rect.width(), self._screen_rect.height()
         )
+        if mode == "out":
+            self._offscreen_point = nearest_offscreen_point(
+                local_screen, self._local_window, margin=90
+            )
+        else:
+            self._offscreen_point = random_offscreen_point(
+                local_screen, self._local_window, margin=90
+            )
+        target_center = self._local_window.center()
 
+        self._erratic_waypoints: List[QPoint] = []
+        if mode == "erratic_in":
+            p0 = self._offscreen_point if target_point is None else (target_point - offset)
+            p2 = target_center
+            num_jumps = random.randint(6, 9)
+            screen_w = max(100, local_screen.width() - 80)
+            screen_h = max(100, local_screen.height() - 80)
+            self._erratic_waypoints = [p0]
+            for _ in range(num_jumps):
+                rx = snap_pixel(random.randint(40, screen_w))
+                ry = snap_pixel(random.randint(40, screen_h))
+                self._erratic_waypoints.append(QPoint(rx, ry))
+            self._erratic_waypoints.append(p2)
+        elif mode == "in":
+            p0 = self._offscreen_point if target_point is None else (target_point - offset)
+            p2 = target_center
+        else:
+            p0 = target_center
+            p2 = self._offscreen_point if target_point is None else (target_point - offset)
 
-        outer_ring = self._local_window.adjusted(-320, -320, 320, 320)
+        mid_x = (p0.x() + p2.x()) // 2
+        mid_y = (p0.y() + p2.y()) // 2
+        dx = p2.x() - p0.x()
+        dy = p2.y() - p0.y()
+        dist = max(1.0, math.hypot(dx, dy))
+        nx = -dy / dist
+        ny = dx / dist
+        curve_offset = random.randint(-140, 140)
+        p1 = QPoint(int(mid_x + nx * curve_offset), int(mid_y + ny * curve_offset))
+        self._p0 = p0
+        self._p1 = p1
+        self._p2 = p2
+        self._last_mass_center = p0
 
         if mode == "lightning_to_point" and self._local_target_point is not None:
-
             starts = perimeter_circuit_points(self._local_window, 6)
             for s in starts:
                 self._bolts.append(
@@ -128,56 +177,6 @@ class TransitionOverlay(QWidget):
                         branch_chance=0.0,
                     )
                 )
-        elif mode == "out":
-
-            starts = perimeter_circuit_points(self._local_window, bolt_count)
-            ends = perimeter_circuit_points(outer_ring, bolt_count)
-            for s, e in zip(starts, ends):
-                self._bolts.append(
-                    CyberPixelBolt(
-                        s,
-                        e,
-                        branch_chance=0.08,
-                    )
-                )
-
-            for s, e in zip(
-                perimeter_circuit_points(outer_ring, 3),
-                screen_bus_points(local_screen, 3),
-            ):
-                self._bolts.append(
-                    CyberPixelBolt(
-                        s,
-                        e,
-                        branch_chance=0.10,
-                    )
-                )
-        else:
-
-            starts = perimeter_circuit_points(outer_ring, bolt_count)
-            ends = perimeter_circuit_points(self._local_window, bolt_count)
-            for s, e in zip(starts, ends):
-                self._bolts.append(
-                    CyberPixelBolt(
-                        s,
-                        e,
-                        branch_chance=0.08,
-                    )
-                )
-
-            for s, e in zip(
-                screen_bus_points(local_screen, 3),
-                perimeter_circuit_points(outer_ring, 3),
-            ):
-                self._bolts.append(
-                    CyberPixelBolt(
-                        s,
-                        e,
-                        branch_chance=0.10,
-                    )
-                )
-
-        self._sparks: List[CyberPixelSpark] = []
 
         self._timer = QTimer(self)
         self._timer.setInterval(16)
@@ -224,15 +223,16 @@ class TransitionOverlay(QWidget):
         p = self._progress
 
         peak_threshold = {
-            "out": 0.40,
-            "in": 0.46,
+            "out": 0.35,
+            "in": 0.65,
+            "erratic_in": 0.72,
             "lightning_to_point": 0.62,
-        }.get(self._mode, 0.44)
+        }.get(self._mode, 0.50)
         if p >= peak_threshold and not self._peak_called:
             self._peak_called = True
             try:
                 sfx = get_speech_sfx()
-                if self._mode == "in":
+                if self._mode in ("in", "erratic_in"):
                     sfx.play_lightning_strike()
                 elif self._mode == "lightning_to_point":
                     sfx.play_lightning_zap()
@@ -252,6 +252,78 @@ class TransitionOverlay(QWidget):
         wr = self._local_window
         cx = wr.center().x()
         cy = wr.center().y()
+
+        current_center = wr.center()
+        if not self._is_reduced_motion:
+            if self._mode == "erratic_in":
+                if p < 0.72 and len(self._erratic_waypoints) >= 2:
+                    flight_t = min(1.0, p / 0.72)
+                    total_segs = len(self._erratic_waypoints) - 1
+                    seg_float = flight_t * total_segs
+                    idx = min(int(seg_float), total_segs - 1)
+                    sub_t = seg_float - idx
+                    # Fast aggressive snap between random screen nodes with micro-dwell
+                    snap_t = sub_t ** 2.2 if sub_t < 0.8 else 1.0
+                    p_a = self._erratic_waypoints[idx]
+                    p_b = self._erratic_waypoints[idx + 1]
+                    cur_x = int(p_a.x() + (p_b.x() - p_a.x()) * snap_t)
+                    cur_y = int(p_a.y() + (p_b.y() - p_a.y()) * snap_t)
+                    jitter_range = int(14 * (1.0 - flight_t) + 3)
+                    current_center = QPoint(
+                        cur_x + random.randint(-jitter_range, jitter_range),
+                        cur_y + random.randint(-jitter_range, jitter_range),
+                    )
+                else:
+                    current_center = wr.center()
+            elif self._mode == "in":
+                flight_t = min(1.0, p / 0.65)
+                smooth_t = flight_t * flight_t * (3.0 - 2.0 * flight_t)
+                current_center = evaluate_bezier(self._p0, self._p1, self._p2, smooth_t)
+                jitter_range = int(3 * (1.0 - smooth_t))
+                if jitter_range > 0:
+                    current_center = QPoint(
+                        current_center.x() + random.randint(-jitter_range, jitter_range),
+                        current_center.y() + random.randint(-jitter_range, jitter_range),
+                    )
+            elif self._mode == "out":
+                if p >= 0.35:
+                    flight_t = min(1.0, (p - 0.35) / 0.65)
+                    smooth_t = flight_t * flight_t * (3.0 - 2.0 * flight_t)
+                    current_center = evaluate_bezier(self._p0, self._p1, self._p2, smooth_t)
+                    jitter_range = int(3 * flight_t)
+                    if jitter_range > 0:
+                        current_center = QPoint(
+                            current_center.x() + random.randint(-jitter_range, jitter_range),
+                            current_center.y() + random.randint(-jitter_range, jitter_range),
+                        )
+                else:
+                    current_center = self._p0
+
+        self._last_mass_center = current_center
+
+        is_flying = (
+            (self._mode in ("in", "erratic_in") and p < (0.75 if self._mode == "erratic_in" else 0.70))
+            or (self._mode == "out" and p >= 0.30)
+        )
+        if is_flying and not self._is_reduced_motion:
+            for _ in range(random.randint(1, 3)):
+                ox = random.randint(-8, 8)
+                oy = random.randint(-8, 8)
+                fw = snap_pixel(random.randint(PIXEL_SIZE, PIXEL_SIZE * 3))
+                fh = snap_pixel(random.choice((PIXEL_SIZE, PIXEL_SIZE * 2)))
+                c = pick_palette_color()
+                self._trail.append(
+                    CyberTrailFragment(
+                        current_center.x() + ox - fw // 2,
+                        current_center.y() + oy - fh // 2,
+                        fw,
+                        fh,
+                        c,
+                        life=random.uniform(0.20, 0.44),
+                    )
+                )
+
+        self._trail = [tr for tr in self._trail if tr.step(dt)]
 
         if self._mode == "out":
             is_flash_active = 0.24 <= p <= 0.88
@@ -330,9 +402,8 @@ class TransitionOverlay(QWidget):
 
         painter.end()
 
-
     def _paint_screen_layer(self, painter: QPainter, p: float) -> None:
-        """ЭЛТ-развёртка, сбои кадра и служебная телеметрия поверх всего экрана."""
+        
         full = self.rect()
         draw_scanlines(painter, full, alpha=26, spacing=4)
 
@@ -347,12 +418,12 @@ class TransitionOverlay(QWidget):
                 painter, 28, 36, "RELIC // SIGNAL DEGRADED", COLOR_CRIMSON, 11
             )
             draw_glitch_text(painter, 28, 52, "OPTICS OFFLINE", COLOR_WHITE, 9)
-        elif self._mode == "in":
+        elif self._mode in ("in", "erratic_in"):
             intensity = 0.18 + 0.45 * max(0.0, 1.0 - abs(p - 0.3) / 0.3)
             draw_screen_glitch_bars(painter, full, p, intensity)
             draw_scan_sweep(painter, full, (p * 1.25) % 1.0, COLOR_ACID_GREEN)
             draw_glitch_text(
-                painter, 28, 36, "KIROSHI OPTICS // BOOT", COLOR_ACID_GREEN, 10
+                painter, 28, 36, "KIROSHI OPTICS // BOOT" if self._mode == "in" else "ROGUE SIGNAL // ANOMALY", COLOR_ACID_GREEN, 10
             )
             draw_glitch_text(
                 painter,
@@ -372,7 +443,6 @@ class TransitionOverlay(QWidget):
                 painter, 28, 52, "CURSOR LOCK 100%", COLOR_WHITE, 9
             )
 
-
         marker = with_alpha(COLOR_WHITE, 150)
         for x, y in (
             (full.left() + 12, full.top() + 12),
@@ -390,7 +460,7 @@ class TransitionOverlay(QWidget):
         height: int = 32,
         prefer_below: bool = False,
     ) -> QRect:
-        """Размещает HUD-панель рядом с якорем, не выходя за границы экрана."""
+        
         width = max(160, min(width, self.width() - 16))
         x = anchor.center().x() - width // 2
         x = max(8, min(x, self.width() - width - 8))
@@ -415,194 +485,117 @@ class TransitionOverlay(QWidget):
             y = max(8, point.y() - height - 78)
         return QRect(x, y, width, height)
 
-
     def _paint_in(self, painter: QPainter, p: float, wr: QRect) -> None:
-        """Появление: Kiroshi-оптика, quickhack-материализация и сборка силуэта."""
+        for tr in self._trail:
+            tr.draw(painter)
 
-        if p < 0.80:
-            reticle_p = min(1.0, p / 0.48)
-            offset = int((1.0 - reticle_p) * 92)
-            CyberKiroshiReticle.draw(
+        flight_cutoff = 0.72 if self._mode == "erratic_in" else 0.65
+        if p < flight_cutoff:
+            mass_center = self._last_mass_center
+            intensity = 0.8 + 0.2 * math.sin(p * 25.0)
+            base_sz = max(18, int(min(wr.width(), wr.height()) * 0.16))
+            draw_glitch_mass(
                 painter,
-                wr,
-                reticle_p,
-                color=COLOR_CRIMSON,
-                bracket_offset=offset,
-                rotation=p * math.tau * 1.15,
-                label="CAPRI // UPLINK",
-                locked=p > 0.36,
+                mass_center,
+                base_sz,
+                intensity=intensity,
+                seed=int(p * 1000) + mass_center.x() + mass_center.y(),
+            )
+        else:
+            assembly_p = (p - flight_cutoff) / (1.0 - flight_cutoff)
+            scale_overshoot = 1.0 + 0.08 * math.sin(assembly_p * math.pi)
+            if assembly_p > 0.85:
+                scale_overshoot = 1.0
+
+            cur_w = max(1, int(wr.width() * scale_overshoot))
+            cur_h = max(1, int(wr.height() * scale_overshoot))
+            cur_rect = QRect(
+                wr.center().x() - cur_w // 2,
+                wr.center().y() - cur_h // 2,
+                cur_w,
+                cur_h,
             )
 
+            rem = max(0.0, 1.0 - assembly_p)
+            if rem > 0.02 and self._target_pixmap is not None:
+                self._paint_pixel_matrix_assembly(painter, cur_rect, rem)
 
-        if p < 0.70:
-            bolt_t = min(1.0, p / 0.44)
-            for bolt in self._bolts:
-                bolt.draw(painter, bolt_t)
+            if assembly_p < 0.5:
+                draw_glitch_mass(
+                    painter,
+                    wr.center(),
+                    int(min(wr.width(), wr.height()) * (0.16 + 0.35 * assembly_p)),
+                    intensity=1.0 - assembly_p,
+                    seed=int(p * 1000),
+                )
 
+            sweep_start = flight_cutoff + 0.05 * (1.0 - flight_cutoff)
+            sweep_end = flight_cutoff + 0.85 * (1.0 - flight_cutoff)
+            if sweep_start <= p <= sweep_end:
+                sweep_p = (p - sweep_start) / max(0.01, sweep_end - sweep_start)
+                y = cur_rect.top() + int(cur_rect.height() * sweep_p)
+                painter.fillRect(
+                    cur_rect.left(), y, cur_rect.width(), 2, with_alpha(COLOR_ACID_GREEN, 210)
+                )
 
-        if 0.04 <= p <= 0.96:
-            panel = self._panel_rect(wr, 232, 32)
-            draw_quickhack_panel(
-                painter,
-                panel,
-                min(1.0, p / 0.72),
-                color=COLOR_CRIMSON,
-                title="CAPRI.EXE",
-                status="MATERIALIZE",
-            )
-
-
-        if p >= 0.30 and self._target_pixmap is not None:
-            rem = max(0.0, 1.0 - (p - 0.30) / 0.70)
-            if rem > 0.04:
-                self._paint_pixel_matrix_assembly(painter, wr, rem)
-
-
-        if 0.34 <= p <= 0.92:
-            sweep_p = (p - 0.34) / 0.58
-            y = wr.top() + int(wr.height() * sweep_p)
-            painter.fillRect(
-                wr.left(), y, wr.width(), 2, with_alpha(COLOR_ACID_GREEN, 210)
-            )
-            painter.fillRect(
-                wr.left(), y - 2, wr.width(), 1, with_alpha(COLOR_WHITE, 150)
-            )
-
-
-        if 0.22 <= p <= 0.84:
-            flash_p = (p - 0.22) / 0.62
+        flash_start = flight_cutoff - 0.03
+        flash_end = min(1.0, flight_cutoff + 0.23)
+        if flash_start <= p <= flash_end:
+            flash_p = (p - flash_start) / max(0.01, flash_end - flash_start)
             self._paint_cyber_flash(painter, wr, flash_p, scheme="crimson")
-
-
-        if p >= 0.42:
-            wave_p = min(1.0, (p - 0.42) / 0.58)
-            radius = snap_pixel(
-                int(min(wr.width(), wr.height()) * 0.85 * wave_p)
-            )
-            if radius > PIXEL_SIZE * 2:
-                CyberShockwaveRing.draw(
-                    painter,
-                    wr.center(),
-                    radius,
-                    with_alpha(COLOR_CRIMSON, int(210 * (1.0 - wave_p) + 30)),
-                )
-                CyberShockwaveRing.draw(
-                    painter,
-                    wr.center(),
-                    max(0, radius - PIXEL_SIZE * 6),
-                    with_alpha(COLOR_ACID_GREEN, int(120 * (1.0 - wave_p))),
-                )
 
         for spark in self._sparks:
             spark.draw(painter)
-
 
     def _paint_out(self, painter: QPainter, p: float, wr: QRect) -> None:
-        """Исчезновение: Relic-сбой, datamosh, аварийные шины и ЭЛТ-схлопывание."""
+        for tr in self._trail:
+            tr.draw(painter)
 
-        if p < 0.38 and self._target_pixmap is not None:
-            tear_intensity = min(1.0, p / 0.34)
-            self._paint_pixel_matrix_assembly(painter, wr, tear_intensity)
-
-
-        if p < 0.52:
-            CyberKiroshiReticle.draw(
-                painter,
-                wr,
-                min(1.0, p / 0.34),
-                color=COLOR_CRIMSON,
-                rotation=-p * math.tau * 1.4,
-                label="SIGNAL LOST",
-                locked=False,
+        if p < 0.35:
+            collapse_p = p / 0.35
+            scale = max(0.15, 1.0 - 0.85 * collapse_p)
+            cur_w = max(1, int(wr.width() * scale))
+            cur_h = max(1, int(wr.height() * scale))
+            cur_rect = QRect(
+                wr.center().x() - cur_w // 2,
+                wr.center().y() - cur_h // 2,
+                cur_w,
+                cur_h,
             )
 
+            if self._target_pixmap is not None:
+                self._paint_pixel_matrix_assembly(painter, cur_rect, collapse_p)
 
-        if p <= 0.72:
-            panel = self._panel_rect(wr, 232, 32)
-            draw_quickhack_panel(
+            draw_glitch_mass(
                 painter,
-                panel,
-                max(0.0, 1.0 - p / 0.62),
-                color=COLOR_CRIMSON,
-                title="CAPRI.EXE",
-                status="DISCONNECT",
+                wr.center(),
+                int(min(wr.width(), wr.height()) * (0.35 - 0.19 * collapse_p)),
+                intensity=collapse_p,
+                seed=int(p * 1000),
+            )
+        else:
+            mass_center = self._last_mass_center
+            intensity = 0.8 + 0.2 * math.sin(p * 30.0)
+            base_sz = max(18, int(min(wr.width(), wr.height()) * 0.16))
+            draw_glitch_mass(
+                painter,
+                mass_center,
+                base_sz,
+                intensity=intensity,
+                seed=int(p * 1000) + mass_center.x() + mass_center.y(),
             )
 
-
-        if 0.22 <= p <= 0.82:
-            flash_p = (p - 0.22) / 0.60
+        if 0.25 <= p <= 0.55:
+            flash_p = (p - 0.25) / 0.30
             self._paint_cyber_flash(painter, wr, flash_p, scheme="crimson")
-
-
-        if p >= 0.26:
-            bolt_t = min(1.0, (p - 0.26) / 0.45)
-            fade = 1.0
-            if p > 0.80:
-                fade = max(0.0, 1.0 - (p - 0.80) / 0.20)
-            painter.setOpacity(fade)
-            for bolt in self._bolts:
-                bolt.draw(painter, bolt_t)
-            painter.setOpacity(1.0)
-
-
-        if 0.36 <= p <= 0.74:
-            collapse_p = (p - 0.36) / 0.38
-            line_w = snap_pixel(
-                max(PIXEL_SIZE * 2, int(wr.width() * (1.0 - collapse_p)))
-            )
-            cx = wr.center().x()
-            cy = wr.center().y()
-            line_h = PIXEL_SIZE
-
-            painter.fillRect(
-                cx - line_w // 2,
-                cy - line_h // 2 - 4,
-                line_w,
-                line_h + 8,
-                COLOR_OBSIDIAN,
-            )
-            painter.fillRect(
-                cx - line_w // 2,
-                cy - line_h // 2 - 2,
-                line_w,
-                line_h + 4,
-                COLOR_CRIMSON,
-            )
-            painter.fillRect(
-                cx - line_w // 2,
-                cy - line_h // 2 - 1,
-                line_w,
-                line_h + 2,
-                COLOR_ACID_GREEN,
-            )
-            painter.fillRect(
-                cx - line_w // 2,
-                cy - line_h // 2,
-                line_w,
-                line_h,
-                COLOR_WHITE,
-            )
-
-
-        if p >= 0.42:
-            wave_p = min(1.0, (p - 0.42) / 0.58)
-            radius = snap_pixel(int(self.width() * 0.55 * wave_p))
-            if radius > PIXEL_SIZE * 2:
-                CyberShockwaveRing.draw(
-                    painter,
-                    wr.center(),
-                    radius,
-                    with_alpha(COLOR_CRIMSON, int(180 * (1.0 - wave_p))),
-                )
 
         for spark in self._sparks:
             spark.draw(painter)
-
 
     def _paint_lightning_to_point(
         self, painter: QPainter, p: float, wr: QRect, target_pt: QPoint
     ) -> None:
-        """Захват курсора: Breach Protocol, трассировка и материализация Капри в центре."""
+        
 
         if p < 0.78:
             grid_rect = wr.adjusted(-28, -28, 28, 28)
@@ -615,7 +608,6 @@ class TransitionOverlay(QWidget):
                 color=COLOR_ACID_GREEN,
             )
 
-
         if p < 0.80:
             draw_hex_stream(
                 painter,
@@ -624,7 +616,6 @@ class TransitionOverlay(QWidget):
                 columns=max(6, wr.width() // 12),
                 color=COLOR_ACID_GREEN,
             )
-
 
         if p <= 0.86:
             cursor_p = min(1.0, p / 0.22) * (1.0 - max(0.0, (p - 0.72) / 0.14))
@@ -638,7 +629,6 @@ class TransitionOverlay(QWidget):
                 locked=True,
             )
 
-
         bolt_t = min(1.0, p / 0.58)
         fade = 1.0
         if p > 0.84:
@@ -649,7 +639,6 @@ class TransitionOverlay(QWidget):
         painter.setOpacity(1.0)
 
         self._paint_data_packets(painter, wr.center(), target_pt, p)
-
 
         if p >= 0.20:
             recv_p = min(1.0, (p - 0.20) / 0.60)
@@ -673,7 +662,6 @@ class TransitionOverlay(QWidget):
                 title="TRACE ROUTE",
                 status="LOCKING" if p < 0.72 else "LOCKED",
             )
-
 
         if p >= 0.55:
             flash_p = (p - 0.55) / 0.45
@@ -704,7 +692,7 @@ class TransitionOverlay(QWidget):
         end: QPoint,
         p: float,
     ) -> None:
-        """Пакеты данных, бегущие по каналу от курсора к цели."""
+        
         dx = end.x() - start.x()
         dy = end.y() - start.y()
         dist = max(1.0, math.hypot(dx, dy))
@@ -744,7 +732,6 @@ class TransitionOverlay(QWidget):
                         COLOR_WHITE,
                     )
 
-
     def _paint_cyber_flash(
         self,
         painter: QPainter,
@@ -768,13 +755,11 @@ class TransitionOverlay(QWidget):
         primary_neon = COLOR_CRIMSON if scheme == "crimson" else COLOR_ACID_GREEN
         secondary_neon = COLOR_ACID_GREEN if scheme == "crimson" else COLOR_CRIMSON
 
-
         screen_alpha = int(66 * intensity)
         if screen_alpha > 0:
             painter.fillRect(
                 self.rect(), with_alpha(primary_neon, screen_alpha)
             )
-
 
         shift = PIXEL_SIZE * 2
         core_alpha = int(150 * intensity)
@@ -806,7 +791,6 @@ class TransitionOverlay(QWidget):
                 )
         painter.fillRect(wr, with_alpha(COLOR_WHITE, int(215 * intensity)))
 
-
         if intensity > 0.28:
             band_h = max(10, wr.height() // 10)
             for rect in (
@@ -830,7 +814,6 @@ class TransitionOverlay(QWidget):
                     painter, rect, intensity=intensity * 0.85, color=secondary_neon
                 )
 
-
         wave_radius = snap_pixel(int(max_dim * 1.7 * flash_p))
         if wave_radius > PIXEL_SIZE * 2:
             wave_alpha = int(225 * intensity)
@@ -847,7 +830,6 @@ class TransitionOverlay(QWidget):
                     wave_radius - PIXEL_SIZE * 6,
                     with_alpha(secondary_neon, int(wave_alpha * 0.7)),
                 )
-
 
         dither_zone = wr.adjusted(
             -PIXEL_SIZE * 18,
@@ -873,7 +855,7 @@ class TransitionOverlay(QWidget):
     def _paint_pixel_matrix_assembly(
         self, painter: QPainter, wr: QRect, intensity: float
     ) -> None:
-        """Datamosh-разборка спрайта: срезы, хроматический сдвиг и цифровые блоки."""
+        
         if wr.width() <= 0 or wr.height() <= 0:
             return
 
@@ -897,7 +879,6 @@ class TransitionOverlay(QWidget):
                 dst = QRect(left + dx, top + sy, w, sh)
                 painter.drawPixmap(dst, self._target_pixmap, src)
 
-
                 if intensity > 0.35 and random.random() < 0.32:
                     chroma_dx = dx + random.choice((-4, 4))
                     painter.setOpacity(0.35)
@@ -908,7 +889,6 @@ class TransitionOverlay(QWidget):
                     )
                     painter.setOpacity(1.0)
 
-
         bar_count = int(4 + 22 * intensity)
         for _ in range(bar_count):
             by = top + snap_pixel(random.randint(0, max(0, h - PIXEL_SIZE)))
@@ -917,7 +897,6 @@ class TransitionOverlay(QWidget):
                 pick_palette_color(), random.randint(140, 245)
             )
             painter.fillRect(left, by, w, bh, col)
-
 
         block_count = int(22 + 150 * intensity)
         for _ in range(block_count):

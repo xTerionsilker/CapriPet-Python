@@ -1,4 +1,5 @@
 from __future__ import annotations
+from capri.ui.theme import get_hud_font
 
 import math
 import random
@@ -7,16 +8,14 @@ from typing import List, Tuple
 from PySide6.QtCore import QPoint, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPolygon
 
-
 PIXEL_SIZE = 4
 
-
-COLOR_CRIMSON = QColor("#F20D2E")
-COLOR_OBSIDIAN = QColor("#0B0B0B")
-COLOR_ACID_GREEN = QColor("#3CF12B")
-COLOR_WHITE = QColor("#FFFFFF")
-COLOR_ELECTRIC_BLUE = QColor("#1E70F0")
-COLOR_VIOLET = QColor("#9922EE")
+COLOR_CRIMSON = QColor("#F6023F")
+COLOR_OBSIDIAN = QColor("#020106")
+COLOR_ACID_GREEN = QColor("#06F868")
+COLOR_WHITE = QColor("#F9F9F9")
+COLOR_ELECTRIC_BLUE = QColor("#126EE9")
+COLOR_VIOLET = QColor("#9E1FDE")
 
 PALETTE_COLORS = (
     COLOR_CRIMSON,
@@ -29,16 +28,14 @@ PALETTE_COLORS = (
 
 PALETTE_WEIGHTS = (45.0, 35.0, 16.0, 2.0, 1.5, 0.5)
 
-
 def pick_palette_color() -> QColor:
-    """Выбирает случайный цвет с точным соблюдением процентного распределения палитры Капри."""
+    
     return random.choices(PALETTE_COLORS, weights=PALETTE_WEIGHTS, k=1)[0]
 
-
-DURATION_OUT_MS = 780
-DURATION_IN_MS = 720
-DURATION_POINT_MS = 680
-
+DURATION_OUT_MS = 840
+DURATION_IN_MS = 1000
+DURATION_POINT_MS = 900
+DURATION_ERRATIC_MS = 1750
 
 BAYER_4X4 = (
     (0, 8, 2, 10),
@@ -47,18 +44,15 @@ BAYER_4X4 = (
     (15, 7, 13, 5),
 )
 
-
 def snap_pixel(val: float | int, step: int = PIXEL_SIZE) -> int:
-    """Привязка значения к пиксельной сетке."""
+    
     return int(val // step) * step
-
 
 def snap_point(pt: QPoint, step: int = PIXEL_SIZE) -> QPoint:
     return QPoint(snap_pixel(pt.x(), step), snap_pixel(pt.y(), step))
 
-
 def perimeter_circuit_points(rect: QRect, count: int) -> List[QPoint]:
-    """Генерирует узловые точки на периметре с выравниванием по пиксельной сетке."""
+    
     result: List[QPoint] = []
     if rect.width() <= 0 or rect.height() <= 0:
         return result
@@ -79,33 +73,144 @@ def perimeter_circuit_points(rect: QRect, count: int) -> List[QPoint]:
         result.append(QPoint(x, y))
     return result
 
+def random_offscreen_point(screen: QRect, target: QRect, margin: int = 70) -> QPoint:
+    side = random.choice(("top", "right", "bottom", "left"))
+    if side == "top":
+        x = random.randint(screen.left(), max(screen.left(), screen.right() - target.width()))
+        y = screen.top() - target.height() - margin
+    elif side == "bottom":
+        x = random.randint(screen.left(), max(screen.left(), screen.right() - target.width()))
+        y = screen.bottom() + margin
+    elif side == "left":
+        x = screen.left() - target.width() - margin
+        y = random.randint(screen.top(), max(screen.top(), screen.bottom() - target.height()))
+    else:
+        x = screen.right() + margin
+        y = random.randint(screen.top(), max(screen.top(), screen.bottom() - target.height()))
+    return snap_point(QPoint(x, y))
 
-def screen_bus_points(screen: QRect, count: int) -> List[QPoint]:
-    """Точки ввода/вывода на границах экрана для цифровых шин."""
-    result: List[QPoint] = []
-    for _ in range(count):
-        side = random.randrange(4)
-        if side == 0:
-            x = snap_pixel(random.randint(screen.left(), screen.right()))
-            y = snap_pixel(screen.top())
-        elif side == 1:
-            x = snap_pixel(screen.right())
-            y = snap_pixel(random.randint(screen.top(), screen.bottom()))
-        elif side == 2:
-            x = snap_pixel(random.randint(screen.left(), screen.right()))
-            y = snap_pixel(screen.bottom())
-        else:
-            x = snap_pixel(screen.left())
-            y = snap_pixel(random.randint(screen.top(), screen.bottom()))
-        result.append(QPoint(x, y))
-    return result
+def nearest_offscreen_point(screen: QRect, target: QRect, margin: int = 70) -> QPoint:
+    
+    dist_top = target.top() - screen.top()
+    dist_bottom = screen.bottom() - target.bottom()
+    dist_left = target.left() - screen.left()
+    dist_right = screen.right() - target.right()
 
+    min_dist = min(dist_top, dist_bottom, dist_left, dist_right)
+
+    if min_dist == dist_top:
+        x = target.x()
+        y = screen.top() - target.height() - margin
+    elif min_dist == dist_bottom:
+        x = target.x()
+        y = screen.bottom() + margin
+    elif min_dist == dist_left:
+        x = screen.left() - target.width() - margin
+        y = target.y()
+    else:
+        x = screen.right() + margin
+        y = target.y()
+
+    return snap_point(QPoint(x, y))
+
+def evaluate_bezier(p0: QPoint, p1: QPoint, p2: QPoint, t: float) -> QPoint:
+    inv = 1.0 - t
+    x = inv * inv * p0.x() + 2.0 * inv * t * p1.x() + t * t * p2.x()
+    y = inv * inv * p0.y() + 2.0 * inv * t * p1.y() + t * t * p2.y()
+    return QPoint(int(x), int(y))
+
+class CyberTrailFragment:
+    __slots__ = ("x", "y", "w", "h", "color", "life", "max_life")
+
+    def __init__(
+        self,
+        x: int,
+        y: int,
+        w: int,
+        h: int,
+        color: QColor,
+        life: float = 0.36,
+    ) -> None:
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.color = color
+        self.life = life
+        self.max_life = max(0.001, life)
+
+    def step(self, dt: float) -> bool:
+        self.life -= dt
+        return self.life > 0.0
+
+    def draw(self, painter: QPainter) -> None:
+        if self.life <= 0.0:
+            return
+        ratio = max(0.0, min(1.0, self.life / self.max_life))
+        alpha = int(self.color.alpha() * (ratio ** 1.5))
+        if alpha <= 4:
+            return
+        painter.fillRect(self.x, self.y, self.w, self.h, with_alpha(self.color, alpha))
+
+def draw_glitch_mass(
+    painter: QPainter,
+    center: QPoint,
+    base_size: int,
+    intensity: float = 1.0,
+    seed: int = 0,
+) -> None:
+    rnd = random.Random(seed)
+    sz = max(PIXEL_SIZE * 3, snap_pixel(int(base_size)))
+    half = sz // 2
+    rect = QRect(center.x() - half, center.y() - half, sz, sz)
+
+    core_color = COLOR_CRIMSON if rnd.random() < 0.65 else COLOR_ACID_GREEN
+    painter.fillRect(rect, with_alpha(COLOR_OBSIDIAN, 220))
+
+    shift = snap_pixel(int((2 + 6 * intensity) * rnd.choice((-1, 1))))
+    shift_y = snap_pixel(int((1 + 3 * intensity) * rnd.choice((-1, 1))))
+    painter.fillRect(rect.translated(shift, shift_y), with_alpha(COLOR_CRIMSON, int(150 * intensity)))
+    painter.fillRect(rect.translated(-shift, -shift_y), with_alpha(COLOR_ELECTRIC_BLUE, int(130 * intensity)))
+    painter.fillRect(rect.translated(shift // 2, -shift // 2), with_alpha(COLOR_ACID_GREEN, int(110 * intensity)))
+
+    slices = int(3 + 8 * intensity)
+    for _ in range(slices):
+        sy = rnd.randint(rect.top(), max(rect.top(), rect.bottom() - PIXEL_SIZE))
+        sh = snap_pixel(rnd.choice((PIXEL_SIZE, PIXEL_SIZE * 2)))
+        sw = snap_pixel(rnd.randint(sz // 2, int(sz * 1.6)))
+        sx = center.x() - sw // 2 + snap_pixel(int(rnd.randint(-12, 12) * intensity))
+        c = pick_palette_color()
+        painter.fillRect(sx, sy, sw, sh, with_alpha(c, rnd.randint(160, 240)))
+
+    bits = int(6 + 16 * intensity)
+    for _ in range(bits):
+        bx = center.x() + snap_pixel(int(rnd.randint(-half - 12, half + 12) * intensity))
+        by = center.y() + snap_pixel(int(rnd.randint(-half - 12, half + 12) * intensity))
+        bsz = snap_pixel(rnd.choice((PIXEL_SIZE, PIXEL_SIZE * 2)))
+        painter.fillRect(bx, by, bsz, bsz, with_alpha(pick_palette_color(), rnd.randint(180, 255)))
+
+    painter.fillRect(
+        center.x() - PIXEL_SIZE,
+        center.y() - PIXEL_SIZE,
+        PIXEL_SIZE * 2,
+        PIXEL_SIZE * 2,
+        COLOR_WHITE,
+    )
+
+def is_reduced_motion_enabled() -> bool:
+    try:
+        import ctypes
+        val = ctypes.c_bool()
+        if ctypes.windll.user32.SystemParametersInfoW(0x1042, 0, ctypes.byref(val), 0):
+            return not val.value
+    except Exception:
+        pass
+    return False
 
 class CyberPixelSpark:
 \
 \
 \
-
 
     __slots__ = (
         "x",
@@ -193,12 +298,10 @@ class CyberPixelSpark:
 
             painter.fillRect(px, py, self.size, self.size, c)
 
-
 class CyberPixelBolt:
 \
 \
 \
-
 
     def __init__(
         self,
@@ -229,7 +332,6 @@ class CyberPixelBolt:
         if dist < PIXEL_SIZE * 2:
             return
 
-
         steps = max(5, min(20, int(dist // 26)))
         nx = -dy / dist
         ny = dx / dist
@@ -244,7 +346,6 @@ class CyberPixelBolt:
             bx = sx + dx * t
             by = sy + dy * t
 
-
             offset += random.uniform(-1.0, 1.0) * max_offset * 0.55
             if random.random() < 0.18:
                 offset += random.choice((-1.0, 1.0)) * max_offset * 0.9
@@ -258,28 +359,32 @@ class CyberPixelBolt:
             if i == steps:
                 cur = QPoint(ex, ey)
 
-
             seg_dx = cur.x() - prev.x()
             seg_dy = cur.y() - prev.y()
             seg_len = math.hypot(seg_dx, seg_dy)
-            if seg_len > 22 and random.random() < 0.65:
-                mx = prev.x() + seg_dx * random.uniform(0.35, 0.65)
-                my = prev.y() + seg_dy * random.uniform(0.35, 0.65)
-                snx = -seg_dy / max(1.0, seg_len)
-                sny = seg_dx / max(1.0, seg_len)
-                kink = random.uniform(-13.0, 13.0)
-                mid = QPoint(
-                    snap_pixel(mx + snx * kink),
-                    snap_pixel(my + sny * kink),
-                )
-                self.segments.append((prev, mid))
-                self.segments.append((mid, cur))
+            if seg_len > 18 and random.random() < 0.75:
+                if random.random() < 0.45:
+                    step_x = prev.x() + int(seg_dx * random.choice((0.3, 0.5, 0.7)))
+                    corner = QPoint(snap_pixel(step_x), snap_pixel(prev.y()))
+                    self.segments.append((prev, corner))
+                    self.segments.append((corner, cur))
+                else:
+                    mx = prev.x() + seg_dx * random.uniform(0.30, 0.70)
+                    my = prev.y() + seg_dy * random.uniform(0.30, 0.70)
+                    snx = -seg_dy / max(1.0, seg_len)
+                    sny = seg_dx / max(1.0, seg_len)
+                    kink = random.uniform(-18.0, 18.0)
+                    mid = QPoint(
+                        snap_pixel(mx + snx * kink),
+                        snap_pixel(my + sny * kink),
+                    )
+                    self.segments.append((prev, mid))
+                    self.segments.append((mid, cur))
             else:
                 self.segments.append((prev, cur))
 
             key_points.append(cur)
             prev = cur
-
 
         forks = 0
         max_forks = max(1, int(steps * self._branch_chance))
@@ -338,7 +443,6 @@ class CyberPixelBolt:
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
-
         black_pen = QPen(with_alpha(COLOR_OBSIDIAN, 245), PIXEL_SIZE * 2)
         black_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
         black_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
@@ -348,14 +452,12 @@ class CyberPixelBolt:
         for p1, p2 in visible_branches:
             painter.drawLine(p1, p2)
 
-
         glow_pen = QPen(with_alpha(COLOR_CRIMSON, 70), PIXEL_SIZE * 3)
         glow_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
         glow_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
         painter.setPen(glow_pen)
         for p1, p2 in visible_segments:
             painter.drawLine(p1, p2)
-
 
         red_pen = QPen(COLOR_CRIMSON, PIXEL_SIZE)
         red_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
@@ -366,6 +468,11 @@ class CyberPixelBolt:
             painter.setPen(QPen(with_alpha(COLOR_CRIMSON, alpha), PIXEL_SIZE))
             painter.drawLine(p1, p2)
 
+        core_pen = QPen(with_alpha(COLOR_WHITE, random.randint(190, 255)), max(1, PIXEL_SIZE // 2))
+        core_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
+        painter.setPen(core_pen)
+        for p1, p2 in visible_segments:
+            painter.drawLine(p1, p2)
 
         branch_black = QPen(with_alpha(COLOR_OBSIDIAN, 225), PIXEL_SIZE)
         branch_black.setCapStyle(Qt.PenCapStyle.SquareCap)
@@ -377,7 +484,6 @@ class CyberPixelBolt:
         painter.setPen(branch_red)
         for p1, p2 in visible_branches:
             painter.drawLine(p1, p2)
-
 
         for endpoint, size in (
             (self.start, PIXEL_SIZE * 2),
@@ -398,7 +504,6 @@ class CyberHoloReticle:
 \
 \
 \
-
 
     @staticmethod
     def draw(
@@ -433,7 +538,6 @@ class CyberHoloReticle:
         obsidian = QColor(COLOR_OBSIDIAN)
         obsidian.setAlpha(int(alpha * 0.95))
 
-
         sh = 2
         for ox, oy in ((-sh, 0), (sh, 0), (0, -sh), (0, sh)):
             painter.fillRect(l + ox, t + oy, corner_len, thickness, obsidian)
@@ -445,22 +549,17 @@ class CyberHoloReticle:
             painter.fillRect(r - corner_len + 1 + ox, b - thickness + 1 + oy, corner_len, thickness, obsidian)
             painter.fillRect(r - thickness + 1 + ox, b - corner_len + 1 + oy, thickness, corner_len, obsidian)
 
-
         painter.fillRect(l, t, corner_len, thickness, c)
         painter.fillRect(l, t, thickness, corner_len, c)
-
 
         painter.fillRect(r - corner_len + 1, t, corner_len, thickness, c)
         painter.fillRect(r - thickness + 1, t, thickness, corner_len, c)
 
-
         painter.fillRect(l, b - thickness + 1, corner_len, thickness, c)
         painter.fillRect(l, b - corner_len + 1, thickness, corner_len, c)
 
-
         painter.fillRect(r - corner_len + 1, b - thickness + 1, corner_len, thickness, c)
         painter.fillRect(r - thickness + 1, b - corner_len + 1, thickness, corner_len, c)
-
 
         cross_sz = snap_pixel(PIXEL_SIZE * 2)
         white_c = QColor(COLOR_WHITE)
@@ -468,11 +567,9 @@ class CyberHoloReticle:
         painter.fillRect(cx - cross_sz, cy - thickness // 2, cross_sz * 2, thickness, white_c)
         painter.fillRect(cx - thickness // 2, cy - cross_sz, thickness, cross_sz * 2, white_c)
 
-
 class CyberShockwaveRing:
 \
 \
-
 
     @staticmethod
     def draw(
@@ -510,16 +607,14 @@ class CyberShockwaveRing:
             p2 = pts[(i + 1) % len(pts)]
             painter.drawLine(p1, p2)
 
-
 def with_alpha(color: QColor, alpha: int) -> QColor:
-    """Возвращает копию цвета с ограниченной альфой."""
+    
     c = QColor(color)
     c.setAlpha(max(0, min(255, int(alpha))))
     return c
 
-
 def chamfer_points(rect: QRect, cut: int) -> QPolygon:
-    """Полигон с срезанными под 45° углами — фирменная форма панелей Night City."""
+    
     cut = max(2, min(cut, min(rect.width(), rect.height()) // 3))
     l, r, t, b = rect.left(), rect.right(), rect.top(), rect.bottom()
     return QPolygon(
@@ -535,14 +630,13 @@ def chamfer_points(rect: QRect, cut: int) -> QPolygon:
         ]
     )
 
-
 def draw_scanlines(
     painter: QPainter,
     rect: QRect,
     alpha: int = 34,
     spacing: int = 4,
 ) -> None:
-    """Тонкие ЭЛТ-сканлайны поверх экрана."""
+    
     if rect.width() <= 0 or rect.height() <= 0:
         return
     line = with_alpha(COLOR_OBSIDIAN, alpha)
@@ -551,14 +645,13 @@ def draw_scanlines(
         painter.fillRect(rect.left(), y, rect.width(), 1, line)
         y += spacing
 
-
 def draw_scan_sweep(
     painter: QPainter,
     rect: QRect,
     progress: float,
     color: QColor = COLOR_CRIMSON,
 ) -> None:
-    """Бегущая полоса оптического сканирования Kiroshi."""
+    
     if rect.height() <= 0:
         return
     y = rect.top() + int(rect.height() * (progress % 1.0))
@@ -583,14 +676,13 @@ def draw_scan_sweep(
             with_alpha(rng.choice((COLOR_CRIMSON, COLOR_ACID_GREEN, COLOR_WHITE)), 150),
         )
 
-
 def draw_screen_glitch_bars(
     painter: QPainter,
     rect: QRect,
     progress: float,
     intensity: float = 1.0,
 ) -> None:
-    """Горизонтальные сбои кадра (datamosh / tracking error) по всей ширине экрана."""
+    
     if intensity <= 0.02 or rect.height() <= 0:
         return
     rng = random.Random(int(progress * 500) + rect.height())
@@ -607,14 +699,13 @@ def draw_screen_glitch_bars(
         )[0]
         painter.fillRect(x, y, w, h, with_alpha(color, int(rng.randint(50, 150) * intensity)))
 
-
 def draw_hazard_frame(
     painter: QPainter,
     rect: QRect,
     intensity: float = 1.0,
     color: QColor = COLOR_CRIMSON,
 ) -> None:
-    """Аварийная рамка с диагональными полосами (красно-чёрная, вместо жёлтой CP2077)."""
+    
     if intensity <= 0.02 or rect.width() <= 0 or rect.height() <= 0:
         return
     alpha = int(210 * intensity)
@@ -643,9 +734,8 @@ def draw_hazard_frame(
             x += stripe_w
     painter.restore()
 
-
 class CyberKiroshiReticle:
-    """Оптический прицел Kiroshi: вращающиеся деления, скобки и телеметрия цели."""
+    
 
     @staticmethod
     def draw(
@@ -670,7 +760,6 @@ class CyberKiroshiReticle:
             int(alpha * 0.8),
         )
 
-
         CyberHoloReticle.draw(
             painter, rect, progress, color=color, bracket_offset=bracket_offset
         )
@@ -679,7 +768,6 @@ class CyberKiroshiReticle:
         cy = rect.center().y()
         radius = max(18, min(rect.width(), rect.height()) // 2 + bracket_offset)
         radius = snap_pixel(radius)
-
 
         ticks = 24
         for i in range(ticks):
@@ -695,19 +783,14 @@ class CyberKiroshiReticle:
             painter.setPen(QPen(tick_color, 2 if is_major else 1))
             painter.drawLine(x1, y1, x2, y2)
 
-
         arc_rect = QRectF(cx - radius - 16, cy - radius - 16, (radius + 16) * 2, (radius + 16) * 2)
         pen = QPen(with_alpha(color, int(alpha * 0.75)), 2)
         painter.setPen(pen)
         for start in (15, 105, 195, 285):
             painter.drawArc(arc_rect, int((start + math.degrees(rotation)) * 16), int(38 * 16))
 
-
         if label:
-            font = QFont("Monospace")
-            font.setStyleHint(QFont.StyleHint.Monospace)
-            font.setPixelSize(10)
-            font.setBold(True)
+            font = get_hud_font(10, bold=True)
             painter.setFont(font)
             text = label.upper()
             metrics = painter.fontMetrics()
@@ -720,13 +803,11 @@ class CyberKiroshiReticle:
             if locked:
                 painter.fillRect(tx - 7, ty - 4, 3, 3, accent)
 
-
         if locked:
             size = snap_pixel(max(6, radius // 8))
             painter.fillRect(cx - size // 2, cy - size // 2, size, size, with_alpha(COLOR_WHITE, alpha))
             painter.fillRect(cx - size, cy - 1, size * 2, 2, main)
             painter.fillRect(cx - 1, cy - size, 2, size * 2, main)
-
 
 def draw_quickhack_panel(
     painter: QPainter,
@@ -736,7 +817,7 @@ def draw_quickhack_panel(
     title: str = "QUICKHACK",
     status: str = "UPLOAD",
 ) -> None:
-    """Панель загрузки быстрого взлома: сегментированный прогресс и телеметрия."""
+    
     if rect.width() < 80 or rect.height() < 18:
         return
     progress = max(0.0, min(1.0, progress))
@@ -750,10 +831,7 @@ def draw_quickhack_panel(
     painter.setBrush(Qt.BrushStyle.NoBrush)
     painter.drawPolygon(panel)
 
-    font = QFont("Monospace")
-    font.setStyleHint(QFont.StyleHint.Monospace)
-    font.setPixelSize(9)
-    font.setBold(True)
+    font = get_hud_font(9, bold=True)
     painter.setFont(font)
 
     label_y = rect.top() + 12
@@ -766,7 +844,6 @@ def draw_quickhack_panel(
         label_y,
         percent_text,
     )
-
 
     bar = QRect(rect.left() + 9, rect.bottom() - 10, rect.width() - 18, 5)
     segments = max(8, bar.width() // 6)
@@ -782,7 +859,6 @@ def draw_quickhack_panel(
             painter.fillRect(x, bar.top(), seg_w, bar.height(), with_alpha(COLOR_CRIMSON, 40))
     painter.restore()
 
-
 def draw_breach_grid(
     painter: QPainter,
     rect: QRect,
@@ -791,7 +867,7 @@ def draw_breach_grid(
     cell: int = 10,
     color: QColor = COLOR_ACID_GREEN,
 ) -> None:
-    """Матрица Breach Protocol вокруг курсора/цели."""
+    
     if rect.width() < cell * 2 or rect.height() < cell * 2:
         return
     painter.save()
@@ -822,12 +898,10 @@ def draw_breach_grid(
                     with_alpha(color, 55),
                 )
 
-
     line_y = rect.top() + int(rect.height() * progress)
     painter.fillRect(rect.left(), line_y, rect.width(), 2, with_alpha(color, 210))
     painter.fillRect(rect.left(), line_y - 2, rect.width(), 1, with_alpha(COLOR_WHITE, 120))
     painter.restore()
-
 
 def draw_hex_stream(
     painter: QPainter,
@@ -836,15 +910,12 @@ def draw_hex_stream(
     columns: int = 14,
     color: QColor = COLOR_ACID_GREEN,
 ) -> None:
-    """Столбцы глифов, стекающие по экрану, как в терминалах Night City."""
+    
     if rect.width() <= 0 or rect.height() <= 0:
         return
     painter.save()
     painter.setClipRect(rect)
-    font = QFont("Monospace")
-    font.setStyleHint(QFont.StyleHint.Monospace)
-    font.setPixelSize(9)
-    font.setBold(True)
+    font = get_hud_font(9, bold=True)
     painter.setFont(font)
     glyphs = "01ABCDEF<>/\\#%&"
     rng = random.Random(2077 + rect.width())
@@ -863,7 +934,6 @@ def draw_hex_stream(
             painter.drawText(x, y, rng.choice(glyphs))
     painter.restore()
 
-
 def draw_glitch_text(
     painter: QPainter,
     x: int,
@@ -872,11 +942,8 @@ def draw_glitch_text(
     color: QColor = COLOR_WHITE,
     size: int = 10,
 ) -> None:
-    """Текст с хроматическим расслоением, как сбоящий HUD Relic."""
-    font = QFont("Monospace")
-    font.setStyleHint(QFont.StyleHint.Monospace)
-    font.setPixelSize(size)
-    font.setBold(True)
+    
+    font = get_hud_font(size, bold=True)
     painter.save()
     painter.setFont(font)
     painter.setPen(with_alpha(COLOR_CRIMSON, 170))

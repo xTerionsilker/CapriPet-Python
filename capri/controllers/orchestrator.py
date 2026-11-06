@@ -1,26 +1,32 @@
 from __future__ import annotations
 
+import random
 import time
 from typing import Any, Callable
 
 from PySide6.QtCore import QObject
+from PySide6.QtGui import QGuiApplication
 
 from ..audio.recognizer import get_model_info
 from ..commands import CommandContext, register_default_commands
 from ..commands.registry import CommandRegistry
 from ..controllers.action_bridge import ActionBridge
-from ..controllers.inactivity_manager import InactivityManager
-from ..controllers.presence_reminder import PresenceReminder
+from ..controllers.inactivity_manager import InactivityManager, PresenceReminder
 from ..core.input_flow import InputFlow, _parse_selected_number
 from ..core.settings import ACTIVITY_TIMEOUT_OPTIONS_MS, get_config_value, set_config_value
 from ..effects.session_animations import (
     SessionAnimationOverlay,
     play_session_animation,
 )
+from ..integrations.discord_rpc import DiscordRpcManager
 from ..integrations.app_launcher import launch_application
 from ..integrations.process_manager import kill_process_group
-from ..integrations.window_tracker import get_active_window_rect
-from ..ui.placement import pick_adjacent_position
+from ..integrations.window_tracker import (
+    get_active_window_rect,
+    get_foreground_hwnd,
+    shake_window_hwnd,
+)
+from ..ui.pet_renderer import pick_adjacent_position
 from ..ui.voice_coordinator import VoiceCoordinator
 
 
@@ -75,6 +81,19 @@ class PetOrchestrator(QObject):
         if self._reminders_enabled:
             self.reminder.start()
 
+        discord_client_id = str(
+            get_config_value("discord.client_id", "1567968896277938266")
+        )
+        self.discord_rpc = DiscordRpcManager(
+            client_id=discord_client_id,
+            parent=self,
+        )
+        self._discord_enabled = bool(
+            get_config_value("discord.enabled", True)
+        )
+        self._last_command: str = "нет"
+        self._sync_discord_status()
+
         self._register_commands()
 
     def _connect_action_signals(self) -> None:
@@ -82,8 +101,6 @@ class PetOrchestrator(QObject):
         self.actions.session_animation_requested.connect(
             self._on_session_animation_requested
         )
-        self.actions.ai_started.connect(self._on_ai_talking_start)
-        self.actions.ai_finished.connect(self._on_ai_talking_end)
         self.actions.youtube_results_ready.connect(
             self._on_youtube_results_ready
         )
@@ -112,8 +129,11 @@ class PetOrchestrator(QObject):
     def start(self) -> None:
         self.voice_coordinator.start_if_enabled()
         self.inactivity.start()
+        if self._discord_enabled:
+            self.discord_rpc.start()
 
     def stop(self) -> None:
+        self.discord_rpc.stop()
         self.inactivity.stop()
         self.reminder.stop()
         self.voice_coordinator.voice.cancel()
@@ -125,6 +145,9 @@ class PetOrchestrator(QObject):
             self._session_overlay = None
 
     def handle_command(self, text: str) -> None:
+        self._last_command = text
+        if self._discord_enabled:
+            self._sync_discord_status()
         result = self.flow.handle(text)
         self._window.speak(result)
 
@@ -144,6 +167,30 @@ class PetOrchestrator(QObject):
         self.commands.set_context(context)
         register_default_commands(self.commands)
 
+    def set_discord_enabled(self, enabled: bool) -> None:
+        self._discord_enabled = enabled
+        set_config_value("discord.enabled", enabled)
+        if enabled:
+            self._sync_discord_status()
+            self.discord_rpc.start()
+        else:
+            self.discord_rpc.stop()
+
+    def update_discord_asr(self, backend: str) -> None:
+        if self._discord_enabled:
+            self._sync_discord_status(backend=backend)
+
+    def _sync_discord_status(self, backend: str | None = None) -> None:
+        if backend is None:
+            backend = str(get_config_value("audio.asr_backend", "vosk"))
+        asr_name = "Faster-Whisper" if backend == "whisper" else "Vosk"
+        last_cmd = self._last_command[:30] + ("…" if len(self._last_command) > 30 else "")
+        self.discord_rpc.update_presence(
+            state=f"Модель: {asr_name}",
+            details=f"Команда: {last_cmd}",
+            large_text="CapriPet // Cyber AI",
+        )
+
     def debug_info(self) -> dict[str, object]:
         return {
             "vosk": get_model_info(),
@@ -152,15 +199,19 @@ class PetOrchestrator(QObject):
         }
 
     def _locate_mouse(self) -> str:
-        return self.inactivity.catch_mouse(
-            on_pose_change=self._window.set_pose
-        )
+        self._window.teleport_controller.point_at_mouse()
+        return "Вот курсор!"
+
+    def trigger_reminder(self) -> None:
+        phrase = self.reminder._next_phrase()
+        self._on_reminder(phrase)
 
     def _on_reminder(self, phrase: str) -> None:
         if self._window.is_closing or self._window.is_speaking or self.inactivity.is_paused:
             return
 
-
+        screen = self.inactivity.get_target_screen()
+        target_hwnd = get_foreground_hwnd()
         target_rect = get_active_window_rect()
         effects = getattr(self._window, "effects", None)
 
@@ -168,13 +219,12 @@ class PetOrchestrator(QObject):
             if self._window.is_closing:
                 return
 
-            if target_rect is not None and target_rect.isValid():
+            pet_w = self._window.width()
+            pet_h = self._window.height()
 
-                screen = self.inactivity.get_target_screen()
+            # Randomize destination point on screen or around active window
+            if target_rect is not None and target_rect.isValid() and random.random() < 0.6:
                 screen_area = screen.geometry() if screen is not None else target_rect
-                pet_w = self._window.width()
-                pet_h = self._window.height()
-
                 target_x, target_y, _ = pick_adjacent_position(
                     screen_area,
                     target_rect,
@@ -182,46 +232,50 @@ class PetOrchestrator(QObject):
                     pet_h,
                     gap=24,
                 )
-
-                if self._window.isVisible():
-
-                    teleport_ctrl = getattr(self._window, "_teleport", None)
-                    if teleport_ctrl is not None:
-                        from PySide6.QtCore import QPoint
-                        teleport_ctrl.teleport_to_point(
-                            QPoint(target_x + pet_w // 2, target_y + pet_h // 2)
-                        )
-                    else:
-                        self._window.move(target_x, target_y)
-                    self._window.speak(phrase)
-                else:
-
-                    self._window.move(target_x, target_y)
-                    self.inactivity.show_with_callback(lambda: self._window.speak(phrase))
             else:
-                if self._window.isVisible():
-                    self._window.speak(phrase)
-                else:
-                    self.inactivity.show_with_callback(lambda: self._window.speak(phrase))
+                target_screen = screen or self._window.screen() or QGuiApplication.primaryScreen()
+                geo = target_screen.availableGeometry() if target_screen is not None else self._window.geometry()
+                max_x = max(geo.left(), geo.right() - pet_w)
+                max_y = max(geo.top(), geo.bottom() - pet_h)
+                target_x = random.randint(geo.left(), max_x)
+                target_y = random.randint(geo.top(), max_y)
 
+            from PySide6.QtCore import QPoint
+            target_pt = QPoint(target_x + pet_w // 2, target_y + pet_h // 2)
+
+            def _on_appeared() -> None:
+                self._window.speak(phrase)
+
+            if self._window.isVisible():
+                teleport_ctrl = getattr(self._window, "_teleport", None)
+                if teleport_ctrl is not None:
+                    teleport_ctrl.teleport_to_point(
+                        target_pt,
+                        mode="erratic_in",
+                        on_finished_callback=_on_appeared,
+                    )
+                else:
+                    self._window.move(target_x, target_y)
+                    _on_appeared()
+            else:
+                self.inactivity.show_with_callback(
+                    _on_appeared,
+                    erratic=True,
+                    target_pos=(target_x, target_y),
+                )
+
+        if target_hwnd is not None:
+            shake_window_hwnd(target_hwnd, duration_ms=900, intensity=16, parent=self)
 
         if effects is not None and target_rect is not None and target_rect.isValid():
             effects.glitch_burst(
                 target_rect,
-                duration_ms=1300,
-                intensity="strong",
+                duration_ms=950,
+                intensity="extreme",
                 on_finished=_after_glitch_or_direct,
             )
         else:
             _after_glitch_or_direct()
-
-    def _on_ai_talking_start(self) -> None:
-        self._window.surge_ticks = max(self._window.surge_ticks, 24)
-        self._window.set_pose("stay")
-
-    def _on_ai_talking_end(self) -> None:
-        self._window.surge_ticks = max(self._window.surge_ticks, 8)
-        self._window.set_pose("sit")
 
     def _on_session_animation_requested(self, action: str) -> None:
         if self._window.is_closing:

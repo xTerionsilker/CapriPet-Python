@@ -1,23 +1,221 @@
 from __future__ import annotations
 
-import asyncio
+import ctypes
+from ctypes import wintypes
+import json
 import logging
-import sys
+import os
+from pathlib import Path
 import urllib.parse
 import webbrowser
-from typing import Any
 
-from .spotify_api import SpotifyError, find_track
+from platformdirs import user_config_dir
+import psutil
+from requests import RequestException
+import spotipy
+from spotipy.exceptions import SpotifyException
+from spotipy.oauth2 import SpotifyClientCredentials
 
 logger = logging.getLogger(__name__)
 
-_MPRIS_DEST = "org.mpris.MediaPlayer2.spotify"
-_MPRIS_PATH = "/org/mpris/MediaPlayer2"
-_MPRIS_PLAYER = "org.mpris.MediaPlayer2.Player"
-_MPRIS_PROPERTIES = "org.freedesktop.DBus.Properties"
+HTTP_TIMEOUT = 6.0
+_PAUSED_TITLES = {"spotify", "spotify free", "spotify premium"}
+_CMD_PLAY_PAUSE = 14
+_CMD_NEXT = 11
+_CMD_PREV = 12
+
+_client_cache: tuple[tuple[str, str], spotipy.Spotify] | None = None
+_last_known_state: str = "unknown"
+
+
+class SpotifyError(RuntimeError):
+    pass
+
+
+def find_track(query: str) -> tuple[str, str, str] | None:
+    credentials = load_credentials()
+    if credentials is None:
+        raise SpotifyError("не настроены ключи Spotify")
+
+    client = _spotify_client(credentials)
+    try:
+        payload = client.search(q=query, type="track", limit=1)
+    except SpotifyException as error:
+        status = error.http_status
+        if status in (401, 403):
+            raise SpotifyError("ключи Spotify не приняты") from error
+        raise SpotifyError(f"Spotify ответил {status}") from error
+    except RequestException as error:
+        raise SpotifyError("нет связи с Spotify") from error
+
+    return _first_track(payload)
+
+
+def _spotify_client(credentials: tuple[str, str]) -> spotipy.Spotify:
+    global _client_cache
+    if _client_cache is not None and _client_cache[0] == credentials:
+        return _client_cache[1]
+
+    client_id, client_secret = credentials
+    manager = SpotifyClientCredentials(
+        client_id=client_id,
+        client_secret=client_secret,
+    )
+    client = spotipy.Spotify(
+        client_credentials_manager=manager,
+        requests_timeout=HTTP_TIMEOUT,
+    )
+    _client_cache = (credentials, client)
+    return client
+
+
+def load_credentials() -> tuple[str, str] | None:
+    client_id = os.environ.get("SPOTIFY_CLIENT_ID", "").strip()
+    client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET", "").strip()
+    if client_id and client_secret:
+        return client_id, client_secret
+
+    try:
+        data = json.loads(config_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    client_id = str(data.get("client_id", "")).strip()
+    client_secret = str(data.get("client_secret", "")).strip()
+    if client_id and client_secret:
+        return client_id, client_secret
+    return None
+
+
+def config_path() -> Path:
+    project_root = Path(__file__).resolve().parent.parent.parent
+    local_spotify = project_root / ".capri" / "spotify.json"
+    if local_spotify.is_file():
+        return local_spotify
+
+    system_spotify = Path(user_config_dir("capri")) / "spotify.json"
+    if system_spotify.is_file():
+        return system_spotify
+
+    local_dir = project_root / ".capri"
+    try:
+        local_dir.mkdir(parents=True, exist_ok=True)
+        return local_spotify
+    except OSError:
+        system_spotify.parent.mkdir(parents=True, exist_ok=True)
+        return system_spotify
+
+
+def _first_track(payload: dict) -> tuple[str, str, str] | None:
+    items = (payload.get("tracks") or {}).get("items") or []
+    if not items:
+        return None
+
+    track = items[0]
+    uri = track.get("uri")
+    if not uri:
+        return None
+
+    title = track.get("name") or "без названия"
+    artists = ", ".join(
+        artist.get("name", "")
+        for artist in track.get("artists") or ()
+        if artist.get("name")
+    )
+    return str(uri), str(title), artists
+
+
+def _get_spotify_pids() -> set[int]:
+    pids: set[int] = set()
+    for proc in psutil.process_iter(attrs=["pid", "name"]):
+        try:
+            name = proc.info["name"]
+            if name and name.lower() == "spotify.exe":
+                pids.add(proc.info["pid"])
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return pids
+
+
+def _find_spotify_windows(pids: set[int]) -> list[int]:
+    if not pids:
+        return []
+
+    user32 = ctypes.windll.user32
+    hwnds: list[int] = []
+
+    def enum_cb(hwnd: int, _extra: int) -> bool:
+        pid = ctypes.c_ulong()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if pid.value in pids:
+            class_buf = ctypes.create_unicode_buffer(256)
+            user32.GetClassNameW(hwnd, class_buf, 256)
+            if class_buf.value in ("Chrome_WidgetWin_0", "Chrome_WidgetWin_1"):
+                hwnds.append(hwnd)
+        return True
+
+    cb = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(enum_cb)
+    user32.EnumWindows(cb, 0)
+    return hwnds
+
+
+def _get_spotify_title(pids: set[int]) -> str:
+    user32 = ctypes.windll.user32
+    titles: list[str] = []
+
+    def enum_cb(hwnd: int, _extra: int) -> bool:
+        pid = ctypes.c_ulong()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if pid.value in pids:
+            length = user32.GetWindowTextLengthW(hwnd)
+            if length > 0:
+                buff = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, buff, length + 1)
+                text = buff.value.strip()
+                if text:
+                    titles.append(text)
+        return True
+
+    cb = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(enum_cb)
+    user32.EnumWindows(cb, 0)
+
+    for t in titles:
+        if t.lower() not in _PAUSED_TITLES and (" — " in t or " - " in t):
+            return t
+    for t in titles:
+        if t:
+            return t
+    return ""
+
+
+def _send_spotify_command(cmd: int) -> bool:
+    pids = _get_spotify_pids()
+    if not pids:
+        return False
+
+    hwnds = _find_spotify_windows(pids)
+    if not hwnds:
+        return False
+
+    user32 = ctypes.windll.user32
+    lparam = cmd << 16
+    success = False
+    for hwnd in hwnds:
+        try:
+            result = ctypes.c_size_t()
+            if user32.SendMessageTimeoutW(hwnd, 0x0319, 0, lparam, 2, 150, ctypes.byref(result)):
+                success = True
+            elif user32.PostMessageW(hwnd, 0x0319, 0, lparam):
+                success = True
+        except Exception:
+            continue
+    return success
 
 
 def play(query: str) -> str:
+    global _last_known_state
     query = query.strip()
     if not query:
         return "Что включить? Скажи: «спотифай <запрос>»."
@@ -33,6 +231,7 @@ def play(query: str) -> str:
         uri, title, artists = found
         if not _open_uri(uri):
             return "Не удалось открыть Spotify. Проверьте, что клиент установлен."
+        _last_known_state = "playing"
         return f"Включаю: {artists} — {title}" if artists else f"Включаю: {title}"
 
     if not _open_uri(_search_uri(query)):
@@ -41,114 +240,88 @@ def play(query: str) -> str:
 
 
 def pause() -> str:
-    if not _player_call("Pause"):
+    global _last_known_state
+    pids = _get_spotify_pids()
+    if not pids:
+        _last_known_state = "unknown"
         return "Spotify не запущен."
+
+    title = _get_spotify_title(pids)
+    if title and title.lower() not in _PAUSED_TITLES and (" — " in title or " - " in title):
+        _last_known_state = "playing"
+
+    if _last_known_state == "paused":
+        return "Spotify уже на паузе."
+
+    if not _send_spotify_command(_CMD_PLAY_PAUSE):
+        return "Не удалось поставить Spotify на паузу."
+
+    _last_known_state = "paused"
     return "Пауза."
 
 
 def resume() -> str:
-    if not _player_call("Play"):
+    global _last_known_state
+    pids = _get_spotify_pids()
+    if not pids:
+        _last_known_state = "unknown"
         return "Spotify не запущен."
+
+    title = _get_spotify_title(pids)
+    if title and title.lower() not in _PAUSED_TITLES and (" — " in title or " - " in title):
+        _last_known_state = "playing"
+
+    if _last_known_state == "playing":
+        return "Spotify уже играет."
+
+    if not _send_spotify_command(_CMD_PLAY_PAUSE):
+        return "Не удалось продолжить воспроизведение."
+
+    _last_known_state = "playing"
     return "Продолжаю."
 
 
 def next_track() -> str:
-    if not _player_call("Next"):
+    global _last_known_state
+    if not _send_spotify_command(_CMD_NEXT):
+        _last_known_state = "unknown"
         return "Spotify не запущен."
+    _last_known_state = "playing"
     return "Следующий трек."
 
 
 def previous_track() -> str:
-    if not _player_call("Previous"):
+    global _last_known_state
+    if not _send_spotify_command(_CMD_PREV):
+        _last_known_state = "unknown"
         return "Spotify не запущен."
+    _last_known_state = "playing"
     return "Предыдущий трек."
 
 
 def current_track() -> str:
-    info = _current_track_windows() if sys.platform == "win32" else _current_track_linux()
-    if not info:
-        return "Сейчас ничего не играет или Spotify закрыт."
+    pids = _get_spotify_pids()
+    if not pids:
+        return "Spotify закрыт."
 
-    title, artist = info
-    if title and artist:
-        return f"Сейчас играет: {artist} — {title}"
-    if title:
-        return f"Сейчас играет: {title}"
-    return f"Сейчас играет: {artist}"
+    title = _get_spotify_title(pids)
+    if not title:
+        return "Сейчас ничего не играет или Spotify на паузе."
 
+    delimiter = " — " if " — " in title else (" - " if " - " in title else None)
+    if delimiter and title.lower() not in _PAUSED_TITLES:
+        parts = title.split(delimiter, 1)
+        artist = parts[0].strip()
+        track = parts[1].strip()
+        if artist and track:
+            return f"Сейчас играет: {artist} — {track}"
+        if track:
+            return f"Сейчас играет: {track}"
+        return f"Сейчас играет: {artist}"
 
-async def _mpris_call(member: str) -> None:
-    from dbus_next import Message, MessageType
-    from dbus_next.aio import MessageBus
-
-    bus = await MessageBus().connect()
-    try:
-        reply = await bus.call(
-            Message(
-                destination=_MPRIS_DEST,
-                path=_MPRIS_PATH,
-                interface=_MPRIS_PLAYER,
-                member=member,
-            )
-        )
-    finally:
-        bus.disconnect()
-
-    if reply.message_type == MessageType.ERROR:
-        raise RuntimeError(f"{reply.error_name}: {reply.body[0] if reply.body else ''}")
-
-
-async def _mpris_property(name: str) -> Any:
-    from dbus_next import Message, MessageType
-    from dbus_next.aio import MessageBus
-
-    bus = await MessageBus().connect()
-    try:
-        reply = await bus.call(
-            Message(
-                destination=_MPRIS_DEST,
-                path=_MPRIS_PATH,
-                interface=_MPRIS_PROPERTIES,
-                member="Get",
-                signature="ss",
-                body=[_MPRIS_PLAYER, name],
-            )
-        )
-    finally:
-        bus.disconnect()
-
-    if reply.message_type == MessageType.ERROR:
-        raise RuntimeError(f"{reply.error_name}: {reply.body[0] if reply.body else ''}")
-    return reply.body[0]
-
-
-def _current_track_linux() -> tuple[str, str] | None:
-    try:
-        metadata = asyncio.run(_mpris_property("Metadata"))
-    except Exception as error:
-        logger.debug("MPRIS metadata query failed: %s", error)
-        return None
-
-    value = getattr(metadata, "value", metadata)
-    if not isinstance(value, dict):
-        return None
-
-    title = _variant_value(value.get("xesam:title"), "")
-    artists = _variant_value(value.get("xesam:artist"), [])
-    if isinstance(artists, str):
-        artists = [artists]
-    artist = ", ".join(str(item) for item in artists if item)
-
-    title = str(title).strip()
-    if title or artist:
-        return title, artist
-    return None
-
-
-def _variant_value(value: Any, default: Any) -> Any:
-    if value is None:
-        return default
-    return getattr(value, "value", value)
+    if _last_known_state == "paused":
+        return "Spotify сейчас на паузе."
+    return "Spotify запущен."
 
 
 def _search_uri(query: str) -> str:
@@ -159,79 +332,4 @@ def _open_uri(uri: str) -> bool:
     try:
         return bool(webbrowser.open(uri))
     except OSError:
-        return False
-
-
-def _current_track_windows() -> tuple[str, str] | None:
-    try:
-        import ctypes
-
-        user32 = ctypes.windll.user32
-        titles: list[tuple[str, str]] = []
-
-        wnd_enum_proc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
-
-        def enum_cb(hwnd: ctypes.c_void_p, _extra: ctypes.c_void_p) -> bool:
-            if not user32.IsWindowVisible(hwnd):
-                return True
-            length = user32.GetWindowTextLengthW(hwnd)
-            if length > 0:
-                buff = ctypes.create_unicode_buffer(length + 1)
-                user32.GetWindowTextW(hwnd, buff, length + 1)
-                text = buff.value.strip()
-
-                class_buf = ctypes.create_unicode_buffer(256)
-                user32.GetClassNameW(hwnd, class_buf, 256)
-                cls_name = class_buf.value
-                if "Spotify" in cls_name or "Spotify" in text or " — " in text or " - " in text:
-                    titles.append((cls_name, text))
-            return True
-
-        user32.EnumWindows(wnd_enum_proc(enum_cb), 0)
-
-        for cls_name, text in titles:
-            if cls_name == "Chrome_WidgetWin_0" and text and text not in (
-                "Spotify",
-                "Spotify Free",
-                "Spotify Premium",
-            ):
-                delimiter = " — " if " — " in text else (" - " if " - " in text else None)
-                if delimiter:
-                    parts = text.split(delimiter, 1)
-                    return parts[1].strip(), parts[0].strip()
-                return text, ""
-    except Exception:
-        pass
-    return None
-
-
-def _send_win_media_key(vk_code: int) -> bool:
-    try:
-        import ctypes
-
-        keybd_event = ctypes.windll.user32.keybd_event
-        keybd_event(vk_code, 0, 1, 0)
-        keybd_event(vk_code, 0, 1 | 2, 0)
-        return True
-    except Exception:
-        return False
-
-
-def _player_call(method: str) -> bool:
-    if sys.platform == "win32":
-        key_map = {
-            "Play": 0xB3,
-            "Pause": 0xB3,
-            "PlayPause": 0xB3,
-            "Next": 0xB0,
-            "Previous": 0xB1,
-        }
-        vk = key_map.get(method)
-        return _send_win_media_key(vk) if vk is not None else False
-
-    try:
-        asyncio.run(_mpris_call(method))
-        return True
-    except Exception as error:
-        logger.debug("MPRIS %s failed: %s", method, error)
         return False

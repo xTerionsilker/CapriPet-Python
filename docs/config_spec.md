@@ -24,10 +24,9 @@
 
 ### 2.2. Иерархия путей сохранения
 1. **Основное централизованное хранилище (локальный каталог проекта):**
-   `<project_root>/.capri/config.json` (единообразно для Linux и Windows).
+   `<project_root>/.capri/config.json`.
 2. **Резервный системный каталог (фолбэк):**
-   - Linux: `$XDG_CONFIG_HOME/capri/config.json` (если переменная не задана: `~/.config/capri/config.json`).
-   - Windows: `%APPDATA%\capri\config.json`.
+   `%APPDATA%\capri\config.json`.
 3. **Временная системная директория (фолбэк при недоступности записи):**
    `/tmp/capri_config.json` (или системный tempdir).
 
@@ -173,29 +172,3 @@
 
 3. **Тестирование:**
    - Модульные тесты на загрузку, дефолтные значения, сбои парсинга, проверку выхода за границы экранов (fallback), миграцию со старого формата и атомарную запись.
-
----
-
-## 7. Спецификация отдельного файла конфигурации AI (`ai_config.json`)
-
-### 7.1. Назначение и размещение
-Конфигурация подключения к AI API вынесена в отдельный файл `ai_config.json` для изоляции сетевых параметров нейросети, секретных API-ключей и возможности гибкого подключения любых OpenAI-совместимых сервисов (OpenAI, OpenRouter, Groq, DeepSeek, vLLM, LM Studio).
-
-Пути поиска:
-1. `CAPRI_AI_CONFIG` (переменная окружения)
-2. `<project_root>/.capri/ai_config.json` (основное централизованное хранилище в проекте)
-3. `$XDG_CONFIG_HOME/capri/ai_config.json` (Linux) / `%APPDATA%\capri\ai_config.json` (Windows)
-
-### 7.2. Схема `ai_config.json`
-
-| Поле | Тип | Default | Описание |
-|---|---|---|---|
-| `version` | `int` | `1` | Версия схемы |
-| `endpoint` | `str` | `"https://api.openai.com/v1/chat/completions"` | URL эндпоинта Chat Completions API |
-| `api_key` | `str` | `""` | Ключ авторизации (Bearer токен). Для локальных моделей может быть пустым |
-| `model` | `str` | `"gpt-4o-mini"` | Название модели |
-| `temperature` | `float` | `0.7` | Температура генерации (0.0 .. 2.0) |
-| `max_tokens` | `int` | `256` | Максимальное количество токенов в ответе |
-| `timeout` | `float` | `60.0` | Таймаут ожидания HTTP-ответа в секундах |
-| `system_prompt`| `str` | *Киберпанк-промпт Капри* | Системный промпт роли и характера |
-| `headers` | `dict` | `{}` | Дополнительные HTTP-заголовки (например, для OpenRouter или кастомного прокси) |

@@ -3,8 +3,8 @@ from __future__ import annotations
 from rapidfuzz import process
 from rapidfuzz.distance import DamerauLevenshtein
 
-from ..core.fuzzy import MAX_TYPO_DISTANCE, keyword_score, similarity
 from ..core.morphology import normalize_spoken_numbers, stem_text
+from ..core.wake_word import MAX_TYPO_DISTANCE, keyword_score, similarity
 from .base import BaseCommand, CommandContext
 
 ARGUMENT_PUNCTUATION = " \t,.:;–-!?()[]{}«»…\""
@@ -15,13 +15,73 @@ _LAYOUT_TRANSLATION = str.maketrans(_EN_KEYS + _RU_KEYS, _RU_KEYS + _EN_KEYS)
 
 
 def switch_layout(text: str) -> str:
-    """Переключает раскладку текста между en (QWERTY) и ru (ЙЦУКЕН)."""
     return text.translate(_LAYOUT_TRANSLATION)
 
 
-class CommandRegistry:
-    """Центральный реестр команд с поддержкой нечеткого поиска и контекста."""
+_EN_COMMAND_PREFIXES: dict[str, str] = {
+    "pause": "пауза",
+    "stop": "пауза",
+    "play": "продолжить",
+    "resume": "продолжить",
+    "next": "следующий трек",
+    "next track": "следующий трек",
+    "skip": "следующий трек",
+    "prev": "предыдущий трек",
+    "previous": "предыдущий трек",
+    "previous track": "предыдущий трек",
+    "open": "запусти",
+    "launch": "запусти",
+    "run": "запусти",
+    "start": "запусти",
+    "close": "убей",
+    "kill": "убей",
+    "exit": "убей",
+    "lock": "блокировка",
+    "lock screen": "блокировка",
+    "sleep": "сон",
+    "reboot": "перезагрузка",
+    "restart": "перезагрузка",
+    "shutdown": "выключи",
+    "power off": "выключи",
+    "status": "дебаг",
+    "debug": "дебаг",
+    "info": "дебаг",
+    "glitch": "глитч",
+    "glitches": "глитч",
+    "spotify": "спотифай",
+    "google": "гугл",
+    "youtube": "ютуб",
+    "where mouse": "где мышь",
+    "where is mouse": "где мышь",
+    "where is cursor": "где мышь",
+    "what is playing": "что играет",
+    "what's playing": "что играет",
+    "update": "обновление",
+    "clean": "очистить",
+    "cleanup": "очистить",
+    "clean disk": "очистить",
+    "clean system": "очистить",
+    "clear cache": "очистить",
+}
 
+
+def normalize_english_command(text: str) -> str:
+    clean = text.strip()
+    lower = clean.lower()
+
+    if lower in _EN_COMMAND_PREFIXES:
+        return _EN_COMMAND_PREFIXES[lower]
+
+    for prefix in sorted(_EN_COMMAND_PREFIXES, key=len, reverse=True):
+        if lower.startswith(prefix + " ") or lower.startswith(prefix + ":"):
+            rest = clean[len(prefix):].lstrip(" :,\t")
+            ru_prefix = _EN_COMMAND_PREFIXES[prefix]
+            return f"{ru_prefix} {rest}" if rest else ru_prefix
+
+    return clean
+
+
+class CommandRegistry:
     def __init__(self, context: CommandContext | None = None) -> None:
         self._commands: list[BaseCommand] = []
         self._lookup: dict[str, BaseCommand] = {}
@@ -39,7 +99,6 @@ class CommandRegistry:
         self._context = context
 
     def register(self, command: BaseCommand) -> BaseCommand:
-        """Регистрирует команду BaseCommand в реестре."""
         if not isinstance(command, BaseCommand):
             raise TypeError(f"Ожидается BaseCommand, получено {type(command).__name__}")
 
@@ -73,6 +132,7 @@ class CommandRegistry:
         return command.execute(ctx, argument)
 
     def match(self, text: str) -> tuple[BaseCommand, str] | None:
+        text = normalize_english_command(text)
         normalized = self._normalize(text)
         if not normalized:
             return None
@@ -84,7 +144,6 @@ class CommandRegistry:
         argument_match = self._argument_match(normalized)
         if argument_match is not None:
             return argument_match
-
 
         with_numbers = normalize_spoken_numbers(normalized)
         if with_numbers != normalized:
@@ -110,7 +169,6 @@ class CommandRegistry:
             if closest_switched is not None:
                 return self._lookup[closest_switched], ""
 
-
         stemmed_match = self._stemmed_match(normalized)
         if stemmed_match is not None:
             return stemmed_match
@@ -118,6 +176,7 @@ class CommandRegistry:
         return None
 
     def exact_match(self, text: str) -> tuple[BaseCommand, str] | None:
+        text = normalize_english_command(text)
         normalized = self._normalize(text)
         if not normalized:
             return None
@@ -165,7 +224,6 @@ class CommandRegistry:
                 best_score = candidate
                 best = command
 
-
         if best_score is not None and best_score[0] < min_confidence:
             return None
 
@@ -188,7 +246,6 @@ class CommandRegistry:
                 rest = normalized[len(key) :]
                 if not rest[:1].isalnum():
                     return command, normalize_spoken_numbers(rest.lstrip(ARGUMENT_PUNCTUATION))
-
 
         words = normalized.split()
         best_perm_match: tuple[BaseCommand, str] | None = None
@@ -221,7 +278,6 @@ class CommandRegistry:
         return match[0] if match is not None else None
 
     def _stemmed_match(self, normalized: str) -> tuple[BaseCommand, str] | None:
-        """Матчит команду на основе стемминга корней слов."""
         stemmed_input = stem_text(normalized)
         for command in self._commands:
             for alias in (command.name, *command.aliases):

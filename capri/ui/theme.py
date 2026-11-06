@@ -1,17 +1,73 @@
+from __future__ import annotations
+
+import logging
 from pathlib import Path
 
-PIXEL_FONT = (
-    '"Press Start 2P", "Pixelify Sans", "VT323", "Terminus", '
-    '"DejaVu Sans Mono", monospace'
-)
+from PySide6.QtGui import QFont, QFontDatabase
 
+logger = logging.getLogger(__name__)
 
-NEON_CRIMSON = "#F20D2E"
-OBSIDIAN_BLACK = "#0B0B0B"
-ACID_GREEN = "#3CF12B"
-PURE_WHITE = "#FFFFFF"
-ELECTRIC_BLUE = "#1E70F0"
-NEON_VIOLET = "#9922EE"
+FONT_FAMILY = "Exo 2"
+CSS_FONT = f'"{FONT_FAMILY}", sans-serif'
+
+FONT_CYBER_TERMINAL = FONT_FAMILY
+FONT_CYBER_HUD = FONT_FAMILY
+FONT_CYBER_UI = FONT_FAMILY
+
+CSS_CYBER_TERMINAL = CSS_FONT
+CSS_CYBER_HUD = CSS_FONT
+CSS_CYBER_UI = CSS_FONT
+
+_FONTS_LOADED = False
+
+def init_fonts() -> None:
+    global _FONTS_LOADED
+    if _FONTS_LOADED:
+        return
+
+    fonts_dir = Path(__file__).resolve().parents[2] / "assets" / "fonts"
+    if not fonts_dir.is_dir():
+        logger.warning("Fonts directory not found at: %s", fonts_dir)
+        return
+
+    for font_file in fonts_dir.glob("*.ttf"):
+        font_id = QFontDatabase.addApplicationFont(str(font_file))
+        if font_id == -1:
+            logger.warning("Failed to load font from: %s", font_file)
+        else:
+            families = QFontDatabase.applicationFontFamilies(font_id)
+            logger.debug("Loaded font %s -> %s", font_file.name, families)
+
+    _FONTS_LOADED = True
+
+def get_font(pixel_size: int = 12, bold: bool = False, weight: QFont.Weight | None = None) -> QFont:
+    init_fonts()
+    font = QFont(FONT_FAMILY)
+    font.setStyleHint(QFont.StyleHint.SansSerif)
+    font.setPixelSize(pixel_size)
+    if weight is not None:
+        font.setWeight(weight)
+    elif bold:
+        font.setBold(True)
+    return font
+
+def get_terminal_font(pixel_size: int = 13, bold: bool = False) -> QFont:
+    return get_font(pixel_size=pixel_size, bold=bold)
+
+def get_hud_font(pixel_size: int = 11, bold: bool = False) -> QFont:
+    return get_font(pixel_size=pixel_size, bold=bold)
+
+def get_ui_font(pixel_size: int = 12, bold: bool = False) -> QFont:
+    return get_font(pixel_size=pixel_size, bold=bold)
+
+PIXEL_FONT = CSS_CYBER_TERMINAL
+
+NEON_CRIMSON = "#F6023F"
+OBSIDIAN_BLACK = "#020106"
+ACID_GREEN = "#06F868"
+PURE_WHITE = "#F9F9F9"
+ELECTRIC_BLUE = "#126EE9"
+NEON_VIOLET = "#9E1FDE"
 
 _MENU_ARROW = (Path(__file__).resolve().parents[2] / "assets" / "menu_arrow.svg").as_posix()
 
@@ -21,8 +77,8 @@ QMenu {{
     border: 1px solid {NEON_CRIMSON};
     padding: 6px 4px 6px 4px;
     color: {PURE_WHITE};
-    font-family: {PIXEL_FONT};
-    font-size: 11px;
+    font-family: {CSS_CYBER_UI};
+    font-size: 13px;
     letter-spacing: 0.5px;
 }}
 QMenu::item {{
@@ -34,15 +90,15 @@ QMenu::item {{
 }}
 QMenu::item:selected {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 rgba(242, 13, 46, 0.9),
-        stop:0.65 rgba(242, 13, 46, 0.4),
-        stop:1 rgba(11, 11, 11, 0.2));
+        stop:0 rgba(246, 2, 63, 0.9),
+        stop:0.65 rgba(246, 2, 63, 0.4),
+        stop:1 rgba(2, 1, 6, 0.2));
     color: {PURE_WHITE};
     border-left: 2px solid {ACID_GREEN};
 }}
 QMenu::item:disabled {{
-    color: rgba(242, 13, 46, 0.7);
-    background: rgba(242, 13, 46, 0.08);
+    color: rgba(246, 2, 63, 0.7);
+    background: rgba(246, 2, 63, 0.08);
     font-weight: bold;
     border-left: 2px solid {NEON_CRIMSON};
 }}
@@ -124,7 +180,7 @@ QLineEdit {{
     border-radius: 0;
     padding: 8px 10px;
     color: {PURE_WHITE};
-    placeholder-text-color: rgba(242, 13, 46, 0.4);
+    placeholder-text-color: rgba(246, 2, 63, 0.4);
     selection-background-color: {NEON_CRIMSON};
     selection-color: {OBSIDIAN_BLACK};
 }}
@@ -157,8 +213,8 @@ QMenu {{
     border: 1px solid {NEON_CRIMSON};
     padding: 6px 4px 6px 4px;
     color: {PURE_WHITE};
-    font-family: {PIXEL_FONT};
-    font-size: 11px;
+    font-family: {CSS_CYBER_UI};
+    font-size: 13px;
     letter-spacing: 0.5px;
 }}
 QMenu::item {{
@@ -170,15 +226,15 @@ QMenu::item {{
 }}
 QMenu::item:selected {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 rgba(242, 13, 46, 0.9),
-        stop:0.65 rgba(242, 13, 46, 0.4),
-        stop:1 rgba(11, 11, 11, 0.2));
+        stop:0 rgba(246, 2, 63, 0.9),
+        stop:0.65 rgba(246, 2, 63, 0.4),
+        stop:1 rgba(2, 1, 6, 0.2));
     color: {PURE_WHITE};
     border-left: 2px solid {ACID_GREEN};
 }}
 QMenu::item:disabled {{
-    color: rgba(242, 13, 46, 0.7);
-    background: rgba(242, 13, 46, 0.08);
+    color: rgba(246, 2, 63, 0.7);
+    background: rgba(246, 2, 63, 0.08);
     font-weight: bold;
     border-left: 2px solid {NEON_CRIMSON};
 }}

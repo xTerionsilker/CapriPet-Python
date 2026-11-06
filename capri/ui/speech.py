@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .placement import pick_adjacent_position
+from .pet_renderer import pick_adjacent_position
 from .speech_sfx import get_speech_sfx
 from .theme import (
     ACID_GREEN,
@@ -32,6 +32,8 @@ from .theme import (
     NEON_CRIMSON,
     PIXEL_FONT,
     PURE_WHITE,
+    get_hud_font,
+    get_terminal_font,
 )
 
 _TEXT_COLOR = PURE_WHITE
@@ -58,7 +60,6 @@ _CHEVRONS = {
     "none": "",
 }
 
-
 class CyberHudBubble(QWidget):
 \
 \
@@ -70,7 +71,6 @@ class CyberHudBubble(QWidget):
 \
 \
 \
-
 
     def __init__(
         self,
@@ -86,7 +86,6 @@ class CyberHudBubble(QWidget):
         self._shadow_offset = shadow_offset
         self._pointer_direction = "left"
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-
 
         self._anim_phase: str = "opening"
         self._anim_progress: float = 0.0
@@ -181,7 +180,6 @@ class CyberHudBubble(QWidget):
         phase = self._anim_phase
         prog = self._anim_progress
 
-
         if phase == "opening":
             if prog < 0.22:
 
@@ -189,33 +187,31 @@ class CyberHudBubble(QWidget):
                 w_beam = max(14, int(bw * (1.0 - (1.0 - p1) ** 2)))
                 x_start = (bw - w_beam) // 2
 
-
                 painter.fillRect(
                     x_start - 6, y_mid - 4, w_beam + 12, 8,
-                    QColor(255, 30, 70, int(190 * p1)),
+                    QColor(246, 2, 63, int(190 * p1)),
                 )
 
                 painter.fillRect(
                     x_start, y_mid - 2, w_beam, 4,
-                    QColor(0, 240, 255, 240),
+                    QColor(18, 110, 233, 240),
                 )
 
                 core_w = max(1, w_beam - 8)
                 painter.fillRect(
                     x_start + 4, y_mid - 1, core_w, 2,
-                    QColor(255, 255, 255, 255),
+                    QColor(249, 249, 249, 255),
                 )
 
                 painter.fillRect(
                     x_start - 4, y_mid - 3, 3, 6,
-                    QColor(255, 30, 70, 220),
+                    QColor(246, 2, 63, 220),
                 )
                 painter.fillRect(
                     x_start + w_beam + 1, y_mid - 3, 3, 6,
-                    QColor(0, 240, 255, 220),
+                    QColor(18, 110, 233, 220),
                 )
                 return
-
 
             p2 = (prog - 0.22) / 0.78
             e_h = 1.0 - (1.0 - p2) ** 3
@@ -225,7 +221,6 @@ class CyberHudBubble(QWidget):
 
             painter.setClipRect(QRect(-12, y_top, w + 24, h_cur + so + 12))
             intensity = (1.0 - p2) * 0.7
-
 
         elif phase == "closing":
             if prog < 0.25:
@@ -250,15 +245,15 @@ class CyberHudBubble(QWidget):
 
                 painter.fillRect(
                     x_start - 4, y_mid - 3, w_beam + 8, 6,
-                    QColor(255, 30, 70, int(alpha * 0.5)),
+                    QColor(246, 2, 63, int(alpha * 0.5)),
                 )
                 painter.fillRect(
                     x_start, y_mid - 1, w_beam, 3,
-                    QColor(0, 240, 255, alpha),
+                    QColor(18, 110, 233, alpha),
                 )
                 painter.fillRect(
                     x_mid - 2, y_mid - 2, 4, 4,
-                    QColor(255, 255, 255, alpha),
+                    QColor(249, 249, 249, alpha),
                 )
                 return
         else:
@@ -267,11 +262,9 @@ class CyberHudBubble(QWidget):
         is_glitch = intensity > 0.05
         shake_x = int(random.uniform(-4, 4) * intensity) if is_glitch else 0
 
-
         dir_ = self._pointer_direction
         path = QPainterPath()
         path.moveTo(shake_x, 0)
-
 
         if dir_ == "up":
             path.lineTo(x_mid - 12 + shake_x, 0)
@@ -280,9 +273,7 @@ class CyberHudBubble(QWidget):
             path.lineTo(x_mid + 12 + shake_x, 0)
         path.lineTo(bw - c + shake_x, 0)
 
-
         path.lineTo(bw + shake_x, c)
-
 
         if dir_ == "right":
             path.lineTo(bw + shake_x, y_mid - 12)
@@ -291,14 +282,12 @@ class CyberHudBubble(QWidget):
             path.lineTo(bw + shake_x, y_mid + 12)
         path.lineTo(bw + shake_x, bh)
 
-
         if dir_ == "down":
             path.lineTo(x_mid + 12 + shake_x, bh)
             path.lineTo(x_mid + 5 + shake_x, bh - 6)
             path.lineTo(x_mid - 5 + shake_x, bh - 6)
             path.lineTo(x_mid - 12 + shake_x, bh)
         path.lineTo(shake_x, bh)
-
 
         if dir_ == "left":
             path.lineTo(shake_x, y_mid + 12)
@@ -307,14 +296,11 @@ class CyberHudBubble(QWidget):
             path.lineTo(shake_x, y_mid - 12)
         path.closeSubpath()
 
-
         shadow_path = path.translated(so, so)
         shadow_alpha = int(90 + 50 * intensity) if is_glitch else 90
-        painter.fillPath(shadow_path, QColor(242, 13, 46, shadow_alpha))
+        painter.fillPath(shadow_path, QColor(246, 2, 63, shadow_alpha))
 
-
-        painter.fillPath(path, QColor(11, 11, 11, 248))
-
+        painter.fillPath(path, QColor(2, 1, 6, 248))
 
         painter.save()
         painter.setClipPath(path)
@@ -323,30 +309,26 @@ class CyberHudBubble(QWidget):
             if is_glitch
             else 14
         )
-        scanline_pen = QPen(QColor(242, 13, 46, max(8, scanline_alpha)), 1)
+        scanline_pen = QPen(QColor(246, 2, 63, max(8, scanline_alpha)), 1)
         painter.setPen(scanline_pen)
         for y in range(0, bh, 3):
             painter.drawLine(shake_x - 10, y, bw + shake_x + 10, y)
 
-
         if phase in ("opening", "closing") or is_glitch:
             sweep_y = int(bh * ((time.monotonic() * 2.5) % 1.0))
-            painter.fillRect(shake_x - 10, sweep_y, bw + 20, 2, QColor(242, 13, 46, 110))
+            painter.fillRect(shake_x - 10, sweep_y, bw + 20, 2, QColor(246, 2, 63, 110))
 
         painter.restore()
-
 
         if is_glitch and intensity > 0.08:
             dx = int(random.uniform(2, 6) * intensity)
             red_path = path.translated(-dx, 0)
-            painter.strokePath(red_path, QPen(QColor(242, 13, 46, int(160 * intensity)), 2))
+            painter.strokePath(red_path, QPen(QColor(246, 2, 63, int(160 * intensity)), 2))
             green_shift = path.translated(dx, 0)
-            painter.strokePath(green_shift, QPen(QColor(60, 241, 43, int(160 * intensity)), 2))
-
+            painter.strokePath(green_shift, QPen(QColor(6, 248, 104, int(160 * intensity)), 2))
 
         crimson_pen = QPen(QColor(NEON_CRIMSON), 2)
         painter.strokePath(path, crimson_pen)
-
 
         accent_pen = QPen(QColor(ACID_GREEN), 2)
         painter.setPen(accent_pen)
@@ -360,7 +342,6 @@ class CyberHudBubble(QWidget):
         painter.drawLine(bw - 10 + shake_x, bh, bw + shake_x, bh)
         painter.drawLine(bw + shake_x, bh - 10, bw + shake_x, bh)
 
-
         chevron_color = QColor(NEON_CRIMSON) if is_glitch else QColor(ACID_GREEN)
         painter.setPen(QPen(chevron_color, 2))
         if dir_ == "left":
@@ -372,7 +353,6 @@ class CyberHudBubble(QWidget):
         elif dir_ == "up":
             painter.drawLine(x_mid + shake_x, 3, x_mid + shake_x, 1)
 
-
         if is_glitch and intensity > 0.15:
             for _ in range(random.randint(2, 4)):
                 sy = random.randint(0, bh - 1)
@@ -383,14 +363,11 @@ class CyberHudBubble(QWidget):
                 slice_color.setAlpha(int(random.randint(40, 100) * intensity))
                 painter.fillRect(sx, sy, sw, sh, slice_color)
 
-
-        font = QFont("Press Start 2P")
-        font.setPixelSize(9)
-        font.setBold(True)
+        font = get_hud_font(11, bold=True)
         painter.setFont(font)
 
         badge_rect = QRect(14 + shake_x, 5, max(10, bw - c - 20), 16)
-        painter.fillRect(QRect(12 + shake_x, 5, 168, 16), QColor(242, 13, 46, 35))
+        painter.fillRect(QRect(12 + shake_x, 5, 168, 16), QColor(246, 2, 63, 35))
         painter.setPen(QColor(ACID_GREEN))
         chevron = _CHEVRONS.get(dir_, "")
         title_with_dir = f"{self._title} {chevron}".strip()
@@ -400,14 +377,12 @@ class CyberHudBubble(QWidget):
             title_with_dir,
         )
 
-
         if phase == "opening" and prog >= 0.22 and prog < 0.95:
-            painter.fillRect(0, y_top - 1, bw, 2, QColor(242, 13, 46, 230))
-            painter.fillRect(0, y_bot - 1, bw, 2, QColor(60, 241, 43, 230))
+            painter.fillRect(0, y_top - 1, bw, 2, QColor(246, 2, 63, 230))
+            painter.fillRect(0, y_bot - 1, bw, 2, QColor(6, 248, 104, 230))
         elif phase == "closing" and prog >= 0.25 and prog < 0.75:
-            painter.fillRect(0, y_top - 1, bw, 3, QColor(242, 13, 46, 245))
-            painter.fillRect(0, y_bot - 1, bw, 3, QColor(60, 241, 43, 245))
-
+            painter.fillRect(0, y_top - 1, bw, 3, QColor(246, 2, 63, 245))
+            painter.fillRect(0, y_bot - 1, bw, 3, QColor(6, 248, 104, 245))
 
 class SpeechWindow(QFrame):
 
@@ -440,19 +415,15 @@ class SpeechWindow(QFrame):
         self._finished = False
         self._phase = "opening"
 
-
         self._target_widget: QWidget | None = self._resolve_target(parent)
         self._current_active_target: QWidget | None = self._target_widget
         self._last_target_geom: QRect | None = None
         self._side: str = "right"
 
-
         self.setWindowOpacity(0.0)
 
-
         doc = QTextDocument()
-        font = QFont("Press Start 2P")
-        font.setPixelSize(13)
+        font = get_terminal_font(13, bold=True)
         doc.setDefaultFont(font)
         doc.setTextWidth(max(120, int(max_width)))
         doc.setHtml(escape(self._text).replace("\n", "<br>"))
@@ -504,7 +475,6 @@ class SpeechWindow(QFrame):
         self._cursor_timer.setInterval(480)
         self._cursor_timer.timeout.connect(self._on_cursor_tick)
 
-
         self._follow_timer = QTimer(self)
         self._follow_timer.setInterval(25)
         self._follow_timer.timeout.connect(self._check_and_follow_target)
@@ -525,10 +495,9 @@ class SpeechWindow(QFrame):
 
     @classmethod
     def _resolve_target(cls, widget: QWidget | None) -> QWidget | None:
-        """Определяет актуальный видимый виджет Капри."""
+        
         if widget is not None:
             return widget
-
 
         app = QGuiApplication.instance()
         if app is not None:
@@ -546,7 +515,7 @@ class SpeechWindow(QFrame):
         return super().eventFilter(watched, event)
 
     def _check_and_follow_target(self) -> None:
-        """Синхронизирует позицию облачка при перемещении или смене режима Капри."""
+        
         if self._phase == "closing":
             return
 
@@ -572,7 +541,7 @@ class SpeechWindow(QFrame):
                 self._place_next_to_target(keep_side=True)
 
     def update_anim_opacity(self, phase: str, progress: float) -> None:
-        """Синхронизирует глобальную прозрачность окна и видимость текста с анимацией."""
+        
         if phase == "opening":
             opacity = min(1.0, max(0.0, progress * 1.5))
             self.setWindowOpacity(opacity)
@@ -617,7 +586,7 @@ class SpeechWindow(QFrame):
             )
 
     def _on_bubble_opened(self) -> None:
-        """Запускает печать текста сразу после окончания раскрытия облачка."""
+        
         self._phase = "typing"
         self._label.setVisible(True)
         self._render_scramble(0)
@@ -632,7 +601,7 @@ class SpeechWindow(QFrame):
             super().mousePressEvent(event)
 
     def start_close(self) -> None:
-        """Запускает высокоэнергетичный CRT-коллапс, звук деактивации и закрытие."""
+        
         if self._phase == "closing":
             return
         self._phase = "closing"
@@ -682,7 +651,7 @@ class SpeechWindow(QFrame):
         self._render_finished()
 
     def _update_geometry(self) -> None:
-        """Пересчитывает размер окна и удерживает его рядом с Капри в пределах экрана."""
+        
         self.adjustSize()
         self._place_next_to_target(keep_side=True)
 
@@ -748,7 +717,7 @@ class SpeechWindow(QFrame):
         self._revealed_chars = len(self._text)
 
     def _place_next_to_target(self, keep_side: bool = False) -> None:
-        """Размещает облачко строго рядом с Капри (сбоку, сверху или снизу)."""
+        
         target = self._current_active_target
         if target is None:
             target = self._resolve_target(self.parentWidget())
@@ -779,7 +748,6 @@ class SpeechWindow(QFrame):
                 preferred_side=pref_side,
             )
             self._side = chosen_side
-
 
             dir_to_capri = {
                 "right": "left",
@@ -818,7 +786,6 @@ class SpeechWindow(QFrame):
                     return s
         return QGuiApplication.primaryScreen()
 
-
 def show_text(
     text: str,
     parent: QWidget | None = None,
@@ -839,11 +806,9 @@ def show_text(
     window.show()
     return window
 
-
 def has_active_speech() -> bool:
-    """Проверяет, есть ли хотя бы одно открытое или закрывающееся облачко речи."""
+    
     return any(w.isVisible() for w in _active_windows)
-
 
 def close_all() -> None:
     for window in list(_active_windows):

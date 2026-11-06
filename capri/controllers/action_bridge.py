@@ -5,20 +5,20 @@ import threading
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ..effects.session_animations import SESSION_ACTION_LEAD_MS
-from ..integrations import ai_client, app_launcher, process_manager, spotify, updater, web_search
-from ..integrations.screen_lock import lock_commands, run_lock
-from ..integrations.system_power import power_commands, run_power
-
-AI_HISTORY_MESSAGES = 12
+from ..integrations import app_launcher, process_manager, spotify, system_cleaner, web_search
+from ..integrations.system_control import (
+    lock_commands,
+    power_commands,
+    run_lock,
+    run_power,
+)
 
 
 class ActionBridge(QObject):
-    """Мост для выполнения длительных и системных действий (AI, Spotify, Power, Lock)."""
+    """Мост для выполнения длительных и системных действий (Spotify, Power, Lock)."""
 
     speech_requested = Signal(str)
     session_animation_requested = Signal(str)
-    ai_started = Signal()
-    ai_finished = Signal()
     youtube_results_ready = Signal(list)
     launch_app_results_ready = Signal(list)
     kill_app_results_ready = Signal(list)
@@ -28,63 +28,6 @@ class ActionBridge(QObject):
         super().__init__(parent)
         self._lock_pending: list[list[str]] | None = None
         self._power_pending: list[list[str]] | None = None
-
-        self._ai_history: list[dict[str, str]] = []
-        self._ai_pending: str = ""
-        self._ai_busy: bool = False
-
-
-    def ask_ai(self, prompt: str) -> str:
-        prompt = prompt.strip()
-        if not prompt:
-            return "Что спросить у нейросети?"
-        if self._ai_busy:
-            return "Я всё ещё жду ответ от модели."
-        history = list(self._ai_history)
-        self._ai_pending = prompt
-        self._ai_busy = True
-        self.ai_started.emit()
-        threading.Thread(
-            target=self._ask_ai_worker,
-            args=(prompt, history),
-            name="capri-ai",
-            daemon=True,
-        ).start()
-        return "Думаю…"
-
-    def _ask_ai_worker(
-        self, prompt: str, history: list[dict[str, str]]
-    ) -> None:
-        try:
-            answer = ai_client.ask(prompt, history=history)
-        except ai_client.AIError as error:
-            self._on_ai_failed(str(error))
-            return
-        except Exception:
-            self._on_ai_failed("Нейросеть не ответила.")
-            return
-        self._on_ai_reply(answer)
-
-    def _on_ai_reply(self, answer: str) -> None:
-        prompt = self._ai_pending
-        self._finish_ai()
-        if prompt:
-            self._ai_history.append({"role": "user", "content": prompt})
-            self._ai_history.append(
-                {"role": "assistant", "content": answer}
-            )
-            del self._ai_history[:-AI_HISTORY_MESSAGES]
-        self.speech_requested.emit(answer)
-
-    def _on_ai_failed(self, message: str) -> None:
-        self._finish_ai()
-        self.speech_requested.emit(message)
-
-    def _finish_ai(self) -> None:
-        self._ai_busy = False
-        self._ai_pending = ""
-        self.ai_finished.emit()
-
 
     def spotify_play(self, query: str) -> str:
         query = query.strip()
@@ -212,6 +155,26 @@ class ActionBridge(QObject):
             daemon=True,
         ).start()
         return "Проверяю наличие обновлений…"
+
+    def clean_system(self) -> str:
+        threading.Thread(
+            target=self._clean_system_worker,
+            name="capri-system-clean",
+            daemon=True,
+        ).start()
+        return "Начинаю безопасную очистку мусора и временных файлов…"
+
+    def _clean_system_worker(self) -> None:
+        try:
+            res = system_cleaner.perform_system_cleanup()
+            freed_str = system_cleaner.format_bytes(res.bytes_freed)
+            if res.files_deleted == 0 and res.bytes_freed == 0:
+                msg = "Система чиста: временных файлов и мусора в корзине не обнаружено."
+            else:
+                msg = f"Очистка завершена: удалено {res.files_deleted} объектов, освобождено {freed_str}."
+        except Exception:
+            msg = "Произошла ошибка при очистке системы."
+        self.speech_requested.emit(msg)
 
     def _check_updates_worker(self) -> None:
         local_dt = updater.read_local_version_datetime()

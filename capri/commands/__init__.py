@@ -1,33 +1,32 @@
 from __future__ import annotations
 
-from .ai import AskAICommand
 from .base import BaseCommand, CommandContext, CommandResult
-from .diagnostics import DebugCommand
-from .media import (
+from .handlers import (
+    DebugCommand,
+    CleanSystemCommand,
+    GlitchToggleCommand,
+    GoogleSearchCommand,
+    KillAppCommand,
+    LaunchAppCommand,
+    LocateMouseCommand,
+    LockScreenCommand,
+    PowerOffCommand,
+    RebootCommand,
     SpotifyCurrentTrackCommand,
     SpotifyNextCommand,
     SpotifyPauseCommand,
     SpotifyPlayCommand,
     SpotifyPreviousCommand,
     SpotifyResumeCommand,
-)
-from .pet_actions import (
-    GlitchToggleCommand,
-    LocateMouseCommand,
+    SuspendCommand,
+    UpdateCommand,
+    YouTubeSearchCommand,
 )
 from .registry import CommandRegistry, switch_layout
-from .system import (
-    KillAppCommand,
-    LaunchAppCommand,
-    LockScreenCommand,
-    PowerOffCommand,
-    RebootCommand,
-    SuspendCommand,
-)
-from .web import GoogleSearchCommand, UpdateCommand, YouTubeSearchCommand
 
 DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     DebugCommand,
+    CleanSystemCommand,
     GlitchToggleCommand,
     GoogleSearchCommand,
     YouTubeSearchCommand,
@@ -42,7 +41,6 @@ DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     PowerOffCommand,
     SuspendCommand,
     RebootCommand,
-    AskAICommand,
     LocateMouseCommand,
     LaunchAppCommand,
     KillAppCommand,
@@ -74,6 +72,7 @@ __all__ = [
     "create_default_registry",
     "DEFAULT_COMMAND_CLASSES",
     "DebugCommand",
+    "CleanSystemCommand",
     "GlitchToggleCommand",
     "GoogleSearchCommand",
     "YouTubeSearchCommand",
@@ -87,6 +86,7 @@ __all__ = [
     "PowerOffCommand",
     "SuspendCommand",
     "RebootCommand",
-    "AskAICommand",
     "LocateMouseCommand",
+    "LaunchAppCommand",
+    "KillAppCommand",
 ]

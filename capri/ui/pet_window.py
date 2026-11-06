@@ -28,7 +28,7 @@ from ..core.settings import (
 )
 from ..effects.effects_coordinator import EffectsCoordinator
 from ..effects.transition import TransitionOverlay
-from .context_menu import build_pet_context_menu
+from .context_menu import TrayManager, build_pet_context_menu
 from .pet_renderer import PetRenderState, PetRenderer
 from .speech import (
     SpeechWindow,
@@ -39,7 +39,6 @@ from .speech import (
 from .speech_sfx import get_speech_sfx
 from .sprite_manager import SpriteManager
 from .teleport_controller import TeleportController
-from .tray_manager import TrayManager
 from .voice_coordinator import VoiceCoordinator
 from .voice_hud import CyberVoiceHud
 
@@ -48,16 +47,13 @@ ASSETS = ROOT / "assets"
 CAPRI_ICON = ASSETS / "capri_icon.png"
 VAR_ASSETS = ASSETS / "var"
 
-
 IDLE_DIR = VAR_ASSETS / "idle"
 OTHER_DIR = VAR_ASSETS / "other"
 THINKING_DIR = VAR_ASSETS / "thinking"
 
-
 OVERLAY_IDLE = IDLE_DIR / "1.png"
 OVERLAY_OTHER = OTHER_DIR / "1.png"
 OVERLAY_THINKING = THINKING_DIR / "1.png"
-
 
 OVERLAY_SIT = OVERLAY_IDLE
 OVERLAY_STAY = OVERLAY_THINKING
@@ -79,9 +75,8 @@ WAKE_LINES = (
     "Говори.",
 )
 
-
 class CapriWindow(QWidget):
-    """Интерактивный питомец Капри."""
+    
 
     def __init__(self) -> None:
         super().__init__(
@@ -119,9 +114,7 @@ class CapriWindow(QWidget):
         self._renderer = PetRenderer()
         self._started_at = time.monotonic()
 
-
         self._teleport = TeleportController(self)
-
 
         self._glitch_timer = QTimer(self)
         self._glitch_timer.setInterval(70)
@@ -149,6 +142,10 @@ class CapriWindow(QWidget):
     @property
     def orchestrator(self) -> PetOrchestrator:
         return self._orchestrator
+
+    @property
+    def teleport_controller(self) -> TeleportController:
+        return self._teleport
 
     @property
     def commands(self):
@@ -202,7 +199,7 @@ class CapriWindow(QWidget):
             self.speak(f"Размер: {percent}%")
 
     def set_activity_timeout(self, seconds: int) -> None:
-        """Задаёт время активности: через сколько секунд Капри исчезает с экрана."""
+        
         timeout_ms = int(seconds) * 1000
         if timeout_ms not in ACTIVITY_TIMEOUT_OPTIONS_MS:
             return
@@ -216,7 +213,7 @@ class CapriWindow(QWidget):
         return self._activity_timeout_seconds
 
     def set_reminders_enabled(self, enabled: bool) -> None:
-        """Включает или выключает случайные напоминания о себе."""
+        
         enabled = bool(enabled)
         if self._orchestrator._reminders_enabled == enabled:
             return
@@ -234,7 +231,7 @@ class CapriWindow(QWidget):
         return self._orchestrator._reminders_enabled
 
     def set_reminder_interval_range(self, min_ms: int, max_ms: int) -> None:
-        """Настраивает диапазон напоминаний в миллисекундах и сохраняет в конфиг."""
+        
         self._orchestrator.reminder.set_interval_range(min_ms, max_ms)
         set_config_value("behavior.reminder_min_interval_ms", self._orchestrator.reminder.min_interval_ms)
         set_config_value("behavior.reminder_max_interval_ms", self._orchestrator.reminder.max_interval_ms)
@@ -247,14 +244,14 @@ class CapriWindow(QWidget):
         )
 
     def set_pose(self, pose: str) -> None:
-        """Переключает спрайт позы питомца."""
+        
         changed = self._sprite_manager.set_pose(pose)
         if changed:
             self._pose_transition_ticks = 6
             self._surge_ticks = max(self._surge_ticks, 6)
 
     def set_pose_image(self, pose_name: str, path: Path) -> None:
-        """Переключает спрайт позы по пути к файлу."""
+        
         self._sprite_manager.set_pose_image(pose_name, path)
 
     def _build_shortcuts(self) -> None:
@@ -301,7 +298,8 @@ class CapriWindow(QWidget):
             screen_rect = (
                 screen.geometry() if screen is not None else self.geometry()
             )
-            self.set_pose("crouch")
+            self.set_pose("idle")
+            self.hide()
             self._startup_overlay = TransitionOverlay(
                 screen_rect,
                 self.geometry(),
@@ -313,19 +311,22 @@ class CapriWindow(QWidget):
             self._startup_overlay.start()
 
     def _reveal_on_startup(self) -> None:
-        """Переход Капри из позы приземления в позу покоя на пике вспышки."""
-        self.set_pose("sit")
+        self.set_pose("idle")
+        self.show()
+        self.raise_()
         self.update()
         QTimer.singleShot(600, self._greet)
 
     def _on_startup_finished(self) -> None:
         self._startup_overlay = None
-        self.set_pose("sit")
+        self.set_pose("idle")
+        self.show()
+        self.raise_()
         self.update()
         self._start_model_init_animation()
 
     def _start_model_init_animation(self) -> None:
-        """Показывает HUD инициализации Vosk, пока модель грузится в фоне."""
+        
         if self._closing or self._model_init_overlay is not None:
             return
         if not get_config_value("audio.voice_enabled", True):
@@ -367,7 +368,6 @@ class CapriWindow(QWidget):
         if self._pose_transition_ticks > 0:
             self._pose_transition_ticks -= 1
 
-
         if self._anim_frame % 25 == 0:
             tags = (
                 "[CAPRI//ONLINE]",
@@ -379,7 +379,6 @@ class CapriWindow(QWidget):
                 "[MEM:0xDEADBEEF]",
             )
             self._telemetry_tag = random.choice(tags)
-
 
         if self._spawn_glitch_ticks > 0 or self._is_dragging or self._surge_ticks > 0:
             self._glitch_timer.setInterval(35)
@@ -404,7 +403,7 @@ class CapriWindow(QWidget):
         painter.end()
 
     def _is_point_on_sprite(self, pos: QPoint) -> bool:
-        """Проверяет, попадает ли точка клика на непрозрачную часть спрайта Капри."""
+        
         return self._sprite_manager.is_point_on_sprite(pos.x(), pos.y())
 
     def mousePressEvent(self, event) -> None:
@@ -544,6 +543,14 @@ class CapriWindow(QWidget):
         name = desc if desc else "По умолчанию"
         self.speak(f"Микрофон: {name}")
 
+    def set_asr_backend(self, backend: str) -> None:
+        from ..audio.recognizer import set_backend, preload_model_async
+        set_backend(backend)
+        preload_model_async()
+        label = "Faster-Whisper" if backend == "whisper" else "Vosk"
+        self._orchestrator.update_discord_asr(backend)
+        self.speak(f"Модель речи: {label}")
+
     def set_speech_sound_enabled(self, enabled: bool) -> None:
         get_speech_sfx().set_speech_sound_enabled(enabled)
         set_config_value("audio.speech_sound_enabled", bool(enabled))
@@ -606,6 +613,11 @@ class CapriWindow(QWidget):
     def toggle_voice(self) -> str:
         return self._orchestrator.voice_coordinator.toggle_voice()
 
+    def set_discord_enabled(self, enabled: bool) -> None:
+        self._orchestrator.set_discord_enabled(enabled)
+        status = "вкл" if enabled else "выкл"
+        self.speak(f"Discord RPC: {status}")
+
     def show_context_menu(self, pos: QPoint) -> None:
         self._orchestrator.inactivity.set_paused(True)
         try:
@@ -615,7 +627,7 @@ class CapriWindow(QWidget):
             self._orchestrator.inactivity.set_paused(False)
 
     def activate_command_mode(self) -> None:
-        """Показывает Капри и переводит в режим немедленного ожидания команды."""
+        
         if self._closing:
             return
 
