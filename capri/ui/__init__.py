@@ -1,6 +1,7 @@
 from .context_menu import (
     ContextMenuBuilder,
     CyberMenu,
+    ReminderRangeDialog,
     TrayManager,
     build_pet_context_menu,
     build_tray_context_menu,
@@ -42,6 +43,7 @@ __all__ = [
     "APP_STYLE",
     "ContextMenuBuilder",
     "CyberMenu",
+    "ReminderRangeDialog",
     "TrayManager",
     "build_pet_context_menu",
     "build_tray_context_menu",

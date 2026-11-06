@@ -43,6 +43,8 @@
   - Tests transliteration and phonetic normalization algorithms.
 - **`tests/test_sprite_manager.py`**:
   - Tests sprite scaling bounds and pixel alpha hit detection.
+- **`tests/test_context_menu.py`**:
+  - Tests cyber dialogs, window flags, and custom reminder range spinbox bounds.
 
 ## Rules for Writing & Executing Tests
 
