@@ -33,6 +33,16 @@
   - Tests byte formatting conversions, data structures, and URL query handling.
 - **`tests/test_theme.py`**:
   - Tests strict cyberpunk hex palette compliance and typography stack specifications.
+- **`tests/test_command_handlers.py`**:
+  - Tests command execution with mocked CommandContext and duration formatting.
+- **`tests/test_audio_recognizer.py`**:
+  - Tests ModelStatus state machine and speech backend isolation.
+- **`tests/test_process_manager.py`**:
+  - Tests fuzzy process matching and process iteration via psutil mocks.
+- **`tests/test_app_launcher.py`**:
+  - Tests transliteration and phonetic normalization algorithms.
+- **`tests/test_sprite_manager.py`**:
+  - Tests sprite scaling bounds and pixel alpha hit detection.
 
 ## Rules for Writing Tests
 
