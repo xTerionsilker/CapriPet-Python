@@ -28,3 +28,8 @@ This file serves as the root dispatch guide for AI agents working on CapriPet. I
 
 6. **[Mandatory Documentation Synchronization](docs_sync.md):**
    - Strict requirement to proactively update `README.md`, `docs/architecture.md`, `docs/project_structure.md`, `docs/config_spec.md`, and agent rules concurrently with any code or structural change.
+
+7. **[Testing & Verification Rules](testing.md):**
+   - Standard `unittest` framework, execution via `.\.venv\Scripts\python.exe -m unittest discover -s tests -v`.
+   - Coverage of imports, core settings, morphology, commands, and system integration specs.
+

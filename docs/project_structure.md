@@ -55,6 +55,12 @@ capri/
 assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
 docs/                           # Дополнительная документация и спецификации (config_spec.md, architecture.md)
 models/                         # Папка моделей (Vosk, Silero VAD onnx)
+tests/                          # Автоматизированные тесты проекта (unittest)
+├── __init__.py
+├── test_imports.py             # Тестирование импорта всех модулей и пакетов capri
+├── test_core.py                # Тестирование ядра (settings, morphology, wake_word)
+├── test_commands.py            # Тестирование команд, раскладки и реестра
+└── test_integrations.py        # Тестирование системных интеграций
 requirements.txt                # Зависимости проекта
 .agents/                        # Модульные правила и инструкции для AI-агентов (rules/)
 AGENTS.md                       # Главная точка входа правил разработки для AI-агентов
