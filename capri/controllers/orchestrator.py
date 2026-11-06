@@ -86,6 +86,7 @@ class PetOrchestrator(QObject):
         )
         self.discord_rpc = DiscordRpcManager(
             client_id=discord_client_id,
+            track_provider=self.actions.spotify_current_track,
             parent=self,
         )
         self._discord_enabled = bool(
