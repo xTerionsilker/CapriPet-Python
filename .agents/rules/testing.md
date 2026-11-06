@@ -27,6 +27,12 @@
   - Tests keyboard layout switching (`switch_layout`), command registry population, and command matching/dispatch logic.
 - **`tests/test_integrations.py`**:
   - Tests command line specifications for system integrations (power management, screen locking).
+- **`tests/test_input_flow.py`**:
+  - Tests conversational flow parsing, spoken selection numbers, affirmation/negation sets, and layout switching.
+- **`tests/test_system_cleaner.py`**:
+  - Tests byte formatting conversions, data structures, and URL query handling.
+- **`tests/test_theme.py`**:
+  - Tests strict cyberpunk hex palette compliance and typography stack specifications.
 
 ## Rules for Writing Tests
 
