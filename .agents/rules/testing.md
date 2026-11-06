@@ -26,7 +26,7 @@
 - **`tests/test_commands.py`**:
   - Tests keyboard layout switching (`switch_layout`), command registry population, and command matching/dispatch logic.
 - **`tests/test_integrations.py`**:
-  - Tests command line specifications for system integrations (power management, screen locking).
+  - Tests command line specifications for system integrations (power management, screen locking) and Windows power hook events (suspend, shutdown, session changes).
 - **`tests/test_input_flow.py`**:
   - Tests conversational flow parsing, spoken selection numbers, affirmation/negation sets, and layout switching.
 - **`tests/test_system_cleaner.py`**:

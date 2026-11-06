@@ -28,6 +28,7 @@ from ..core.settings import (
 )
 from ..effects.effects_coordinator import EffectsCoordinator
 from ..effects.transition import TransitionOverlay
+from ..integrations.system_power_hook import SystemEventHook
 from .context_menu import TrayManager, build_pet_context_menu
 from .pet_renderer import PetRenderState, PetRenderer
 from .speech import (
@@ -135,6 +136,13 @@ class CapriWindow(QWidget):
         if inactivity_ms not in ACTIVITY_TIMEOUT_OPTIONS_MS:
             inactivity_ms = ACTIVITY_TIMEOUT_OPTIONS_MS[0]
         self._activity_timeout_seconds = inactivity_ms // 1000
+
+        self._power_hook = SystemEventHook(
+            on_suspend=self._on_system_suspend,
+            on_shutdown=self._on_system_shutdown,
+            on_lock=self._on_session_lock,
+            on_unlock=self._on_session_unlock,
+        )
 
         self._orchestrator.start()
         self._tray = TrayManager(self)
@@ -261,6 +269,11 @@ class CapriWindow(QWidget):
     def showEvent(self, event) -> None:
         super().showEvent(event)
         self._glitch_timer.start()
+        try:
+            hwnd = int(self.winId())
+            self._power_hook.register_session_notification(hwnd)
+        except Exception:
+            pass
         if not self._greeted:
             self._greeted = True
             screen = (
@@ -686,6 +699,8 @@ class CapriWindow(QWidget):
             self._exit_overlay = None
         if hasattr(self, "_tray_icon") and self._tray_icon is not None:
             self._tray_icon.hide()
+        if hasattr(self, "_power_hook") and self._power_hook is not None:
+            self._power_hook.unregister_session_notification()
         close_all_speech()
         self.hide()
         app = QApplication.instance()
@@ -731,3 +746,49 @@ class CapriWindow(QWidget):
             speech.destroyed.connect(self._finalize_quit)
         else:
             self._exit_overlay.finished.connect(self._finalize_quit)
+
+    def _on_system_suspend(self) -> None:
+        self._fast_terminate()
+
+    def _on_system_shutdown(self) -> None:
+        self._fast_terminate()
+
+    def _on_session_lock(self) -> None:
+        if self._closing:
+            return
+        self._orchestrator.pause()
+        self._glitch_timer.stop()
+
+    def _on_session_unlock(self) -> None:
+        if self._closing:
+            return
+        self._glitch_timer.start()
+        self._orchestrator.resume()
+        self.trigger_pose_transition()
+
+    def _fast_terminate(self) -> None:
+        if self._closing:
+            return
+        self._closing = True
+        try:
+            pos = self.pos()
+            set_config_value("window.position", {"x": pos.x(), "y": pos.y()})
+            set_config_value("window.overlay_position", {"x": pos.x(), "y": pos.y()})
+        except Exception:
+            pass
+        self._orchestrator.stop()
+        self._effects.stop_all()
+        self._glitch_timer.stop()
+        self._finalize_quit()
+
+    def nativeEvent(self, event_type: bytes | bytearray, message: int | object) -> tuple[bool, int]:
+        if event_type in (b"windows_generic_MSG", b"windows_dispatcher_MSG"):
+            try:
+                import ctypes
+                from ctypes import wintypes
+                msg = wintypes.MSG.from_address(int(message))
+                if self._power_hook.handle_windows_message(msg.message, msg.wParam, msg.lParam):
+                    return True, 0
+            except Exception:
+                pass
+        return super().nativeEvent(event_type, message)

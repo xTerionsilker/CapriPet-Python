@@ -144,6 +144,15 @@ class PetOrchestrator(QObject):
                 pass
             self._session_overlay = None
 
+    def pause(self) -> None:
+        self.inactivity.set_paused(True)
+        self.reminder.stop()
+        self.voice_coordinator.voice.cancel()
+
+    def resume(self) -> None:
+        self.inactivity.set_paused(False)
+        self.voice_coordinator.wake_if_needed()
+
     def handle_command(self, text: str) -> None:
         self._last_command = text
         if self._discord_enabled:

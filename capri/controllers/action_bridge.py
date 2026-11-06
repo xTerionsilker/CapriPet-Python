@@ -223,6 +223,11 @@ class ActionBridge(QObject):
             name="capri-power",
             daemon=True,
         ).start()
+        parent = self.parent()
+        if parent is not None and hasattr(parent, "_window"):
+            window = getattr(parent, "_window")
+            if window is not None and hasattr(window, "close"):
+                QTimer.singleShot(200, window.close)
 
     def _power_worker(self, commands: list[list[str]]) -> None:
         if not run_power(commands):
