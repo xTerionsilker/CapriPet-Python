@@ -79,7 +79,8 @@
     "inactivity_timeout_ms": 5000,
     "reminders_enabled": true,
     "reminder_min_interval_ms": 600000,
-    "reminder_max_interval_ms": 3600000
+    "reminder_max_interval_ms": 3600000,
+    "file_shredder_enabled": true
   },
   "game_mode": {
     "suppression_enabled": true,

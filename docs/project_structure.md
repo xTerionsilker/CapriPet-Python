@@ -41,6 +41,7 @@ capri/
 ├── integrations/               # Внешние интеграции и системные команды
 │   ├── __init__.py
 │   ├── app_launcher.py         # Поиск и запуск установленных приложений Windows
+│   ├── data_shredder.py        # Безвозвратное уничтожение файлов/папок и сарказм-диалоги энграммы
 │   ├── discord_rpc.py          # Discord Rich Presence (статус, ASR модель, таймер, кнопка)
 │   ├── process_manager.py      # Мониторинг, группировка и завершение процессов
 │   ├── spotify.py              # Клиент и Web API для Spotify

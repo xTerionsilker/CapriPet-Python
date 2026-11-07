@@ -49,7 +49,7 @@ flowchart TB
         direction TB
         Registry["commands/registry.py<br/>(Реестр и нечёткий поиск)"]
         Handlers["commands/handlers.py<br/>(Обработчики действий)"]
-        Integrations["integrations/<br/>(Spotify, Discord RPC, AppLauncher, SystemControl, GameMode, Cleaner)"]
+        Integrations["integrations/<br/>(Spotify, Discord RPC, AppLauncher, SystemControl, GameMode, Cleaner, DataShredder)"]
 
         Registry --> Handlers
         Handlers --> Integrations
@@ -132,3 +132,39 @@ sequenceDiagram
 3. **`capri.controllers`**: Оркестратор выступает диспетчером между событиями аудио, пользовательскими окнами Qt и запуском командных сценариев.
 4. **`capri.commands` & `capri.integrations`**: Изолированные обработчики действий — поиск приложений, управление питанием Windows, взаимодействие со Spotify API и Discord RPC.
 5. **`capri.ui` & `capri.effects`**: Полностью процедурный киберпанк-интерфейс на PySide6 (frameless-окна с прозрачностью, CRT-сканлайны, синтез речи в духе ретро-консолей, HUD-индикаторы).
+
+
+---
+
+## 3. Диаграмма последовательности Drag & Drop File Shredder (Rogue AI)
+
+Процесс перехвата и безвозвратного поглощения файлов и папок через окно питомца под эффекты Blackwall.
+
+`mermaid
+sequenceDiagram
+    autonumber
+    actor User as Пользователь
+    participant Window as PetWindow (Qt DnD)
+    participant SFX as SpeechSFX
+    participant Renderer as PetRenderer
+    participant Shredder as DataShredder
+    participant Speech as SpeechHUD (CyberHudBubble)
+
+    User->>Window: dragEnterEvent (URL файлов / папок)
+    Window->>SFX: play_target_acquired() (lock-on звук)
+    Window->>Renderer: state.is_target_acquired = True (прицел + разряды)
+    Window-->>User: acceptProposedAction()
+
+    User->>Window: dropEvent (сброс файлов)
+    Window->>Shredder: Проверка на системные пути (_is_critical_path)
+    alt Попытка удалить критический системный путь
+        Window->>SFX: play_lightning_strike()
+        Window->>Speech: Саркастичный отказ (защита ядра ОС)
+    else Пользовательские файлы и директории
+        Window->>SFX: play_lightning_strike() + play_data_rip()
+        Window->>Renderer: state.is_consuming = True (коллапс Blackwall)
+        Window->>Shredder: shred_paths(paths) (рекурсивное безвозвратное стирание)
+        Shredder-->>Window: ShredMetrics (размер, типы, количество)
+        Window->>Speech: generate_shred_dialogue(metrics)
+    end
+`
