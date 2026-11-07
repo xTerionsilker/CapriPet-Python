@@ -759,6 +759,7 @@ class CapriWindow(QWidget):
 
             def on_stealth_out_finish():
                 self._stealth_transition_overlay = None
+                self._orchestrator.inactivity.reset_timer()
 
             overlay.finished.connect(on_stealth_out_finish)
             self._stealth_transition_overlay = overlay
