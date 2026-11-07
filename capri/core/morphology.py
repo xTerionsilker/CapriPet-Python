@@ -1,3 +1,5 @@
+"""Морфологический анализ русской речи и нормализация числительных."""
+
 from __future__ import annotations
 
 from pymorphy3 import MorphAnalyzer
@@ -55,7 +57,9 @@ def stem_russian_word(word: str) -> str:
 
 
 def stem_text(text: str) -> str:
-    return " ".join(stem_russian_word(token) for token in text.lower().split())
+    return " ".join(
+        stem_russian_word(token) for token in text.lower().split()
+    )
 
 
 def normalize_spoken_numbers(text: str) -> str:
@@ -68,11 +72,19 @@ def normalize_spoken_numbers(text: str) -> str:
         if token in ("плюс", "+"):
             sign = "+"
             index += 1
-            token = tokens[index].strip(_PUNCTUATION) if index < len(tokens) else ""
+            token = (
+                tokens[index].strip(_PUNCTUATION)
+                if index < len(tokens)
+                else ""
+            )
         elif token in ("минус", "-"):
             sign = "-"
             index += 1
-            token = tokens[index].strip(_PUNCTUATION) if index < len(tokens) else ""
+            token = (
+                tokens[index].strip(_PUNCTUATION)
+                if index < len(tokens)
+                else ""
+            )
 
         if token in NUM_WORDS:
             value = NUM_WORDS[token]

@@ -1,9 +1,7 @@
+"""Standard built-in command implementations for CapriPet."""
+
 from __future__ import annotations
 
-from typing import Any
-import webbrowser
-
-from .base import BaseCommand, CommandContext
 from ..integrations import spotify, system_cleaner, web_search
 from ..integrations.system_control import (
     lock_commands,
@@ -11,6 +9,7 @@ from ..integrations.system_control import (
     run_lock,
     run_power,
 )
+from .base import BaseCommand, CommandContext
 
 
 def format_duration(seconds: int | float | None) -> str:
@@ -50,6 +49,8 @@ def _describe_vosk(info: dict[str, object]) -> str:
 
 
 class DebugCommand(BaseCommand):
+    """Показать состояние системы: модель Vosk, таймер напоминаний и время работы."""
+
     name = "дебаг"
     description = "показать состояние системы: модель Vosk, таймер напоминаний и время работы."
     aliases = (
@@ -95,6 +96,8 @@ class DebugCommand(BaseCommand):
 
 
 class GlitchToggleCommand(BaseCommand):
+    """Включить или выключить экранные глитчи."""
+
     name = "глитч"
     description = "включить или выключить экранные глитчи."
     aliases = (
@@ -125,8 +128,12 @@ class GlitchToggleCommand(BaseCommand):
 
 
 class LocateMouseCommand(BaseCommand):
+    """Указать на курсор мыши прицелом молний в реальном времени."""
+
     name = "где мышь"
-    description = "указать на курсор мыши прицелом молний в реальном времени."
+    description = (
+        "указать на курсор мыши прицелом молний в реальном времени."
+    )
     aliases = (
         "где курсор",
         "найди мышь",
@@ -148,13 +155,23 @@ class LocateMouseCommand(BaseCommand):
         "курсор",
         "мышка",
     )
-    keywords = ("мыш", "мышь", "мышка", "курсор", "пойма", "потеря", "покаж")
+    keywords = (
+        "мыш",
+        "мышь",
+        "мышка",
+        "курсор",
+        "пойма",
+        "потеря",
+        "покаж",
+    )
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         return ctx.locate_mouse()
 
 
 class GoogleSearchCommand(BaseCommand):
+    """Найти запрос в Google."""
+
     name = "гугл"
     description = "найти запрос в Google."
     takes_argument = True
@@ -186,6 +203,8 @@ class GoogleSearchCommand(BaseCommand):
 
 
 class YouTubeSearchCommand(BaseCommand):
+    """Найти запрос на YouTube."""
+
     name = "ютуб"
     description = "найти запрос на YouTube."
     takes_argument = True
@@ -212,6 +231,8 @@ class YouTubeSearchCommand(BaseCommand):
 
 
 class UpdateCommand(BaseCommand):
+    """Проверить обновления CapriPet на GitHub."""
+
     name = "обновление"
     description = "проверить обновления CapriPet на GitHub."
     aliases = (
@@ -238,14 +259,20 @@ class UpdateCommand(BaseCommand):
     )
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
-        if ctx.action_bridge is not None and hasattr(ctx.action_bridge, "check_updates"):
+        if ctx.action_bridge is not None and hasattr(
+            ctx.action_bridge, "check_updates"
+        ):
             return ctx.action_bridge.check_updates()
-        if ctx.action_bridge is not None and hasattr(ctx.action_bridge, "open_update_page"):
+        if ctx.action_bridge is not None and hasattr(
+            ctx.action_bridge, "open_update_page"
+        ):
             return ctx.action_bridge.open_update_page()
         return web_search.open_update_page()
 
 
 class SpotifyPlayCommand(BaseCommand):
+    """Найти и включить музыку в Spotify."""
+
     name = "спотифай"
     description = "найти и включить музыку в Spotify."
     takes_argument = True
@@ -278,6 +305,8 @@ class SpotifyPlayCommand(BaseCommand):
 
 
 class SpotifyPauseCommand(BaseCommand):
+    """Поставить музыку в Spotify на паузу."""
+
     name = "пауза"
     description = "поставить музыку в Spotify на паузу."
     aliases = (
@@ -294,7 +323,15 @@ class SpotifyPauseCommand(BaseCommand):
         "тихо",
         "стоп музыка",
     )
-    keywords = ("пауз", "останов", "стоп", "тихо", "приглуш", "заткн", "замолч")
+    keywords = (
+        "пауз",
+        "останов",
+        "стоп",
+        "тихо",
+        "приглуш",
+        "заткн",
+        "замолч",
+    )
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.action_bridge is not None:
@@ -303,6 +340,8 @@ class SpotifyPauseCommand(BaseCommand):
 
 
 class SpotifyResumeCommand(BaseCommand):
+    """Продолжить воспроизведение в Spotify."""
+
     name = "продолжить"
     description = "продолжить воспроизведение в Spotify."
     aliases = (
@@ -325,6 +364,8 @@ class SpotifyResumeCommand(BaseCommand):
 
 
 class SpotifyNextCommand(BaseCommand):
+    """Включить следующий трек в Spotify."""
+
     name = "следующий трек"
     description = "включить следующий трек в Spotify."
     aliases = (
@@ -346,7 +387,14 @@ class SpotifyNextCommand(BaseCommand):
         "дальше",
         "переключи",
     )
-    keywords = ("следующ", "дальше", "переключ", "некст", "скип", "пропуст")
+    keywords = (
+        "следующ",
+        "дальше",
+        "переключ",
+        "некст",
+        "скип",
+        "пропуст",
+    )
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.action_bridge is not None:
@@ -355,6 +403,8 @@ class SpotifyNextCommand(BaseCommand):
 
 
 class SpotifyPreviousCommand(BaseCommand):
+    """Вернуться к предыдущему треку в Spotify."""
+
     name = "предыдущий трек"
     description = "вернуться к предыдущему треку в Spotify."
     aliases = (
@@ -379,6 +429,8 @@ class SpotifyPreviousCommand(BaseCommand):
 
 
 class SpotifyCurrentTrackCommand(BaseCommand):
+    """Узнать, какой трек сейчас играет в Spotify."""
+
     name = "что играет"
     description = "узнать, какой трек сейчас играет в Spotify."
     aliases = (
@@ -408,6 +460,8 @@ class SpotifyCurrentTrackCommand(BaseCommand):
 
 
 class LockScreenCommand(BaseCommand):
+    """Заблокировать экран (аналог Super+L)."""
+
     name = "блокировка"
     description = "заблокировать экран (аналог Super+L)."
     requires_confirmation = True
@@ -444,6 +498,8 @@ class LockScreenCommand(BaseCommand):
 
 
 class PowerOffCommand(BaseCommand):
+    """Выключить компьютер."""
+
     name = "выключи"
     description = "выключить компьютер."
     requires_confirmation = True
@@ -483,6 +539,8 @@ class PowerOffCommand(BaseCommand):
 
 
 class SuspendCommand(BaseCommand):
+    """Перевести компьютер в спящий режим."""
+
     name = "сон"
     description = "перевести компьютер в спящий режим."
     requires_confirmation = True
@@ -523,6 +581,8 @@ class SuspendCommand(BaseCommand):
 
 
 class RebootCommand(BaseCommand):
+    """Перезагрузить компьютер."""
+
     name = "перезагрузка"
     description = "перезагрузить компьютер."
     requires_confirmation = True
@@ -557,6 +617,8 @@ class RebootCommand(BaseCommand):
 
 
 class LaunchAppCommand(BaseCommand):
+    """Найти и запустить установленное приложение."""
+
     name = "запусти"
     description = "найти и запустить установленное приложение."
     takes_argument = True
@@ -573,18 +635,30 @@ class LaunchAppCommand(BaseCommand):
         "старт",
         "стартуй",
     )
-    keywords = ("запусти", "запустить", "открой", "открыть", "старт", "приложение", "программу")
+    keywords = (
+        "запусти",
+        "запустить",
+        "открой",
+        "открыть",
+        "старт",
+        "приложение",
+        "программу",
+    )
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         trimmed = query.strip()
         if not trimmed:
-            return "Какое приложение запустить? Скажи: «запусти <название>»."
+            return (
+                "Какое приложение запустить? Скажи: «запусти <название>»."
+            )
         if ctx.action_bridge is not None:
             return ctx.action_bridge.launch_app(trimmed)
         return f"Ищу приложение: {trimmed}"
 
 
 class KillAppCommand(BaseCommand):
+    """Найти и завершить запущенный процесс или приложение."""
+
     name = "убей"
     description = "найти и завершить запущенный процесс или приложение."
     takes_argument = True
@@ -608,7 +682,17 @@ class KillAppCommand(BaseCommand):
         "прибить",
         "стоп процесс",
     )
-    keywords = ("убей", "убить", "закрой", "закрыть", "заверши", "завершить", "прибей", "прибить", "процесс")
+    keywords = (
+        "убей",
+        "убить",
+        "закрой",
+        "закрыть",
+        "заверши",
+        "завершить",
+        "прибей",
+        "прибить",
+        "процесс",
+    )
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         trimmed = query.strip()
@@ -620,6 +704,8 @@ class KillAppCommand(BaseCommand):
 
 
 class CleanSystemCommand(BaseCommand):
+    """Безопасно очистить временные файлы системы и корзину."""
+
     name = "очистить"
     description = "безопасно очистить временные файлы системы и корзину."
     aliases = (

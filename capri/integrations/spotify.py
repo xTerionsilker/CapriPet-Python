@@ -1,18 +1,24 @@
+"""Интеграция со Spotify: веб-поиск треков и управление локальным плеером.
+
+Модуль выполняет поиск композиций через Spotify Web API (Spotipy) и управляет
+воспроизведением локального десктопного клиента Windows через Win32 API
+(сообщения WM_APPCOMMAND).
+"""
+
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
 import json
 import logging
 import os
-from pathlib import Path
 import urllib.parse
 import webbrowser
+from pathlib import Path
 
-from platformdirs import user_config_dir
 import psutil
-from requests import RequestException
 import spotipy
+from platformdirs import user_config_dir
+from requests import RequestException
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import SpotifyClientCredentials
 
@@ -24,12 +30,34 @@ _CMD_PLAY_PAUSE = 14
 _CMD_NEXT = 11
 _CMD_PREV = 12
 
-_client_cache: tuple[tuple[str, str], spotipy.Spotify] | None = None
-_last_known_state: str = "unknown"
+class SpotifyState:
+    """Хранилище изменяемого состояния сессии и кэша клиента Spotify."""
+
+    def __init__(self) -> None:
+        self.client_cache: tuple[tuple[str, str], spotipy.Spotify] | None = None
+        self.last_known_state: str = "unknown"
+
+    def get_client(
+        self, credentials: tuple[str, str]
+    ) -> spotipy.Spotify | None:
+        if (
+            self.client_cache is not None
+            and self.client_cache[0] == credentials
+        ):
+            return self.client_cache[1]
+        return None
+
+    def set_client(
+        self, credentials: tuple[str, str], client: spotipy.Spotify
+    ) -> None:
+        self.client_cache = (credentials, client)
+
+
+_state = SpotifyState()
 
 
 class SpotifyError(RuntimeError):
-    pass
+    """Исключение, возникающее при ошибках взаимодействия со Spotify."""
 
 
 def find_track(query: str) -> tuple[str, str, str] | None:
@@ -52,9 +80,9 @@ def find_track(query: str) -> tuple[str, str, str] | None:
 
 
 def _spotify_client(credentials: tuple[str, str]) -> spotipy.Spotify:
-    global _client_cache
-    if _client_cache is not None and _client_cache[0] == credentials:
-        return _client_cache[1]
+    client = _state.get_client(credentials)
+    if client is not None:
+        return client
 
     client_id, client_secret = credentials
     manager = SpotifyClientCredentials(
@@ -65,7 +93,7 @@ def _spotify_client(credentials: tuple[str, str]) -> spotipy.Spotify:
         client_credentials_manager=manager,
         requests_timeout=HTTP_TIMEOUT,
     )
-    _client_cache = (credentials, client)
+    _state.set_client(credentials, client)
     return client
 
 
@@ -152,11 +180,16 @@ def _find_spotify_windows(pids: set[int]) -> list[int]:
         if pid.value in pids:
             class_buf = ctypes.create_unicode_buffer(256)
             user32.GetClassNameW(hwnd, class_buf, 256)
-            if class_buf.value in ("Chrome_WidgetWin_0", "Chrome_WidgetWin_1"):
+            if class_buf.value in (
+                "Chrome_WidgetWin_0",
+                "Chrome_WidgetWin_1",
+            ):
                 hwnds.append(hwnd)
         return True
 
-    cb = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(enum_cb)
+    cb = ctypes.WINFUNCTYPE(
+        ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p
+    )(enum_cb)
     user32.EnumWindows(cb, 0)
     return hwnds
 
@@ -178,7 +211,9 @@ def _get_spotify_title(pids: set[int]) -> str:
                     titles.append(text)
         return True
 
-    cb = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)(enum_cb)
+    cb = ctypes.WINFUNCTYPE(
+        ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p
+    )(enum_cb)
     user32.EnumWindows(cb, 0)
 
     for t in titles:
@@ -205,9 +240,9 @@ def _send_spotify_command(cmd: int) -> bool:
     for hwnd in hwnds:
         try:
             result = ctypes.c_size_t()
-            if user32.SendMessageTimeoutW(hwnd, 0x0319, 0, lparam, 2, 150, ctypes.byref(result)):
-                success = True
-            elif user32.PostMessageW(hwnd, 0x0319, 0, lparam):
+            if user32.SendMessageTimeoutW(
+                hwnd, 0x0319, 0, lparam, 2, 150, ctypes.byref(result)
+            ) or user32.PostMessageW(hwnd, 0x0319, 0, lparam):
                 success = True
         except Exception:
             continue
@@ -215,7 +250,6 @@ def _send_spotify_command(cmd: int) -> bool:
 
 
 def play(query: str) -> str:
-    global _last_known_state
     query = query.strip()
     if not query:
         return "Что включить? Скажи: «спотифай <запрос>»."
@@ -225,77 +259,89 @@ def play(query: str) -> str:
     except SpotifyError as error:
         if _open_uri(_search_uri(query)):
             return f"Открыл поиск Spotify: {query} ({error})"
-        return "Не удалось открыть Spotify. Проверьте, что клиент установлен."
+        return (
+            "Не удалось открыть Spotify. Проверьте, что клиент установлен."
+        )
 
     if found is not None:
         uri, title, artists = found
         if not _open_uri(uri):
             return "Не удалось открыть Spotify. Проверьте, что клиент установлен."
-        _last_known_state = "playing"
-        return f"Включаю: {artists} — {title}" if artists else f"Включаю: {title}"
+        _state.last_known_state = "playing"
+        return (
+            f"Включаю: {artists} — {title}"
+            if artists
+            else f"Включаю: {title}"
+        )
 
     if not _open_uri(_search_uri(query)):
-        return "Не удалось открыть Spotify. Проверьте, что клиент установлен."
+        return (
+            "Не удалось открыть Spotify. Проверьте, что клиент установлен."
+        )
     return f"Ничего не нашёл. Открыл поиск Spotify: {query}"
 
 
 def pause() -> str:
-    global _last_known_state
     pids = _get_spotify_pids()
     if not pids:
-        _last_known_state = "unknown"
+        _state.last_known_state = "unknown"
         return "Spotify не запущен."
 
     title = _get_spotify_title(pids)
-    if title and title.lower() not in _PAUSED_TITLES and (" — " in title or " - " in title):
-        _last_known_state = "playing"
+    if (
+        title
+        and title.lower() not in _PAUSED_TITLES
+        and (" — " in title or " - " in title)
+    ):
+        _state.last_known_state = "playing"
 
-    if _last_known_state == "paused":
+    if _state.last_known_state == "paused":
         return "Spotify уже на паузе."
 
     if not _send_spotify_command(_CMD_PLAY_PAUSE):
         return "Не удалось поставить Spotify на паузу."
 
-    _last_known_state = "paused"
+    _state.last_known_state = "paused"
     return "Пауза."
 
 
 def resume() -> str:
-    global _last_known_state
     pids = _get_spotify_pids()
     if not pids:
-        _last_known_state = "unknown"
+        _state.last_known_state = "unknown"
         return "Spotify не запущен."
 
     title = _get_spotify_title(pids)
-    if title and title.lower() not in _PAUSED_TITLES and (" — " in title or " - " in title):
-        _last_known_state = "playing"
+    if (
+        title
+        and title.lower() not in _PAUSED_TITLES
+        and (" — " in title or " - " in title)
+    ):
+        _state.last_known_state = "playing"
 
-    if _last_known_state == "playing":
+    if _state.last_known_state == "playing":
         return "Spotify уже играет."
 
     if not _send_spotify_command(_CMD_PLAY_PAUSE):
         return "Не удалось продолжить воспроизведение."
 
-    _last_known_state = "playing"
+    _state.last_known_state = "playing"
     return "Продолжаю."
 
 
 def next_track() -> str:
-    global _last_known_state
     if not _send_spotify_command(_CMD_NEXT):
-        _last_known_state = "unknown"
+        _state.last_known_state = "unknown"
         return "Spotify не запущен."
-    _last_known_state = "playing"
+    _state.last_known_state = "playing"
     return "Следующий трек."
 
 
 def previous_track() -> str:
-    global _last_known_state
     if not _send_spotify_command(_CMD_PREV):
-        _last_known_state = "unknown"
+        _state.last_known_state = "unknown"
         return "Spotify не запущен."
-    _last_known_state = "playing"
+    _state.last_known_state = "playing"
     return "Предыдущий трек."
 
 
@@ -308,7 +354,9 @@ def current_track() -> str:
     if not title:
         return "Сейчас ничего не играет или Spotify на паузе."
 
-    delimiter = " — " if " — " in title else (" - " if " - " in title else None)
+    delimiter = (
+        " — " if " — " in title else (" - " if " - " in title else None)
+    )
     if delimiter and title.lower() not in _PAUSED_TITLES:
         parts = title.split(delimiter, 1)
         artist = parts[0].strip()
@@ -319,7 +367,7 @@ def current_track() -> str:
             return f"Сейчас играет: {track}"
         return f"Сейчас играет: {artist}"
 
-    if _last_known_state == "paused":
+    if _state.last_known_state == "paused":
         return "Spotify сейчас на паузе."
     return "Spotify запущен."
 
@@ -333,3 +381,39 @@ def _open_uri(uri: str) -> bool:
         return bool(webbrowser.open(uri))
     except OSError:
         return False
+
+
+class SpotifyManager:
+    """Менеджер для управления воспроизведением и поиском музыки в Spotify.
+
+    Предоставляет унифицированный объектный интерфейс к операциям поиска
+    композиций, запуска воспроизведения и управления плеером Spotify.
+    """
+
+    @staticmethod
+    def find_track(query: str) -> tuple[str, str, str] | None:
+        return find_track(query)
+
+    @staticmethod
+    def play(query: str) -> str:
+        return play(query)
+
+    @staticmethod
+    def pause() -> str:
+        return pause()
+
+    @staticmethod
+    def resume() -> str:
+        return resume()
+
+    @staticmethod
+    def next_track() -> str:
+        return next_track()
+
+    @staticmethod
+    def previous_track() -> str:
+        return previous_track()
+
+    @staticmethod
+    def current_track() -> str:
+        return current_track()

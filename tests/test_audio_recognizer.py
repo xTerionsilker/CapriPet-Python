@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from capri.audio.recognizer import (
     FasterWhisperBackend,
     ModelStatus,
-    RecognitionError,
     SpeechRecognitionBackend,
     VoskSpeechService,
 )

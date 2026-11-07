@@ -1,6 +1,10 @@
+"""Координатор визуальных спецэффектов и анимаций питомца Capri."""
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+import contextlib
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QRect
 
@@ -15,8 +19,9 @@ from .transition import TransitionOverlay
 if TYPE_CHECKING:
     from ..ui.pet_window import CapriWindow
 
+
 class EffectsCoordinator(QObject):
-    
+    """Координатор жизненного цикла визуальных эффектов, глитчей и оверлеев."""
 
     def __init__(self, window: CapriWindow) -> None:
         super().__init__(window)
@@ -52,7 +57,7 @@ class EffectsCoordinator(QObject):
         intensity: str = "strong",
         on_finished: Callable[[], None] | None = None,
     ) -> GlitchBurstOverlay | None:
-        
+
         if getattr(self._window, "is_closing", False):
             return None
 
@@ -83,15 +88,13 @@ class EffectsCoordinator(QObject):
         return overlay
 
     def play_session(self, action: str) -> SessionAnimationOverlay | None:
-        
+
         if getattr(self._window, "is_closing", False):
             return None
 
         if self._session_overlay is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._session_overlay.close()
-            except Exception:
-                pass
             self._session_overlay = None
 
         overlay = play_session_animation(self._window, action)
@@ -103,15 +106,13 @@ class EffectsCoordinator(QObject):
         self._session_overlay = None
 
     def start_model_init(self) -> ModelInitOverlay | None:
-        
+
         if getattr(self._window, "is_closing", False):
             return None
 
         if self._model_init_overlay is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._model_init_overlay.close()
-            except Exception:
-                pass
             self._model_init_overlay = None
 
         overlay = ModelInitOverlay(self._window)
@@ -124,7 +125,7 @@ class EffectsCoordinator(QObject):
         self._model_init_overlay = None
 
     def stop_all(self) -> None:
-        
+
         self._glitches.stop()
         if self._burst_overlay is not None:
             try:
@@ -135,22 +136,16 @@ class EffectsCoordinator(QObject):
             self._burst_overlay = None
 
         if self._model_init_overlay is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._model_init_overlay.close()
-            except Exception:
-                pass
             self._model_init_overlay = None
 
         if self._session_overlay is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._session_overlay.close()
-            except Exception:
-                pass
             self._session_overlay = None
 
         if self._startup_overlay is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._startup_overlay.close()
-            except Exception:
-                pass
             self._startup_overlay = None

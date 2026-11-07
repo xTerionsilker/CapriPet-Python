@@ -1,27 +1,36 @@
+"""Синтез и воспроизведение звуковых эффектов речи и интерфейса.
+
+Генерирует процедурные аудиофайлы (свисты, клики печатной машинки, молнии,
+системные переходы) и управляет их воспроизведением через QSoundEffect.
+"""
+
 from __future__ import annotations
 
 import logging
 import math
-from pathlib import Path
 import random
 import struct
 import tempfile
 import time
 import wave
+from pathlib import Path
 
 from PySide6.QtCore import QObject, QUrl
-from PySide6.QtMultimedia import QSoundEffect
+from PySide6.QtMultimedia import QMediaDevices, QSoundEffect
 
 logger = logging.getLogger(__name__)
 
-def _generate_swoosh_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.10) -> None:
+
+def _generate_swoosh_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.10
+) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
 
-        freq = 350.0 + 1250.0 * (p ** 1.4)
+        freq = 350.0 + 1250.0 * (p**1.4)
 
         if p < 0.1:
             env = p / 0.1
@@ -38,14 +47,17 @@ def _generate_swoosh_wav(file_path: Path, sample_rate: int = 44100, duration: fl
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-def _generate_close_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.10) -> None:
+
+def _generate_close_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.10
+) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
 
-        freq = 1400.0 - 1100.0 * (p ** 0.8)
+        freq = 1400.0 - 1100.0 * (p**0.8)
 
         if p < 0.08:
             env = p / 0.08
@@ -62,7 +74,10 @@ def _generate_close_wav(file_path: Path, sample_rate: int = 44100, duration: flo
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-def _generate_chirp_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.02) -> None:
+
+def _generate_chirp_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.02
+) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     for i in range(num_samples):
@@ -86,8 +101,11 @@ def _generate_chirp_wav(file_path: Path, sample_rate: int = 44100, duration: flo
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-def _generate_teleport_drop_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.45) -> None:
-    
+
+def _generate_teleport_drop_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.45
+) -> None:
+
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(999)
@@ -108,7 +126,12 @@ def _generate_teleport_drop_wav(file_path: Path, sample_rate: int = 44100, durat
         sparkle = 0.0
         if 0.05 < t < 0.20:
             sp = (t - 0.05) / 0.15
-            sparkle = rng.uniform(-1.0, 1.0) * math.sin(2.0 * math.pi * 3200.0 * t) * (1.0 - sp) * 0.25
+            sparkle = (
+                rng.uniform(-1.0, 1.0)
+                * math.sin(2.0 * math.pi * 3200.0 * t)
+                * (1.0 - sp)
+                * 0.25
+            )
 
         env = (1.0 - p) ** 1.4
         val = math.tanh(distorted_sub * 0.8 + click + sparkle) * 0.85 * env
@@ -122,7 +145,10 @@ def _generate_teleport_drop_wav(file_path: Path, sample_rate: int = 44100, durat
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.42) -> None:
+
+def _generate_lightning_strike_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.42
+) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(1337)
@@ -134,7 +160,9 @@ def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, du
             snap_env = math.sin(math.pi * (t / 0.025))
             snap_freq = 3400.0 - 2400.0 * (t / 0.025)
             noise = rng.uniform(-1.0, 1.0)
-            snap = (0.5 * math.sin(2.0 * math.pi * snap_freq * t) + 0.5 * noise) * snap_env
+            snap = (
+                0.5 * math.sin(2.0 * math.pi * snap_freq * t) + 0.5 * noise
+            ) * snap_env
 
         arc = 0.0
         if t < 0.22:
@@ -154,7 +182,9 @@ def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, du
             boom_t = t - 0.02
             boom_dur = duration - 0.02
             boom_p = boom_t / boom_dur
-            boom_env = math.sin(math.pi * (boom_p ** 0.5)) * ((1.0 - boom_p) ** 1.8)
+            boom_env = math.sin(math.pi * (boom_p**0.5)) * (
+                (1.0 - boom_p) ** 1.8
+            )
             boom_freq = 65.0 - 35.0 * boom_p
             boom = math.sin(2.0 * math.pi * boom_freq * boom_t) * boom_env
 
@@ -170,7 +200,10 @@ def _generate_lightning_strike_wav(file_path: Path, sample_rate: int = 44100, du
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-def _generate_lightning_arc_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.20) -> None:
+
+def _generate_lightning_arc_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.20
+) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(2049)
@@ -195,7 +228,10 @@ def _generate_lightning_arc_wav(file_path: Path, sample_rate: int = 44100, durat
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-def _generate_lightning_zap_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.08) -> None:
+
+def _generate_lightning_zap_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.08
+) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(777)
@@ -204,7 +240,10 @@ def _generate_lightning_zap_wav(file_path: Path, sample_rate: int = 44100, durat
         p = t / duration
         env = (1.0 - p) ** 2.2
         freq = 2600.0 - 2100.0 * p
-        val = (0.6 * math.sin(2.0 * math.pi * freq * t) + 0.4 * rng.uniform(-1.0, 1.0)) * env
+        val = (
+            0.6 * math.sin(2.0 * math.pi * freq * t)
+            + 0.4 * rng.uniform(-1.0, 1.0)
+        ) * env
         val = math.tanh(val * 1.5) * 0.70
         sample = int(val * 32767)
         frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
@@ -216,7 +255,10 @@ def _generate_lightning_zap_wav(file_path: Path, sample_rate: int = 44100, durat
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-def _generate_session_lock_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.72) -> None:
+
+def _generate_session_lock_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.72
+) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(2024)
@@ -244,9 +286,15 @@ def _generate_session_lock_wav(file_path: Path, sample_rate: int = 44100, durati
 
         click = 0.0
         if 0.25 <= t < 0.29:
-            click = 0.22 * rng.uniform(-1.0, 1.0) * (1.0 - (t - 0.25) / 0.04)
+            click = (
+                0.22 * rng.uniform(-1.0, 1.0) * (1.0 - (t - 0.25) / 0.04)
+            )
 
-        val = math.tanh((servo + beep + click) * 1.35) * 0.62 * (1.0 - p * 0.25)
+        val = (
+            math.tanh((servo + beep + click) * 1.35)
+            * 0.62
+            * (1.0 - p * 0.25)
+        )
         sample = int(val * 32767)
         frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
 
@@ -257,7 +305,10 @@ def _generate_session_lock_wav(file_path: Path, sample_rate: int = 44100, durati
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-def _generate_session_power_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.95) -> None:
+
+def _generate_session_power_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.95
+) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(404)
@@ -275,12 +326,18 @@ def _generate_session_power_wav(file_path: Path, sample_rate: int = 44100, durat
 
         clatter = 0.0
         if 0.18 <= t < 0.30:
-            clatter = 0.28 * rng.uniform(-1.0, 1.0) * (1.0 - (t - 0.18) / 0.12)
+            clatter = (
+                0.28 * rng.uniform(-1.0, 1.0) * (1.0 - (t - 0.18) / 0.12)
+            )
 
         thud = 0.0
         if 0.55 <= t < 0.95:
             tp = (t - 0.55) / 0.40
-            thud = 0.55 * math.sin(2.0 * math.pi * (48.0 - 16.0 * tp) * t) * (1.0 - tp) ** 2.0
+            thud = (
+                0.55
+                * math.sin(2.0 * math.pi * (48.0 - 16.0 * tp) * t)
+                * (1.0 - tp) ** 2.0
+            )
 
         val = math.tanh((tone + clatter + thud) * 1.25) * 0.70
         sample = int(val * 32767)
@@ -293,24 +350,40 @@ def _generate_session_power_wav(file_path: Path, sample_rate: int = 44100, durat
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-def _generate_session_suspend_wav(file_path: Path, sample_rate: int = 44100, duration: float = 1.05) -> None:
+
+def _generate_session_suspend_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 1.05
+) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
 
-        breath = math.sin(2.0 * math.pi * (78.0 + 9.0 * math.sin(2.0 * math.pi * 0.7 * t)) * t)
+        breath = math.sin(
+            2.0
+            * math.pi
+            * (78.0 + 9.0 * math.sin(2.0 * math.pi * 0.7 * t))
+            * t
+        )
         pad = (
-            0.42 * math.sin(2.0 * math.pi * 146.83 * t)
-            + 0.24 * math.sin(2.0 * math.pi * 220.0 * t)
-            + 0.18 * math.sin(2.0 * math.pi * 293.66 * t)
-        ) * (0.55 + 0.45 * math.sin(2.0 * math.pi * 1.6 * t)) * 0.6
+            (
+                0.42 * math.sin(2.0 * math.pi * 146.83 * t)
+                + 0.24 * math.sin(2.0 * math.pi * 220.0 * t)
+                + 0.18 * math.sin(2.0 * math.pi * 293.66 * t)
+            )
+            * (0.55 + 0.45 * math.sin(2.0 * math.pi * 1.6 * t))
+            * 0.6
+        )
 
         blip = 0.0
         if 0.20 <= t < 0.34:
             bp = (t - 0.20) / 0.14
-            blip = 0.30 * math.sin(2.0 * math.pi * (880.0 - 240.0 * bp) * t) * math.sin(math.pi * bp)
+            blip = (
+                0.30
+                * math.sin(2.0 * math.pi * (880.0 - 240.0 * bp) * t)
+                * math.sin(math.pi * bp)
+            )
 
         fade = min(1.0, t / 0.08) * (1.0 - p) ** 1.1
         val = math.tanh((breath * 0.40 + pad + blip) * 1.2) * 0.60 * fade
@@ -324,7 +397,10 @@ def _generate_session_suspend_wav(file_path: Path, sample_rate: int = 44100, dur
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
-def _generate_session_reboot_wav(file_path: Path, sample_rate: int = 44100, duration: float = 0.95) -> None:
+
+def _generate_session_reboot_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.95
+) -> None:
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(777)
@@ -348,9 +424,17 @@ def _generate_session_reboot_wav(file_path: Path, sample_rate: int = 44100, dura
         lock_beep = 0.0
         if 0.72 <= t < 0.88:
             bp = (t - 0.72) / 0.16
-            lock_beep = 0.30 * math.sin(2.0 * math.pi * 1568.0 * t) * math.sin(math.pi * bp) ** 1.3
+            lock_beep = (
+                0.30
+                * math.sin(2.0 * math.pi * 1568.0 * t)
+                * math.sin(math.pi * bp) ** 1.3
+            )
 
-        val = math.tanh((arp + static + lock_beep) * 1.35) * 0.58 * (1.0 - p * 0.18)
+        val = (
+            math.tanh((arp + static + lock_beep) * 1.35)
+            * 0.58
+            * (1.0 - p * 0.18)
+        )
         sample = int(val * 32767)
         frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
 
@@ -361,7 +445,9 @@ def _generate_session_reboot_wav(file_path: Path, sample_rate: int = 44100, dura
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
 
+
 class SpeechSFX(QObject):
+    """Менеджер процедурных звуковых эффектов речи и интерфейсных событий."""
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -389,6 +475,12 @@ class SpeechSFX(QObject):
         self._session_effects: dict[str, QSoundEffect] = {}
         self._chirp_pool: list[QSoundEffect] = []
         self._chirp_index = 0
+        self._suppressed = False
+
+        self._media_devices = QMediaDevices(self)
+        self._media_devices.audioOutputsChanged.connect(
+            self._on_audio_outputs_changed
+        )
 
         self._init_sounds()
 
@@ -404,10 +496,22 @@ class SpeechSFX(QObject):
             drop_path = temp_dir / "cyber_teleport_drop.wav"
 
             session_specs = {
-                "lock": ("cyber_session_lock.wav", _generate_session_lock_wav),
-                "power_off": ("cyber_session_power.wav", _generate_session_power_wav),
-                "suspend": ("cyber_session_suspend.wav", _generate_session_suspend_wav),
-                "reboot": ("cyber_session_reboot.wav", _generate_session_reboot_wav),
+                "lock": (
+                    "cyber_session_lock.wav",
+                    _generate_session_lock_wav,
+                ),
+                "power_off": (
+                    "cyber_session_power.wav",
+                    _generate_session_power_wav,
+                ),
+                "suspend": (
+                    "cyber_session_suspend.wav",
+                    _generate_session_suspend_wav,
+                ),
+                "reboot": (
+                    "cyber_session_reboot.wav",
+                    _generate_session_reboot_wav,
+                ),
             }
 
             if not swoosh_path.exists():
@@ -483,13 +587,33 @@ class SpeechSFX(QObject):
 
             self._available = True
         except Exception as exc:
-            logger.warning("Не удалось инициализировать SFX звуки: %s. Работаем в беззвучном режиме.", exc)
+            logger.warning(
+                "Не удалось инициализировать SFX звуки: %s. Работаем в беззвучном режиме.",
+                exc,
+            )
             self._available = False
 
-    def _play_file(self, path: Path | None, fallback_effect: QSoundEffect | None) -> None:
+    def _on_audio_outputs_changed(self) -> None:
+        self.reload_audio_devices()
+
+    def reload_audio_devices(self) -> None:
+        try:
+            self._init_sounds()
+        except Exception as exc:
+            logger.debug("SFX device reload failed: %s", exc)
+
+    def _play_file(
+        self, path: Path | None, fallback_effect: QSoundEffect | None
+    ) -> None:
         if not self.is_enabled() or fallback_effect is None:
             return
         try:
+            if (
+                fallback_effect.status() == QSoundEffect.Status.Error
+                and path is not None
+                and path.exists()
+            ):
+                fallback_effect.setSource(QUrl.fromLocalFile(str(path)))
             fallback_effect.play()
         except Exception as exc:
             logger.debug("QSoundEffect error: %s", exc)
@@ -499,7 +623,10 @@ class SpeechSFX(QObject):
         return self._available
 
     def is_enabled(self) -> bool:
-        return self._enabled and self._available
+        return self._enabled and self._available and not self._suppressed
+
+    def set_suppressed(self, suppressed: bool) -> None:
+        self._suppressed = bool(suppressed)
 
     def set_enabled(self, enabled: bool) -> None:
         self._enabled = bool(enabled)
@@ -531,7 +658,10 @@ class SpeechSFX(QObject):
             self._lightning_arc_effect.setVolume(self._volume * 0.85)
         if self._lightning_zap_effect is not None:
             self._lightning_zap_effect.setVolume(self._volume * 0.75)
-        if hasattr(self, "_teleport_drop_effect") and self._teleport_drop_effect is not None:
+        if (
+            hasattr(self, "_teleport_drop_effect")
+            and self._teleport_drop_effect is not None
+        ):
             self._teleport_drop_effect.setVolume(self._volume * 0.95)
         for effect in self._session_effects.values():
             effect.setVolume(self._volume * 0.85)
@@ -551,22 +681,31 @@ class SpeechSFX(QObject):
     def play_lightning_strike(self) -> None:
         if not self.is_effects_sound_enabled():
             return
-        self._play_file(self._lightning_strike_path, self._lightning_strike_effect)
+        self._play_file(
+            self._lightning_strike_path, self._lightning_strike_effect
+        )
 
     def play_lightning_arc(self) -> None:
         if not self.is_effects_sound_enabled():
             return
-        self._play_file(self._lightning_arc_path, self._lightning_arc_effect)
+        self._play_file(
+            self._lightning_arc_path, self._lightning_arc_effect
+        )
 
     def play_lightning_zap(self) -> None:
         if not self.is_effects_sound_enabled():
             return
-        self._play_file(self._lightning_zap_path, self._lightning_zap_effect)
+        self._play_file(
+            self._lightning_zap_path, self._lightning_zap_effect
+        )
 
     def play_teleport_drop(self) -> None:
         if not self.is_effects_sound_enabled():
             return
-        self._play_file(getattr(self, "_teleport_drop_path", None), getattr(self, "_teleport_drop_effect", None))
+        self._play_file(
+            getattr(self, "_teleport_drop_path", None),
+            getattr(self, "_teleport_drop_effect", None),
+        )
 
     def play_session_action(self, action: str) -> None:
         if not self.is_effects_sound_enabled():
@@ -588,17 +727,21 @@ class SpeechSFX(QObject):
             else None
         )
         if self._chirp_pool:
-            self._chirp_index = (self._chirp_index + 1) % len(self._chirp_pool)
+            self._chirp_index = (self._chirp_index + 1) % len(
+                self._chirp_pool
+            )
 
         self._play_file(self._chirp_path, fallback)
 
     def stop_all(self, timeout: float = 0.3) -> None:
         pass
 
-_instance: SpeechSFX | None = None
+
+class _SpeechSFXHolder:
+    instance: SpeechSFX | None = None
+
 
 def get_speech_sfx() -> SpeechSFX:
-    global _instance
-    if _instance is None:
-        _instance = SpeechSFX()
-    return _instance
+    if _SpeechSFXHolder.instance is None:
+        _SpeechSFXHolder.instance = SpeechSFX()
+    return _SpeechSFXHolder.instance

@@ -1,8 +1,21 @@
+"""Поиск и запуск установленных приложений в операционной системе Windows.
+
+Модуль сканирует ярлыки меню «Пуск» и системный реестр (App Paths),
+выполняет нечеткий поиск программ с учетом русской транслитерации,
+ошибок раскладки клавиатуры и фонетической нормализации, а также
+осуществляет запуск выбранных приложений.
+"""
+
 from __future__ import annotations
 
 import os
 import re
 from typing import Any
+
+try:
+    import winreg
+except ImportError:
+    winreg = None
 
 import cyrtranslit
 from rapidfuzz import fuzz
@@ -40,8 +53,12 @@ def _scan_windows_applications() -> list[dict[str, Any]]:
     apps: dict[str, dict[str, Any]] = {}
 
     start_dirs = [
-        os.path.expandvars(r"%ProgramData%\Microsoft\Windows\Start Menu\Programs"),
-        os.path.expandvars(r"%AppData%\Microsoft\Windows\Start Menu\Programs"),
+        os.path.expandvars(
+            r"%ProgramData%\Microsoft\Windows\Start Menu\Programs"
+        ),
+        os.path.expandvars(
+            r"%AppData%\Microsoft\Windows\Start Menu\Programs"
+        ),
     ]
     for sdir in start_dirs:
         if not os.path.exists(sdir):
@@ -58,21 +75,25 @@ def _scan_windows_applications() -> list[dict[str, Any]]:
                             "path": os.path.join(root, f),
                         }
 
-    try:
-        import winreg
-
+    if winreg is not None:
         for hkey in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
             try:
-                sub = r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths"
+                sub = (
+                    r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths"
+                )
                 with winreg.OpenKey(hkey, sub) as key:
                     count, _, _ = winreg.QueryInfoKey(key)
                     for i in range(count):
                         try:
                             app_key_name = winreg.EnumKey(key, i)
-                            with winreg.OpenKey(key, app_key_name) as app_key:
+                            with winreg.OpenKey(
+                                key, app_key_name
+                            ) as app_key:
                                 val, _ = winreg.QueryValueEx(app_key, "")
                                 if val and os.path.exists(val):
-                                    display_name = os.path.splitext(app_key_name)[0]
+                                    display_name = os.path.splitext(
+                                        app_key_name
+                                    )[0]
                                     if display_name.lower() not in apps:
                                         apps[display_name.lower()] = {
                                             "name": display_name,
@@ -84,8 +105,6 @@ def _scan_windows_applications() -> list[dict[str, Any]]:
                             pass
             except Exception:
                 pass
-    except Exception:
-        pass
 
     return list(apps.values())
 
@@ -111,7 +130,7 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
     comment = app.get("comment", "").lower()
 
     for cand in candidates:
-        if cand == name or cand == exec_base:
+        if cand in (name, exec_base):
             return 100.0
 
     best = 0.0
@@ -122,11 +141,11 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
             continue
         p_token = phonetic_normalize(token)
         for cand in candidates:
-            if cand == token or cand == p_token:
+            if cand in (token, p_token):
                 score = 95.0
             elif token.startswith(cand) or p_token.startswith(cand):
                 score = 80.0 + (len(cand) / max(len(token), 1)) * 15.0
-            elif (cand.startswith(token) or cand.startswith(p_token)) and len(token) >= 3:
+            elif (cand.startswith((token, p_token))) and len(token) >= 3:
                 score = 75.0 + (len(token) / max(len(cand), 1)) * 15.0
             elif (cand in token or cand in p_token) and len(cand) >= 3:
                 score = 70.0 + (len(cand) / max(len(token), 1)) * 15.0
@@ -137,8 +156,7 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
                 )
                 score = ratio * 70.0
 
-            if score > best:
-                best = score
+            best = max(best, score)
 
     comment_tokens = re.split(r"[\s\-_\.]+", comment)
     for token in comment_tokens:
@@ -146,7 +164,7 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
             continue
         p_token = phonetic_normalize(token)
         for cand in candidates:
-            if cand == token or cand == p_token:
+            if cand in (token, p_token):
                 score = 65.0
             elif token.startswith(cand) and len(cand) >= 3:
                 score = 55.0
@@ -157,13 +175,14 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
                 )
                 score = ratio * 40.0
 
-            if score > best:
-                best = score
+            best = max(best, score)
 
     return best
 
 
-def find_matching_applications(query: str, limit: int = 5) -> list[dict[str, Any]]:
+def find_matching_applications(
+    query: str, limit: int = 5
+) -> list[dict[str, Any]]:
     trimmed = query.strip()
     if not trimmed:
         return []

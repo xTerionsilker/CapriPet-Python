@@ -1,10 +1,18 @@
+"""Отслеживание активных окон и управление их положением в Windows.
+
+Содержит вспомогательные функции для получения дескриптора (HWND) и геометрии
+активного окна пользователя, анимации встряхивания внешнего окна через Win32 API
+и определения координат активного монитора.
+"""
+
 from __future__ import annotations
 
+import contextlib
 import ctypes
-from ctypes import wintypes
 import logging
 import random
-from typing import Callable
+from collections.abc import Callable
+from ctypes import wintypes
 
 from PySide6.QtCore import QObject, QRect, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
@@ -19,6 +27,12 @@ class _RECT(ctypes.Structure):
         ("right", wintypes.LONG),
         ("bottom", wintypes.LONG),
     ]
+
+
+SWP_NOZORDER = 0x0004
+SWP_NOSIZE = 0x0001
+SWP_NOACTIVATE = 0x0010
+DWMWA_EXTENDED_FRAME_BOUNDS = 9
 
 
 def get_foreground_hwnd() -> int | None:
@@ -65,10 +79,6 @@ def shake_window_hwnd(
             return None
 
         orig_x, orig_y = rect.left, rect.top
-
-        SWP_NOZORDER = 0x0004
-        SWP_NOSIZE = 0x0001
-        SWP_NOACTIVATE = 0x0010
         flags = SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE
 
         interval_ms = 25
@@ -84,20 +94,20 @@ def shake_window_hwnd(
             if step >= total_steps or not user32.IsWindow(hwnd):
                 timer.stop()
                 timer.deleteLater()
-                try:
-                    user32.SetWindowPos(hwnd, 0, orig_x, orig_y, 0, 0, flags)
-                except Exception:
-                    pass
+                with contextlib.suppress(Exception):
+                    user32.SetWindowPos(
+                        hwnd, 0, orig_x, orig_y, 0, 0, flags
+                    )
                 if on_finished:
                     on_finished()
                 return
 
             dx = random.randint(-intensity, intensity)
             dy = random.randint(-intensity, intensity)
-            try:
-                user32.SetWindowPos(hwnd, 0, orig_x + dx, orig_y + dy, 0, 0, flags)
-            except Exception:
-                pass
+            with contextlib.suppress(Exception):
+                user32.SetWindowPos(
+                    hwnd, 0, orig_x + dx, orig_y + dy, 0, 0, flags
+                )
 
         timer.timeout.connect(_tick)
         timer.start()
@@ -141,7 +151,6 @@ def _get_windows_active_window_rect() -> QRect | None:
 
         try:
             dwmapi = ctypes.windll.dwmapi
-            DWMWA_EXTENDED_FRAME_BOUNDS = 9
             res = dwmapi.DwmGetWindowAttribute(
                 hwnd,
                 DWMWA_EXTENDED_FRAME_BOUNDS,

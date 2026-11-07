@@ -2,10 +2,10 @@
 
 ## Anti-Legacy Rules & Standards
 
-1. **No Code Comments or Docstrings (Strict):**
-   - **Do not write comments:** Do not add inline or block comments (`# ...`) in code under any circumstances (except mandatory shebangs `#!/usr/bin/env ...` when applicable).
-   - **Do not write docstrings:** Do not add triple-quoted docstrings (`"""..."""` or `'''...'''`) to modules, classes, or functions.
-   - **Self-documenting code:** Rely entirely on clean code structure, expressive naming (functions, variables, classes), and strict type annotations to make logic self-evident.
+1. **PEP 8 & PEP 257 Documentation Standards:**
+   - **Comments:** Meaningful inline and block comments (`# ...`) are allowed and encouraged where necessary to explain non-obvious logic, complex algorithms, or Win32/hardware nuances. Technical directives (`# noqa`, `# type: ignore`) are fully permitted.
+   - **Docstrings:** Public modules and classes must provide clear, concise docstrings following PEP 257 standards.
+   - **Self-documenting code:** Rely primarily on clean code structure, expressive naming (functions, variables, classes), and strict type annotations, using docstrings and comments to enrich context.
 
 2. **No Artificial Backward Compatibility:**
    - **Do not write wrapper adapters or legacy bridges:** Never re-introduce adapters (such as `FunctionalCommand`, alias functions, fake parameters, or `*args/**kwargs` unpackers) purely to support hypothetical old signatures.

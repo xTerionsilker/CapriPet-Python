@@ -6,13 +6,15 @@
 Ключевые сущности для сохранения:
 - Выбранный монитор (`designated_screen`)
 - Выбранный микрофон (`designated_microphone`)
-- Режим отображения (`appearance.mode`: окно терминала vs плавающий оверлей «Нормальный облик»)
-- Экранные глитчи (`effects.glitches_enabled`)
-- Голосовой ввод (`audio.voice_enabled`)
-- Громкость звуковых эффектов и медиа (`sfx_volume`, `media_volume`)
-- Позиция окон на экране (`terminal_position`, `overlay_position`)
-- Начальная поза оверлея (`overlay_pose`) и скин (`skin`)
-- Параметры поведения (`inactivity_timeout_ms`)
+- Режим отображения, поза и масштаб (`appearance.pose`, `appearance.scale`, `appearance.skin`)
+- Экранные глитчи и интенсивность (`effects.glitches_enabled`, `effects.glitch_intensity`)
+- Голосовой ввод и ASR (`audio.voice_enabled`, `audio.asr_backend`)
+- Громкость звуковых эффектов и медиа (`audio.volume`, `audio.sfx_volume`, `audio.media_volume`)
+- Позиция окон на экране (`window.position`, `window.terminal_position`, `window.overlay_position`)
+- Начальная поза оверлея (`appearance.overlay_pose`) и скин (`appearance.skin`)
+- Параметры поведения (`behavior.inactivity_timeout_ms`, `behavior.reminders_enabled`)
+- Игровой режим (`game_mode.suppression_enabled`, списки `whitelist`/`blacklist`)
+- Интеграция Discord RPC (`discord.enabled`, `discord.client_id`)
 
 ---
 
@@ -50,27 +52,56 @@
   },
   "audio": {
     "designated_microphone": null,
+    "volume": 50,
     "sfx_volume": 0.5,
     "media_volume": 0.6,
     "voice_enabled": true,
     "speech_sound_enabled": true,
-    "effects_sound_enabled": true
+    "effects_sound_enabled": true,
+    "asr_backend": "vosk"
   },
   "appearance": {
-    "mode": "terminal",
     "skin": "default",
+    "pose": "sit",
     "overlay_pose": "sit",
     "scale": 100
   },
   "effects": {
-    "glitches_enabled": true
+    "glitches_enabled": true,
+    "glitch_intensity": "weak"
   },
   "window": {
-    "terminal_position": null,
-    "overlay_position": null
+    "position": null,
+    "overlay_position": null,
+    "terminal_position": null
   },
   "behavior": {
-    "inactivity_timeout_ms": 5000
+    "inactivity_timeout_ms": 5000,
+    "reminders_enabled": true,
+    "reminder_min_interval_ms": 600000,
+    "reminder_max_interval_ms": 3600000
+  },
+  "game_mode": {
+    "suppression_enabled": true,
+    "cooldown_seconds": 3.0,
+    "whitelist": [],
+    "blacklist": [
+      "steam.exe",
+      "steamwebhelper.exe",
+      "epicgameslauncher.exe",
+      "unrealcefsubprocess.exe",
+      "unitycrashhandler64.exe",
+      "riotclientux.exe",
+      "galaxyclient.exe",
+      "battlenet.exe"
+    ]
+  },
+  "network": {
+    "user_agent": null
+  },
+  "discord": {
+    "enabled": true,
+    "client_id": "1567968896277938266"
   }
 }
 ```
@@ -82,20 +113,33 @@
 | `version` | `int` | `1` | Версия схемы (для управления будущими миграциями) |
 | `screen.designated_screen` | `str \| null` | `null` | Имя монитора (например, `"HDMI-1"`, `"eDP-1"`). `null` = системный экран |
 | `audio.designated_microphone` | `str \| null` | `null` | Описание аудиоустройства ввода. `null` = системный микрофон по умолчанию |
+| `audio.volume` | `int` | `50` | Общая системная громкость (25, 50, 75, 100) |
 | `audio.sfx_volume` | `float` | `0.5` | Громкость звуков интерфейса и речи (0.0 .. 1.0) в `SpeechSFX` |
-| `audio.media_volume` | `float` | `0.6` | Громкость медиа и видео (0.0 .. 1.0) в `MediaController` |
+| `audio.media_volume` | `float` | `0.6` | Громкость медиа и видео (0.0 .. 1.0) |
 | `audio.voice_enabled` | `bool` | `true` | Состояние голосового распознавания при старте (`VoiceInput`) |
 | `audio.speech_sound_enabled` | `bool` | `true` | Воспроизведение звуков сообщений и облачков текста |
 | `audio.effects_sound_enabled` | `bool` | `true` | Воспроизведение звуков эффектов и молний |
-| `appearance.mode` | `str` | `"terminal"` | Режим отображения: `"terminal"` (окно) или `"overlay"` (спрайт питомца) |
+| `audio.asr_backend` | `str` | `"vosk"` | Бэкенд распознавания речи: `"vosk"` или `"whisper"` |
 | `appearance.skin` | `str` | `"default"` | Имя скина/пака ресурсов |
-| `appearance.overlay_pose` | `str` | `"sit"` | Поза по умолчанию: `"sit"`, `"stay"`, `"crouch"` |
+| `appearance.pose` | `str` | `"sit"` | Текущая поза питомца: `"sit"`, `"stay"`, `"crouch"` |
+| `appearance.overlay_pose` | `str` | `"sit"` | Поза оверлея по умолчанию: `"sit"`, `"stay"`, `"crouch"` |
 | `appearance.scale` | `int` | `100` | Масштаб спрайта питомца в процентах (50, 75, 100, 125, 150) |
 | `effects.glitches_enabled` | `bool` | `true` | Включены ли экранные глитч-эффекты (`GlitchManager`) |
-| `window.terminal_position` | `{"x": int, "y": int} \| null` | `null` | Координаты окна терминала на рабочем столе. `null` = центр экрана |
-| `window.overlay_position` | `{"x": int, "y": int} \| null` | `null` | Координаты оверлея питомца на рабочем столе. `null` = центр экрана |
+| `effects.glitch_intensity` | `str` | `"weak"` | Интенсивность глитчей: `"weak"`, `"medium"`, `"strong"` |
+| `window.position` | `{"x": int, "y": int} \| null` | `null` | Координаты положения окна на рабочем столе. `null` = центр экрана |
+| `window.terminal_position` | `{"x": int, "y": int} \| null` | `null` | Координаты окна терминала на рабочем столе |
+| `window.overlay_position` | `{"x": int, "y": int} \| null` | `null` | Координаты оверлея питомца на рабочем столе |
 | `behavior.inactivity_timeout_ms`| `int` | `5000` | Время активности до скрытия питомца в миллисекундах (`5000`, `10000`, `15000`) |
 | `behavior.reminders_enabled` | `bool` | `true` | Включены ли случайные напоминания Капри о себе |
+| `behavior.reminder_min_interval_ms` | `int` | `600000` | Минимальный интервал периодических напоминаний (10 минут) |
+| `behavior.reminder_max_interval_ms` | `int` | `3600000` | Максимальный интервал периодических напоминаний (60 минут) |
+| `game_mode.suppression_enabled` | `bool` | `true` | Подавление всплывающего HUD и реплик при запуске полноэкранных игр |
+| `game_mode.cooldown_seconds` | `float` | `3.0` | Задержка перед выходом из игрового режима при сворачивании игры |
+| `game_mode.whitelist` | `list[str]` | `[]` | Белый список исполняемых файлов процессов |
+| `game_mode.blacklist` | `list[str]` | `["steam.exe", ...]` | Черный список исполняемых файлов игр и лаунчеров |
+| `network.user_agent` | `str \| null` | `null` | Пользовательский User-Agent (если null, генерируется автоматически) |
+| `discord.enabled` | `bool` | `true` | Включена ли интеграция с Discord Rich Presence |
+| `discord.client_id` | `str` | `"1567968896277938266"` | Client ID приложения Discord RPC |
 
 ---
 
@@ -112,7 +156,7 @@
    - Если монитор с именем `designated_screen` найден в системе, окно привязывается к нему.
    - **Fallback:** Если монитор отключен или имя не найдено, используется `QGuiApplication.primaryScreen()` или первый доступный экран.
 
-3. **Координаты окон (`terminal_position` / `overlay_position`):**
+3. **Координаты окон (`position` / `overlay_position`):**
    - Если координаты заданы, проверяется, пересекается ли прямоугольник окна `QRect(x, y, w, h)` с областью `availableGeometry()` любого из подключенных мониторов.
    - **Fallback:** Если координаты находятся за пределами видимости (например, второй монитор отключили), окно автоматически центрируется на активном мониторе:
      `cx = geo.left() + (geo.width() - w) // 2`
@@ -133,8 +177,8 @@
    - Устанавливается `get_speech_sfx().set_volume(sfx_volume)`.
    - Устанавливается `self._media.audio.setVolume(media_volume)` и `sound_audio.setVolume(media_volume)`.
 
-8. **Режим отображения (`appearance.mode`):**
-   - Если сохранен режим `"overlay"`, при старте инициируется переключение в оверлей (`_toggle_capri_overlay()`).
+8. **Внешний вид и поза (`appearance.pose`, `appearance.scale`):**
+   - Восстанавливается выбранная поза (`sit`, `stay`, `crouch`) и процент масштаба спрайта.
 
 ---
 
@@ -144,12 +188,12 @@
 При переключении любого элемента в контекстном меню или через шорткаты значение немедленно сохраняется в конфигурацию:
 - **Выбор монитора:** обновление `screen.designated_screen`.
 - **Выбор микрофона:** обновление `audio.designated_microphone`.
-- **Тумблер глитчей:** обновление `effects.glitches_enabled`.
-- **Тумблер голоса:** обновление `audio.voice_enabled`.
-- **Смена режима (Окно / Оверлей):** обновление `appearance.mode`.
+- **Тумблер глитчей:** обновление `effects.glitches_enabled` и `effects.glitch_intensity`.
+- **Тумблер голоса и бэкенда:** обновление `audio.voice_enabled`, `audio.asr_backend`.
+- **Смена позы и масштаба:** обновление `appearance.pose`, `appearance.scale`.
 
 ### 5.2. Сохранение позиции окна
-- В `mouseReleaseEvent` обоих окон (`CapriWindow` и `CapriOverlayWindow`) после перемещения пользователя обновляются координаты `terminal_position` или `overlay_position`.
+- В `mouseReleaseEvent` окна `CapriWindow` после перемещения пользователя обновляются координаты `position`.
 - В `closeEvent` финальные координаты активного окна актуализируются в конфиге.
 
 ---

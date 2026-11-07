@@ -1,22 +1,26 @@
+"""Веб-поиск и проверка обновлений проекта CapriPet.
+
+Включает функции для открытия поиска в Google и YouTube в браузере,
+получения списка видеороликов через yt-dlp, а также сопоставления локальной
+версии приложения с последней версией в репозитории GitHub.
+"""
+
 from __future__ import annotations
 
-from typing import Any
-import webbrowser
-from urllib.parse import quote_plus
-import logging
-from pathlib import Path
 import datetime
+import logging
+import webbrowser
+from pathlib import Path
+from urllib.parse import quote_plus
 
-import yt_dlp
 import httpx
+import yt_dlp
 from dateutil import parser as date_parser
 
 logger = logging.getLogger(__name__)
 
 REPO_URL = "https://github.com/xTerionsilker/CapriPet-Python"
-UPDATE_FILE_URL = (
-    "https://raw.githubusercontent.com/xTerionsilker/CapriPet-Python/main/version.txt"
-)
+UPDATE_FILE_URL = "https://raw.githubusercontent.com/xTerionsilker/CapriPet-Python/main/version.txt"
 VERSION_FILENAME = "version.txt"
 REQUEST_TIMEOUT_SEC = 5
 
@@ -29,7 +33,9 @@ def search_google(query: str) -> str:
     return f"Ищу в Google: {query}"
 
 
-def fetch_youtube_top_videos(query: str, limit: int = 5) -> list[dict[str, str]]:
+def fetch_youtube_top_videos(
+    query: str, limit: int = 5
+) -> list[dict[str, str]]:
     query = query.strip()
     if not query:
         return []
@@ -43,7 +49,9 @@ def fetch_youtube_top_videos(query: str, limit: int = 5) -> list[dict[str, str]]
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            res = ydl.extract_info(f"ytsearch{limit}:{query}", download=False)
+            res = ydl.extract_info(
+                f"ytsearch{limit}:{query}", download=False
+            )
             entries = res.get("entries") or []
 
             videos: list[dict[str, str]] = []
@@ -52,13 +60,18 @@ def fetch_youtube_top_videos(query: str, limit: int = 5) -> list[dict[str, str]]
                     continue
                 vid = entry.get("id")
                 title = entry.get("title") or ""
-                url = entry.get("url") or f"https://www.youtube.com/watch?v={vid}"
+                url = (
+                    entry.get("url")
+                    or f"https://www.youtube.com/watch?v={vid}"
+                )
                 if vid:
-                    videos.append({
-                        "id": str(vid),
-                        "title": str(title).strip(),
-                        "url": str(url),
-                    })
+                    videos.append(
+                        {
+                            "id": str(vid),
+                            "title": str(title).strip(),
+                            "url": str(url),
+                        }
+                    )
             return videos[:limit]
     except Exception as exc:
         logger.debug("Ошибка при поиске через yt-dlp: %s", exc)
@@ -92,11 +105,15 @@ def parse_version_datetime(raw_text: str) -> datetime.datetime | None:
         try:
             parsed = date_parser.parse(first_line, dayfirst=True)
         except (ValueError, OverflowError):
-            logger.warning("Некорректная дата/время в версии: %r", first_line)
+            logger.warning(
+                "Некорректная дата/время в версии: %r", first_line
+            )
             return None
 
     if parsed.tzinfo is not None:
-        parsed = parsed.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        parsed = parsed.astimezone(datetime.timezone.utc).replace(
+            tzinfo=None
+        )
     return parsed
 
 
@@ -114,7 +131,9 @@ def read_local_version_datetime() -> datetime.datetime | None:
     try:
         return parse_version_datetime(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        logger.warning("Не удалось прочитать локальный файл версии: %s", exc)
+        logger.warning(
+            "Не удалось прочитать локальный файл версии: %s", exc
+        )
         return None
 
 
@@ -129,7 +148,9 @@ def fetch_remote_version_datetime() -> datetime.datetime | None:
         response.raise_for_status()
         return parse_version_datetime(response.text)
     except httpx.HTTPError as exc:
-        logger.warning("Ошибка при сетевом запросе к удалённой версии: %s", exc)
+        logger.warning(
+            "Ошибка при сетевом запросе к удалённой версии: %s", exc
+        )
         return None
 
 

@@ -1,8 +1,15 @@
+"""Координатор голосового ввода и обработки команд питомца.
+
+Управляет жизненным циклом распознавания речи, активацией по ключевому слову,
+голосовым HUD-индикатором и передачей команд в подсистему исполнения.
+"""
+
 from __future__ import annotations
 
 import random
 import time
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, QTimer
 from PySide6.QtMultimedia import QAudioDevice
@@ -28,8 +35,9 @@ WAKE_LINES = (
     "Говори.",
 )
 
+
 class VoiceCoordinator(QObject):
-    
+    """Координатор подсистемы распознавания речи и голосового интерфейса."""
 
     def __init__(
         self,
@@ -55,7 +63,9 @@ class VoiceCoordinator(QObject):
 
         self._voice_window_timer = QTimer(self)
         self._voice_window_timer.setSingleShot(True)
-        self._voice_window_timer.timeout.connect(self._on_voice_window_expired)
+        self._voice_window_timer.timeout.connect(
+            self._on_voice_window_expired
+        )
 
     @property
     def voice(self) -> VoiceInput:
@@ -81,7 +91,11 @@ class VoiceCoordinator(QObject):
             self._voice.start()
 
     def wake_if_needed(self) -> None:
-        if get_config_value("audio.voice_enabled", True) and not self._voice.is_listening and not self._voice.is_busy:
+        if (
+            get_config_value("audio.voice_enabled", True)
+            and not self._voice.is_listening
+            and not self._voice.is_busy
+        ):
             self._voice.start()
 
     def toggle_voice(self) -> str:
@@ -91,13 +105,12 @@ class VoiceCoordinator(QObject):
             self._voice.stop()
             set_config_value("audio.voice_enabled", False)
             return "Голосовой ввод отключён."
-        else:
-            preload_model_async()
-            self._voice.start()
-            set_config_value("audio.voice_enabled", True)
-            if self._voice.is_listening:
-                return "Слушаю. Скажи «Капри» и команду."
-            return "Микрофон недоступен."
+        preload_model_async()
+        self._voice.start()
+        set_config_value("audio.voice_enabled", True)
+        if self._voice.is_listening:
+            return "Слушаю. Скажи «Капри» и команду."
+        return "Микрофон недоступен."
 
     def ensure_hud(self) -> CyberVoiceHud:
         if self._hud is None:
@@ -110,16 +123,20 @@ class VoiceCoordinator(QObject):
             hud = self.ensure_hud()
             hud.show_hud(status="WAITING_ARGUMENT", mode="AWAITING_INPUT")
         else:
-            if not self.is_armed:
-                if self._hud is not None:
-                    self._hud.hide_hud(delay_ms=400)
+            if not self.is_armed and self._hud is not None:
+                self._hud.hide_hud(delay_ms=400)
 
     @property
     def is_armed(self) -> bool:
         return time.monotonic() < self._voice_armed_until
 
+    def arm(self) -> None:
+        self._arm()
+
     def _arm(self) -> None:
-        self._voice_armed_until = time.monotonic() + VOICE_COMMAND_WINDOW_MS / 1000
+        self._voice_armed_until = (
+            time.monotonic() + VOICE_COMMAND_WINDOW_MS / 1000
+        )
         self._voice_window_timer.start(VOICE_COMMAND_WINDOW_MS)
         self._voice.set_armed(True)
         hud = self.ensure_hud()
@@ -130,19 +147,23 @@ class VoiceCoordinator(QObject):
         self._voice_armed_until = 0.0
         self._voice_window_timer.stop()
         self._voice.set_armed(False)
-        if not self._window.input_flow.awaiting_reply:
-            if self._hud is not None:
-                self._hud.hide_hud(delay_ms=2200)
+        if (
+            not self._window.input_flow.awaiting_reply
+            and self._hud is not None
+        ):
+            self._hud.hide_hud(delay_ms=2200)
 
     def _on_voice_window_expired(self) -> None:
         self._voice_armed_until = 0.0
         self._voice.set_armed(False)
-        if not self._window.input_flow.awaiting_reply:
-            if self._hud is not None:
-                self._hud.hide_hud(delay_ms=300)
+        if (
+            not self._window.input_flow.awaiting_reply
+            and self._hud is not None
+        ):
+            self._hud.hide_hud(delay_ms=300)
 
     def _on_partial_voice_text(self, partial_text: str) -> None:
-        
+
         if not partial_text:
             return
         if self.is_armed or self._window.input_flow.awaiting_reply:
@@ -171,8 +192,9 @@ class VoiceCoordinator(QObject):
             hud.set_recognized_text(text, keep_ms=2500)
 
         if command:
-
-            self._voice_armed_until = time.monotonic() + VOICE_FOLLOWUP_WINDOW_MS / 1000
+            self._voice_armed_until = (
+                time.monotonic() + VOICE_FOLLOWUP_WINDOW_MS / 1000
+            )
             self._voice_window_timer.start(VOICE_FOLLOWUP_WINDOW_MS)
             self._voice.set_armed(True)
             self._on_command_ready(command)

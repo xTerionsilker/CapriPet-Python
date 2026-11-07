@@ -1,9 +1,11 @@
+"""Command subsystem package exports and default command registry wiring."""
+
 from __future__ import annotations
 
 from .base import BaseCommand, CommandContext, CommandResult
 from .handlers import (
-    DebugCommand,
     CleanSystemCommand,
+    DebugCommand,
     GlitchToggleCommand,
     GoogleSearchCommand,
     KillAppCommand,

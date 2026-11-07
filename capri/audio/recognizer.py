@@ -1,13 +1,33 @@
+"""Сервис распознавания речи с поддержкой бэкендов Vosk и Faster-Whisper."""
+
 from __future__ import annotations
 
 import enum
+import importlib
+import importlib.metadata
 import json
 import logging
 import os
 import re
+import sys
 import threading
 from pathlib import Path
 from typing import Any
+
+try:
+    import numpy as np
+except ImportError:
+    np = None  # type: ignore[assignment]
+
+try:
+    from faster_whisper import WhisperModel
+except ImportError:
+    WhisperModel = None  # type: ignore[assignment]
+
+try:
+    import vosk
+except ImportError:
+    vosk = None  # type: ignore[assignment]
 
 from ..core.settings import get_config_value, set_config_value
 
@@ -15,10 +35,12 @@ logger = logging.getLogger(__name__)
 
 
 class RecognitionError(RuntimeError):
-    pass
+    """Исключение при ошибках загрузки моделей или распознавания речи."""
 
 
 class ModelStatus(enum.Enum):
+    """Статусы жизненного цикла модели распознавания речи."""
+
     UNLOADED = "unloaded"
     LOADING = "loading"
     READY = "ready"
@@ -26,15 +48,26 @@ class ModelStatus(enum.Enum):
 
 
 class SpeechRecognitionBackend:
+    """Базовый интерфейс для бэкендов распознавания речи."""
+
     def is_available(self) -> bool:
         raise NotImplementedError
 
-    def recognize(self, data: bytes, *, channels: int, sample_rate: int) -> str | None:
+    def get_model(self) -> Any:
+        raise NotImplementedError
+
+    def recognize(
+        self, data: bytes, *, channels: int, sample_rate: int
+    ) -> str | None:
         raise NotImplementedError
 
 
 class FasterWhisperBackend(SpeechRecognitionBackend):
-    def __init__(self, model_size: str = "base", compute_type: str = "int8") -> None:
+    """Бэкенд распознавания речи на базе Faster-Whisper."""
+
+    def __init__(
+        self, model_size: str = "base", compute_type: str = "int8"
+    ) -> None:
         self.model_size = model_size
         self.compute_type = compute_type
         self._model: Any = None
@@ -43,11 +76,9 @@ class FasterWhisperBackend(SpeechRecognitionBackend):
     def is_available(self) -> bool:
         if self._available is not None:
             return self._available
-        try:
-            import faster_whisper
-            self._available = True
-        except ImportError:
-            self._available = False
+        if sys.modules.get("faster_whisper") is None:
+            return False
+        self._available = WhisperModel is not None
         return self._available
 
     def _find_model_path(self) -> str:
@@ -57,19 +88,36 @@ class FasterWhisperBackend(SpeechRecognitionBackend):
             return str(local_base)
         return self.model_size
 
-    def _get_model(self) -> Any:
+    def get_model(self) -> Any:
         if self._model is not None:
             return self._model
-        from faster_whisper import WhisperModel
+        if WhisperModel is None:
+            raise RecognitionError(
+                "Для Faster-Whisper установите библиотеку: pip install faster-whisper"
+            )
+
         path = self._find_model_path()
-        logger.info("Загрузка модели Faster-Whisper (%s, %s)...", path, self.compute_type)
-        self._model = WhisperModel(path, device="cpu", compute_type=self.compute_type, cpu_threads=2)
+        logger.info(
+            "Загрузка модели Faster-Whisper (%s, %s)...",
+            path,
+            self.compute_type,
+        )
+        self._model = WhisperModel(
+            path,
+            device="cpu",
+            compute_type=self.compute_type,
+            cpu_threads=2,
+        )
         return self._model
 
-    def recognize(self, data: bytes, *, channels: int, sample_rate: int) -> str | None:
-        if not self.is_available():
+    def _get_model(self) -> Any:
+        return self.get_model()
+
+    def recognize(
+        self, data: bytes, *, channels: int, sample_rate: int
+    ) -> str | None:
+        if not self.is_available() or np is None:
             return None
-        import numpy as np
 
         samples = np.frombuffer(data, dtype=np.int16)
         if channels > 1:
@@ -84,7 +132,7 @@ class FasterWhisperBackend(SpeechRecognitionBackend):
                 audio,
             ).astype(np.float32)
 
-        model = self._get_model()
+        model = self.get_model()
         segments, _ = model.transcribe(
             audio,
             beam_size=1,
@@ -98,6 +146,8 @@ class FasterWhisperBackend(SpeechRecognitionBackend):
 
 
 class VoskSpeechService:
+    """Управление моделями Vosk и Faster-Whisper и диспетчеризация распознавания речи."""
+
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._status = ModelStatus.UNLOADED
@@ -107,7 +157,9 @@ class VoskSpeechService:
         self._whisper_backend: Any = None
 
     def get_backend(self) -> str:
-        backend = str(get_config_value("audio.asr_backend", "vosk")).lower()
+        backend = str(
+            get_config_value("audio.asr_backend", "vosk")
+        ).lower()
         return "whisper" if backend == "whisper" else "vosk"
 
     def set_backend(self, backend: str) -> None:
@@ -127,8 +179,15 @@ class VoskSpeechService:
         backend = self.get_backend()
         with self._lock:
             if backend == "whisper":
-                return self._whisper_backend is not None and getattr(self._whisper_backend, "_model", None) is not None
-            return self._status == ModelStatus.READY and self._vosk_model is not None
+                return (
+                    self._whisper_backend is not None
+                    and getattr(self._whisper_backend, "_model", None)
+                    is not None
+                )
+            return (
+                self._status == ModelStatus.READY
+                and self._vosk_model is not None
+            )
 
     @property
     def is_loading(self) -> bool:
@@ -143,22 +202,16 @@ class VoskSpeechService:
     def check_available(self) -> None:
         backend = self.get_backend()
         if backend == "whisper":
-            try:
-                import faster_whisper
-            except ImportError as error:
+            if WhisperModel is None:
                 raise RecognitionError(
                     "Для Faster-Whisper установите библиотеку: pip install faster-whisper"
-                ) from error
+                )
             return
 
-        try:
-            import importlib
-
-            importlib.import_module("vosk")
-        except ImportError as error:
+        if vosk is None:
             raise RecognitionError(
                 "Для локального голосового ввода установите vosk (pip install vosk)."
-            ) from error
+            )
 
     def find_model_path(self) -> str | None:
         env_path = os.environ.get("CAPRI_VOSK_MODEL")
@@ -185,13 +238,11 @@ class VoskSpeechService:
     def get_model_info(self) -> dict[str, object]:
         backend = self.get_backend()
         if backend == "whisper":
-            whisper_available = True
-            try:
-                import faster_whisper
-            except ImportError:
-                whisper_available = False
+            whisper_available = WhisperModel is not None
             wb = self._whisper_backend
-            initialized = wb is not None and getattr(wb, "_model", None) is not None
+            initialized = (
+                wb is not None and getattr(wb, "_model", None) is not None
+            )
             return {
                 "backend": "whisper",
                 "available": whisper_available,
@@ -203,21 +254,15 @@ class VoskSpeechService:
                 "vosk_version": "",
             }
 
-        vosk_available = True
+        vosk_available = vosk is not None
         vosk_version = ""
-        try:
-            import vosk
-
+        if vosk is not None:
             vosk_version = str(getattr(vosk, "__version__", "") or "")
             if not vosk_version:
                 try:
-                    from importlib.metadata import version as package_version
-
-                    vosk_version = package_version("vosk")
+                    vosk_version = importlib.metadata.version("vosk")
                 except Exception:
                     vosk_version = ""
-        except ImportError:
-            vosk_available = False
 
         model_path = self.find_model_path()
         model_name = Path(model_path).name if model_path else ""
@@ -242,7 +287,10 @@ class VoskSpeechService:
         with self._lock:
             if self._vosk_model is not None:
                 return
-            if self._preload_thread is not None and self._preload_thread.is_alive():
+            if (
+                self._preload_thread is not None
+                and self._preload_thread.is_alive()
+            ):
                 return
             self._preload_thread = threading.Thread(
                 target=self._preload_worker,
@@ -255,13 +303,17 @@ class VoskSpeechService:
         try:
             if self.get_backend() == "whisper":
                 backend = self.get_whisper_backend()
-                backend._get_model()
+                backend.get_model()
             else:
                 self.get_model()
         except RecognitionError as error:
-            logger.warning("Не удалось прогреть модель распознавания: %s", error)
+            logger.warning(
+                "Не удалось прогреть модель распознавания: %s", error
+            )
         except Exception:
-            logger.exception("Ошибка фоновой загрузки модели распознавания.")
+            logger.exception(
+                "Ошибка фоновой загрузки модели распознавания."
+            )
 
     def get_whisper_backend(self) -> FasterWhisperBackend:
         with self._lock:
@@ -275,13 +327,11 @@ class VoskSpeechService:
                 return self._vosk_model
 
             self._status = ModelStatus.LOADING
-            try:
-                import vosk
-            except ImportError as error:
+            if vosk is None:
                 self._status = ModelStatus.FAILED
                 raise RecognitionError(
                     "Для локального распознавания установите vosk (pip install vosk)."
-                ) from error
+                )
 
             vosk.SetLogLevel(-1)
             model_path = self.find_model_path()
@@ -301,32 +351,46 @@ class VoskSpeechService:
 
     @staticmethod
     def to_mono(data: bytes, channels: int) -> bytes:
-        if channels <= 1:
+        if channels <= 1 or np is None:
             return data
-
-        import numpy as np
 
         samples = np.frombuffer(data, dtype=np.int16)
         frame_count = samples.size // channels
         if frame_count == 0:
             return b""
-        frames = samples[: frame_count * channels].reshape(frame_count, channels)
-        return frames.mean(axis=1, dtype=np.float32).astype(np.int16).tobytes()
+        frames = samples[: frame_count * channels].reshape(
+            frame_count, channels
+        )
+        return (
+            frames.mean(axis=1, dtype=np.float32)
+            .astype(np.int16)
+            .tobytes()
+        )
 
-    def create_recognizer(self, sample_rate: int, grammar: str | None = None) -> Any:
-        import vosk
+    def create_recognizer(
+        self, sample_rate: int, grammar: str | None = None
+    ) -> Any:
+        if vosk is None:
+            raise RecognitionError(
+                "Для локального распознавания установите vosk (pip install vosk)."
+            )
 
         model = self.get_model()
         if grammar:
             return vosk.KaldiRecognizer(model, float(sample_rate), grammar)
         return vosk.KaldiRecognizer(model, float(sample_rate))
 
-    def recognize(self, data: bytes, *, channels: int, sample_rate: int) -> str | None:
+    def recognize(
+        self, data: bytes, *, channels: int, sample_rate: int
+    ) -> str | None:
         if self.get_backend() == "whisper":
             backend = self.get_whisper_backend()
-            return backend.recognize(data, channels=channels, sample_rate=sample_rate)
+            return backend.recognize(
+                data, channels=channels, sample_rate=sample_rate
+            )
 
-        import vosk
+        if vosk is None:
+            return None
 
         model = self.get_model()
         mono_data = self.to_mono(data, channels)
@@ -398,5 +462,9 @@ def to_mono(data: bytes, channels: int) -> bytes:
     return _service.to_mono(data, channels)
 
 
-def recognize(data: bytes, *, channels: int, sample_rate: int) -> str | None:
-    return _service.recognize(data, channels=channels, sample_rate=sample_rate)
+def recognize(
+    data: bytes, *, channels: int, sample_rate: int
+) -> str | None:
+    return _service.recognize(
+        data, channels=channels, sample_rate=sample_rate
+    )

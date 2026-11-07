@@ -1,7 +1,10 @@
+"""Конвейер обработки входящих текстовых и голосовых команд."""
+
 from __future__ import annotations
 
 import re
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
@@ -91,10 +94,14 @@ NEGATIVE_WORDS = frozenset(
 )
 
 
-def _answer_words(text: str) -> set[str]:
+def answer_words(text: str) -> set[str]:
+    """Извлекает нормализованные слова ответа."""
     words = set(re.findall(r"[\w-]+", text.casefold()))
     words |= {switch_layout(w) for w in words}
     return words
+
+
+_answer_words = answer_words
 
 
 def _parse_selected_number(text: str, max_number: int = 5) -> int | None:
@@ -104,7 +111,6 @@ def _parse_selected_number(text: str, max_number: int = 5) -> int | None:
         num = NUMBER_WORDS_MAP[clean]
         if 1 <= num <= max_number:
             return num
-
 
     words = _answer_words(text)
     for w in words:
@@ -123,6 +129,7 @@ def _confirm_prompt(command: Any) -> str:
 
 
 class InputFlow(QObject):
+    """Управление диалоговым потоком и подтверждениями команд."""
 
     awaiting_reply_changed = Signal(bool)
 
@@ -132,7 +139,9 @@ class InputFlow(QObject):
         super().__init__(parent)
         self._registry = registry
         self._pending: tuple[Any, str] | None = None
-        self._custom_waiter: tuple[Callable[[str], str], QTimer] | None = None
+        self._custom_waiter: tuple[Callable[[str], str], QTimer] | None = (
+            None
+        )
 
         self._confirm_timer = QTimer(self)
         self._confirm_timer.setSingleShot(True)
@@ -143,7 +152,9 @@ class InputFlow(QObject):
         return self._pending is not None or self._custom_waiter is not None
 
     def expect_reply(
-        self, handler: Callable[[str], str], timeout_ms: int = CONFIRM_TIMEOUT_MS
+        self,
+        handler: Callable[[str], str],
+        timeout_ms: int = CONFIRM_TIMEOUT_MS,
     ) -> None:
         """Регистрирует кастомное ожидание ответа пользователя (без префикса «Капри»)."""
         self.clear()

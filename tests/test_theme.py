@@ -4,14 +4,14 @@ import unittest
 
 from capri.ui.theme import (
     ACID_GREEN,
+    CSS_CYBER_HUD,
+    CSS_CYBER_TERMINAL,
+    CSS_CYBER_UI,
     ELECTRIC_BLUE,
     NEON_CRIMSON,
     NEON_VIOLET,
     OBSIDIAN_BLACK,
     PURE_WHITE,
-    CSS_CYBER_HUD,
-    CSS_CYBER_TERMINAL,
-    CSS_CYBER_UI,
 )
 
 

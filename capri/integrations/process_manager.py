@@ -1,3 +1,11 @@
+"""Мониторинг, нечеткий поиск и завершение системных процессов.
+
+Предоставляет кроссплатформенный доступ к запущенным процессам с помощью
+библиотеки psutil, сопоставляет пользовательские запросы с процессами
+с использованием нечеткого сравнения, транслитерации и фонетической
+нормализации, а также выполняет групповое завершение найденных процессов.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -7,8 +15,8 @@ from typing import Any
 import psutil
 from rapidfuzz import fuzz
 
-from .app_launcher import phonetic_normalize, translit_ru_to_en
 from ..commands.registry import switch_layout
+from .app_launcher import phonetic_normalize, translit_ru_to_en
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +34,20 @@ def get_running_processes() -> list[dict[str, Any]]:
             cmd = " ".join(cmdline) if cmdline else name
 
             if pid is not None and (name or cmd):
-                processes.append({
-                    "pid": pid,
-                    "name": name or os.path.basename(cmdline[0] if cmdline else ""),
-                    "comm": name,
-                    "cmd": cmd,
-                })
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                processes.append(
+                    {
+                        "pid": pid,
+                        "name": name
+                        or os.path.basename(cmdline[0] if cmdline else ""),
+                        "comm": name,
+                        "cmd": cmd,
+                    }
+                )
+        except (
+            psutil.NoSuchProcess,
+            psutil.AccessDenied,
+            psutil.ZombieProcess,
+        ):
             continue
         except Exception as exc:
             logger.debug("Ошибка при чтении процесса: %s", exc)
@@ -57,7 +72,9 @@ def _score_candidate(query: str, target: str) -> float:
     if q_trans == t_trans:
         return max(ratio, 95.0)
     if q_trans in t_trans:
-        ratio = max(ratio, 75.0 + (len(q_trans) / max(len(t_trans), 1)) * 15.0)
+        ratio = max(
+            ratio, 75.0 + (len(q_trans) / max(len(t_trans), 1)) * 15.0
+        )
 
     ratio = max(ratio, fuzz.WRatio(q_trans, t_trans))
 
@@ -81,7 +98,10 @@ def _score_process_group(query: str, name: str, cmds: list[str]) -> float:
     if clean_name.lower().endswith(".exe"):
         clean_name = clean_name[:-4]
 
-    scores = [_score_candidate(query, clean_name), _score_candidate(query, name)]
+    scores = [
+        _score_candidate(query, clean_name),
+        _score_candidate(query, name),
+    ]
     for cmd in cmds[:5]:
         first_token = os.path.basename(cmd.split()[0]) if cmd else ""
         if first_token.lower().endswith(".exe"):
@@ -92,7 +112,9 @@ def _score_process_group(query: str, name: str, cmds: list[str]) -> float:
     return max(scores) if scores else 0.0
 
 
-def find_matching_processes(query: str, limit: int = 5) -> list[dict[str, Any]]:
+def find_matching_processes(
+    query: str, limit: int = 5
+) -> list[dict[str, Any]]:
     """Находит процессы по названию, группирует их по имени процесса и возвращает топ-5."""
     trimmed = query.strip()
     if not trimmed:
@@ -102,9 +124,7 @@ def find_matching_processes(query: str, limit: int = 5) -> list[dict[str, Any]]:
     if not processes:
         return []
 
-
     cur_pid = os.getpid()
-
 
     groups: dict[str, dict[str, Any]] = {}
     for p in processes:
@@ -143,10 +163,16 @@ def kill_process_group(group: dict[str, Any]) -> tuple[bool, int]:
             proc = psutil.Process(pid)
             proc.terminate()
             killed_count += 1
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        except (
+            psutil.NoSuchProcess,
+            psutil.AccessDenied,
+            psutil.ZombieProcess,
+        ):
             continue
         except Exception as exc:
-            logger.debug("Ошибка при завершении процесса PID %s: %s", pid, exc)
+            logger.debug(
+                "Ошибка при завершении процесса PID %s: %s", pid, exc
+            )
             continue
 
     return killed_count > 0, killed_count

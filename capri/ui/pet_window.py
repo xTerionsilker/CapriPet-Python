@@ -1,25 +1,31 @@
+"""Главное окно настольного кибер-питомца Capri.
+
+Управляет жизненным циклом прозрачного оверлейного окна питомца,
+обработкой пользовательского ввода, анимациями и интеграциями подсистем.
+"""
+
 from __future__ import annotations
 
+import contextlib
 import getpass
 import random
 import time
+from ctypes import wintypes
 from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import (
     QGuiApplication,
-    QIcon,
     QKeySequence,
     QPainter,
     QPixmap,
-    QScreen,
     QShortcut,
 )
-from PySide6.QtMultimedia import QAudioDevice, QMediaDevices
-from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QWidget
+from PySide6.QtMultimedia import QMediaDevices
+from PySide6.QtWidgets import QApplication, QWidget
 
-from ..audio.recognizer import get_model_info, is_model_ready, preload_model_async
+from ..audio.recognizer import get_model_info, is_model_ready
 from ..controllers.orchestrator import PetOrchestrator
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
@@ -27,21 +33,26 @@ from ..core.settings import (
     set_config_value,
 )
 from ..effects.effects_coordinator import EffectsCoordinator
+from ..effects.model_init_animation import ModelInitOverlay
+from ..effects.session_animations import SessionAnimationOverlay
 from ..effects.transition import TransitionOverlay
+from ..integrations.game_mode import GameModeDetector
 from ..integrations.system_power_hook import SystemEventHook
-from .context_menu import TrayManager, build_pet_context_menu
-from .pet_renderer import PetRenderState, PetRenderer
+from .context_menu import TrayManager
+from .game_overlay import SilentPresenceGlyph
+from .pet_renderer import PetRenderer, PetRenderState
+from .pet_window_actions import PetWindowActionDelegate
 from .speech import (
     SpeechWindow,
-    close_all as close_all_speech,
-    has_active_speech,
+    set_speech_suppressed,
     show_text,
+)
+from .speech import (
+    close_all as close_all_speech,
 )
 from .speech_sfx import get_speech_sfx
 from .sprite_manager import SpriteManager
 from .teleport_controller import TeleportController
-from .voice_coordinator import VoiceCoordinator
-from .voice_hud import CyberVoiceHud
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 ASSETS = ROOT / "assets"
@@ -76,8 +87,9 @@ WAKE_LINES = (
     "Говори.",
 )
 
+
 class CapriWindow(QWidget):
-    
+    """Основное прозрачное окно рабочего стола с интерактивным питомцем."""
 
     def __init__(self) -> None:
         super().__init__(
@@ -110,12 +122,16 @@ class CapriWindow(QWidget):
         self._startup_overlay: TransitionOverlay | None = None
         self._model_init_overlay: ModelInitOverlay | None = None
         self._session_overlay: SessionAnimationOverlay | None = None
+        self._exit_overlay: TransitionOverlay | None = None
+        self._exit_safety_timer: QTimer | None = None
+        self._exit_finalized = False
         self._closing = False
         self._designated_screen_name: str | None = None
         self._renderer = PetRenderer()
         self._started_at = time.monotonic()
 
         self._teleport = TeleportController(self)
+        self._actions = PetWindowActionDelegate(self)
 
         self._glitch_timer = QTimer(self)
         self._glitch_timer.setInterval(70)
@@ -127,7 +143,8 @@ class CapriWindow(QWidget):
         self._load_initial_settings()
 
         inactivity_ms = get_config_value(
-            "behavior.inactivity_timeout_ms", ACTIVITY_TIMEOUT_OPTIONS_MS[0]
+            "behavior.inactivity_timeout_ms",
+            ACTIVITY_TIMEOUT_OPTIONS_MS[0],
         )
         try:
             inactivity_ms = int(inactivity_ms)
@@ -146,6 +163,49 @@ class CapriWindow(QWidget):
 
         self._orchestrator.start()
         self._tray = TrayManager(self)
+        self._silent_glyph = SilentPresenceGlyph()
+        self._is_stealth_mode = False
+        self._stealth_origin_pos: QPoint | None = None
+        self._stealth_transition_overlay: TransitionOverlay | None = None
+
+        game_suppression = bool(
+            get_config_value("game_mode.suppression_enabled", True)
+        )
+        game_cooldown = float(
+            get_config_value("game_mode.cooldown_seconds", 3.0)
+        )
+        game_whitelist = list(get_config_value("game_mode.whitelist", []))
+        game_blacklist = list(get_config_value("game_mode.blacklist", []))
+        self._game_detector = GameModeDetector(
+            suppression_enabled=game_suppression,
+            cooldown_seconds=game_cooldown,
+            whitelist=game_whitelist,
+            blacklist=game_blacklist,
+            parent=self,
+        )
+        self._game_detector.game_mode_changed.connect(
+            self._on_game_mode_changed
+        )
+
+    def __getattr__(self, name: str) -> Any:
+        actions = self.__dict__.get("_actions")
+        if actions is not None and hasattr(actions, name):
+            return getattr(actions, name)
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
+
+    @property
+    def action_delegate(self) -> PetWindowActionDelegate:
+        return self._actions
+
+    @property
+    def is_dragging(self) -> bool:
+        return self._is_dragging
+
+    @is_dragging.setter
+    def is_dragging(self, val: bool) -> None:
+        self._is_dragging = bool(val)
 
     @property
     def orchestrator(self) -> PetOrchestrator:
@@ -154,14 +214,6 @@ class CapriWindow(QWidget):
     @property
     def teleport_controller(self) -> TeleportController:
         return self._teleport
-
-    @property
-    def commands(self):
-        return self._orchestrator.commands
-
-    @property
-    def input_flow(self):
-        return self._orchestrator.flow
 
     @property
     def inactivity_manager(self):
@@ -187,7 +239,9 @@ class CapriWindow(QWidget):
     def pixmap(self) -> QPixmap:
         return self._sprite_manager.current_pixmap
 
-    def _on_sprite_changed(self, pixmap: QPixmap, hit_image, pose_name: str) -> None:
+    def _on_sprite_changed(
+        self, pixmap: QPixmap, _hit_image, _pose_name: str
+    ) -> None:
         old_size = self.size()
         self.setFixedSize(pixmap.size())
         if old_size != pixmap.size() and old_size.isValid():
@@ -202,69 +256,15 @@ class CapriWindow(QWidget):
             self.clearMask()
         self.update()
 
-    def set_sprite_scale(self, percent: int) -> None:
-        if self._sprite_manager.set_sprite_scale(percent):
-            self.speak(f"Размер: {percent}%")
 
-    def set_activity_timeout(self, seconds: int) -> None:
-        
-        timeout_ms = int(seconds) * 1000
-        if timeout_ms not in ACTIVITY_TIMEOUT_OPTIONS_MS:
-            return
-        self._activity_timeout_seconds = timeout_ms // 1000
-        set_config_value("behavior.inactivity_timeout_ms", timeout_ms)
-        self._orchestrator.inactivity.set_timeout_ms(timeout_ms)
-        self.speak(f"Время активности: {seconds} с")
-
-    @property
-    def activity_timeout_seconds(self) -> int:
-        return self._activity_timeout_seconds
-
-    def set_reminders_enabled(self, enabled: bool) -> None:
-        
-        enabled = bool(enabled)
-        if self._orchestrator._reminders_enabled == enabled:
-            return
-        self._orchestrator._reminders_enabled = enabled
-        set_config_value("behavior.reminders_enabled", enabled)
-        if enabled:
-            self._orchestrator.reminder.start()
-            self.speak("Напоминания включены.")
-        else:
-            self._orchestrator.reminder.stop()
-            self.speak("Напоминания выключены.")
-
-    @property
-    def reminders_enabled(self) -> bool:
-        return self._orchestrator._reminders_enabled
-
-    def set_reminder_interval_range(self, min_ms: int, max_ms: int) -> None:
-        
-        self._orchestrator.reminder.set_interval_range(min_ms, max_ms)
-        set_config_value("behavior.reminder_min_interval_ms", self._orchestrator.reminder.min_interval_ms)
-        set_config_value("behavior.reminder_max_interval_ms", self._orchestrator.reminder.max_interval_ms)
-
-    @property
-    def reminder_interval_range(self) -> tuple[int, int]:
-        return (
-            self._orchestrator.reminder.min_interval_ms,
-            self._orchestrator.reminder.max_interval_ms,
-        )
-
-    def set_pose(self, pose: str) -> None:
-        
-        changed = self._sprite_manager.set_pose(pose)
-        if changed:
-            self._pose_transition_ticks = 6
-            self._surge_ticks = max(self._surge_ticks, 6)
-
-    def set_pose_image(self, pose_name: str, path: Path) -> None:
-        
-        self._sprite_manager.set_pose_image(pose_name, path)
 
     def _build_shortcuts(self) -> None:
         QShortcut(QKeySequence("Ctrl+Q"), self, self.close)
-        QShortcut(QKeySequence("Ctrl+Space"), self, self._orchestrator.voice_coordinator.toggle_voice)
+        QShortcut(
+            QKeySequence("Ctrl+Space"),
+            self,
+            self._orchestrator.voice_coordinator.toggle_voice,
+        )
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -286,9 +286,15 @@ class CapriWindow(QWidget):
                 if wh is not None:
                     wh.setScreen(screen)
 
-                pos_data = get_config_value("window.position") or get_config_value("window.overlay_position")
+                pos_data = get_config_value(
+                    "window.position"
+                ) or get_config_value("window.overlay_position")
                 applied_pos = False
-                if isinstance(pos_data, dict) and "x" in pos_data and "y" in pos_data:
+                if (
+                    isinstance(pos_data, dict)
+                    and "x" in pos_data
+                    and "y" in pos_data
+                ):
                     target_rect = QRect(
                         int(pos_data["x"]),
                         int(pos_data["y"]),
@@ -309,7 +315,9 @@ class CapriWindow(QWidget):
                     self.move(cx, cy)
 
             screen_rect = (
-                screen.geometry() if screen is not None else self.geometry()
+                screen.geometry()
+                if screen is not None
+                else self.geometry()
             )
             self.set_pose("idle")
             self.hide()
@@ -320,7 +328,9 @@ class CapriWindow(QWidget):
                 target=self,
                 on_peak=self._reveal_on_startup,
             )
-            self._startup_overlay.finished.connect(self._on_startup_finished)
+            self._startup_overlay.finished.connect(
+                self._on_startup_finished
+            )
             self._startup_overlay.start()
 
     def _reveal_on_startup(self) -> None:
@@ -339,7 +349,7 @@ class CapriWindow(QWidget):
         self._start_model_init_animation()
 
     def _start_model_init_animation(self) -> None:
-        
+
         if self._closing or self._model_init_overlay is not None:
             return
         if not get_config_value("audio.voice_enabled", True):
@@ -393,7 +403,11 @@ class CapriWindow(QWidget):
             )
             self._telemetry_tag = random.choice(tags)
 
-        if self._spawn_glitch_ticks > 0 or self._is_dragging or self._surge_ticks > 0:
+        if (
+            self._spawn_glitch_ticks > 0
+            or self._is_dragging
+            or self._surge_ticks > 0
+        ):
             self._glitch_timer.setInterval(35)
         else:
             self._glitch_timer.setInterval(random.randint(65, 110))
@@ -416,7 +430,7 @@ class CapriWindow(QWidget):
         painter.end()
 
     def _is_point_on_sprite(self, pos: QPoint) -> bool:
-        
+
         return self._sprite_manager.is_point_on_sprite(pos.x(), pos.y())
 
     def mousePressEvent(self, event) -> None:
@@ -457,10 +471,10 @@ class CapriWindow(QWidget):
         ):
             QTimer.singleShot(0, self.showNormal)
 
-    def process_input(self, text: str) -> str:
-        return self._flow.handle(text)
-
-    def speak(self, text: str, hold_ms: int | None = None) -> SpeechWindow:
+    def _speak(
+        self, text: str, hold_ms: int | None = None
+    ) -> SpeechWindow | None:
+        """Показывает реплику питомца во всплывающем киберпанк-облаке речи."""
         if self._speech is not None:
             self._speech.close(immediate=True)
         self._speaking = True
@@ -469,16 +483,12 @@ class CapriWindow(QWidget):
             hold_ms = min(5000, max(1200, len(text) * 45))
         speech = show_text(text, parent=self, hold_ms=hold_ms)
         self._speech = speech
-        speech.destroyed.connect(
-            lambda *_, window=speech: self._forget_speech(window)
-        )
+        if speech is not None:
+            speech.destroyed.connect(
+                lambda *_, window=speech: self._forget_speech(window)
+            )
         return speech
 
-    def toggle_glitches(self) -> str:
-        return self._toggle_glitches()
-
-    def process_input(self, text: str) -> str:
-        return self._orchestrator.flow.handle(text)
 
     def _load_initial_settings(self) -> None:
         screen_name = get_config_value("screen.designated_screen")
@@ -500,9 +510,13 @@ class CapriWindow(QWidget):
         if not found_mic:
             self._orchestrator.voice_coordinator.set_device(None)
 
-        glitches_enabled = get_config_value("effects.glitches_enabled", True)
+        glitches_enabled = get_config_value(
+            "effects.glitches_enabled", True
+        )
         self._effects.glitches.set_enabled(bool(glitches_enabled))
-        glitch_intensity = get_config_value("effects.glitch_intensity", "weak")
+        glitch_intensity = get_config_value(
+            "effects.glitch_intensity", "weak"
+        )
         self._effects.set_glitch_intensity(str(glitch_intensity))
 
         speech_sfx = get_speech_sfx()
@@ -519,144 +533,26 @@ class CapriWindow(QWidget):
         speech_sound = get_config_value("audio.speech_sound_enabled", True)
         speech_sfx.set_speech_sound_enabled(bool(speech_sound))
 
-        effects_sound = get_config_value("audio.effects_sound_enabled", True)
+        effects_sound = get_config_value(
+            "audio.effects_sound_enabled", True
+        )
         speech_sfx.set_effects_sound_enabled(bool(effects_sound))
 
-        saved_pose = get_config_value("appearance.overlay_pose") or get_config_value("appearance.pose", "sit")
+        saved_pose = get_config_value(
+            "appearance.overlay_pose"
+        ) or get_config_value("appearance.pose", "sit")
         self.set_pose(str(saved_pose))
 
-    def get_designated_screen(self) -> QScreen | None:
-        if self._designated_screen_name:
-            for scr in QGuiApplication.screens():
-                if scr.name() == self._designated_screen_name:
-                    return scr
-        return self.screen() or QGuiApplication.primaryScreen()
 
-    def set_designated_screen(self, screen: QScreen) -> None:
-        self._designated_screen_name = screen.name()
-        set_config_value("screen.designated_screen", screen.name())
 
-        geo = screen.availableGeometry()
-        wh = self.windowHandle()
-        if wh is not None:
-            wh.setScreen(screen)
 
-        cx = geo.left() + (geo.width() - self.width()) // 2
-        cy = geo.top() + (geo.height() - self.height()) // 2
-        self.move(cx, cy)
-        set_config_value("window.position", {"x": cx, "y": cy})
-        set_config_value("window.overlay_position", {"x": cx, "y": cy})
-        self._orchestrator.inactivity.reset_timer()
-        self.speak(f"Монитор: {screen.name()}")
 
-    def set_designated_microphone(self, device: QAudioDevice | None) -> None:
-        self._orchestrator.voice_coordinator.set_device(device)
-        desc = device.description() if device and not device.isNull() else ""
-        set_config_value("audio.designated_microphone", desc if desc else None)
-        name = desc if desc else "По умолчанию"
-        self.speak(f"Микрофон: {name}")
 
-    def set_asr_backend(self, backend: str) -> None:
-        from ..audio.recognizer import set_backend, preload_model_async
-        set_backend(backend)
-        preload_model_async()
-        label = "Faster-Whisper" if backend == "whisper" else "Vosk"
-        self._orchestrator.update_discord_asr(backend)
-        self.speak(f"Модель речи: {label}")
-
-    def set_speech_sound_enabled(self, enabled: bool) -> None:
-        get_speech_sfx().set_speech_sound_enabled(enabled)
-        set_config_value("audio.speech_sound_enabled", bool(enabled))
-        status = "вкл" if enabled else "выкл"
-        self.speak(f"Звук сообщений: {status}")
-
-    def set_effects_sound_enabled(self, enabled: bool) -> None:
-        get_speech_sfx().set_effects_sound_enabled(enabled)
-        set_config_value("audio.effects_sound_enabled", bool(enabled))
-        status = "вкл" if enabled else "выкл"
-        self.speak(f"Звук эффектов: {status}")
-
-    def set_master_volume(self, percent: int) -> None:
-        if percent not in (25, 50, 75, 100):
-            return
-        if self._volume_percent == percent:
-            return
-        self._volume_percent = percent
-        get_speech_sfx().set_volume(percent / 100.0)
-        set_config_value("audio.volume", percent)
-        self.speak(f"Громкость: {percent}%")
-
-    @property
-    def volume_percent(self) -> int:
-        return self._volume_percent
-
-    @property
-    def scale_percent(self) -> int:
-        return self._sprite_manager.scale_percent
-
-    @property
-    def selected_microphone(self) -> QAudioDevice | None:
-        return self._orchestrator.voice_coordinator.selected_device
-
-    @property
-    def is_speaking(self) -> bool:
-        return self._speaking or has_active_speech() or (self._speech is not None and self._speech.isVisible())
-
-    @property
-    def effects(self) -> EffectsCoordinator:
-        return self._effects
-
-    @property
-    def glitches_enabled(self) -> bool:
-        return self._effects.is_glitch_enabled
-
-    @property
-    def glitch_intensity(self) -> str:
-        return self._effects.glitch_intensity
-
-    def set_glitch_intensity(self, intensity: str) -> None:
-        self._effects.set_glitch_intensity(intensity)
-        set_config_value("effects.glitch_intensity", intensity)
 
     def _toggle_glitches(self) -> str:
         enabled = self._effects.toggle_glitches()
         set_config_value("effects.glitches_enabled", enabled)
         return "Глитчи включены." if enabled else "Глитчи выключены."
-
-    def toggle_voice(self) -> str:
-        return self._orchestrator.voice_coordinator.toggle_voice()
-
-    def set_discord_enabled(self, enabled: bool) -> None:
-        self._orchestrator.set_discord_enabled(enabled)
-        status = "вкл" if enabled else "выкл"
-        self.speak(f"Discord RPC: {status}")
-
-    def show_context_menu(self, pos: QPoint) -> None:
-        self._orchestrator.inactivity.set_paused(True)
-        try:
-            menu = build_pet_context_menu(self, pos)
-            menu.exec(pos)
-        finally:
-            self._orchestrator.inactivity.set_paused(False)
-
-    def activate_command_mode(self) -> None:
-        
-        if self._closing:
-            return
-
-        if self._orchestrator.inactivity.is_transitioning:
-            if self._orchestrator.inactivity._transition_overlay is not None:
-                self._orchestrator.inactivity._transition_overlay.close()
-                self._orchestrator.inactivity._transition_overlay = None
-            self._orchestrator.inactivity._transitioning = False
-
-        self.show()
-        self.raise_()
-        self.activateWindow()
-        self._orchestrator.inactivity.reset_timer()
-
-        self._orchestrator.voice_coordinator.wake_if_needed()
-        self._orchestrator.voice_coordinator._arm()
 
     def _greet(self) -> None:
         if self._speech is not None:
@@ -675,27 +571,33 @@ class CapriWindow(QWidget):
         if self._speech is window:
             self._speech = None
             self._speaking = False
-        if not self._closing and not self.is_speaking and hasattr(self, "_orchestrator"):
+        if (
+            not self._closing
+            and not self.is_speaking
+            and hasattr(self, "_orchestrator")
+        ):
             self._orchestrator.inactivity.reset_timer()
 
     def _finalize_quit(self) -> None:
         if getattr(self, "_exit_finalized", False):
             return
         self._exit_finalized = True
-        if hasattr(self, "_exit_safety_timer") and self._exit_safety_timer is not None:
+        if (
+            hasattr(self, "_exit_safety_timer")
+            and self._exit_safety_timer is not None
+        ):
             self._exit_safety_timer.stop()
             self._exit_safety_timer = None
         if self._session_overlay is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._session_overlay.close()
-            except Exception:
-                pass
             self._session_overlay = None
-        if hasattr(self, "_exit_overlay") and self._exit_overlay is not None:
-            try:
+        if (
+            hasattr(self, "_exit_overlay")
+            and self._exit_overlay is not None
+        ):
+            with contextlib.suppress(Exception):
                 self._exit_overlay.close()
-            except Exception:
-                pass
             self._exit_overlay = None
         if hasattr(self, "_tray_icon") and self._tray_icon is not None:
             self._tray_icon.hide()
@@ -714,8 +616,12 @@ class CapriWindow(QWidget):
 
         try:
             pos = self.pos()
-            set_config_value("window.position", {"x": pos.x(), "y": pos.y()})
-            set_config_value("window.overlay_position", {"x": pos.x(), "y": pos.y()})
+            set_config_value(
+                "window.position", {"x": pos.x(), "y": pos.y()}
+            )
+            set_config_value(
+                "window.overlay_position", {"x": pos.x(), "y": pos.y()}
+            )
         except Exception:
             pass
 
@@ -772,8 +678,12 @@ class CapriWindow(QWidget):
         self._closing = True
         try:
             pos = self.pos()
-            set_config_value("window.position", {"x": pos.x(), "y": pos.y()})
-            set_config_value("window.overlay_position", {"x": pos.x(), "y": pos.y()})
+            set_config_value(
+                "window.position", {"x": pos.x(), "y": pos.y()}
+            )
+            set_config_value(
+                "window.overlay_position", {"x": pos.x(), "y": pos.y()}
+            )
         except Exception:
             pass
         self._orchestrator.stop()
@@ -781,14 +691,101 @@ class CapriWindow(QWidget):
         self._glitch_timer.stop()
         self._finalize_quit()
 
-    def nativeEvent(self, event_type: bytes | bytearray, message: int | object) -> tuple[bool, int]:
-        if event_type in (b"windows_generic_MSG", b"windows_dispatcher_MSG"):
+    def _on_game_mode_changed(self, active: bool) -> None:
+        self._is_stealth_mode = active
+        set_speech_suppressed(active)
+        get_speech_sfx().set_suppressed(active)
+        if hasattr(self._orchestrator, "reminder"):
+            self._orchestrator.reminder.set_suppressed(active)
+
+        if self._stealth_transition_overlay is not None:
             try:
-                import ctypes
-                from ctypes import wintypes
+                self._stealth_transition_overlay.stop()
+                self._stealth_transition_overlay.deleteLater()
+            except Exception:
+                pass
+            self._stealth_transition_overlay = None
+
+        screen = (
+            self.get_designated_screen() or QGuiApplication.primaryScreen()
+        )
+        screen_rect = screen.geometry() if screen else self.geometry()
+        glyph_center = self._silent_glyph.geometry().center()
+
+        if active:
+            if not self.isVisible():
+                self._silent_glyph.show()
+                return
+
+            self._stealth_origin_pos = self.pos()
+            overlay = TransitionOverlay(
+                screen_rect,
+                self.geometry(),
+                "stealth_enter",
+                target=self,
+                target_point=glyph_center,
+            )
+            self.hide()
+
+            def on_stealth_in_finish():
+                self._stealth_transition_overlay = None
+                self._silent_glyph.show()
+
+            overlay.finished.connect(on_stealth_in_finish)
+            self._stealth_transition_overlay = overlay
+            overlay.start()
+        else:
+            self._silent_glyph.hide()
+            if self._closing:
+                return
+
+            if self._stealth_origin_pos is not None:
+                orig_x = self._stealth_origin_pos.x()
+                orig_y = self._stealth_origin_pos.y()
+                self.move(orig_x, orig_y)
+            else:
+                center_x = screen_rect.center().x() - self.width() // 2
+                center_y = screen_rect.center().y() - self.height() // 2
+                self.move(center_x, center_y)
+
+            overlay = TransitionOverlay(
+                screen_rect,
+                self.geometry(),
+                "stealth_exit",
+                target=self,
+                target_point=glyph_center,
+                on_peak=self._reveal_on_stealth_peak,
+            )
+
+            def on_stealth_out_finish():
+                self._stealth_transition_overlay = None
+
+            overlay.finished.connect(on_stealth_out_finish)
+            self._stealth_transition_overlay = overlay
+            overlay.start()
+
+    def _reveal_on_stealth_peak(self) -> None:
+        if not self._closing and not self._is_stealth_mode:
+            self.show()
+            self.raise_()
+
+
+    def nativeEvent(
+        self, event_type: bytes | bytearray, message: int | object
+    ) -> tuple[bool, int]:
+        if event_type in (
+            b"windows_generic_MSG",
+            b"windows_dispatcher_MSG",
+        ):
+            try:
                 msg = wintypes.MSG.from_address(int(message))
-                if self._power_hook.handle_windows_message(msg.message, msg.wParam, msg.lParam):
+                if self._power_hook.handle_windows_message(
+                    msg.message, msg.wParam, msg.lParam
+                ):
                     return True, 0
             except Exception:
                 pass
         return super().nativeEvent(event_type, message)
+
+
+PetWindow = CapriWindow

@@ -1,3 +1,9 @@
+"""Цветовая палитра, типографика и стили интерфейса в эстетике киберпанк.
+
+Определяет корпоративную 6-цветовую палитру проекта, загрузку шрифтов
+семейства Exo 2 и каскадные таблицы стилей (QSS) для элементов управления.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -18,11 +24,12 @@ CSS_CYBER_TERMINAL = CSS_FONT
 CSS_CYBER_HUD = CSS_FONT
 CSS_CYBER_UI = CSS_FONT
 
-_FONTS_LOADED = False
+class _ThemeState:
+    fonts_loaded: bool = False
+
 
 def init_fonts() -> None:
-    global _FONTS_LOADED
-    if _FONTS_LOADED:
+    if _ThemeState.fonts_loaded:
         return
 
     fonts_dir = Path(__file__).resolve().parents[2] / "assets" / "fonts"
@@ -38,9 +45,14 @@ def init_fonts() -> None:
             families = QFontDatabase.applicationFontFamilies(font_id)
             logger.debug("Loaded font %s -> %s", font_file.name, families)
 
-    _FONTS_LOADED = True
+    _ThemeState.fonts_loaded = True
 
-def get_font(pixel_size: int = 12, bold: bool = False, weight: QFont.Weight | None = None) -> QFont:
+
+def get_font(
+    pixel_size: int = 12,
+    bold: bool = False,
+    weight: QFont.Weight | None = None,
+) -> QFont:
     init_fonts()
     font = QFont(FONT_FAMILY)
     font.setStyleHint(QFont.StyleHint.SansSerif)
@@ -51,14 +63,18 @@ def get_font(pixel_size: int = 12, bold: bool = False, weight: QFont.Weight | No
         font.setBold(True)
     return font
 
+
 def get_terminal_font(pixel_size: int = 13, bold: bool = False) -> QFont:
     return get_font(pixel_size=pixel_size, bold=bold)
+
 
 def get_hud_font(pixel_size: int = 11, bold: bool = False) -> QFont:
     return get_font(pixel_size=pixel_size, bold=bold)
 
+
 def get_ui_font(pixel_size: int = 12, bold: bool = False) -> QFont:
     return get_font(pixel_size=pixel_size, bold=bold)
+
 
 PIXEL_FONT = CSS_CYBER_TERMINAL
 
@@ -69,7 +85,9 @@ PURE_WHITE = "#F9F9F9"
 ELECTRIC_BLUE = "#126EE9"
 NEON_VIOLET = "#9E1FDE"
 
-_MENU_ARROW = (Path(__file__).resolve().parents[2] / "assets" / "menu_arrow.svg").as_posix()
+_MENU_ARROW = (
+    Path(__file__).resolve().parents[2] / "assets" / "menu_arrow.svg"
+).as_posix()
 
 CYBER_MENU_STYLE = f"""
 QMenu {{

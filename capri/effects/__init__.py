@@ -1,3 +1,5 @@
+"""Visual effects, transitions, and overlay rendering package exports."""
+
 from .cursor_pointer import CursorPointerOverlay
 from .effects_coordinator import EffectsCoordinator
 from .glitch import (
@@ -13,7 +15,10 @@ from .glitch import (
     paint_tears,
 )
 from .model_init_animation import ModelInitOverlay
-from .session_animations import SessionAnimationOverlay, play_session_animation
+from .session_animations import (
+    SessionAnimationOverlay,
+    play_session_animation,
+)
 from .transition import TransitionOverlay
 
 __all__ = [

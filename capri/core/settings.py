@@ -1,3 +1,5 @@
+"""Управление конфигурацией CapriPet: чтение, валидация и сохранение."""
+
 from __future__ import annotations
 
 import copy
@@ -7,7 +9,7 @@ import os
 import tempfile
 import threading
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from fake_useragent import UserAgent
 from platformdirs import user_config_dir
@@ -15,8 +17,14 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 
-_resolved_user_agent: Optional[str] = None
-_ua_lock = threading.Lock()
+class _UserAgentCache:
+    """Потокобезопасный контейнер для кэширования User-Agent."""
+
+    resolved: str | None = None
+    lock: threading.Lock = threading.Lock()
+
+
+_ua_cache = _UserAgentCache()
 _DEFAULT_FALLBACK_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/131.0.0.0 Safari/537.36"
@@ -27,16 +35,22 @@ GLITCH_INTENSITY_OPTIONS: tuple[str, ...] = ("weak", "medium", "strong")
 
 
 class WindowPosition(BaseModel):
+    """Координаты положения окна на рабочем столе."""
+
     x: int
     y: int
 
 
 class ScreenConfig(BaseModel):
-    designated_screen: Optional[str] = None
+    """Конфигурация целевого монитора для отображения питомца."""
+
+    designated_screen: str | None = None
 
 
 class AudioConfig(BaseModel):
-    designated_microphone: Optional[str] = None
+    """Параметры аудиосистемы, громкости и распознавания речи."""
+
+    designated_microphone: str | None = None
     volume: int = 50
     sfx_volume: float = Field(default=0.5, ge=0.0, le=1.0)
     media_volume: float = Field(default=0.6, ge=0.0, le=1.0)
@@ -64,6 +78,8 @@ class AudioConfig(BaseModel):
 
 
 class AppearanceConfig(BaseModel):
+    """Настройки внешнего вида, скина, позы и масштаба питомца."""
+
     skin: str = "default"
     pose: Literal["sit", "stay", "crouch"] = "sit"
     overlay_pose: Literal["sit", "stay", "crouch"] = "sit"
@@ -86,13 +102,18 @@ class AppearanceConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def sync_pose_fallback(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            if "overlay_pose" in data and "pose" not in data:
-                data["pose"] = data["overlay_pose"]
+        if (
+            isinstance(data, dict)
+            and "overlay_pose" in data
+            and "pose" not in data
+        ):
+            data["pose"] = data["overlay_pose"]
         return data
 
 
 class EffectsConfig(BaseModel):
+    """Настройки экранных глитч-эффектов и их интенсивности."""
+
     glitches_enabled: bool = True
     glitch_intensity: Literal["weak", "medium", "strong"] = "weak"
 
@@ -104,13 +125,17 @@ class EffectsConfig(BaseModel):
 
 
 class WindowConfig(BaseModel):
-    position: Optional[WindowPosition] = None
-    overlay_position: Optional[WindowPosition] = None
-    terminal_position: Optional[WindowPosition] = None
+    """Конфигурация сохранённых позиций окон и оверлеев."""
 
-    @field_validator("position", "overlay_position", "terminal_position", mode="before")
+    position: WindowPosition | None = None
+    overlay_position: WindowPosition | None = None
+    terminal_position: WindowPosition | None = None
+
+    @field_validator(
+        "position", "overlay_position", "terminal_position", mode="before"
+    )
     @classmethod
-    def validate_pos(cls, v: Any) -> Optional[dict[str, int]]:
+    def validate_pos(cls, v: Any) -> dict[str, int] | None:
         if isinstance(v, dict) and "x" in v and "y" in v:
             try:
                 return {"x": int(v["x"]), "y": int(v["y"])}
@@ -120,6 +145,8 @@ class WindowConfig(BaseModel):
 
 
 class BehaviorConfig(BaseModel):
+    """Параметры поведения питомца, таймаута неактивности и напоминаний."""
+
     inactivity_timeout_ms: int = 5000
     reminders_enabled: bool = True
     reminder_min_interval_ms: int = 600_000
@@ -144,15 +171,41 @@ class BehaviorConfig(BaseModel):
 
 
 class NetworkConfig(BaseModel):
-    user_agent: Optional[str] = None
+    """Сетевая конфигурация и параметры User-Agent."""
+
+    user_agent: str | None = None
 
 
 class DiscordConfig(BaseModel):
+    """Настройки интеграции с Discord Rich Presence."""
+
     enabled: bool = True
     client_id: str = "1567968896277938266"
 
 
+class GameModeConfig(BaseModel):
+    """Параметры детекции игр и подавления уведомлений."""
+
+    suppression_enabled: bool = True
+    cooldown_seconds: float = 3.0
+    whitelist: list[str] = Field(default_factory=list)
+    blacklist: list[str] = Field(
+        default_factory=lambda: [
+            "steam.exe",
+            "steamwebhelper.exe",
+            "epicgameslauncher.exe",
+            "unrealcefsubprocess.exe",
+            "unitycrashhandler64.exe",
+            "riotclientux.exe",
+            "galaxyclient.exe",
+            "battlenet.exe",
+        ]
+    )
+
+
 class CapriConfig(BaseModel):
+    """Корневая модель конфигурации приложения CapriPet."""
+
     version: int = 1
     screen: ScreenConfig = Field(default_factory=ScreenConfig)
     audio: AudioConfig = Field(default_factory=AudioConfig)
@@ -160,11 +213,18 @@ class CapriConfig(BaseModel):
     effects: EffectsConfig = Field(default_factory=EffectsConfig)
     window: WindowConfig = Field(default_factory=WindowConfig)
     behavior: BehaviorConfig = Field(default_factory=BehaviorConfig)
+    game_mode: GameModeConfig = Field(default_factory=GameModeConfig)
     network: NetworkConfig = Field(default_factory=NetworkConfig)
     discord: DiscordConfig = Field(default_factory=DiscordConfig)
 
 
 DEFAULT_CONFIG: dict[str, Any] = CapriConfig().model_dump()
+
+# Псевдонимы конфигурации для совместимости
+InactivityConfig = BehaviorConfig
+OverlayConfig = AppearanceConfig
+VoskConfig = AudioConfig
+AppConfig = CapriConfig
 
 
 def _get_project_root() -> Path:
@@ -181,8 +241,11 @@ def _resolve_config_dir() -> Path:
             path.mkdir(parents=True, exist_ok=True)
             return path
         except Exception as e:
-            logger.warning("Не удалось использовать CAPRI_CONFIG_DIR=%s: %s", env_dir, e)
-
+            logger.warning(
+                "Не удалось использовать CAPRI_CONFIG_DIR=%s: %s",
+                env_dir,
+                e,
+            )
 
     local_dir = _get_project_root() / ".capri"
     try:
@@ -194,7 +257,6 @@ def _resolve_config_dir() -> Path:
     except OSError:
         pass
 
-
     home_dir = Path(user_config_dir("capri"))
     try:
         home_dir.mkdir(parents=True, exist_ok=True)
@@ -204,7 +266,6 @@ def _resolve_config_dir() -> Path:
         return home_dir
     except OSError:
         pass
-
 
     return Path(tempfile.gettempdir())
 
@@ -230,13 +291,20 @@ class ConfigManager:
     def config_path(self) -> Path:
         return self._config_path
 
-    def _validate_and_sanitize(self, data: dict[str, Any]) -> dict[str, Any]:
+    def _validate_and_sanitize(
+        self, data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Валидирует данные через Pydantic-модель CapriConfig."""
         try:
-            model = CapriConfig.model_validate(data if isinstance(data, dict) else {})
+            model = CapriConfig.model_validate(
+                data if isinstance(data, dict) else {}
+            )
             return model.model_dump()
         except Exception as e:
-            logger.warning("Ошибка валидации настроек Pydantic: %s. Применяются дефолты.", e)
+            logger.warning(
+                "Ошибка валидации настроек Pydantic: %s. Применяются дефолты.",
+                e,
+            )
             return copy.deepcopy(DEFAULT_CONFIG)
 
     def load_config(self, force_reload: bool = False) -> dict[str, Any]:
@@ -250,15 +318,22 @@ class ConfigManager:
             return copy.deepcopy(config)
 
         try:
-            with open(self._config_path, "r", encoding="utf-8") as f:
+            with open(self._config_path, encoding="utf-8") as f:
                 raw_data = json.load(f)
             if not isinstance(raw_data, dict):
-                logger.warning("Файл конфигурации %s поврежден (не словарь). Используются дефолты.", self._config_path)
+                logger.warning(
+                    "Файл конфигурации %s поврежден (не словарь). Используются дефолты.",
+                    self._config_path,
+                )
                 config = copy.deepcopy(DEFAULT_CONFIG)
             else:
                 config = self._validate_and_sanitize(raw_data)
         except Exception as e:
-            logger.warning("Ошибка чтения конфигурации из %s: %s. Используются дефолты.", self._config_path, e)
+            logger.warning(
+                "Ошибка чтения конфигурации из %s: %s. Используются дефолты.",
+                self._config_path,
+                e,
+            )
             config = copy.deepcopy(DEFAULT_CONFIG)
 
         self._cached_config = config
@@ -277,7 +352,9 @@ class ConfigManager:
             os.replace(tmp_target, target)
             self._cached_config = copy.deepcopy(config)
         except Exception as e:
-            logger.warning("Не удалось сохранить конфигурацию в %s: %s", target, e)
+            logger.warning(
+                "Не удалось сохранить конфигурацию в %s: %s", target, e
+            )
 
     def get_value(self, path: str, default: Any = None) -> Any:
         """Получает значение по пути dot-notation, например 'audio.sfx_volume'."""
@@ -291,7 +368,9 @@ class ConfigManager:
                 return default
         return current if current is not None else default
 
-    def set_value(self, path: str, value: Any, auto_save: bool = True) -> None:
+    def set_value(
+        self, path: str, value: Any, auto_save: bool = True
+    ) -> None:
         """Устанавливает значение по dot-notation пути и опционально сохраняет файл."""
         config = self.load_config()
         keys = path.split(".")
@@ -328,7 +407,9 @@ def get_config_value(path: str, default: Any = None) -> Any:
     return _global_manager.get_value(path, default=default)
 
 
-def set_config_value(path: str, value: Any, auto_save: bool = True) -> None:
+def set_config_value(
+    path: str, value: Any, auto_save: bool = True
+) -> None:
     _global_manager.set_value(path, value, auto_save=auto_save)
 
 
@@ -342,30 +423,42 @@ def init_user_agent_async() -> None:
 
 
 def get_user_agent() -> str:
-    global _resolved_user_agent
+    if _ua_cache.resolved is not None:
+        return _ua_cache.resolved
 
-    if _resolved_user_agent is not None:
-        return _resolved_user_agent
-
-    with _ua_lock:
-        if _resolved_user_agent is not None:
-            return _resolved_user_agent
+    with _ua_cache.lock:
+        if _ua_cache.resolved is not None:
+            return _ua_cache.resolved
 
         try:
             custom_ua = get_config_value("network.user_agent")
-            if custom_ua and isinstance(custom_ua, str) and custom_ua.strip():
-                _resolved_user_agent = custom_ua.strip()
-                logger.debug("Используется пользовательский User-Agent из конфига: %s", _resolved_user_agent)
-                return _resolved_user_agent
+            if (
+                custom_ua
+                and isinstance(custom_ua, str)
+                and custom_ua.strip()
+            ):
+                _ua_cache.resolved = custom_ua.strip()
+                logger.debug(
+                    "Используется пользовательский User-Agent из конфига: %s",
+                    _ua_cache.resolved,
+                )
+                return _ua_cache.resolved
         except Exception as e:
-            logger.debug("Не удалось прочитать User-Agent из конфига: %s", e)
+            logger.debug(
+                "Не удалось прочитать User-Agent из конфига: %s", e
+            )
 
         try:
             ua = UserAgent(platforms="pc", fallback=_DEFAULT_FALLBACK_UA)
-            _resolved_user_agent = str(ua.random)
-            logger.debug("Сгенерирован User-Agent через fake-useragent: %s", _resolved_user_agent)
+            _ua_cache.resolved = str(ua.random)
+            logger.debug(
+                "Сгенерирован User-Agent через fake-useragent: %s",
+                _ua_cache.resolved,
+            )
         except Exception as e:
-            logger.warning("Ошибка fake-useragent, используется fallback: %s", e)
-            _resolved_user_agent = _DEFAULT_FALLBACK_UA
+            logger.warning(
+                "Ошибка fake-useragent, используется fallback: %s", e
+            )
+            _ua_cache.resolved = _DEFAULT_FALLBACK_UA
 
-        return _resolved_user_agent
+        return _ua_cache.resolved

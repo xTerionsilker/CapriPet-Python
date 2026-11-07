@@ -1,8 +1,6 @@
-from __future__ import annotations
+"""Audio capture, voice activity detection, and speech recognition subsystem."""
 
-import logging
-from pathlib import Path
-from typing import Any
+from __future__ import annotations
 
 from .recognizer import (
     FasterWhisperBackend,

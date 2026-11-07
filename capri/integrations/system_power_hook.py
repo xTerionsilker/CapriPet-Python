@@ -1,8 +1,14 @@
+"""Перехват низкоуровневых системных событий питания и сессий Windows.
+
+Обрабатывает оконные сообщения Windows для обнаружения перехода системы
+в спящий режим, возобновления работы, завершения сеанса, а также
+блокировки и разблокировки рабочей станции.
+"""
+
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
-from typing import Callable
+from collections.abc import Callable
 
 WM_POWERBROADCAST = 0x0218
 PBT_APMSUSPEND = 0x0004
@@ -19,6 +25,13 @@ NOTIFY_FOR_THIS_SESSION = 0
 
 
 class SystemEventHook:
+    """Обработчик системных событий питания и блокировки экрана Windows.
+
+    Регистрирует уведомления терминальной сессии (WTS) для заданного HWND
+    и маршрутизирует оконные сообщения (WM_POWERBROADCAST, WM_ENDSESSION,
+    WM_WTSSESSION_CHANGE) в соответствующие функции обратного вызова (колбэки).
+    """
+
     def __init__(
         self,
         on_suspend: Callable[[], None] | None = None,
@@ -39,31 +52,42 @@ class SystemEventHook:
             return False
         try:
             wtsapi32 = ctypes.windll.wtsapi32
-            res = bool(wtsapi32.WTSRegisterSessionNotification(hwnd, NOTIFY_FOR_THIS_SESSION))
+            res = bool(
+                wtsapi32.WTSRegisterSessionNotification(
+                    hwnd, NOTIFY_FOR_THIS_SESSION
+                )
+            )
             if res:
                 self._registered_hwnd = hwnd
             return res
         except Exception:
             return False
+
     def unregister_session_notification(self) -> bool:
         if not self._registered_hwnd:
             return False
         try:
             wtsapi32 = ctypes.windll.wtsapi32
-            res = bool(wtsapi32.WTSUnRegisterSessionNotification(self._registered_hwnd))
+            res = bool(
+                wtsapi32.WTSUnRegisterSessionNotification(
+                    self._registered_hwnd
+                )
+            )
             self._registered_hwnd = None
             return res
         except Exception:
             self._registered_hwnd = None
             return False
 
-    def handle_windows_message(self, msg_id: int, wparam: int, lparam: int) -> bool:
+    def handle_windows_message(
+        self, msg_id: int, wparam: int, _lparam: int
+    ) -> bool:
         if msg_id == WM_POWERBROADCAST:
             if wparam == PBT_APMSUSPEND:
                 if self._on_suspend is not None:
                     self._on_suspend()
                 return True
-            elif wparam in (PBT_APMRESUMESUSPEND, PBT_APMRESUMEAUTOMATIC):
+            if wparam in (PBT_APMRESUMESUSPEND, PBT_APMRESUMEAUTOMATIC):
                 if self._on_resume is not None:
                     self._on_resume()
                 return True
@@ -76,7 +100,7 @@ class SystemEventHook:
                 if self._on_lock is not None:
                     self._on_lock()
                 return True
-            elif wparam == WTS_SESSION_UNLOCK:
+            if wparam == WTS_SESSION_UNLOCK:
                 if self._on_unlock is not None:
                     self._on_unlock()
                 return True

@@ -3,7 +3,12 @@ from __future__ import annotations
 import unittest
 
 from capri.core.morphology import normalize_spoken_numbers, stem_text
-from capri.core.settings import AudioConfig, CapriConfig, WindowConfig, WindowPosition
+from capri.core.settings import (
+    AudioConfig,
+    CapriConfig,
+    WindowConfig,
+    WindowPosition,
+)
 from capri.core.wake_word import command_after_trigger
 
 
