@@ -172,7 +172,7 @@ class CyberHudBubble(QWidget):
             if cb is not None:
                 cb()
 
-    def paintEvent(self, event) -> None:
+    def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
@@ -185,6 +185,8 @@ class CyberHudBubble(QWidget):
         bh = max(1, h - so)
         y_mid = bh // 2
         x_mid = bw // 2
+        y_top = 0
+        y_bot = 0
 
         phase = self._anim_phase
         prog = self._anim_progress
@@ -434,10 +436,10 @@ class CyberHudBubble(QWidget):
             title_with_dir,
         )
 
-        if phase == "opening" and prog >= 0.22 and prog < 0.95:
+        if phase == "opening" and 0.22 <= prog < 0.95:
             painter.fillRect(0, y_top - 1, bw, 2, QColor(246, 2, 63, 230))
             painter.fillRect(0, y_bot - 1, bw, 2, QColor(6, 248, 104, 230))
-        elif phase == "closing" and prog >= 0.25 and prog < 0.75:
+        elif phase == "closing" and 0.25 <= prog < 0.75:
             painter.fillRect(0, y_top - 1, bw, 3, QColor(246, 2, 63, 245))
             painter.fillRect(0, y_bot - 1, bw, 3, QColor(6, 248, 104, 245))
 

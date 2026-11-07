@@ -125,6 +125,9 @@ class CapriWindow(QWidget):
         self._startup_overlay: TransitionOverlay | None = None
         self._model_init_overlay: ModelInitOverlay | None = None
         self._session_overlay: SessionAnimationOverlay | None = None
+        self._exit_overlay: TransitionOverlay | None = None
+        self._exit_safety_timer: QTimer | None = None
+        self._exit_finalized = False
         self._closing = False
         self._designated_screen_name: str | None = None
         self._renderer = PetRenderer()
@@ -227,7 +230,7 @@ class CapriWindow(QWidget):
         return self._sprite_manager.current_pixmap
 
     def _on_sprite_changed(
-        self, pixmap: QPixmap, hit_image, pose_name: str
+        self, pixmap: QPixmap, _hit_image, _pose_name: str
     ) -> None:
         old_size = self.size()
         self.setFixedSize(pixmap.size())

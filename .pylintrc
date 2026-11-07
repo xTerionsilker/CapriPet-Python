@@ -1,0 +1,33 @@
+[MAIN]
+# Разрешить C-расширения PySide6 для статического анализа
+extension-pkg-allow-list=PySide6
+ignored-classes=Wave_read,Wave_write
+
+[TYPECHECK]
+# Игнорировать динамические члены Qt сигналов (connect, disconnect, emit)
+generated-members=.*\.connect,.*\.disconnect,.*\.emit
+
+[MESSAGES CONTROL]
+# Отключаем избыточные или ложные предупреждения для GUI/PyQt6 проекта:
+# - missing-function-docstring / missing-method-docstring: проект следует правилу самодокументируемого кода
+#   с аннотациями типов, обязательными docstring только для модулей и классов (PEP 257)
+# - broad-exception-caught: в фоновых потоках и GUI перехват Exception необходим для стабильности приложения
+# - invalid-name: виртуальные методы Qt используют camelCase (paintEvent, mousePressEvent)
+# - too-many-*: метрики сложности не являются ошибками PEP 8
+disable=
+    missing-function-docstring,
+    too-few-public-methods,
+    too-many-arguments,
+    too-many-positional-arguments,
+    too-many-instance-attributes,
+    too-many-locals,
+    too-many-branches,
+    too-many-statements,
+    too-many-return-statements,
+    broad-exception-caught,
+    invalid-name,
+    duplicate-code,
+    line-too-long
+
+[FORMAT]
+max-line-length=75
