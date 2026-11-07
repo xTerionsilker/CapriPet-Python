@@ -455,6 +455,7 @@ def get_user_agent() -> str:
             )
 
         try:
+            logging.getLogger("fake_useragent").setLevel(logging.CRITICAL)
             ua = UserAgent(platforms="pc", fallback=_DEFAULT_FALLBACK_UA)
             _ua_cache.resolved = str(ua.random)
             logger.debug(

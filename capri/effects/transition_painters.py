@@ -627,4 +627,5 @@ def draw_glitch_text(
     painter.drawText(x + 1, y, text)
     painter.setPen(with_alpha(color, 245))
     painter.drawText(x, y, text)
+    painter.restore()
 from capri.ui.theme import get_hud_font  # noqa: E402

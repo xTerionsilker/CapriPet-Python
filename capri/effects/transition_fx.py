@@ -667,7 +667,7 @@ class CyberPixelBolt:
                 size,
                 COLOR_CRIMSON,
             )
-
+        painter.restore()
 
 
 
