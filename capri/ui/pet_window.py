@@ -481,7 +481,7 @@ class CapriWindow(QWidget):
     def process_input(self, text: str) -> str:
         return self._flow.handle(text)
 
-    def speak(self, text: str, hold_ms: int | None = None) -> SpeechWindow:
+    def speak(self, text: str, hold_ms: int | None = None) -> SpeechWindow | None:
         if self._speech is not None:
             self._speech.close(immediate=True)
         self._speaking = True
@@ -490,9 +490,10 @@ class CapriWindow(QWidget):
             hold_ms = min(5000, max(1200, len(text) * 45))
         speech = show_text(text, parent=self, hold_ms=hold_ms)
         self._speech = speech
-        speech.destroyed.connect(
-            lambda *_, window=speech: self._forget_speech(window)
-        )
+        if speech is not None:
+            speech.destroyed.connect(
+                lambda *_, window=speech: self._forget_speech(window)
+            )
         return speech
 
     def toggle_glitches(self) -> str:
