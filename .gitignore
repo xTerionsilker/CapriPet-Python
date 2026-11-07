@@ -1,6 +1,47 @@
+# Environments & Dependencies
 .venv/
+env/
+venv/
+ENV/
+
+# Python Cache & Bytecode
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+
+# Linter & Tooling Caches
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# IDE & Editor Configurations
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Capri Local Storage & User State
 .capri/
+*.tmp
+*.bak
+*.log
+
+# Large Assets / Offline Speech Models
 models/*
 !models/PutVoskHere.txt
+
+# Distribution & Build
+build/
+dist/
+*.egg-info/

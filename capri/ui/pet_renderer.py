@@ -254,18 +254,18 @@ class PetRenderer:
     def _draw_blackwall_aura(
         self, painter: QPainter, pixmap: QPixmap, w: int, h: int, severity: float
     ) -> None:
-        echo_count = 3 if severity > 0.6 else (2 if severity > 0.3 else 1)
-        step_base = 6 if severity > 0.6 else (4 if severity > 0.3 else 2)
+        echo_count = 3 if severity > 0.6 else (2 if severity > 0.3 else 2)
+        step_base = 8 if severity > 0.6 else (5 if severity > 0.3 else 3)
 
         for i in range(echo_count):
             dx = snap_pixel(random.choice((-1, 1)) * (i + 1) * step_base)
-            dy = snap_pixel(random.choice((-1, 0, 1)) * (i + 1) * (step_base // 2))
+            dy = snap_pixel(random.choice((-1, 0, 1)) * (i + 1) * max(2, step_base // 2))
             alpha = (
-                random.randint(60, 110)
+                random.randint(120, 190)
                 if severity > 0.6
-                else (random.randint(35, 70) if severity > 0.3 else random.randint(18, 40))
+                else (random.randint(80, 140) if severity > 0.3 else random.randint(55, 95))
             )
-            color = COLOR_CRIMSON if random.random() < 0.75 else COLOR_OBSIDIAN
+            color = COLOR_CRIMSON if random.random() < 0.8 else COLOR_OBSIDIAN
 
             tinted = QPixmap(pixmap.size())
             tinted.fill(Qt.GlobalColor.transparent)

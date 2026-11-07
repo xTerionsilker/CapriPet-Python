@@ -97,7 +97,6 @@ class SpriteManager:
         return scaled
 
     def _update_cached_image_and_mask(self) -> None:
-        
         if self._current_pixmap.isNull():
             self._cached_hit_image = None
             self._cached_mask_region = None
@@ -111,7 +110,15 @@ class SpriteManager:
         thresh_bytes = raw_bytes.translate(table)
         thresh_img = QImage(thresh_bytes, w, h, alpha8.bytesPerLine(), QImage.Format.Format_Alpha8)
         mask_bitmap = QBitmap.fromImage(thresh_img.createMaskFromColor(0, Qt.MaskMode.MaskInColor))
-        self._cached_mask_region = QRegion(mask_bitmap)
+        base_region = QRegion(mask_bitmap)
+
+        dilated_region = QRegion()
+        offsets = (-24, -16, -8, 0, 8, 16, 24)
+        for dx in offsets:
+            for dy in offsets:
+                dilated_region = dilated_region.united(base_region.translated(dx, dy))
+
+        self._cached_mask_region = dilated_region
 
     def set_sprite_scale(self, percent: int) -> bool:
         
