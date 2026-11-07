@@ -10,7 +10,7 @@ import time
 import wave
 
 from PySide6.QtCore import QObject, QUrl
-from PySide6.QtMultimedia import QSoundEffect
+from PySide6.QtMultimedia import QMediaDevices, QSoundEffect
 
 logger = logging.getLogger(__name__)
 
@@ -391,6 +391,9 @@ class SpeechSFX(QObject):
         self._chirp_index = 0
         self._suppressed = False
 
+        self._media_devices = QMediaDevices(self)
+        self._media_devices.audioOutputsChanged.connect(self._on_audio_outputs_changed)
+
         self._init_sounds()
 
     def _init_sounds(self) -> None:
@@ -487,10 +490,22 @@ class SpeechSFX(QObject):
             logger.warning("Не удалось инициализировать SFX звуки: %s. Работаем в беззвучном режиме.", exc)
             self._available = False
 
+    def _on_audio_outputs_changed(self) -> None:
+        self.reload_audio_devices()
+
+    def reload_audio_devices(self) -> None:
+        try:
+            self._init_sounds()
+        except Exception as exc:
+            logger.debug("SFX device reload failed: %s", exc)
+
     def _play_file(self, path: Path | None, fallback_effect: QSoundEffect | None) -> None:
         if not self.is_enabled() or fallback_effect is None:
             return
         try:
+            if fallback_effect.status() == QSoundEffect.Status.Error:
+                if path is not None and path.exists():
+                    fallback_effect.setSource(QUrl.fromLocalFile(str(path)))
             fallback_effect.play()
         except Exception as exc:
             logger.debug("QSoundEffect error: %s", exc)
