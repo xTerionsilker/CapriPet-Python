@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 
-from PySide6.QtCore import QRect
+from PySide6.QtCore import QRect, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
 
 from capri.ui.theme import get_hud_font
@@ -236,6 +236,8 @@ class PetRenderer:
             shake_y = random.choice((-3, -1, 0, 1, 3))
             painter.translate(shake_x, shake_y)
 
+        self._draw_blackwall_aura(painter, pixmap, w, h, severity)
+
         self._draw_chromatic_aberration(painter, pixmap, severity)
 
         self._draw_sliced_pixmap(painter, pixmap, w, h, severity)
@@ -248,6 +250,50 @@ class PetRenderer:
 
         if state.is_dragging and (shake_x != 0 or shake_y != 0):
             painter.translate(-shake_x, -shake_y)
+
+    def _draw_blackwall_aura(
+        self, painter: QPainter, pixmap: QPixmap, w: int, h: int, severity: float
+    ) -> None:
+        echo_count = 3 if severity > 0.6 else (2 if severity > 0.3 else 1)
+        step_base = 6 if severity > 0.6 else (4 if severity > 0.3 else 2)
+
+        for i in range(echo_count):
+            dx = snap_pixel(random.choice((-1, 1)) * (i + 1) * step_base)
+            dy = snap_pixel(random.choice((-1, 0, 1)) * (i + 1) * (step_base // 2))
+            alpha = (
+                random.randint(60, 110)
+                if severity > 0.6
+                else (random.randint(35, 70) if severity > 0.3 else random.randint(18, 40))
+            )
+            color = COLOR_CRIMSON if random.random() < 0.75 else COLOR_OBSIDIAN
+
+            tinted = QPixmap(pixmap.size())
+            tinted.fill(Qt.GlobalColor.transparent)
+            p = QPainter()
+            if p.begin(tinted):
+                p.drawPixmap(0, 0, pixmap)
+                p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+                c = QColor(color)
+                c.setAlpha(alpha)
+                p.fillRect(tinted.rect(), c)
+                p.end()
+
+            painter.save()
+            painter.setCompositionMode(
+                QPainter.CompositionMode.CompositionMode_SourceOver
+            )
+            painter.drawPixmap(dx, dy, tinted)
+            painter.restore()
+
+        tear_n = random.randint(3, 7) if severity > 0.6 else (random.randint(2, 4) if severity > 0.3 else random.randint(1, 2))
+        for _ in range(tear_n):
+            tw = snap_pixel(random.randint(w // 5, w // 2))
+            th = snap_pixel(random.choice((PIXEL_SIZE, PIXEL_SIZE * 2)))
+            tx = snap_pixel(random.randint(-12, max(0, w - tw + 12)))
+            ty = snap_pixel(random.randint(0, max(0, h - th)))
+            t_color = QColor(COLOR_CRIMSON if random.random() < 0.7 else COLOR_OBSIDIAN)
+            t_color.setAlpha(random.randint(50, 120) if severity > 0.5 else random.randint(25, 60))
+            painter.fillRect(tx, ty, tw, th, t_color)
 
     def _calculate_severity(self, state: PetRenderState) -> float:
         if state.is_spawning:

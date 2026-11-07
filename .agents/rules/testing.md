@@ -47,6 +47,8 @@
   - Tests cyber dialogs, window flags, custom reminder range spinbox bounds, and ContextMenuBuilder assembly (verifying quick action toggle ordering at the top of the menu).
 - **`tests/test_transition_kinematics.py`**:
   - Tests endpoint consistency and mathematical curves for procedural transition trajectories (Bezier, Manhattan, Vortex).
+- **`tests/test_code_integrity.py`**:
+  - Tests full project syntax compilation (`py_compile`) and static code integrity analysis via `ruff check` (catching undefined names, broken symbols, and syntax errors across all codebase modules).
 
 ## Rules for Writing & Executing Tests
 

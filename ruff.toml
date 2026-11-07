@@ -1,0 +1,9 @@
+[lint]
+select = ["E9", "F821", "F822", "F823"]
+exclude = [
+    ".venv",
+    ".git",
+    "__pycache__",
+    "build",
+    "dist"
+]

@@ -59,7 +59,7 @@ flowchart TB
     subgraph VisualPresentation["6. Графический интерфейс и эффекты (capri.ui / capri.effects)"]
         direction TB
         PetWindow["ui/pet_window.py<br/>(Главное окно питомца, View)"]
-        PetRenderer["ui/pet_renderer.py<br/>(Рендерер спрайтов и сканлайнов)"]
+        PetRenderer["ui/pet_renderer.py<br/>(Рендерер спрайтов, глитч-ауры Blackwall и сканлайнов)"]
         ContextMenu["ui/context_menu.py<br/>(Кибер-меню и настройки)"]
         VoiceCoord["ui/voice_coordinator.py<br/>(Координатор ASR & HUD)"]
         VoiceHUD["ui/voice_hud.py<br/>(Cyberpunk Voice HUD над taskbar)"]

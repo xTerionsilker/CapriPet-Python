@@ -31,3 +31,16 @@ class TestSpriteManager(unittest.TestCase):
         mgr._cached_hit_image = img
         self.assertFalse(mgr.is_point_on_sprite(5, 5))
         self.assertFalse(mgr.is_point_on_sprite(-1, -1))
+
+    def test_pet_renderer_pipeline_execution(self) -> None:
+        from PySide6.QtGui import QPainter, QPixmap
+        from capri.ui.pet_renderer import PetRenderer, PetRenderState
+        renderer = PetRenderer()
+        source = QPixmap(100, 100)
+        source.fill(0)
+        canvas = QPixmap(100, 100)
+        canvas.fill(0)
+        painter = QPainter(canvas)
+        state = PetRenderState(is_dragging=True, is_speaking=True)
+        renderer.render(painter, source, state)
+        painter.end()

@@ -146,7 +146,7 @@ class ActionBridge(QObject):
         self.kill_app_results_ready.emit(procs)
 
     def open_update_page(self) -> str:
-        return updater.open_update_page()
+        return web_search.open_update_page()
 
     def check_updates(self) -> str:
         threading.Thread(
@@ -177,8 +177,8 @@ class ActionBridge(QObject):
         self.speech_requested.emit(msg)
 
     def _check_updates_worker(self) -> None:
-        local_dt = updater.read_local_version_datetime()
-        remote_dt = updater.fetch_remote_version_datetime()
+        local_dt = web_search.read_local_version_datetime()
+        remote_dt = web_search.fetch_remote_version_datetime()
         if remote_dt is None:
             self.speech_requested.emit(
                 "Не удалось получить данные об обновлении с GitHub."
@@ -190,8 +190,8 @@ class ActionBridge(QObject):
             )
             return
 
-        local_str = updater.format_version_datetime(local_dt)
-        remote_str = updater.format_version_datetime(remote_dt)
+        local_str = web_search.format_version_datetime(local_dt)
+        remote_str = web_search.format_version_datetime(remote_dt)
 
         if remote_dt > local_dt:
             self.update_check_finished.emit("update_available", local_str, remote_str)

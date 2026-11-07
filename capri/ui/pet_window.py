@@ -27,6 +27,8 @@ from ..core.settings import (
     set_config_value,
 )
 from ..effects.effects_coordinator import EffectsCoordinator
+from ..effects.model_init_animation import ModelInitOverlay
+from ..effects.session_animations import SessionAnimationOverlay
 from ..effects.transition import TransitionOverlay
 from ..integrations.system_power_hook import SystemEventHook
 from .context_menu import TrayManager, build_pet_context_menu
