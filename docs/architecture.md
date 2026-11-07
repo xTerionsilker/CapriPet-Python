@@ -136,11 +136,11 @@ sequenceDiagram
 
 ---
 
-## 3. Диаграмма последовательности Drag & Drop File Shredder (Rogue AI)
+## 4. Диаграмма последовательности Drag & Drop File Shredder (Rogue AI)
 
 Процесс перехвата и безвозвратного поглощения файлов и папок через окно питомца под эффекты Blackwall.
 
-`mermaid
+```mermaid
 sequenceDiagram
     autonumber
     actor User as Пользователь
@@ -167,4 +167,4 @@ sequenceDiagram
         Shredder-->>Window: ShredMetrics (размер, типы, количество)
         Window->>Speech: generate_shred_dialogue(metrics)
     end
-`
+```
