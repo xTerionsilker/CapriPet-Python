@@ -837,36 +837,46 @@ class CapriWindow(QWidget):
             self.hide()
 
             def on_stealth_in_finish():
-                self._silent_glyph.show()
                 self._stealth_transition_overlay = None
+                self._silent_glyph.start_materialize(duration_ms=260)
 
             overlay.finished.connect(on_stealth_in_finish)
             self._stealth_transition_overlay = overlay
             overlay.start()
         else:
-            self._silent_glyph.hide()
             if self._closing:
+                self._silent_glyph.hide()
                 return
 
             center_x = screen_rect.center().x() - self.width() // 2
             center_y = screen_rect.center().y() - self.height() // 2
             self.move(center_x, center_y)
 
-            overlay = TransitionOverlay(
-                screen_rect,
-                self.geometry(),
-                "in",
-                target=self,
-                target_point=glyph_center,
-                on_peak=self._reveal_on_stealth_peak,
-            )
+            def launch_ball_to_center():
+                if self._closing or self._is_stealth_mode:
+                    return
+                overlay = TransitionOverlay(
+                    screen_rect,
+                    self.geometry(),
+                    "in",
+                    target=self,
+                    target_point=glyph_center,
+                    on_peak=self._reveal_on_stealth_peak,
+                )
 
-            def on_stealth_out_finish():
-                self._stealth_transition_overlay = None
+                def on_stealth_out_finish():
+                    self._stealth_transition_overlay = None
 
-            overlay.finished.connect(on_stealth_out_finish)
-            self._stealth_transition_overlay = overlay
-            overlay.start()
+                overlay.finished.connect(on_stealth_out_finish)
+                self._stealth_transition_overlay = overlay
+                overlay.start()
+
+            if self._silent_glyph.isVisible():
+                self._silent_glyph.start_dissolve(
+                    duration_ms=220, callback=launch_ball_to_center
+                )
+            else:
+                launch_ball_to_center()
 
     def _reveal_on_stealth_peak(self) -> None:
         if not self._closing and not self._is_stealth_mode:
