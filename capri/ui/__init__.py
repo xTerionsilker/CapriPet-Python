@@ -7,8 +7,8 @@ from .context_menu import (
     build_tray_context_menu,
 )
 from .pet_renderer import (
-    PetRenderState,
     PetRenderer,
+    PetRenderState,
     free_bands,
     least_overlap_point,
     pick_adjacent_position,

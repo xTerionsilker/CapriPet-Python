@@ -1,13 +1,29 @@
+line-length = 75
+target-version = "py310"
+
 [lint]
 select = [
+    "E4",
+    "E7",
     "E9",
-    "F821",
-    "F822",
-    "F823",
-    "F632",
-    "F706",
-    "B006",
+    "W",
+    "F",
+    "B",
+    "I",
+    "UP",
+    "SIM",
+    "C4",
+    "PIE",
+    "RET",
     "YTT",
+    "D100",
+    "D101",
+]
+ignore = [
+    "E501",
+    "SIM108",
+    "D203",
+    "D212",
 ]
 exclude = [
     ".venv",
@@ -16,3 +32,6 @@ exclude = [
     "build",
     "dist"
 ]
+
+[lint.per-file-ignores]
+"tests/*" = ["D"]

@@ -1,3 +1,5 @@
+"""Модуль захвата звука с микрофона, детекции голоса (VAD) и потокового ввода."""
+
 from __future__ import annotations
 
 import logging
@@ -9,7 +11,12 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QObject, QTimer, Signal
-from PySide6.QtMultimedia import QAudioDevice, QAudioFormat, QAudioSource, QMediaDevices
+from PySide6.QtMultimedia import (
+    QAudioDevice,
+    QAudioFormat,
+    QAudioSource,
+    QMediaDevices,
+)
 
 from .recognizer import RecognitionError, check_available, recognize
 
@@ -31,7 +38,11 @@ _DEFAULT_SILENCE_MS = 800
 
 
 class SileroVAD:
-    def __init__(self, sample_rate: int = 16_000, threshold: float = 0.5) -> None:
+    """Детектор голосовой активности (Voice Activity Detection) на базе ONNX-модели Silero VAD."""
+
+    def __init__(
+        self, sample_rate: int = 16_000, threshold: float = 0.5
+    ) -> None:
         self.sample_rate = sample_rate
         self.threshold = threshold
         self._session: Any = None
@@ -59,12 +70,18 @@ class SileroVAD:
             opts = ort.SessionOptions()
             opts.inter_op_num_threads = 1
             opts.intra_op_num_threads = 1
-            opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-            self._session = ort.InferenceSession(str(model_path), sess_options=opts)
+            opts.graph_optimization_level = (
+                ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            )
+            self._session = ort.InferenceSession(
+                str(model_path), sess_options=opts
+            )
             self._state = np.zeros((2, 1, 128), dtype=np.float32)
             self._available = True
         except Exception as error:
-            logger.warning("Не удалось загрузить Silero VAD ONNX: %s", error)
+            logger.warning(
+                "Не удалось загрузить Silero VAD ONNX: %s", error
+            )
             self._available = False
 
     @property
@@ -84,7 +101,10 @@ class SileroVAD:
         try:
             import numpy as np
 
-            audio_data = np.frombuffer(chunk, dtype=np.int16).astype(np.float32) / 32768.0
+            audio_data = (
+                np.frombuffer(chunk, dtype=np.int16).astype(np.float32)
+                / 32768.0
+            )
             if len(audio_data) == 0:
                 return False, 0.0
 
@@ -104,7 +124,11 @@ class SileroVAD:
                 input_tensor = np.expand_dims(sub_chunk, axis=0)
                 out, self._state = self._session.run(
                     None,
-                    {"input": input_tensor, "state": self._state, "sr": sr_tensor},
+                    {
+                        "input": input_tensor,
+                        "state": self._state,
+                        "sr": sr_tensor,
+                    },
                 )
                 prob = float(out[0][0])
                 if prob > max_prob:
@@ -117,6 +141,8 @@ class SileroVAD:
 
 
 class VoiceInput(QObject):
+    """Захват аудиопотока с микрофона и координация распознавания речи."""
+
     listening_changed = Signal(bool)
     status_changed = Signal(str)
     partial_recognized = Signal(str)
@@ -171,7 +197,10 @@ class VoiceInput(QObject):
 
     @property
     def current_device(self) -> QAudioDevice:
-        if self._selected_device is not None and not self._selected_device.isNull():
+        if (
+            self._selected_device is not None
+            and not self._selected_device.isNull()
+        ):
             return self._selected_device
         return QMediaDevices.defaultAudioInput()
 
@@ -341,7 +370,9 @@ class VoiceInput(QObject):
             elif self._speech_started:
                 self._silent_ms += chunk_ms
 
-        silence_limit = _FAST_SILENCE_MS if self._is_armed else _DEFAULT_SILENCE_MS
+        silence_limit = (
+            _FAST_SILENCE_MS if self._is_armed else _DEFAULT_SILENCE_MS
+        )
         if self._elapsed_ms >= _MAX_RECORD_MS or (
             self._speech_started and self._silent_ms >= silence_limit
         ):

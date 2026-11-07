@@ -1,12 +1,19 @@
+"""Отрисовка спрайта питомца и алгоритмы пространственного позиционирования.
+
+Содержит класс визуализатора киберпанк-эффектов (PetRenderer), состояние
+рендеринга (PetRenderState) и функции поиска свободных зон на экране.
+"""
+
 from __future__ import annotations
 
 import random
 from dataclasses import dataclass
 
 from PySide6.QtCore import QRect, Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
 
 from capri.ui.theme import get_hud_font
+
 from ..effects.transition_fx import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
@@ -19,6 +26,7 @@ from ..effects.transition_fx import (
 
 GAP = 24
 OVERLAP_ATTEMPTS = 200
+
 
 def free_bands(area: QRect, blocked: QRect | None) -> list[QRect]:
     if blocked is None or blocked.isEmpty():
@@ -63,6 +71,7 @@ def free_bands(area: QRect, blocked: QRect | None) -> list[QRect]:
         )
     return bands
 
+
 def random_free_point(
     bands: list[QRect], width: int, height: int
 ) -> tuple[int, int] | None:
@@ -89,6 +98,7 @@ def random_free_point(
         choice -= span
     return None
 
+
 def least_overlap_point(
     area: QRect, blocked: QRect, width: int, height: int
 ) -> tuple[int, int]:
@@ -106,6 +116,7 @@ def least_overlap_point(
             best = (x, y)
     return best
 
+
 def pick_position(
     area: QRect, blocked: QRect | None, width: int, height: int
 ) -> tuple[int, int]:
@@ -115,6 +126,7 @@ def pick_position(
     if blocked is not None and not blocked.isEmpty():
         return least_overlap_point(area, blocked, width, height)
     return area.left(), area.top()
+
 
 def pick_adjacent_position(
     area: QRect,
@@ -134,7 +146,9 @@ def pick_adjacent_position(
     ry = target.center().y() - height // 2
     ry_clamped = max(safe_top, min(ry, safe_bottom - height))
     right_rect = QRect(rx, ry_clamped, width, height)
-    fits_right = (rx + width <= safe_right) and not right_rect.intersects(target)
+    fits_right = (rx + width <= safe_right) and not right_rect.intersects(
+        target
+    )
 
     lx = target.left() - gap - width
     ly = target.center().y() - height // 2
@@ -152,7 +166,9 @@ def pick_adjacent_position(
     bx_clamped = max(safe_left, min(bx, safe_right - width))
     by = target.bottom() + gap
     bottom_rect = QRect(bx_clamped, by, width, height)
-    fits_bottom = (by + height <= safe_bottom) and not bottom_rect.intersects(target)
+    fits_bottom = (
+        by + height <= safe_bottom
+    ) and not bottom_rect.intersects(target)
 
     candidates: dict[str, tuple[int, int, bool, QRect]] = {
         "right": (rx, ry_clamped, fits_right, right_rect),
@@ -161,7 +177,11 @@ def pick_adjacent_position(
         "bottom": (bx_clamped, by, fits_bottom, bottom_rect),
     }
 
-    if preferred_side and preferred_side in candidates and candidates[preferred_side][2]:
+    if (
+        preferred_side
+        and preferred_side in candidates
+        and candidates[preferred_side][2]
+    ):
         x, y, _, _ = candidates[preferred_side]
         return x, y, preferred_side
 
@@ -188,7 +208,11 @@ def pick_adjacent_position(
         clamped_y = max(safe_top, min(cand_y, safe_bottom - height))
         clamped_rect = QRect(clamped_x, clamped_y, width, height)
         overlap = clamped_rect.intersected(target)
-        overlap_area = overlap.width() * overlap.height() if not overlap.isEmpty() else 0
+        overlap_area = (
+            overlap.width() * overlap.height()
+            if not overlap.isEmpty()
+            else 0
+        )
         if overlap_area < best_overlap:
             best_overlap = overlap_area
             best_side = side
@@ -196,15 +220,18 @@ def pick_adjacent_position(
 
     return best_x, best_y, best_side
 
+
 def pick_side_position(
     area: QRect, target: QRect, width: int, height: int, gap: int = GAP
 ) -> tuple[int, int]:
     x, y, _ = pick_adjacent_position(area, target, width, height, gap=gap)
     return x, y
 
+
 @dataclass
 class PetRenderState:
-    
+    """Состояние визуальных эффектов питомца для текущего кадра."""
+
     is_spawning: bool = False
     is_dragging: bool = False
     is_pose_transition: bool = False
@@ -212,8 +239,9 @@ class PetRenderState:
     is_speaking: bool = False
     telemetry_tag: str = "[CAPRI//ONLINE]"
 
+
 class PetRenderer:
-    
+    """Отрисовщик спрайта питомца с наложением глитчей и киберпанк-эффектов."""
 
     def render(
         self,
@@ -221,7 +249,7 @@ class PetRenderer:
         pixmap: QPixmap,
         state: PetRenderState,
     ) -> None:
-        
+
         w = pixmap.width()
         h = pixmap.height()
         if w <= 0 or h <= 0 or pixmap.isNull():
@@ -242,7 +270,9 @@ class PetRenderer:
 
         self._draw_sliced_pixmap(painter, pixmap, w, h, severity)
 
-        self._draw_silhouette_glitches(painter, w, h, severity, state.is_pose_transition)
+        self._draw_silhouette_glitches(
+            painter, w, h, severity, state.is_pose_transition
+        )
 
         self._draw_sparks(painter, w, h, severity)
 
@@ -252,27 +282,44 @@ class PetRenderer:
             painter.translate(-shake_x, -shake_y)
 
     def _draw_blackwall_aura(
-        self, painter: QPainter, pixmap: QPixmap, w: int, h: int, severity: float
+        self,
+        painter: QPainter,
+        pixmap: QPixmap,
+        w: int,
+        h: int,
+        severity: float,
     ) -> None:
         echo_count = 3 if severity > 0.6 else (2 if severity > 0.3 else 2)
         step_base = 8 if severity > 0.6 else (5 if severity > 0.3 else 3)
 
         for i in range(echo_count):
             dx = snap_pixel(random.choice((-1, 1)) * (i + 1) * step_base)
-            dy = snap_pixel(random.choice((-1, 0, 1)) * (i + 1) * max(2, step_base // 2))
+            dy = snap_pixel(
+                random.choice((-1, 0, 1))
+                * (i + 1)
+                * max(2, step_base // 2)
+            )
             alpha = (
                 random.randint(120, 190)
                 if severity > 0.6
-                else (random.randint(80, 140) if severity > 0.3 else random.randint(55, 95))
+                else (
+                    random.randint(80, 140)
+                    if severity > 0.3
+                    else random.randint(55, 95)
+                )
             )
-            color = COLOR_CRIMSON if random.random() < 0.8 else COLOR_OBSIDIAN
+            color = (
+                COLOR_CRIMSON if random.random() < 0.8 else COLOR_OBSIDIAN
+            )
 
             tinted = QPixmap(pixmap.size())
             tinted.fill(Qt.GlobalColor.transparent)
             p = QPainter()
             if p.begin(tinted):
                 p.drawPixmap(0, 0, pixmap)
-                p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+                p.setCompositionMode(
+                    QPainter.CompositionMode.CompositionMode_SourceIn
+                )
                 c = QColor(color)
                 c.setAlpha(alpha)
                 p.fillRect(tinted.rect(), c)
@@ -285,14 +332,28 @@ class PetRenderer:
             painter.drawPixmap(dx, dy, tinted)
             painter.restore()
 
-        tear_n = random.randint(3, 7) if severity > 0.6 else (random.randint(2, 4) if severity > 0.3 else random.randint(1, 2))
+        tear_n = (
+            random.randint(3, 7)
+            if severity > 0.6
+            else (
+                random.randint(2, 4)
+                if severity > 0.3
+                else random.randint(1, 2)
+            )
+        )
         for _ in range(tear_n):
             tw = snap_pixel(random.randint(w // 5, w // 2))
             th = snap_pixel(random.choice((PIXEL_SIZE, PIXEL_SIZE * 2)))
             tx = snap_pixel(random.randint(-12, max(0, w - tw + 12)))
             ty = snap_pixel(random.randint(0, max(0, h - th)))
-            t_color = QColor(COLOR_CRIMSON if random.random() < 0.7 else COLOR_OBSIDIAN)
-            t_color.setAlpha(random.randint(50, 120) if severity > 0.5 else random.randint(25, 60))
+            t_color = QColor(
+                COLOR_CRIMSON if random.random() < 0.7 else COLOR_OBSIDIAN
+            )
+            t_color.setAlpha(
+                random.randint(50, 120)
+                if severity > 0.5
+                else random.randint(25, 60)
+            )
             painter.fillRect(tx, ty, tw, th, t_color)
 
     def _calculate_severity(self, state: PetRenderState) -> float:
@@ -332,22 +393,36 @@ class PetRenderer:
             painter.restore()
 
     def _draw_sliced_pixmap(
-        self, painter: QPainter, pixmap: QPixmap, w: int, h: int, severity: float
+        self,
+        painter: QPainter,
+        pixmap: QPixmap,
+        w: int,
+        h: int,
+        severity: float,
     ) -> None:
-        tear_chance = 0.90 if severity > 0.6 else (0.45 if severity > 0.3 else 0.15)
+        tear_chance = (
+            0.90 if severity > 0.6 else (0.45 if severity > 0.3 else 0.15)
+        )
         if random.random() < tear_chance:
             num_slices = (
-                random.randint(2, 5) if severity > 0.6 else random.randint(1, 2)
+                random.randint(2, 5)
+                if severity > 0.6
+                else random.randint(1, 2)
             )
-            slice_bounds = [0] + sorted(
-                snap_pixel(
-                    random.randint(
-                        PIXEL_SIZE * 2, max(PIXEL_SIZE * 3, h - PIXEL_SIZE * 2)
+            slice_bounds = (
+                [0]
+                + sorted(
+                    snap_pixel(
+                        random.randint(
+                            PIXEL_SIZE * 2,
+                            max(PIXEL_SIZE * 3, h - PIXEL_SIZE * 2),
+                        )
                     )
+                    for _ in range(num_slices)
                 )
-                for _ in range(num_slices)
-            ) + [h]
-            slice_bounds = sorted(list(set(slice_bounds)))
+                + [h]
+            )
+            slice_bounds = sorted(set(slice_bounds))
             for i in range(len(slice_bounds) - 1):
                 sy = slice_bounds[i]
                 sh = slice_bounds[i + 1] - sy
@@ -378,7 +453,9 @@ class PetRenderer:
         )
 
         scan_alpha = (
-            random.randint(25, 60) if severity > 0.4 else random.randint(15, 35)
+            random.randint(25, 60)
+            if severity > 0.4
+            else random.randint(15, 35)
         )
         scan_color = QColor(COLOR_OBSIDIAN)
         scan_color.setAlpha(scan_alpha)
@@ -389,11 +466,17 @@ class PetRenderer:
         bar_count = (
             random.randint(5, 10)
             if severity > 0.7
-            else (random.randint(3, 6) if severity > 0.3 else random.randint(1, 2))
+            else (
+                random.randint(3, 6)
+                if severity > 0.3
+                else random.randint(1, 2)
+            )
         )
         for _ in range(bar_count):
             by = snap_pixel(random.randint(0, max(0, h - PIXEL_SIZE)))
-            bh = random.choice((PIXEL_SIZE, PIXEL_SIZE * 2, PIXEL_SIZE * 3))
+            bh = random.choice(
+                (PIXEL_SIZE, PIXEL_SIZE * 2, PIXEL_SIZE * 3)
+            )
             bw = snap_pixel(random.randint(w // 4, w))
             bx = snap_pixel(random.randint(0, max(0, w - bw)))
             c = QColor(pick_palette_color())
@@ -403,7 +486,11 @@ class PetRenderer:
         block_count = (
             random.randint(8, 16)
             if severity > 0.6
-            else (random.randint(4, 9) if severity > 0.3 else random.randint(1, 3))
+            else (
+                random.randint(4, 9)
+                if severity > 0.3
+                else random.randint(1, 3)
+            )
         )
         for _ in range(block_count):
             bw = snap_pixel(random.choice((8, 12, 16, 24)))
@@ -418,10 +505,18 @@ class PetRenderer:
             font = get_hud_font(10, bold=True)
             painter.setFont(font)
             glyph = random.choice(("01", "FA", "ERR", "0x4F", "TX", "99%"))
-            gx = snap_pixel(random.randint(w // 4, max(w // 4 + 1, 3 * w // 4)))
-            gy = snap_pixel(random.randint(h // 4, max(h // 4 + 1, 3 * h // 4)))
+            gx = snap_pixel(
+                random.randint(w // 4, max(w // 4 + 1, 3 * w // 4))
+            )
+            gy = snap_pixel(
+                random.randint(h // 4, max(h // 4 + 1, 3 * h // 4))
+            )
             painter.setPen(
-                QColor(COLOR_ACID_GREEN if random.random() < 0.6 else COLOR_WHITE)
+                QColor(
+                    COLOR_ACID_GREEN
+                    if random.random() < 0.6
+                    else COLOR_WHITE
+                )
             )
             painter.drawText(gx, gy, glyph)
 
@@ -433,7 +528,9 @@ class PetRenderer:
             for dy in range(0, h, PIXEL_SIZE * 2):
                 for dx in range(0, w, PIXEL_SIZE * 2):
                     if random.random() < 0.4:
-                        painter.fillRect(dx, dy, PIXEL_SIZE, PIXEL_SIZE, dissolve_color)
+                        painter.fillRect(
+                            dx, dy, PIXEL_SIZE, PIXEL_SIZE, dissolve_color
+                        )
 
     def _draw_sparks(
         self, painter: QPainter, w: int, h: int, severity: float
@@ -446,19 +543,35 @@ class PetRenderer:
             spark_n = (
                 random.randint(6, 12)
                 if severity > 0.7
-                else (random.randint(3, 7) if severity > 0.3 else random.randint(1, 3))
+                else (
+                    random.randint(3, 7)
+                    if severity > 0.3
+                    else random.randint(1, 3)
+                )
             )
             for _ in range(spark_n):
-                ex = snap_pixel(random.randint(0, max(0, w - PIXEL_SIZE * 2)))
-                ey = snap_pixel(random.randint(0, max(0, h - PIXEL_SIZE * 2)))
+                ex = snap_pixel(
+                    random.randint(0, max(0, w - PIXEL_SIZE * 2))
+                )
+                ey = snap_pixel(
+                    random.randint(0, max(0, h - PIXEL_SIZE * 2))
+                )
                 spark_color = QColor(pick_palette_color())
                 spark_color.setAlpha(random.randint(180, 255))
                 if random.random() < 0.6:
-                    painter.fillRect(ex, ey, PIXEL_SIZE, PIXEL_SIZE, spark_color)
-                else:
-                    painter.fillRect(ex, ey, PIXEL_SIZE * 2, PIXEL_SIZE, spark_color)
                     painter.fillRect(
-                        ex + PIXEL_SIZE, ey + PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE * 2, spark_color
+                        ex, ey, PIXEL_SIZE, PIXEL_SIZE, spark_color
+                    )
+                else:
+                    painter.fillRect(
+                        ex, ey, PIXEL_SIZE * 2, PIXEL_SIZE, spark_color
+                    )
+                    painter.fillRect(
+                        ex + PIXEL_SIZE,
+                        ey + PIXEL_SIZE,
+                        PIXEL_SIZE,
+                        PIXEL_SIZE * 2,
+                        spark_color,
                     )
 
     def _draw_hud_telemetry(

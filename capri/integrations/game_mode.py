@@ -1,9 +1,16 @@
+"""Обнаружение полноэкранных игр и мультимедийных приложений в Windows.
+
+Модуль определяет работу пользователя в полноэкранном или игровом режиме
+через Windows Shell API (SHQueryUserNotificationState) и анализ геометрии
+активных окон для автоматического подавления анимаций и голосовых реплик.
+"""
+
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
 import logging
-from typing import Callable, Optional
+from ctypes import wintypes
+
 import psutil
 from PySide6.QtCore import QObject, QTimer, Signal
 
@@ -52,6 +59,8 @@ def get_foreground_process_info(hwnd: int) -> tuple[int, str]:
     except Exception:
         pass
     return 0, ""
+
+
 def is_window_fullscreen_on_screen(hwnd: int) -> bool:
     try:
         user32 = ctypes.windll.user32
@@ -96,10 +105,22 @@ def is_window_fullscreen_on_screen(hwnd: int) -> bool:
             and rect.right >= m_rect.right
             and rect.bottom >= m_rect.bottom
         )
-        return is_matching_monitor and width >= m_width and height >= m_height
+        return (
+            is_matching_monitor and width >= m_width and height >= m_height
+        )
     except Exception:
         return False
+
+
 class GameModeDetector(QObject):
+    """Детектор активности полноэкранных игр и презентаций.
+
+    Отслеживает состояние окна на переднем плане и статус уведомлений системы.
+    Поддерживает белые и черные списки процессов, а также таймер задержки
+    (cooldown) для сглаживания кратковременных переключений между окнами.
+    При смене режима генерирует сигнал `game_mode_changed`.
+    """
+
     game_mode_changed = Signal(bool)
 
     def __init__(
@@ -108,7 +129,7 @@ class GameModeDetector(QObject):
         cooldown_seconds: float = 3.0,
         whitelist: list[str] | None = None,
         blacklist: list[str] | None = None,
-        parent: Optional[QObject] = None,
+        parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._enabled = suppression_enabled
@@ -150,13 +171,19 @@ class GameModeDetector(QObject):
             if self._in_game:
                 self._in_game = False
                 self.game_mode_changed.emit(False)
-    def set_lists(self, whitelist: list[str], blacklist: list[str]) -> None:
+
+    def set_lists(
+        self, whitelist: list[str], blacklist: list[str]
+    ) -> None:
         self._whitelist = [w.lower() for w in whitelist]
         self._blacklist = [b.lower() for b in blacklist]
 
     def _is_game_foreground(self) -> bool:
         user_state = query_user_notification_state()
-        if user_state in (QUNS_RUNNING_D3D_FULL_SCREEN, QUNS_PRESENTATION_MODE):
+        if user_state in (
+            QUNS_RUNNING_D3D_FULL_SCREEN,
+            QUNS_PRESENTATION_MODE,
+        ):
             return True
 
         user32 = ctypes.windll.user32
@@ -190,10 +217,11 @@ class GameModeDetector(QObject):
                 self._in_game = True
                 self.game_mode_changed.emit(True)
         else:
-            if self._in_game:
-                if self._raw_detected:
-                    self._raw_detected = False
-                    self._cooldown_timer.start(int(self._cooldown_seconds * 1000))
+            if self._in_game and self._raw_detected:
+                self._raw_detected = False
+                self._cooldown_timer.start(
+                    int(self._cooldown_seconds * 1000)
+                )
 
     def _on_cooldown_expired(self) -> None:
         if not self._raw_detected and self._in_game:

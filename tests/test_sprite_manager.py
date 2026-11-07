@@ -34,7 +34,9 @@ class TestSpriteManager(unittest.TestCase):
 
     def test_pet_renderer_pipeline_execution(self) -> None:
         from PySide6.QtGui import QPainter, QPixmap
+
         from capri.ui.pet_renderer import PetRenderer, PetRenderState
+
         renderer = PetRenderer()
         source = QPixmap(100, 100)
         source.fill(0)

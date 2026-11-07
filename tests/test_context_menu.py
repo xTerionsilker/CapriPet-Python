@@ -42,9 +42,10 @@ class TestContextMenu(unittest.TestCase):
 
         builder = ContextMenuBuilder(DummyWindow())
         menu = builder.build(for_tray=False)
-        action_texts = [act.text() for act in menu.actions() if not act.isSeparator()]
+        action_texts = [
+            act.text() for act in menu.actions() if not act.isSeparator()
+        ]
 
         self.assertIn("DISCORD", action_texts[1])
         self.assertIn("VOICE", action_texts[2])
         self.assertIn("GLITCH", action_texts[3])
-

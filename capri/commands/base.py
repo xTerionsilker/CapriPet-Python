@@ -1,17 +1,24 @@
+"""Базовые классы, контекст и структуры данных командной системы."""
+
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 
 @dataclass
 class CommandResult:
+    """Результат выполнения команды с сообщением и статусом успешности."""
+
     message: str | None = None
     success: bool = True
 
 
 @dataclass
 class CommandContext:
+    """Контекст выполнения команд с доступом к действиям питомца и системы."""
+
     speak: Callable[[str], Any]
     trigger_glitches: Callable[[], str]
     toggle_voice: Callable[[], str]
@@ -25,6 +32,8 @@ class CommandContext:
 
 
 class BaseCommand:
+    """Абстрактный базовый класс для всех команд приложения."""
+
     name: str = ""
     description: str = ""
     aliases: tuple[str, ...] = ()

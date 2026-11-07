@@ -1,3 +1,5 @@
+"""Модуль ядра CapriPet: поток ввода, морфология, настройки и триггеры."""
+
 from __future__ import annotations
 
 from .input_flow import InputFlow
@@ -9,16 +11,20 @@ from .morphology import (
 )
 from .settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
+    DEFAULT_CONFIG,
+    GLITCH_INTENSITY_OPTIONS,
+    AppConfig,
     AppearanceConfig,
     AudioConfig,
     BehaviorConfig,
     CapriConfig,
     ConfigManager,
-    DEFAULT_CONFIG,
     EffectsConfig,
-    GLITCH_INTENSITY_OPTIONS,
+    InactivityConfig,
     NetworkConfig,
+    OverlayConfig,
     ScreenConfig,
+    VoskConfig,
     WindowConfig,
     WindowPosition,
     get_config_manager,
@@ -51,6 +57,7 @@ __all__ = [
     "stem_text",
     "ACTIVITY_TIMEOUT_OPTIONS_MS",
     "AppearanceConfig",
+    "AppConfig",
     "AudioConfig",
     "BehaviorConfig",
     "CapriConfig",
@@ -58,8 +65,11 @@ __all__ = [
     "DEFAULT_CONFIG",
     "EffectsConfig",
     "GLITCH_INTENSITY_OPTIONS",
+    "InactivityConfig",
     "NetworkConfig",
+    "OverlayConfig",
     "ScreenConfig",
+    "VoskConfig",
     "WindowConfig",
     "WindowPosition",
     "get_config_manager",

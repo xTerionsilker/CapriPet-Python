@@ -1,8 +1,14 @@
+"""Управление спрайтами, позами и масштабированием питомца Capri.
+
+Обеспечивает загрузку графических ресурсов, кеширование растровых масок,
+проверку попадания курсора (hit-test) и переключение поз.
+"""
+
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QBitmap, QImage, QPixmap, QRegion
@@ -17,10 +23,15 @@ THINKING_DIR = VAR_DIR / "thinking"
 
 ALLOWED_SCALES = (50, 75, 100, 125, 150)
 
-class SpriteManager:
-    
 
-    def __init__(self, on_pose_changed: Callable[[QPixmap, QImage, str], None] | None = None) -> None:
+class SpriteManager:
+    """Менеджер спрайтов поз питомца, масштабирования и растровых масок."""
+
+    def __init__(
+        self,
+        on_pose_changed: Callable[[QPixmap, QImage, str], None]
+        | None = None,
+    ) -> None:
         self._on_pose_changed = on_pose_changed
         self._scale_percent: int = 100
         self._current_pose: str = "idle"
@@ -103,25 +114,40 @@ class SpriteManager:
             return
 
         self._cached_hit_image = self._current_pixmap.toImage()
-        w, h = self._cached_hit_image.width(), self._cached_hit_image.height()
-        alpha8 = self._cached_hit_image.convertToFormat(QImage.Format.Format_Alpha8)
-        raw_bytes = bytearray(alpha8.constBits()[:alpha8.sizeInBytes()])
+        w, h = (
+            self._cached_hit_image.width(),
+            self._cached_hit_image.height(),
+        )
+        alpha8 = self._cached_hit_image.convertToFormat(
+            QImage.Format.Format_Alpha8
+        )
+        raw_bytes = bytearray(alpha8.constBits()[: alpha8.sizeInBytes()])
         table = bytes([0 if i <= 20 else 255 for i in range(256)])
         thresh_bytes = raw_bytes.translate(table)
-        thresh_img = QImage(thresh_bytes, w, h, alpha8.bytesPerLine(), QImage.Format.Format_Alpha8)
-        mask_bitmap = QBitmap.fromImage(thresh_img.createMaskFromColor(0, Qt.MaskMode.MaskInColor))
+        thresh_img = QImage(
+            thresh_bytes,
+            w,
+            h,
+            alpha8.bytesPerLine(),
+            QImage.Format.Format_Alpha8,
+        )
+        mask_bitmap = QBitmap.fromImage(
+            thresh_img.createMaskFromColor(0, Qt.MaskMode.MaskInColor)
+        )
         base_region = QRegion(mask_bitmap)
 
         dilated_region = QRegion()
         offsets = (-24, -16, -8, 0, 8, 16, 24)
         for dx in offsets:
             for dy in offsets:
-                dilated_region = dilated_region.united(base_region.translated(dx, dy))
+                dilated_region = dilated_region.united(
+                    base_region.translated(dx, dy)
+                )
 
         self._cached_mask_region = dilated_region
 
     def set_sprite_scale(self, percent: int) -> bool:
-        
+
         if percent not in ALLOWED_SCALES or self._scale_percent == percent:
             return False
 
@@ -134,7 +160,11 @@ class SpriteManager:
             self._current_pixmap = self._pixmaps[self._current_pose]
             self._update_cached_image_and_mask()
             if self._on_pose_changed:
-                self._on_pose_changed(self._current_pixmap, self._cached_hit_image, self._current_pose)
+                self._on_pose_changed(
+                    self._current_pixmap,
+                    self._cached_hit_image,
+                    self._current_pose,
+                )
         return True
 
     def load_all_poses(self) -> None:
@@ -160,11 +190,20 @@ class SpriteManager:
         self._pose_variants["stay"] = self._pose_variants["thinking"]
         self._pose_variants["crouch"] = self._pose_variants["other"]
 
-        for category in ("idle", "other", "thinking", "sit", "stay", "crouch"):
+        for category in (
+            "idle",
+            "other",
+            "thinking",
+            "sit",
+            "stay",
+            "crouch",
+        ):
             variants = self._pose_variants.get(category)
             if variants:
                 first_variant = variants[0]
-                self._raw_pixmaps[category] = self._raw_pixmaps[first_variant]
+                self._raw_pixmaps[category] = self._raw_pixmaps[
+                    first_variant
+                ]
                 self._pixmaps[category] = self._pixmaps[first_variant]
 
         if not self._pixmaps:
@@ -174,14 +213,16 @@ class SpriteManager:
             self._apply_scale_for_pose("sit")
 
     def set_pose(self, pose: str) -> bool:
-        
+
         canonical_pose = {
             "sit": "idle",
             "crouch": "other",
             "stay": "thinking",
         }.get(pose, pose)
 
-        variants = self._pose_variants.get(canonical_pose) or self._pose_variants.get(pose)
+        variants = self._pose_variants.get(
+            canonical_pose
+        ) or self._pose_variants.get(pose)
         if variants:
             chosen_key = random.choice(variants)
             chosen_pixmap = self._pixmaps.get(chosen_key)
@@ -195,7 +236,11 @@ class SpriteManager:
             self._current_pixmap = chosen_pixmap
             self._update_cached_image_and_mask()
             if self._on_pose_changed:
-                self._on_pose_changed(self._current_pixmap, self._cached_hit_image, self._current_pose)
+                self._on_pose_changed(
+                    self._current_pixmap,
+                    self._cached_hit_image,
+                    self._current_pose,
+                )
             return old_pose != canonical_pose
         return False
 
@@ -204,7 +249,7 @@ class SpriteManager:
         return self.set_pose(pose_name)
 
     def is_point_on_sprite(self, pos_x: int, pos_y: int) -> bool:
-        
+
         img = self._cached_hit_image
         if img is None or img.isNull():
             return True

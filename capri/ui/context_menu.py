@@ -1,3 +1,9 @@
+"""Контекстное меню и управление системным треем CapriPet.
+
+Предоставляет киберпанк-стилизованное меню, диалог настройки интервалов
+напоминаний и интеграцию с областью уведомлений Windows.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -38,7 +44,6 @@ from .theme import (
     CYBER_MENU_STYLE,
     ELECTRIC_BLUE,
     NEON_CRIMSON,
-    NEON_VIOLET,
     OBSIDIAN_BLACK,
     PURE_WHITE,
     get_hud_font,
@@ -48,11 +53,19 @@ if TYPE_CHECKING:
     from .pet_window import CapriWindow
 
 _CORNER_CUT = 10
-CAPRI_ICON = Path(__file__).resolve().parent.parent.parent / "assets" / "capri_icon.png"
+CAPRI_ICON = (
+    Path(__file__).resolve().parent.parent.parent
+    / "assets"
+    / "capri_icon.png"
+)
+
 
 class CyberMenu(QMenu):
+    """Стилизованное всплывающее контекстное меню в эстетике киберпанк."""
 
-    def __init__(self, parent: QWidget | None = None, title: str = "") -> None:
+    def __init__(
+        self, parent: QWidget | None = None, title: str = ""
+    ) -> None:
         super().__init__(title, parent)
         self.setStyleSheet(CYBER_MENU_STYLE)
 
@@ -104,7 +117,9 @@ class CyberMenu(QMenu):
         painter.end()
         super().paintEvent(event)
 
+
 class ReminderRangeDialog(QDialog):
+    """Диалоговое окно настройки пользовательского диапазона интервалов напоминаний."""
 
     def __init__(
         self,
@@ -138,14 +153,18 @@ class ReminderRangeDialog(QDialog):
         inputs_layout.setSpacing(12)
 
         lbl_from = QLabel("ОТ:")
-        lbl_from.setStyleSheet(f"color: {PURE_WHITE}; font-family: {CSS_CYBER_TERMINAL}; font-size: 11px; font-weight: bold;")
+        lbl_from.setStyleSheet(
+            f"color: {PURE_WHITE}; font-family: {CSS_CYBER_TERMINAL}; font-size: 11px; font-weight: bold;"
+        )
         self.spin_from = QSpinBox()
         self.spin_from.setRange(1, 1440)
         self.spin_from.setValue(init_min)
         self.spin_from.setSuffix(" МИН")
 
         lbl_to = QLabel("ДО:")
-        lbl_to.setStyleSheet(f"color: {PURE_WHITE}; font-family: {CSS_CYBER_TERMINAL}; font-size: 11px; font-weight: bold;")
+        lbl_to.setStyleSheet(
+            f"color: {PURE_WHITE}; font-family: {CSS_CYBER_TERMINAL}; font-size: 11px; font-weight: bold;"
+        )
         self.spin_to = QSpinBox()
         self.spin_to.setRange(1, 1440)
         self.spin_to.setValue(init_max)
@@ -233,13 +252,19 @@ class ReminderRangeDialog(QDialog):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            self._drag_pos = (
+                event.globalPosition().toPoint()
+                - self.frameGeometry().topLeft()
+            )
             event.accept()
         else:
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if self._drag_pos is not None and event.buttons() & Qt.MouseButton.LeftButton:
+        if (
+            self._drag_pos is not None
+            and event.buttons() & Qt.MouseButton.LeftButton
+        ):
             self.move(event.globalPosition().toPoint() - self._drag_pos)
             event.accept()
         else:
@@ -309,15 +334,18 @@ class ReminderRangeDialog(QDialog):
         painter.fillRect(QRect(bw - 26, 7, 10, 2), QColor(ACID_GREEN))
         painter.fillRect(QRect(bw - 13, 7, 6, 2), QColor(ELECTRIC_BLUE))
 
+
 class ContextMenuBuilder:
-    
+    """Конструктор контекстного меню управления питомцем и системного трея."""
 
     def __init__(self, window: Any) -> None:
         self.window = window
 
     def build(self, for_tray: bool = False) -> QMenu:
-        
-        menu = CyberMenu(self.window if isinstance(self.window, QWidget) else None)
+
+        menu = CyberMenu(
+            self.window if isinstance(self.window, QWidget) else None
+        )
 
         hdr = menu.addAction("▶ CAPRI//NEURAL_LINK [ONLINE]")
         hdr.setEnabled(False)
@@ -326,7 +354,9 @@ class ContextMenuBuilder:
         if for_tray:
             call_act = menu.addAction("▲  [SUMMON] Позвать Капри")
             trigger_fn = getattr(
-                self.window, "activate_command_mode", getattr(self.window, "show", None)
+                self.window,
+                "activate_command_mode",
+                getattr(self.window, "show", None),
             )
             if trigger_fn is not None:
                 call_act.triggered.connect(trigger_fn)
@@ -379,21 +409,33 @@ class ContextMenuBuilder:
         self._add_game_mode_toggle(parent_menu)
 
     def _add_game_mode_toggle(self, parent_menu: QMenu) -> None:
-        game_enabled = getattr(self.window, "game_suppression_enabled", True)
-        game_act = parent_menu.addAction("▶  [GAME] Игровой режим (тишина)")
+        game_enabled = getattr(
+            self.window, "game_suppression_enabled", True
+        )
+        game_act = parent_menu.addAction(
+            "▶  [GAME] Игровой режим (тишина)"
+        )
         game_act.setCheckable(True)
         game_act.setChecked(game_enabled)
         game_act.triggered.connect(
-            lambda checked: self.window.set_game_suppression_enabled(checked)
-            if hasattr(self.window, "set_game_suppression_enabled")
-            else None
+            lambda checked: (
+                self.window.set_game_suppression_enabled(checked)
+                if hasattr(self.window, "set_game_suppression_enabled")
+                else None
+            )
         )
 
     def _add_quick_actions(self, parent_menu: QMenu) -> None:
         orchestrator = getattr(self.window, "_orchestrator", None)
-        rpc_enabled = getattr(orchestrator, "_discord_enabled", True) if orchestrator else True
+        rpc_enabled = (
+            getattr(orchestrator, "_discord_enabled", True)
+            if orchestrator
+            else True
+        )
 
-        rpc_act = parent_menu.addAction("▶  [DISCORD] Discord Rich Presence")
+        rpc_act = parent_menu.addAction(
+            "▶  [DISCORD] Discord Rich Presence"
+        )
         rpc_act.setCheckable(True)
         rpc_act.setChecked(rpc_enabled)
         rpc_act.triggered.connect(
@@ -455,12 +497,16 @@ class ContextMenuBuilder:
             screen_group.addAction(action)
 
     def _add_microphone_menu(self, parent_menu: QMenu) -> None:
-        mic_menu = self._add_submenu(parent_menu, "◇  [AUDIO.IN] Входной микрофон")
+        mic_menu = self._add_submenu(
+            parent_menu, "◇  [AUDIO.IN] Входной микрофон"
+        )
         mic_group = QActionGroup(mic_menu)
         mic_group.setExclusive(True)
 
         current_mic = getattr(self.window, "selected_microphone", None)
-        if current_mic is None and hasattr(self.window, "voice_coordinator"):
+        if current_mic is None and hasattr(
+            self.window, "voice_coordinator"
+        ):
             current_mic = self.window.voice_coordinator.selected_device
         elif current_mic is None and hasattr(self.window, "_voice"):
             current_mic = self.window._voice.selected_device
@@ -493,7 +539,9 @@ class ContextMenuBuilder:
             mic_group.addAction(act)
 
     def _add_asr_model_menu(self, parent_menu: QMenu) -> None:
-        model_menu = self._add_submenu(parent_menu, "◇  [ASR.CORE] Модель распознавания")
+        model_menu = self._add_submenu(
+            parent_menu, "◇  [ASR.CORE] Модель распознавания"
+        )
         group = QActionGroup(model_menu)
         group.setExclusive(True)
 
@@ -515,10 +563,14 @@ class ContextMenuBuilder:
             group.addAction(act)
 
     def _add_sound_menu(self, parent_menu: QMenu) -> None:
-        sound_menu = self._add_submenu(parent_menu, "◇  [AUDIO.FX] Звуковые эффекты")
+        sound_menu = self._add_submenu(
+            parent_menu, "◇  [AUDIO.FX] Звуковые эффекты"
+        )
         speech_sfx = get_speech_sfx()
 
-        msg_sound_act = sound_menu.addAction("▶  [SYNTH] Синтез речи (SFX)")
+        msg_sound_act = sound_menu.addAction(
+            "▶  [SYNTH] Синтез речи (SFX)"
+        )
         msg_sound_act.setCheckable(True)
         msg_sound_act.setChecked(speech_sfx.is_speech_sound_enabled())
         msg_sound_act.triggered.connect(
@@ -533,7 +585,9 @@ class ContextMenuBuilder:
         )
 
     def _add_volume_menu(self, parent_menu: QMenu) -> None:
-        volume_menu = self._add_submenu(parent_menu, "◇  [VOL] Громкость SFX")
+        volume_menu = self._add_submenu(
+            parent_menu, "◇  [VOL] Громкость SFX"
+        )
         volume_group = QActionGroup(volume_menu)
         volume_group.setExclusive(True)
 
@@ -549,12 +603,16 @@ class ContextMenuBuilder:
             volume_group.addAction(act)
 
     def _add_scale_menu(self, parent_menu: QMenu) -> None:
-        size_menu = self._add_submenu(parent_menu, "◇  [SCALE] Масштаб проекции")
+        size_menu = self._add_submenu(
+            parent_menu, "◇  [SCALE] Масштаб проекции"
+        )
         size_group = QActionGroup(size_menu)
         size_group.setExclusive(True)
 
         current_scale = getattr(
-            self.window, "scale_percent", getattr(self.window, "_scale_percent", 100)
+            self.window,
+            "scale_percent",
+            getattr(self.window, "_scale_percent", 100),
         )
         scale_options = [50, 75, 100, 125, 150]
         for opt in scale_options:
@@ -568,11 +626,15 @@ class ContextMenuBuilder:
             size_group.addAction(act)
 
     def _add_glitch_intensity_menu(self, parent_menu: QMenu) -> None:
-        intensity_menu = self._add_submenu(parent_menu, "◇  [FX.RATE] Интенсивность глитчей")
+        intensity_menu = self._add_submenu(
+            parent_menu, "◇  [FX.RATE] Интенсивность глитчей"
+        )
         group = QActionGroup(intensity_menu)
         group.setExclusive(True)
 
-        current_intensity = getattr(self.window, "glitch_intensity", "weak")
+        current_intensity = getattr(
+            self.window, "glitch_intensity", "weak"
+        )
         options = (
             ("weak", "Низкая"),
             ("medium", "Средняя"),
@@ -589,12 +651,16 @@ class ContextMenuBuilder:
             group.addAction(act)
 
     def _add_activity_timeout_menu(self, parent_menu: QMenu) -> None:
-        timeout_menu = self._add_submenu(parent_menu, "◇  [STANDBY] Таймаут ухода в сон")
+        timeout_menu = self._add_submenu(
+            parent_menu, "◇  [STANDBY] Таймаут ухода в сон"
+        )
         timeout_group = QActionGroup(timeout_menu)
         timeout_group.setExclusive(True)
 
         current_seconds = getattr(
-            self.window, "activity_timeout_seconds", ACTIVITY_TIMEOUT_OPTIONS_MS[0] // 1000
+            self.window,
+            "activity_timeout_seconds",
+            ACTIVITY_TIMEOUT_OPTIONS_MS[0] // 1000,
         )
         for timeout_ms in ACTIVITY_TIMEOUT_OPTIONS_MS:
             seconds = timeout_ms // 1000
@@ -608,10 +674,14 @@ class ContextMenuBuilder:
             timeout_group.addAction(act)
 
     def _add_reminder_toggle(self, parent_menu: QMenu) -> None:
-        remind_menu = parent_menu.addMenu("▶  [AUTONOMY] Автономные реплики")
+        remind_menu = parent_menu.addMenu(
+            "▶  [AUTONOMY] Автономные реплики"
+        )
         remind_act = remind_menu.addAction("Включить реплики")
         remind_act.setCheckable(True)
-        remind_act.setChecked(bool(getattr(self.window, "reminders_enabled", True)))
+        remind_act.setChecked(
+            bool(getattr(self.window, "reminders_enabled", True))
+        )
         remind_act.triggered.connect(
             lambda checked: self.window.set_reminders_enabled(checked)
         )
@@ -633,11 +703,16 @@ class ContextMenuBuilder:
         for label, min_ms, max_ms in intervals:
             act = range_menu.addAction(label)
             act.setCheckable(True)
-            if abs(curr_range[0] - min_ms) < 1000 and abs(curr_range[1] - max_ms) < 1000:
+            if (
+                abs(curr_range[0] - min_ms) < 1000
+                and abs(curr_range[1] - max_ms) < 1000
+            ):
                 act.setChecked(True)
                 is_preset_matched = True
             act.triggered.connect(
-                lambda *_, mn=min_ms, mx=max_ms: self.window.set_reminder_interval_range(mn, mx)
+                lambda *_, mn=min_ms, mx=max_ms: (
+                    self.window.set_reminder_interval_range(mn, mx)
+                )
             )
             range_group.addAction(act)
 
@@ -657,7 +732,9 @@ class ContextMenuBuilder:
         range_group.addAction(custom_act)
 
     def _prompt_custom_reminder_range(self) -> None:
-        parent_widget = self.window if isinstance(self.window, QWidget) else None
+        parent_widget = (
+            self.window if isinstance(self.window, QWidget) else None
+        )
         curr_range = getattr(
             self.window, "reminder_interval_range", (600_000, 3_600_000)
         )
@@ -672,17 +749,25 @@ class ContextMenuBuilder:
             max_ms = max_m * 60_000
             self.window.set_reminder_interval_range(min_ms, max_ms)
             if hasattr(self.window, "speak"):
-                self.window.speak(f"Частота напоминаний: {min_m}–{max_m} мин.")
+                self.window.speak(
+                    f"Частота напоминаний: {min_m}–{max_m} мин."
+                )
 
-def build_pet_context_menu(window: Any, _pos: QPoint | None = None) -> QMenu:
+
+def build_pet_context_menu(
+    window: Any, _pos: QPoint | None = None
+) -> QMenu:
     builder = ContextMenuBuilder(window)
     return builder.build(for_tray=False)
+
 
 def build_tray_context_menu(window: Any) -> QMenu:
     builder = ContextMenuBuilder(window)
     return builder.build(for_tray=True)
 
+
 class TrayManager:
+    """Менеджер интеграции с системным треем операционной системы."""
 
     def __init__(self, window: CapriWindow) -> None:
         self._window = window
@@ -697,7 +782,12 @@ class TrayManager:
     def init_tray(self) -> None:
         icon = QIcon(str(CAPRI_ICON))
         if icon.isNull():
-            pix = self._window.pixmap if hasattr(self._window, "pixmap") and not self._window.pixmap.isNull() else QPixmap(32, 32)
+            pix = (
+                self._window.pixmap
+                if hasattr(self._window, "pixmap")
+                and not self._window.pixmap.isNull()
+                else QPixmap(32, 32)
+            )
             icon = QIcon(pix)
 
         self._window.setWindowIcon(icon)
@@ -714,10 +804,11 @@ class TrayManager:
         self._tray_icon.activated.connect(self._on_tray_activated)
         self._tray_icon.show()
 
-    def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
+    def _on_tray_activated(
+        self, reason: QSystemTrayIcon.ActivationReason
+    ) -> None:
         if reason in (
             QSystemTrayIcon.ActivationReason.Trigger,
             QSystemTrayIcon.ActivationReason.DoubleClick,
         ):
             self._window.activate_command_mode()
-

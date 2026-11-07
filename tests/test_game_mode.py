@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from capri.core.settings import CapriConfig, GameModeConfig
+from capri.core.settings import CapriConfig
 from capri.integrations.game_mode import (
     QUNS_ACCEPTS_NOTIFICATIONS,
     QUNS_RUNNING_D3D_FULL_SCREEN,
@@ -14,7 +14,6 @@ from capri.ui.speech_sfx import get_speech_sfx
 
 
 class TestGameMode(unittest.TestCase):
-
     def test_config_defaults(self) -> None:
         cfg = CapriConfig()
         self.assertTrue(cfg.game_mode.suppression_enabled)
@@ -34,10 +33,13 @@ class TestGameMode(unittest.TestCase):
         self.assertFalse(sfx.is_enabled())
         sfx.set_suppressed(False)
         self.assertTrue(sfx.is_enabled())
+
     @patch("capri.integrations.game_mode.query_user_notification_state")
     def test_detector_state_transition(self, mock_state) -> None:
         mock_state.return_value = QUNS_RUNNING_D3D_FULL_SCREEN
-        detector = GameModeDetector(suppression_enabled=True, cooldown_seconds=0.1)
+        detector = GameModeDetector(
+            suppression_enabled=True, cooldown_seconds=0.1
+        )
 
         states: list[bool] = []
         detector.game_mode_changed.connect(states.append)

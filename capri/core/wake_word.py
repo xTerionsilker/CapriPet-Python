@@ -1,6 +1,9 @@
+"""Детектирование активационной фразы («Капри») и нечёткое сопоставление."""
+
 from __future__ import annotations
 
 import re
+
 from rapidfuzz import fuzz
 from rapidfuzz.distance import DamerauLevenshtein
 
@@ -90,7 +93,7 @@ def command_after_trigger(text: str) -> str | None:
         tokens = text.split()
         consumed = max(1, len(match.group(0).split()))
         before = len(normalized[: match.start()].split())
-        return " ".join(tokens[before + consumed:]).strip()
+        return " ".join(tokens[before + consumed :]).strip()
 
     tokens = text.split()
     if not tokens:

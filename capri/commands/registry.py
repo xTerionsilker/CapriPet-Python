@@ -1,3 +1,5 @@
+"""Реестр команд, нормализация ввода и нечёткое сопоставление запросов."""
+
 from __future__ import annotations
 
 from rapidfuzz import process
@@ -7,11 +9,13 @@ from ..core.morphology import normalize_spoken_numbers, stem_text
 from ..core.wake_word import MAX_TYPO_DISTANCE, keyword_score, similarity
 from .base import BaseCommand, CommandContext
 
-ARGUMENT_PUNCTUATION = " \t,.:;–-!?()[]{}«»…\""
+ARGUMENT_PUNCTUATION = ' \t,.:;–-!?()[]{}«»…"'
 
 _EN_KEYS = "qwertyuiop[]asdfghjkl;'zxcvbnm,./`"
 _RU_KEYS = "йцукенгшщзхъфывапролджэячсмитьбю.ё"
-_LAYOUT_TRANSLATION = str.maketrans(_EN_KEYS + _RU_KEYS, _RU_KEYS + _EN_KEYS)
+_LAYOUT_TRANSLATION = str.maketrans(
+    _EN_KEYS + _RU_KEYS, _RU_KEYS + _EN_KEYS
+)
 
 
 def switch_layout(text: str) -> str:
@@ -73,8 +77,8 @@ def normalize_english_command(text: str) -> str:
         return _EN_COMMAND_PREFIXES[lower]
 
     for prefix in sorted(_EN_COMMAND_PREFIXES, key=len, reverse=True):
-        if lower.startswith(prefix + " ") or lower.startswith(prefix + ":"):
-            rest = clean[len(prefix):].lstrip(" :,\t")
+        if lower.startswith((prefix + " ", prefix + ":")):
+            rest = clean[len(prefix) :].lstrip(" :,\t")
             ru_prefix = _EN_COMMAND_PREFIXES[prefix]
             return f"{ru_prefix} {rest}" if rest else ru_prefix
 
@@ -82,6 +86,8 @@ def normalize_english_command(text: str) -> str:
 
 
 class CommandRegistry:
+    """Реестр голосовых и текстовых команд с поддержкой нечёткого поиска и раскладок."""
+
     def __init__(self, context: CommandContext | None = None) -> None:
         self._commands: list[BaseCommand] = []
         self._lookup: dict[str, BaseCommand] = {}
@@ -100,7 +106,9 @@ class CommandRegistry:
 
     def register(self, command: BaseCommand) -> BaseCommand:
         if not isinstance(command, BaseCommand):
-            raise TypeError(f"Ожидается BaseCommand, получено {type(command).__name__}")
+            raise TypeError(
+                f"Ожидается BaseCommand, получено {type(command).__name__}"
+            )
 
         keys = (command.name, *command.aliases)
         for key in keys:
@@ -198,13 +206,19 @@ class CommandRegistry:
 
         return None
 
-    def suggest(self, text: str, min_confidence: float = 0.65) -> BaseCommand | None:
+    def suggest(
+        self, text: str, min_confidence: float = 0.65
+    ) -> BaseCommand | None:
         normalized = self._normalize(text)
         if not normalized:
             return None
 
         switched = switch_layout(normalized)
-        queries = (normalized, switched) if switched != normalized else (normalized,)
+        queries = (
+            (normalized, switched)
+            if switched != normalized
+            else (normalized,)
+        )
 
         best: BaseCommand | None = None
         best_score: tuple[float, float] | None = None
@@ -229,7 +243,9 @@ class CommandRegistry:
 
         return best
 
-    def _argument_match(self, normalized: str) -> tuple[BaseCommand, str] | None:
+    def _argument_match(
+        self, normalized: str
+    ) -> tuple[BaseCommand, str] | None:
         keys = sorted(
             (
                 (key, command)
@@ -245,7 +261,9 @@ class CommandRegistry:
             if normalized.startswith(key):
                 rest = normalized[len(key) :]
                 if not rest[:1].isalnum():
-                    return command, normalize_spoken_numbers(rest.lstrip(ARGUMENT_PUNCTUATION))
+                    return command, normalize_spoken_numbers(
+                        rest.lstrip(ARGUMENT_PUNCTUATION)
+                    )
 
         words = normalized.split()
         best_perm_match: tuple[BaseCommand, str] | None = None
@@ -253,13 +271,20 @@ class CommandRegistry:
 
         for key, command in keys:
             key_words = key.split()
-            if len(key_words) > 1 and len(words) > len(key_words):
-                if all(kw in words for kw in key_words):
+            if (
+                len(key_words) > 1
+                and len(words) > len(key_words)
+                and all(kw in words for kw in key_words)
+            ):
                     indices = [words.index(kw) for kw in key_words]
-                    remaining = [w for i, w in enumerate(words) if i not in indices]
+                    remaining = [
+                        w for i, w in enumerate(words) if i not in indices
+                    ]
                     if remaining and len(key_words) > best_perm_len:
                         best_perm_len = len(key_words)
-                        arg_str = normalize_spoken_numbers(" ".join(remaining))
+                        arg_str = normalize_spoken_numbers(
+                            " ".join(remaining)
+                        )
                         best_perm_match = (command, arg_str)
 
         if best_perm_match is not None:
@@ -277,7 +302,9 @@ class CommandRegistry:
         )
         return match[0] if match is not None else None
 
-    def _stemmed_match(self, normalized: str) -> tuple[BaseCommand, str] | None:
+    def _stemmed_match(
+        self, normalized: str
+    ) -> tuple[BaseCommand, str] | None:
         stemmed_input = stem_text(normalized)
         for command in self._commands:
             for alias in (command.name, *command.aliases):
@@ -287,7 +314,7 @@ class CommandRegistry:
 
     @staticmethod
     def _normalize(text: str) -> str:
-        return " ".join(text.casefold().strip(" .!?«»\"").split())
+        return " ".join(text.casefold().strip(' .!?«»"').split())
 
     @property
     def commands(self) -> list[BaseCommand]:

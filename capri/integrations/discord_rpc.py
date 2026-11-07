@@ -1,8 +1,16 @@
+"""Интеграция с Discord Rich Presence (RPC).
+
+Обеспечивает подключение к локальному клиенту Discord через IPC,
+периодическую синхронизацию статуса питомца, отображение текущей
+голосовой команды и информации о воспроизводимом треке в Spotify.
+"""
+
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from PySide6.QtCore import QObject, QTimer
 
@@ -11,26 +19,34 @@ logger = logging.getLogger(__name__)
 DEFAULT_CLIENT_ID = "1567968896277938266"
 GITHUB_REPO_URL = "https://github.com/xTerionsilker/CapriPet-Python"
 
+
 class DiscordRpcManager(QObject):
+    """Менеджер интеграции с Discord Rich Presence.
+
+    Управляет жизненным циклом подключения к Discord, периодически
+    обновляет статус присутствия (presence) питомца с помощью QTimer,
+    отображает название текущего трека и предоставляет интерактивные
+    кнопки со ссылкой на проект.
+    """
 
     def __init__(
         self,
         client_id: str = DEFAULT_CLIENT_ID,
-        track_provider: Optional[Callable[[], str]] = None,
-        parent: Optional[QObject] = None,
+        track_provider: Callable[[], str] | None = None,
+        parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._client_id: str = client_id
-        self._track_provider: Optional[Callable[[], str]] = track_provider
-        self._rpc: Optional[object] = None
+        self._track_provider: Callable[[], str] | None = track_provider
+        self._rpc: object | None = None
         self._connected: bool = False
         self._start_time: int = int(time.time())
         self._current_state: str = "ASR: Vosk | IDLE"
         self._current_details: str = "Команда: нет"
         self._current_large_image: str = "capri_avatar"
         self._current_large_text: str = "CapriPet // Rogue AI"
-        self._current_small_image: Optional[str] = "net_pulse"
-        self._current_small_text: Optional[str] = "ONLINE"
+        self._current_small_image: str | None = "net_pulse"
+        self._current_small_text: str | None = "ONLINE"
         self._buttons: list[dict[str, str]] = [
             {"label": "Скачать проект", "url": GITHUB_REPO_URL}
         ]
@@ -56,6 +72,7 @@ class DiscordRpcManager(QObject):
             return True
         try:
             from pypresence import Presence
+
             self._rpc = Presence(self._client_id)
             self._rpc.connect()
             self._connected = True
@@ -69,21 +86,19 @@ class DiscordRpcManager(QObject):
 
     def close_rpc(self) -> None:
         if self._rpc is not None and self._connected:
-            try:
+            with contextlib.suppress(Exception):
                 self._rpc.close()
-            except Exception:
-                pass
         self._connected = False
         self._rpc = None
 
     def update_presence(
         self,
-        state: Optional[str] = None,
-        details: Optional[str] = None,
-        large_image: Optional[str] = None,
-        large_text: Optional[str] = None,
-        small_image: Optional[str] = None,
-        small_text: Optional[str] = None,
+        state: str | None = None,
+        details: str | None = None,
+        large_image: str | None = None,
+        large_text: str | None = None,
+        small_image: str | None = None,
+        small_text: str | None = None,
     ) -> None:
         if state is not None:
             self._current_state = state
@@ -105,7 +120,8 @@ class DiscordRpcManager(QObject):
             self.connect_rpc()
         else:
             self._push_presence()
-    def _resolve_track_info(self) -> Optional[str]:
+
+    def _resolve_track_info(self) -> str | None:
         if self._track_provider is None:
             return None
         try:
@@ -114,7 +130,7 @@ class DiscordRpcManager(QObject):
                 return None
             prefix = "Сейчас играет: "
             if raw.startswith(prefix):
-                return raw[len(prefix):].strip()
+                return raw[len(prefix) :].strip()
             return None
         except Exception as exc:
             logger.debug("Spotify track provider error: %s", exc)

@@ -1,7 +1,10 @@
+"""Управление неактивностью питомца и периодическими напоминаниями."""
+
 from __future__ import annotations
 
+import contextlib
 import random
-from typing import Callable
+from collections.abc import Callable
 
 from PySide6.QtCore import QObject, QRect, QTimer
 from PySide6.QtGui import QGuiApplication, QScreen
@@ -17,6 +20,7 @@ INACTIVITY_TIMEOUT_MS = 5_000
 
 
 class InactivityManager(QObject):
+    """Контроллер скрытия и появления питомца по таймеру неактивности."""
 
     def __init__(
         self,
@@ -145,10 +149,12 @@ class InactivityManager(QObject):
         if self._paused or self._is_closing() or self._transitioning:
             return
 
-        if hasattr(self._main_window, "is_speaking"):
-            if self._main_window.is_speaking:
-                self._inactivity_timer.start(500)
-                return
+        if (
+            hasattr(self._main_window, "is_speaking")
+            and self._main_window.is_speaking
+        ):
+            self._inactivity_timer.start(500)
+            return
 
         target = self.current_target_widget
         if not target.isVisible():
@@ -228,7 +234,6 @@ class InactivityManager(QObject):
         if on_pose_change is not None:
             on_pose_change("crouch")
 
-
         cursor_screen = None
         for scr in QGuiApplication.screens():
             if scr.geometry().contains(cursor_pos):
@@ -237,11 +242,13 @@ class InactivityManager(QObject):
         if cursor_screen is None:
             cursor_screen = self.get_target_screen()
 
-
         target_screen = self.get_target_screen()
         target_screen_index = None
         for idx, scr in enumerate(QGuiApplication.screens()):
-            if scr.name() == target_screen.name() or scr.geometry() == target_screen.geometry():
+            if (
+                scr.name() == target_screen.name()
+                or scr.geometry() == target_screen.geometry()
+            ):
                 target_screen_index = idx
                 break
 
@@ -257,14 +264,16 @@ class InactivityManager(QObject):
 
         center_x = geo.left() + (geo.width() - target.width()) // 2
         center_y = geo.top() + (geo.height() - target.height()) // 2
-        center_rect = QRect(center_x, center_y, target.width(), target.height())
+        center_rect = QRect(
+            center_x, center_y, target.width(), target.height()
+        )
         target_center = center_rect.center()
 
         def move_mouse() -> None:
-            try:
-                move_mouse_to_center(target_center, screen_index=target_screen_index)
-            except Exception:
-                pass
+            with contextlib.suppress(Exception):
+                move_mouse_to_center(
+                    target_center, screen_index=target_screen_index
+                )
 
         def on_teleport_finished() -> None:
             move_mouse()
@@ -295,10 +304,8 @@ class InactivityManager(QObject):
         on_finished: Callable[[], None] | None = None,
     ) -> None:
         if self._transition_overlay is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._transition_overlay.close()
-            except Exception:
-                pass
             self._transition_overlay = None
 
         self._transitioning = True
@@ -308,7 +315,11 @@ class InactivityManager(QObject):
         final_target_screen_rect = (
             target_screen_rect
             if target_screen_rect is not None
-            else (target_screen.geometry() if target_screen is not None else center_rect)
+            else (
+                target_screen.geometry()
+                if target_screen is not None
+                else center_rect
+            )
         )
         final_cursor_screen_rect = (
             cursor_screen_rect
@@ -317,7 +328,6 @@ class InactivityManager(QObject):
         )
 
         center_point = center_rect.center()
-
 
         target.hide()
 
@@ -350,7 +360,6 @@ class InactivityManager(QObject):
             self._transition_overlay = overlay_in
             overlay_in.start()
 
-
         overlay_lightning = TransitionOverlay(
             final_cursor_screen_rect,
             cursor_rect,
@@ -371,10 +380,8 @@ class InactivityManager(QObject):
         on_finished: Callable[[], None] | None = None,
     ) -> None:
         if self._transition_overlay is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._transition_overlay.close()
-            except Exception:
-                pass
             self._transition_overlay = None
 
         self._transitioning = True
@@ -417,6 +424,7 @@ class InactivityManager(QObject):
             self._transition_overlay = overlay_in
             overlay_in.start()
 
+
 MIN_REMINDER_INTERVAL_MS = 600_000
 MAX_REMINDER_INTERVAL_MS = 3_600_000
 
@@ -430,6 +438,7 @@ REMINDER_PHRASES: tuple[str, ...] = (
 
 
 class PresenceReminder(QObject):
+    """Периодический таймер напоминания о присутствии питомца."""
 
     def __init__(
         self,
@@ -488,10 +497,14 @@ class PresenceReminder(QObject):
     def _schedule_next(self) -> None:
         if not self._active:
             return
-        self._timer.start(random.randint(self._min_interval_ms, self._max_interval_ms))
+        self._timer.start(
+            random.randint(self._min_interval_ms, self._max_interval_ms)
+        )
 
     def _next_phrase(self) -> str:
-        candidates = [p for p in REMINDER_PHRASES if p != self._last_phrase]
+        candidates = [
+            p for p in REMINDER_PHRASES if p != self._last_phrase
+        ]
         phrase = random.choice(candidates or list(REMINDER_PHRASES))
         self._last_phrase = phrase
         return phrase
@@ -502,4 +515,3 @@ class PresenceReminder(QObject):
         self._schedule_next()
         if not self._suppressed:
             self._on_remind(self._next_phrase())
-

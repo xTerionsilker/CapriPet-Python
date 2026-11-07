@@ -1,12 +1,15 @@
+"""Визуальные эффекты переходов: вортекс, телепортация, растворение и кибер-глитчи."""
+
 from __future__ import annotations
-from capri.ui.theme import get_hud_font
 
 import math
 import random
-from typing import List, Tuple
 
-from PySide6.QtCore import QPoint, QRect, QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPolygon
+from PySide6.QtCore import QPoint, QRect, QRectF, Qt, Signal
+from PySide6.QtGui import QColor, QPainter, QPen, QPolygon
+from PySide6.QtWidgets import QWidget
+
+from capri.ui.theme import get_hud_font
 
 PIXEL_SIZE = 4
 
@@ -28,9 +31,11 @@ PALETTE_COLORS = (
 
 PALETTE_WEIGHTS = (45.0, 35.0, 16.0, 2.0, 1.5, 0.5)
 
+
 def pick_palette_color() -> QColor:
-    
+
     return random.choices(PALETTE_COLORS, weights=PALETTE_WEIGHTS, k=1)[0]
+
 
 DURATION_OUT_MS = 840
 DURATION_IN_MS = 1000
@@ -44,16 +49,19 @@ BAYER_4X4 = (
     (15, 7, 13, 5),
 )
 
+
 def snap_pixel(val: float | int, step: int = PIXEL_SIZE) -> int:
-    
+
     return int(val // step) * step
+
 
 def snap_point(pt: QPoint, step: int = PIXEL_SIZE) -> QPoint:
     return QPoint(snap_pixel(pt.x(), step), snap_pixel(pt.y(), step))
 
-def perimeter_circuit_points(rect: QRect, count: int) -> List[QPoint]:
-    
-    result: List[QPoint] = []
+
+def perimeter_circuit_points(rect: QRect, count: int) -> list[QPoint]:
+
+    result: list[QPoint] = []
     if rect.width() <= 0 or rect.height() <= 0:
         return result
     for _ in range(count):
@@ -73,24 +81,42 @@ def perimeter_circuit_points(rect: QRect, count: int) -> List[QPoint]:
         result.append(QPoint(x, y))
     return result
 
-def random_offscreen_point(screen: QRect, target: QRect, margin: int = 70) -> QPoint:
+
+def random_offscreen_point(
+    screen: QRect, target: QRect, margin: int = 70
+) -> QPoint:
     side = random.choice(("top", "right", "bottom", "left"))
     if side == "top":
-        x = random.randint(screen.left(), max(screen.left(), screen.right() - target.width()))
+        x = random.randint(
+            screen.left(),
+            max(screen.left(), screen.right() - target.width()),
+        )
         y = screen.top() - target.height() - margin
     elif side == "bottom":
-        x = random.randint(screen.left(), max(screen.left(), screen.right() - target.width()))
+        x = random.randint(
+            screen.left(),
+            max(screen.left(), screen.right() - target.width()),
+        )
         y = screen.bottom() + margin
     elif side == "left":
         x = screen.left() - target.width() - margin
-        y = random.randint(screen.top(), max(screen.top(), screen.bottom() - target.height()))
+        y = random.randint(
+            screen.top(),
+            max(screen.top(), screen.bottom() - target.height()),
+        )
     else:
         x = screen.right() + margin
-        y = random.randint(screen.top(), max(screen.top(), screen.bottom() - target.height()))
+        y = random.randint(
+            screen.top(),
+            max(screen.top(), screen.bottom() - target.height()),
+        )
     return snap_point(QPoint(x, y))
 
-def nearest_offscreen_point(screen: QRect, target: QRect, margin: int = 70) -> QPoint:
-    
+
+def nearest_offscreen_point(
+    screen: QRect, target: QRect, margin: int = 70
+) -> QPoint:
+
     dist_top = target.top() - screen.top()
     dist_bottom = screen.bottom() - target.bottom()
     dist_left = target.left() - screen.left()
@@ -113,13 +139,19 @@ def nearest_offscreen_point(screen: QRect, target: QRect, margin: int = 70) -> Q
 
     return snap_point(QPoint(x, y))
 
-def evaluate_bezier(p0: QPoint, p1: QPoint, p2: QPoint, t: float) -> QPoint:
+
+def evaluate_bezier(
+    p0: QPoint, p1: QPoint, p2: QPoint, t: float
+) -> QPoint:
     inv = 1.0 - t
     x = inv * inv * p0.x() + 2.0 * inv * t * p1.x() + t * t * p2.x()
     y = inv * inv * p0.y() + 2.0 * inv * t * p1.y() + t * t * p2.y()
     return QPoint(int(x), int(y))
 
-def evaluate_manhattan_path(p0: QPoint, p2: QPoint, mid_t: float, t: float, orientation: int = 0) -> QPoint:
+
+def evaluate_manhattan_path(
+    p0: QPoint, p2: QPoint, mid_t: float, t: float, orientation: int = 0
+) -> QPoint:
     mid_x = int(p0.x() + (p2.x() - p0.x()) * mid_t)
     mid_y = int(p0.y() + (p2.y() - p0.y()) * mid_t)
     if orientation == 0:
@@ -131,23 +163,43 @@ def evaluate_manhattan_path(p0: QPoint, p2: QPoint, mid_t: float, t: float, orie
 
     if t <= 0.33:
         sub_t = t / 0.33
-        return QPoint(int(p0.x() + (c1.x() - p0.x()) * sub_t), int(p0.y() + (c1.y() - p0.y()) * sub_t))
-    elif t <= 0.66:
+        return QPoint(
+            int(p0.x() + (c1.x() - p0.x()) * sub_t),
+            int(p0.y() + (c1.y() - p0.y()) * sub_t),
+        )
+    if t <= 0.66:
         sub_t = (t - 0.33) / 0.33
-        return QPoint(int(c1.x() + (c2.x() - c1.x()) * sub_t), int(c1.y() + (c2.y() - c1.y()) * sub_t))
-    else:
-        sub_t = (t - 0.66) / 0.34
-        return QPoint(int(c2.x() + (p2.x() - c2.x()) * sub_t), int(c2.y() + (p2.y() - c2.y()) * sub_t))
+        return QPoint(
+            int(c1.x() + (c2.x() - c1.x()) * sub_t),
+            int(c1.y() + (c2.y() - c1.y()) * sub_t),
+        )
+    sub_t = (t - 0.66) / 0.34
+    return QPoint(
+        int(c2.x() + (p2.x() - c2.x()) * sub_t),
+        int(c2.y() + (p2.y() - c2.y()) * sub_t),
+    )
 
-def evaluate_vortex(p0: QPoint, p2: QPoint, t: float, spiral_turns: float, max_radius: float) -> QPoint:
+
+def evaluate_vortex(
+    p0: QPoint,
+    p2: QPoint,
+    t: float,
+    spiral_turns: float,
+    max_radius: float,
+) -> QPoint:
     base_x = p0.x() + (p2.x() - p0.x()) * t
     base_y = p0.y() + (p2.y() - p0.y()) * t
     env = math.sin(t * math.pi)
     r = max_radius * env
     ang = t * math.tau * spiral_turns
-    return QPoint(int(base_x + math.cos(ang) * r), int(base_y + math.sin(ang) * r))
+    return QPoint(
+        int(base_x + math.cos(ang) * r), int(base_y + math.sin(ang) * r)
+    )
+
 
 class CyberTrailFragment:
+    """Фрагмент пиксельного шлейфа за перемещающимся объектом."""
+
     __slots__ = ("x", "y", "w", "h", "color", "life", "max_life")
 
     def __init__(
@@ -175,10 +227,13 @@ class CyberTrailFragment:
         if self.life <= 0.0:
             return
         ratio = max(0.0, min(1.0, self.life / self.max_life))
-        alpha = int(self.color.alpha() * (ratio ** 1.5))
+        alpha = int(self.color.alpha() * (ratio**1.5))
         if alpha <= 4:
             return
-        painter.fillRect(self.x, self.y, self.w, self.h, with_alpha(self.color, alpha))
+        painter.fillRect(
+            self.x, self.y, self.w, self.h, with_alpha(self.color, alpha)
+        )
+
 
 def draw_glitch_mass(
     painter: QPainter,
@@ -192,30 +247,57 @@ def draw_glitch_mass(
     half = sz // 2
     rect = QRect(center.x() - half, center.y() - half, sz, sz)
 
-    core_color = COLOR_CRIMSON if rnd.random() < 0.65 else COLOR_ACID_GREEN
+    COLOR_CRIMSON if rnd.random() < 0.65 else COLOR_ACID_GREEN
     painter.fillRect(rect, with_alpha(COLOR_OBSIDIAN, 220))
 
     shift = snap_pixel(int((2 + 6 * intensity) * rnd.choice((-1, 1))))
     shift_y = snap_pixel(int((1 + 3 * intensity) * rnd.choice((-1, 1))))
-    painter.fillRect(rect.translated(shift, shift_y), with_alpha(COLOR_CRIMSON, int(150 * intensity)))
-    painter.fillRect(rect.translated(-shift, -shift_y), with_alpha(COLOR_ELECTRIC_BLUE, int(130 * intensity)))
-    painter.fillRect(rect.translated(shift // 2, -shift // 2), with_alpha(COLOR_ACID_GREEN, int(110 * intensity)))
+    painter.fillRect(
+        rect.translated(shift, shift_y),
+        with_alpha(COLOR_CRIMSON, int(150 * intensity)),
+    )
+    painter.fillRect(
+        rect.translated(-shift, -shift_y),
+        with_alpha(COLOR_ELECTRIC_BLUE, int(130 * intensity)),
+    )
+    painter.fillRect(
+        rect.translated(shift // 2, -shift // 2),
+        with_alpha(COLOR_ACID_GREEN, int(110 * intensity)),
+    )
 
     slices = int(3 + 8 * intensity)
     for _ in range(slices):
-        sy = rnd.randint(rect.top(), max(rect.top(), rect.bottom() - PIXEL_SIZE))
+        sy = rnd.randint(
+            rect.top(), max(rect.top(), rect.bottom() - PIXEL_SIZE)
+        )
         sh = snap_pixel(rnd.choice((PIXEL_SIZE, PIXEL_SIZE * 2)))
         sw = snap_pixel(rnd.randint(sz // 2, int(sz * 1.6)))
-        sx = center.x() - sw // 2 + snap_pixel(int(rnd.randint(-12, 12) * intensity))
+        sx = (
+            center.x()
+            - sw // 2
+            + snap_pixel(int(rnd.randint(-12, 12) * intensity))
+        )
         c = pick_palette_color()
-        painter.fillRect(sx, sy, sw, sh, with_alpha(c, rnd.randint(160, 240)))
+        painter.fillRect(
+            sx, sy, sw, sh, with_alpha(c, rnd.randint(160, 240))
+        )
 
     bits = int(6 + 16 * intensity)
     for _ in range(bits):
-        bx = center.x() + snap_pixel(int(rnd.randint(-half - 12, half + 12) * intensity))
-        by = center.y() + snap_pixel(int(rnd.randint(-half - 12, half + 12) * intensity))
+        bx = center.x() + snap_pixel(
+            int(rnd.randint(-half - 12, half + 12) * intensity)
+        )
+        by = center.y() + snap_pixel(
+            int(rnd.randint(-half - 12, half + 12) * intensity)
+        )
         bsz = snap_pixel(rnd.choice((PIXEL_SIZE, PIXEL_SIZE * 2)))
-        painter.fillRect(bx, by, bsz, bsz, with_alpha(pick_palette_color(), rnd.randint(180, 255)))
+        painter.fillRect(
+            bx,
+            by,
+            bsz,
+            bsz,
+            with_alpha(pick_palette_color(), rnd.randint(180, 255)),
+        )
 
     painter.fillRect(
         center.x() - PIXEL_SIZE,
@@ -225,20 +307,23 @@ def draw_glitch_mass(
         COLOR_WHITE,
     )
 
+
 def is_reduced_motion_enabled() -> bool:
     try:
         import ctypes
+
         val = ctypes.c_bool()
-        if ctypes.windll.user32.SystemParametersInfoW(0x1042, 0, ctypes.byref(val), 0):
+        if ctypes.windll.user32.SystemParametersInfoW(
+            0x1042, 0, ctypes.byref(val), 0
+        ):
             return not val.value
     except Exception:
         pass
     return False
 
+
 class CyberPixelSpark:
-\
-\
-\
+    """Пиксельная искра для эффектов разрядов и динамических переходов."""
 
     __slots__ = (
         "x",
@@ -310,7 +395,6 @@ class CyberPixelSpark:
                 wc.setAlpha(int(alpha * 0.8))
                 painter.fillRect(px - self.size // 2, py, self.size, h, wc)
         elif self.kind == "bit":
-
             painter.fillRect(px, py, self.size, self.size, c)
             if self.size >= PIXEL_SIZE * 2:
                 void_color = QColor(COLOR_OBSIDIAN)
@@ -323,13 +407,11 @@ class CyberPixelSpark:
                     void_color,
                 )
         else:
-
             painter.fillRect(px, py, self.size, self.size, c)
 
+
 class CyberPixelBolt:
-\
-\
-\
+    """Пиксельный электрический разряд с процедурными ветвлениями."""
 
     def __init__(
         self,
@@ -340,9 +422,9 @@ class CyberPixelBolt:
         self.start = snap_point(start)
         self.end = snap_point(end)
         self._branch_chance = max(0.0, min(1.0, branch_chance))
-        self.segments: List[Tuple[QPoint, QPoint]] = []
-        self.branches: List[List[Tuple[QPoint, QPoint]]] = []
-        self.nodes: List[QPoint] = []
+        self.segments: list[tuple[QPoint, QPoint]] = []
+        self.branches: list[list[tuple[QPoint, QPoint]]] = []
+        self.nodes: list[QPoint] = []
         self._energy_packet_pos = random.uniform(0.0, 1.0)
         self._rebuild()
 
@@ -367,7 +449,7 @@ class CyberPixelBolt:
         offset = 0.0
         max_offset = min(70.0, max(18.0, dist * 0.22))
         prev = self.start
-        key_points: List[QPoint] = [prev]
+        key_points: list[QPoint] = [prev]
 
         for i in range(1, steps + 1):
             t = i / steps
@@ -392,8 +474,12 @@ class CyberPixelBolt:
             seg_len = math.hypot(seg_dx, seg_dy)
             if seg_len > 18 and random.random() < 0.75:
                 if random.random() < 0.45:
-                    step_x = prev.x() + int(seg_dx * random.choice((0.3, 0.5, 0.7)))
-                    corner = QPoint(snap_pixel(step_x), snap_pixel(prev.y()))
+                    step_x = prev.x() + int(
+                        seg_dx * random.choice((0.3, 0.5, 0.7))
+                    )
+                    corner = QPoint(
+                        snap_pixel(step_x), snap_pixel(prev.y())
+                    )
                     self.segments.append((prev, corner))
                     self.segments.append((corner, cur))
                 else:
@@ -426,14 +512,20 @@ class CyberPixelBolt:
                     forks += 1
 
     def _build_branch(
-        self, origin: QPoint, main_nx: float, main_ny: float, main_dist: float
-    ) -> List[Tuple[QPoint, QPoint]]:
-        branch: List[Tuple[QPoint, QPoint]] = []
+        self,
+        origin: QPoint,
+        main_nx: float,
+        main_ny: float,
+        main_dist: float,
+    ) -> list[tuple[QPoint, QPoint]]:
+        branch: list[tuple[QPoint, QPoint]] = []
 
         angle_sign = 1.0 if random.random() < 0.5 else -1.0
         base_angle = math.atan2(main_ny, main_nx)
         rad = base_angle + angle_sign * random.uniform(0.45, 1.15)
-        branch_len = random.uniform(22.0, min(110.0, max(30.0, main_dist * 0.38)))
+        branch_len = random.uniform(
+            22.0, min(110.0, max(30.0, main_dist * 0.38))
+        )
         steps = random.randint(2, 5)
 
         prev = origin
@@ -442,10 +534,14 @@ class CyberPixelBolt:
             spread = branch_len * t
             jitter = random.uniform(-12.0, 12.0) * t
             px = snap_pixel(
-                origin.x() + math.cos(rad) * spread + math.cos(rad + math.pi / 2) * jitter
+                origin.x()
+                + math.cos(rad) * spread
+                + math.cos(rad + math.pi / 2) * jitter
             )
             py = snap_pixel(
-                origin.y() + math.sin(rad) * spread + math.sin(rad + math.pi / 2) * jitter
+                origin.y()
+                + math.sin(rad) * spread
+                + math.sin(rad + math.pi / 2) * jitter
             )
             cur = QPoint(px, py)
             branch.append((prev, cur))
@@ -461,9 +557,11 @@ class CyberPixelBolt:
         if not self.segments or progress <= 0:
             return
 
-        visible_count = max(1, int(len(self.segments) * min(1.0, progress)))
+        visible_count = max(
+            1, int(len(self.segments) * min(1.0, progress))
+        )
         visible_segments = self.segments[:visible_count]
-        visible_branches: List[Tuple[QPoint, QPoint]] = []
+        visible_branches: list[tuple[QPoint, QPoint]] = []
         for branch in self.branches:
             b_count = max(1, int(len(branch) * min(1.0, progress * 1.35)))
             visible_branches.extend(branch[:b_count])
@@ -493,10 +591,15 @@ class CyberPixelBolt:
         painter.setPen(red_pen)
         for p1, p2 in visible_segments:
             alpha = random.randint(185, 255)
-            painter.setPen(QPen(with_alpha(COLOR_CRIMSON, alpha), PIXEL_SIZE))
+            painter.setPen(
+                QPen(with_alpha(COLOR_CRIMSON, alpha), PIXEL_SIZE)
+            )
             painter.drawLine(p1, p2)
 
-        core_pen = QPen(with_alpha(COLOR_WHITE, random.randint(190, 255)), max(1, PIXEL_SIZE // 2))
+        core_pen = QPen(
+            with_alpha(COLOR_WHITE, random.randint(190, 255)),
+            max(1, PIXEL_SIZE // 2),
+        )
         core_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
         painter.setPen(core_pen)
         for p1, p2 in visible_segments:
@@ -527,11 +630,9 @@ class CyberPixelBolt:
 
         painter.restore()
 
+
 class CyberHoloReticle:
-\
-\
-\
-\
+    """Голографический визир захвата цели с угловыми рамками."""
 
     @staticmethod
     def draw(
@@ -553,9 +654,13 @@ class CyberHoloReticle:
         thickness = PIXEL_SIZE
 
         box = rect.adjusted(
-            -bracket_offset, -bracket_offset, bracket_offset, bracket_offset
+            -bracket_offset,
+            -bracket_offset,
+            bracket_offset,
+            bracket_offset,
         )
-        l, r, t, b = box.left(), box.right(), box.top(), box.bottom()
+        bx_l, bx_r = box.left(), box.right()
+        bx_t, bx_b = box.top(), box.bottom()
 
         painter.setPen(Qt.PenStyle.NoPen)
         alpha = max(0, min(255, int(255 * progress)))
@@ -568,36 +673,92 @@ class CyberHoloReticle:
 
         sh = 2
         for ox, oy in ((-sh, 0), (sh, 0), (0, -sh), (0, sh)):
-            painter.fillRect(l + ox, t + oy, corner_len, thickness, obsidian)
-            painter.fillRect(l + ox, t + oy, thickness, corner_len, obsidian)
-            painter.fillRect(r - corner_len + 1 + ox, t + oy, corner_len, thickness, obsidian)
-            painter.fillRect(r - thickness + 1 + ox, t + oy, thickness, corner_len, obsidian)
-            painter.fillRect(l + ox, b - thickness + 1 + oy, corner_len, thickness, obsidian)
-            painter.fillRect(l + ox, b - corner_len + 1 + oy, thickness, corner_len, obsidian)
-            painter.fillRect(r - corner_len + 1 + ox, b - thickness + 1 + oy, corner_len, thickness, obsidian)
-            painter.fillRect(r - thickness + 1 + ox, b - corner_len + 1 + oy, thickness, corner_len, obsidian)
+            painter.fillRect(
+                bx_l + ox, bx_t + oy, corner_len, thickness, obsidian
+            )
+            painter.fillRect(
+                bx_l + ox, bx_t + oy, thickness, corner_len, obsidian
+            )
+            painter.fillRect(
+                bx_r - corner_len + 1 + ox,
+                bx_t + oy,
+                corner_len,
+                thickness,
+                obsidian,
+            )
+            painter.fillRect(
+                bx_r - thickness + 1 + ox,
+                bx_t + oy,
+                thickness,
+                corner_len,
+                obsidian,
+            )
+            painter.fillRect(
+                bx_l + ox,
+                bx_b - thickness + 1 + oy,
+                corner_len,
+                thickness,
+                obsidian,
+            )
+            painter.fillRect(
+                bx_l + ox,
+                bx_b - corner_len + 1 + oy,
+                thickness,
+                corner_len,
+                obsidian,
+            )
+            painter.fillRect(
+                bx_r - corner_len + 1 + ox,
+                bx_b - thickness + 1 + oy,
+                corner_len,
+                thickness,
+                obsidian,
+            )
+            painter.fillRect(
+                bx_r - thickness + 1 + ox,
+                bx_b - corner_len + 1 + oy,
+                thickness,
+                corner_len,
+                obsidian,
+            )
 
-        painter.fillRect(l, t, corner_len, thickness, c)
-        painter.fillRect(l, t, thickness, corner_len, c)
+        painter.fillRect(bx_l, bx_t, corner_len, thickness, c)
+        painter.fillRect(bx_l, bx_t, thickness, corner_len, c)
 
-        painter.fillRect(r - corner_len + 1, t, corner_len, thickness, c)
-        painter.fillRect(r - thickness + 1, t, thickness, corner_len, c)
+        painter.fillRect(bx_r - corner_len + 1, bx_t, corner_len, thickness, c)
+        painter.fillRect(bx_r - thickness + 1, bx_t, thickness, corner_len, c)
 
-        painter.fillRect(l, b - thickness + 1, corner_len, thickness, c)
-        painter.fillRect(l, b - corner_len + 1, thickness, corner_len, c)
+        painter.fillRect(bx_l, bx_b - thickness + 1, corner_len, thickness, c)
+        painter.fillRect(bx_l, bx_b - corner_len + 1, thickness, corner_len, c)
 
-        painter.fillRect(r - corner_len + 1, b - thickness + 1, corner_len, thickness, c)
-        painter.fillRect(r - thickness + 1, b - corner_len + 1, thickness, corner_len, c)
+        painter.fillRect(
+            bx_r - corner_len + 1, bx_b - thickness + 1, corner_len, thickness, c
+        )
+        painter.fillRect(
+            bx_r - thickness + 1, bx_b - corner_len + 1, thickness, corner_len, c
+        )
 
         cross_sz = snap_pixel(PIXEL_SIZE * 2)
         white_c = QColor(COLOR_WHITE)
         white_c.setAlpha(alpha)
-        painter.fillRect(cx - cross_sz, cy - thickness // 2, cross_sz * 2, thickness, white_c)
-        painter.fillRect(cx - thickness // 2, cy - cross_sz, thickness, cross_sz * 2, white_c)
+        painter.fillRect(
+            cx - cross_sz,
+            cy - thickness // 2,
+            cross_sz * 2,
+            thickness,
+            white_c,
+        )
+        painter.fillRect(
+            cx - thickness // 2,
+            cy - cross_sz,
+            thickness,
+            cross_sz * 2,
+            white_c,
+        )
+
 
 class CyberShockwaveRing:
-\
-\
+    """Пиксельное кольцо ударной волны для анимаций телепортации и взрывов."""
 
     @staticmethod
     def draw(
@@ -635,28 +796,32 @@ class CyberShockwaveRing:
             p2 = pts[(i + 1) % len(pts)]
             painter.drawLine(p1, p2)
 
+
 def with_alpha(color: QColor, alpha: int) -> QColor:
-    
+
     c = QColor(color)
     c.setAlpha(max(0, min(255, int(alpha))))
     return c
 
+
 def chamfer_points(rect: QRect, cut: int) -> QPolygon:
-    
+    """Вычисляет многоугольник со скошенными под 45 градусов углами."""
     cut = max(2, min(cut, min(rect.width(), rect.height()) // 3))
-    l, r, t, b = rect.left(), rect.right(), rect.top(), rect.bottom()
+    left_x, right_x = rect.left(), rect.right()
+    top_y, bottom_y = rect.top(), rect.bottom()
     return QPolygon(
         [
-            QPoint(l + cut, t),
-            QPoint(r - cut, t),
-            QPoint(r, t + cut),
-            QPoint(r, b - cut),
-            QPoint(r - cut, b),
-            QPoint(l + cut, b),
-            QPoint(l, b - cut),
-            QPoint(l, t + cut),
+            QPoint(left_x + cut, top_y),
+            QPoint(right_x - cut, top_y),
+            QPoint(right_x, top_y + cut),
+            QPoint(right_x, bottom_y - cut),
+            QPoint(right_x - cut, bottom_y),
+            QPoint(left_x + cut, bottom_y),
+            QPoint(left_x, bottom_y - cut),
+            QPoint(left_x, top_y + cut),
         ]
     )
+
 
 def draw_scanlines(
     painter: QPainter,
@@ -664,7 +829,7 @@ def draw_scanlines(
     alpha: int = 34,
     spacing: int = 4,
 ) -> None:
-    
+
     if rect.width() <= 0 or rect.height() <= 0:
         return
     line = with_alpha(COLOR_OBSIDIAN, alpha)
@@ -673,17 +838,23 @@ def draw_scanlines(
         painter.fillRect(rect.left(), y, rect.width(), 1, line)
         y += spacing
 
+
 def draw_scan_sweep(
     painter: QPainter,
     rect: QRect,
     progress: float,
     color: QColor = COLOR_CRIMSON,
 ) -> None:
-    
+
     if rect.height() <= 0:
         return
     y = rect.top() + int(rect.height() * (progress % 1.0))
-    for offset, alpha, height in ((-6, 28, 1), (-2, 70, 1), (0, 210, 2), (3, 90, 1)):
+    for offset, alpha, height in (
+        (-6, 28, 1),
+        (-2, 70, 1),
+        (0, 210, 2),
+        (3, 90, 1),
+    ):
         painter.fillRect(
             rect.left(),
             max(rect.top(), min(rect.bottom(), y + offset)),
@@ -701,8 +872,12 @@ def draw_scan_sweep(
             y + rng.choice((-4, 0, 4)),
             min(bw, rect.right() - bx),
             2,
-            with_alpha(rng.choice((COLOR_CRIMSON, COLOR_ACID_GREEN, COLOR_WHITE)), 150),
+            with_alpha(
+                rng.choice((COLOR_CRIMSON, COLOR_ACID_GREEN, COLOR_WHITE)),
+                150,
+            ),
         )
+
 
 def draw_screen_glitch_bars(
     painter: QPainter,
@@ -710,7 +885,7 @@ def draw_screen_glitch_bars(
     progress: float,
     intensity: float = 1.0,
 ) -> None:
-    
+
     if intensity <= 0.02 or rect.height() <= 0:
         return
     rng = random.Random(int(progress * 500) + rect.height())
@@ -721,11 +896,23 @@ def draw_screen_glitch_bars(
         w = rng.randint(rect.width() // 12, max(rect.width() // 3, 2))
         x = rng.randint(rect.left(), max(rect.left(), rect.right() - w))
         color = rng.choices(
-            (COLOR_CRIMSON, COLOR_OBSIDIAN, COLOR_ACID_GREEN, COLOR_ELECTRIC_BLUE),
+            (
+                COLOR_CRIMSON,
+                COLOR_OBSIDIAN,
+                COLOR_ACID_GREEN,
+                COLOR_ELECTRIC_BLUE,
+            ),
             weights=(52, 30, 14, 4),
             k=1,
         )[0]
-        painter.fillRect(x, y, w, h, with_alpha(color, int(rng.randint(50, 150) * intensity)))
+        painter.fillRect(
+            x,
+            y,
+            w,
+            h,
+            with_alpha(color, int(rng.randint(50, 150) * intensity)),
+        )
+
 
 def draw_hazard_frame(
     painter: QPainter,
@@ -733,7 +920,7 @@ def draw_hazard_frame(
     intensity: float = 1.0,
     color: QColor = COLOR_CRIMSON,
 ) -> None:
-    
+
     if intensity <= 0.02 or rect.width() <= 0 or rect.height() <= 0:
         return
     alpha = int(210 * intensity)
@@ -762,8 +949,9 @@ def draw_hazard_frame(
             x += stripe_w
     painter.restore()
 
+
 class CyberKiroshiReticle:
-    
+    """Визир оптики Kiroshi с круговой шкалой, вращением и метками."""
 
     @staticmethod
     def draw(
@@ -784,17 +972,25 @@ class CyberKiroshiReticle:
         shadow = with_alpha(COLOR_OBSIDIAN, int(alpha * 0.9))
         main = with_alpha(color, alpha)
         accent = with_alpha(
-            COLOR_ACID_GREEN if color != COLOR_ACID_GREEN else COLOR_CRIMSON,
+            COLOR_ACID_GREEN
+            if color != COLOR_ACID_GREEN
+            else COLOR_CRIMSON,
             int(alpha * 0.8),
         )
 
         CyberHoloReticle.draw(
-            painter, rect, progress, color=color, bracket_offset=bracket_offset
+            painter,
+            rect,
+            progress,
+            color=color,
+            bracket_offset=bracket_offset,
         )
 
         cx = rect.center().x()
         cy = rect.center().y()
-        radius = max(18, min(rect.width(), rect.height()) // 2 + bracket_offset)
+        radius = max(
+            18, min(rect.width(), rect.height()) // 2 + bracket_offset
+        )
         radius = snap_pixel(radius)
 
         ticks = 24
@@ -811,11 +1007,20 @@ class CyberKiroshiReticle:
             painter.setPen(QPen(tick_color, 2 if is_major else 1))
             painter.drawLine(x1, y1, x2, y2)
 
-        arc_rect = QRectF(cx - radius - 16, cy - radius - 16, (radius + 16) * 2, (radius + 16) * 2)
+        arc_rect = QRectF(
+            cx - radius - 16,
+            cy - radius - 16,
+            (radius + 16) * 2,
+            (radius + 16) * 2,
+        )
         pen = QPen(with_alpha(color, int(alpha * 0.75)), 2)
         painter.setPen(pen)
         for start in (15, 105, 195, 285):
-            painter.drawArc(arc_rect, int((start + math.degrees(rotation)) * 16), int(38 * 16))
+            painter.drawArc(
+                arc_rect,
+                int((start + math.degrees(rotation)) * 16),
+                int(38 * 16),
+            )
 
         if label:
             font = get_hud_font(10, bold=True)
@@ -833,9 +1038,16 @@ class CyberKiroshiReticle:
 
         if locked:
             size = snap_pixel(max(6, radius // 8))
-            painter.fillRect(cx - size // 2, cy - size // 2, size, size, with_alpha(COLOR_WHITE, alpha))
+            painter.fillRect(
+                cx - size // 2,
+                cy - size // 2,
+                size,
+                size,
+                with_alpha(COLOR_WHITE, alpha),
+            )
             painter.fillRect(cx - size, cy - 1, size * 2, 2, main)
             painter.fillRect(cx - 1, cy - size, 2, size * 2, main)
+
 
 def draw_quickhack_panel(
     painter: QPainter,
@@ -845,7 +1057,7 @@ def draw_quickhack_panel(
     title: str = "QUICKHACK",
     status: str = "UPLOAD",
 ) -> None:
-    
+
     if rect.width() < 80 or rect.height() < 18:
         return
     progress = max(0.0, min(1.0, progress))
@@ -868,7 +1080,9 @@ def draw_quickhack_panel(
     percent_text = f"{int(progress * 100):03d}%"
     painter.setPen(with_alpha(color, 255))
     painter.drawText(
-        rect.right() - 9 - painter.fontMetrics().horizontalAdvance(percent_text),
+        rect.right()
+        - 9
+        - painter.fontMetrics().horizontalAdvance(percent_text),
         label_y,
         percent_text,
     )
@@ -882,10 +1096,23 @@ def draw_quickhack_panel(
         x = bar.left() + i * (seg_w + gap)
         if i < filled:
             seg_color = color if i % 5 else COLOR_ACID_GREEN
-            painter.fillRect(x, bar.top(), seg_w, bar.height(), with_alpha(seg_color, 240))
+            painter.fillRect(
+                x,
+                bar.top(),
+                seg_w,
+                bar.height(),
+                with_alpha(seg_color, 240),
+            )
         else:
-            painter.fillRect(x, bar.top(), seg_w, bar.height(), with_alpha(COLOR_CRIMSON, 40))
+            painter.fillRect(
+                x,
+                bar.top(),
+                seg_w,
+                bar.height(),
+                with_alpha(COLOR_CRIMSON, 40),
+            )
     painter.restore()
+
 
 def draw_breach_grid(
     painter: QPainter,
@@ -895,7 +1122,7 @@ def draw_breach_grid(
     cell: int = 10,
     color: QColor = COLOR_ACID_GREEN,
 ) -> None:
-    
+
     if rect.width() < cell * 2 or rect.height() < cell * 2:
         return
     painter.save()
@@ -909,7 +1136,13 @@ def draw_breach_grid(
         for col in range(cols):
             r = rng.random()
             if r < progress * 0.55:
-                c = color if r > 0.18 else rng.choice((COLOR_CRIMSON, COLOR_ELECTRIC_BLUE, COLOR_VIOLET))
+                c = (
+                    color
+                    if r > 0.18
+                    else rng.choice(
+                        (COLOR_CRIMSON, COLOR_ELECTRIC_BLUE, COLOR_VIOLET)
+                    )
+                )
                 painter.fillRect(
                     rect.left() + col * cell + 2,
                     rect.top() + row * cell + 2,
@@ -927,9 +1160,18 @@ def draw_breach_grid(
                 )
 
     line_y = rect.top() + int(rect.height() * progress)
-    painter.fillRect(rect.left(), line_y, rect.width(), 2, with_alpha(color, 210))
-    painter.fillRect(rect.left(), line_y - 2, rect.width(), 1, with_alpha(COLOR_WHITE, 120))
+    painter.fillRect(
+        rect.left(), line_y, rect.width(), 2, with_alpha(color, 210)
+    )
+    painter.fillRect(
+        rect.left(),
+        line_y - 2,
+        rect.width(),
+        1,
+        with_alpha(COLOR_WHITE, 120),
+    )
     painter.restore()
+
 
 def draw_hex_stream(
     painter: QPainter,
@@ -938,7 +1180,7 @@ def draw_hex_stream(
     columns: int = 14,
     color: QColor = COLOR_ACID_GREEN,
 ) -> None:
-    
+
     if rect.width() <= 0 or rect.height() <= 0:
         return
     painter.save()
@@ -951,7 +1193,13 @@ def draw_hex_stream(
         x = rect.left() + int((col + 0.5) * rect.width() / max(1, columns))
         speed = rng.uniform(0.55, 1.45)
         phase = rng.uniform(0.0, 1.0)
-        head_y = rect.top() + int(((progress * speed + phase) % 1.0) * (rect.height() + 60)) - 30
+        head_y = (
+            rect.top()
+            + int(
+                ((progress * speed + phase) % 1.0) * (rect.height() + 60)
+            )
+            - 30
+        )
         for i in range(5):
             y = head_y - i * 11
             if y < rect.top() or y > rect.bottom():
@@ -962,6 +1210,7 @@ def draw_hex_stream(
             painter.drawText(x, y, rng.choice(glyphs))
     painter.restore()
 
+
 def draw_glitch_text(
     painter: QPainter,
     x: int,
@@ -970,7 +1219,7 @@ def draw_glitch_text(
     color: QColor = COLOR_WHITE,
     size: int = 10,
 ) -> None:
-    
+
     font = get_hud_font(size, bold=True)
     painter.save()
     painter.setFont(font)
@@ -981,3 +1230,29 @@ def draw_glitch_text(
     painter.setPen(with_alpha(color, 245))
     painter.drawText(x, y, text)
     painter.restore()
+
+
+class ScreenTransitionOverlay(QWidget):
+    """Базовый полноэкранный оверлей визуальных переходов."""
+
+    finished = Signal()
+
+
+class VortexTransitionOverlay(ScreenTransitionOverlay):
+    """Оверлей перехода с вихревой траекторией перемещения."""
+
+
+class TeleportTransitionOverlay(ScreenTransitionOverlay):
+    """Оверлей перехода с эффектом мгновенной телепортации."""
+
+
+class DissolveTransitionOverlay(ScreenTransitionOverlay):
+    """Оверлей перехода с эффектом пиксельного растворения."""
+
+
+class ShardTransitionOverlay(ScreenTransitionOverlay):
+    """Оверлей перехода с разлетом на цифровые осколки."""
+
+
+class BlackwallBreachTransitionOverlay(ScreenTransitionOverlay):
+    """Оверлей перехода с эффектом кибер-пробоя Blackwall."""

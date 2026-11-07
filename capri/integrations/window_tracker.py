@@ -1,10 +1,18 @@
+"""Отслеживание активных окон и управление их положением в Windows.
+
+Содержит вспомогательные функции для получения дескриптора (HWND) и геометрии
+активного окна пользователя, анимации встряхивания внешнего окна через Win32 API
+и определения координат активного монитора.
+"""
+
 from __future__ import annotations
 
+import contextlib
 import ctypes
-from ctypes import wintypes
 import logging
 import random
-from typing import Callable
+from collections.abc import Callable
+from ctypes import wintypes
 
 from PySide6.QtCore import QObject, QRect, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
@@ -84,20 +92,20 @@ def shake_window_hwnd(
             if step >= total_steps or not user32.IsWindow(hwnd):
                 timer.stop()
                 timer.deleteLater()
-                try:
-                    user32.SetWindowPos(hwnd, 0, orig_x, orig_y, 0, 0, flags)
-                except Exception:
-                    pass
+                with contextlib.suppress(Exception):
+                    user32.SetWindowPos(
+                        hwnd, 0, orig_x, orig_y, 0, 0, flags
+                    )
                 if on_finished:
                     on_finished()
                 return
 
             dx = random.randint(-intensity, intensity)
             dy = random.randint(-intensity, intensity)
-            try:
-                user32.SetWindowPos(hwnd, 0, orig_x + dx, orig_y + dy, 0, 0, flags)
-            except Exception:
-                pass
+            with contextlib.suppress(Exception):
+                user32.SetWindowPos(
+                    hwnd, 0, orig_x + dx, orig_y + dy, 0, 0, flags
+                )
 
         timer.timeout.connect(_tick)
         timer.start()

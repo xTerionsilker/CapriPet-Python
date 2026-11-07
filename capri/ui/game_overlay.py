@@ -1,9 +1,14 @@
+"""Компактный индикатор присутствия питомца поверх полноэкранных приложений.
+
+Отображает минималистичный пульсирующий HUD-глиф в игровом режиме,
+не перехватывая ввод пользователя.
+"""
+
 from __future__ import annotations
 
-from PySide6.QtCore import QPoint, QRect, Qt, QTimer
+from PySide6.QtCore import QRect, Qt, QTimer
 from PySide6.QtGui import (
     QColor,
-    QFont,
     QGuiApplication,
     QPainter,
     QPainterPath,
@@ -21,6 +26,7 @@ from .theme import (
 
 
 class SilentPresenceGlyph(QWidget):
+    """Пульсирующий ненавязчивый индикатор присутствия в углу экрана."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(
@@ -30,9 +36,15 @@ class SilentPresenceGlyph(QWidget):
             | Qt.WindowType.Tool
             | Qt.WindowType.WindowTransparentForInput,
         )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(
+            Qt.WidgetAttribute.WA_TranslucentBackground, True
+        )
+        self.setAttribute(
+            Qt.WidgetAttribute.WA_ShowWithoutActivating, True
+        )
+        self.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+        )
 
         self._pulse_alpha = 140
         self._pulse_dir = 1
@@ -42,6 +54,7 @@ class SilentPresenceGlyph(QWidget):
 
         self.setFixedSize(140, 36)
         self._reposition()
+
     def _reposition(self) -> None:
         screen = QGuiApplication.primaryScreen()
         if not screen:

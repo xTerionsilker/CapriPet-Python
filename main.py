@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Main application entry point for CapriPet desktop companion."""
 
 from __future__ import annotations
 

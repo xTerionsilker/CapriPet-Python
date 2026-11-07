@@ -1,15 +1,19 @@
-from __future__ import annotations
-from capri.ui.theme import get_hud_font
+"""Полноэкранный оверлей электрической привязи (молнии) к цели."""
 
+from __future__ import annotations
+
+import contextlib
 import math
 import random
 import time
-from typing import List
 
 from PySide6.QtCore import QPoint, QRect, Qt, QTimer
-from PySide6.QtGui import QFont, QGuiApplication, QPainter, QPen
+from PySide6.QtGui import QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
+from capri.ui.theme import get_hud_font
+
+from ..ui.speech_sfx import get_speech_sfx
 from .transition_fx import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
@@ -21,10 +25,10 @@ from .transition_fx import (
     CyberPixelSpark,
     with_alpha,
 )
-from ..ui.speech_sfx import get_speech_sfx
+
 
 def get_virtual_screen_geometry() -> QRect:
-    
+
     screens = QGuiApplication.screens()
     if not screens:
         return QRect(0, 0, 1920, 1080)
@@ -33,12 +37,9 @@ def get_virtual_screen_geometry() -> QRect:
         rect = rect.united(scr.geometry())
     return rect
 
+
 class LightningTetherOverlay(QWidget):
-\
-\
-\
-\
-\
+    """Оверлей анимированных разрядов молнии, связывающих питомца с целевой точкой."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         flags = (
@@ -59,8 +60,8 @@ class LightningTetherOverlay(QWidget):
         self._target_pos = QPoint(0, 0)
         self._origin_rect = QRect(0, 0, 0, 0)
 
-        self._bolts: List[CyberPixelBolt] = []
-        self._sparks: List[CyberPixelSpark] = []
+        self._bolts: list[CyberPixelBolt] = []
+        self._sparks: list[CyberPixelSpark] = []
         self._tick_count = 0
         self._start_time = 0.0
 
@@ -72,14 +73,21 @@ class LightningTetherOverlay(QWidget):
         self._sfx_timer.setInterval(110)
         self._sfx_timer.timeout.connect(self._on_sfx_tick)
 
-    def activate(self, start_pos: QPoint, target_pos: QPoint, origin_rect: QRect | None = None) -> None:
-        
+    def activate(
+        self,
+        start_pos: QPoint,
+        target_pos: QPoint,
+        origin_rect: QRect | None = None,
+    ) -> None:
+
         geo = get_virtual_screen_geometry()
         self.setGeometry(geo)
 
         self._start_pos = start_pos
         self._target_pos = target_pos
-        self._origin_rect = origin_rect or QRect(start_pos.x() - 40, start_pos.y() - 40, 80, 80)
+        self._origin_rect = origin_rect or QRect(
+            start_pos.x() - 40, start_pos.y() - 40, 80, 80
+        )
         self._tick_count = 0
         self._start_time = time.monotonic()
         self._sparks.clear()
@@ -90,21 +98,21 @@ class LightningTetherOverlay(QWidget):
         self.show()
         self._anim_timer.start()
         self._sfx_timer.start()
-        try:
+        with contextlib.suppress(Exception):
             get_speech_sfx().play_lightning_zap()
-        except Exception:
-            pass
         self.update()
 
     def update_target(self, target_pos: QPoint) -> None:
-        
+
         if self._target_pos != target_pos:
             self._target_pos = target_pos
             self._rebuild_bolts()
             self.update()
 
-    def update_start(self, start_pos: QPoint, origin_rect: QRect | None = None) -> None:
-        
+    def update_start(
+        self, start_pos: QPoint, origin_rect: QRect | None = None
+    ) -> None:
+
         self._start_pos = start_pos
         if origin_rect is not None:
             self._origin_rect = origin_rect
@@ -112,7 +120,7 @@ class LightningTetherOverlay(QWidget):
         self.update()
 
     def deactivate(self) -> None:
-        
+
         self._anim_timer.stop()
         self._sfx_timer.stop()
         self.hide()
@@ -144,8 +152,12 @@ class LightningTetherOverlay(QWidget):
         )
 
         if dist > 35:
-            jitter_start = local_start + QPoint(random.randint(-14, 14), random.randint(-14, 14))
-            jitter_target = local_target + QPoint(random.randint(-10, 10), random.randint(-10, 10))
+            jitter_start = local_start + QPoint(
+                random.randint(-14, 14), random.randint(-14, 14)
+            )
+            jitter_target = local_target + QPoint(
+                random.randint(-10, 10), random.randint(-10, 10)
+            )
             self._bolts.append(
                 CyberPixelBolt(
                     jitter_start,
@@ -155,8 +167,12 @@ class LightningTetherOverlay(QWidget):
             )
 
         if dist > 250 or tension > 0.4:
-            arc_start = local_start + QPoint(random.randint(-8, 8), random.randint(-8, 8))
-            arc_target = local_target + QPoint(random.randint(-12, 12), random.randint(-12, 12))
+            arc_start = local_start + QPoint(
+                random.randint(-8, 8), random.randint(-8, 8)
+            )
+            arc_target = local_target + QPoint(
+                random.randint(-12, 12), random.randint(-12, 12)
+            )
             self._bolts.append(
                 CyberPixelBolt(
                     arc_start,
@@ -185,7 +201,9 @@ class LightningTetherOverlay(QWidget):
                     local_target.y(),
                     vx,
                     vy,
-                    color=random.choice((COLOR_CRIMSON, COLOR_WHITE, COLOR_ACID_GREEN)),
+                    color=random.choice(
+                        (COLOR_CRIMSON, COLOR_WHITE, COLOR_ACID_GREEN)
+                    ),
                     size=PIXEL_SIZE,
                     life=random.uniform(0.15, 0.40),
                     kind=kind,
@@ -199,10 +217,8 @@ class LightningTetherOverlay(QWidget):
 
     def _on_sfx_tick(self) -> None:
         if random.random() < 0.45:
-            try:
+            with contextlib.suppress(Exception):
                 get_speech_sfx().play_lightning_zap()
-            except Exception:
-                pass
 
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
@@ -245,7 +261,10 @@ class LightningTetherOverlay(QWidget):
             reticle_rect,
             progress=1.0,
             color=COLOR_CRIMSON,
-            bracket_offset=int(abs(math.sin(elapsed * (8.0 + tension * 12.0))) * (6 + int(tension * 6))),
+            bracket_offset=int(
+                abs(math.sin(elapsed * (8.0 + tension * 12.0)))
+                * (6 + int(tension * 6))
+            ),
             rotation=rotation,
             label=hud_label,
             locked=True,
@@ -255,7 +274,9 @@ class LightningTetherOverlay(QWidget):
         painter.setFont(font)
 
         tag = f"TENS: {int(tension * 100)}% // DISP:[{dx:+04d},{dy:+04d}] // VOLT:0x{(min(9999, int(dist * 12.5))):04X}"
-        tag_rect = QRect(local_target.x() + 38, local_target.y() - 8, 255, 16)
+        tag_rect = QRect(
+            local_target.x() + 38, local_target.y() - 8, 255, 16
+        )
         painter.fillRect(tag_rect, with_alpha(COLOR_OBSIDIAN, 230))
         painter.setPen(QPen(COLOR_CRIMSON, 1))
         painter.drawRect(tag_rect)
@@ -267,21 +288,57 @@ class LightningTetherOverlay(QWidget):
         )
 
         if dist > 80:
-            hex_samples = ("0xDEAD", "0xBEEF", "BREACH", "0x00FF", "NULL_PTR", "CORRUPT")
+            hex_samples = (
+                "0xDEAD",
+                "0xBEEF",
+                "BREACH",
+                "0x00FF",
+                "NULL_PTR",
+                "CORRUPT",
+            )
             rng_hex = random.Random(int(elapsed * 15) % 1000)
             for step_ratio in (0.3, 0.6, 0.85):
-                hx = int(local_start.x() + (local_target.x() - local_start.x()) * step_ratio)
-                hy = int(local_start.y() + (local_target.y() - local_start.y()) * step_ratio)
+                hx = int(
+                    local_start.x()
+                    + (local_target.x() - local_start.x()) * step_ratio
+                )
+                hy = int(
+                    local_start.y()
+                    + (local_target.y() - local_start.y()) * step_ratio
+                )
                 glyph = rng_hex.choice(hex_samples)
-                glyph_rect = QRect(hx + rng_hex.randint(-16, 16), hy + rng_hex.randint(-16, 16), 56, 12)
-                painter.fillRect(glyph_rect, with_alpha(COLOR_OBSIDIAN, 190))
-                painter.setPen(with_alpha(COLOR_CRIMSON, rng_hex.randint(180, 255)))
-                painter.drawText(glyph_rect, Qt.AlignmentFlag.AlignCenter, glyph)
+                glyph_rect = QRect(
+                    hx + rng_hex.randint(-16, 16),
+                    hy + rng_hex.randint(-16, 16),
+                    56,
+                    12,
+                )
+                painter.fillRect(
+                    glyph_rect, with_alpha(COLOR_OBSIDIAN, 190)
+                )
+                painter.setPen(
+                    with_alpha(COLOR_CRIMSON, rng_hex.randint(180, 255))
+                )
+                painter.drawText(
+                    glyph_rect, Qt.AlignmentFlag.AlignCenter, glyph
+                )
 
-        anchor_rect = QRect(local_start.x() - 6, local_start.y() - 6, 12, 12)
+        anchor_rect = QRect(
+            local_start.x() - 6, local_start.y() - 6, 12, 12
+        )
         painter.setPen(QPen(COLOR_ACID_GREEN, 1))
         painter.drawRect(anchor_rect)
-        painter.drawLine(local_start.x() - 10, local_start.y(), local_start.x() + 10, local_start.y())
-        painter.drawLine(local_start.x(), local_start.y() - 10, local_start.x(), local_start.y() + 10)
+        painter.drawLine(
+            local_start.x() - 10,
+            local_start.y(),
+            local_start.x() + 10,
+            local_start.y(),
+        )
+        painter.drawLine(
+            local_start.x(),
+            local_start.y() - 10,
+            local_start.x(),
+            local_start.y() + 10,
+        )
 
         painter.end()

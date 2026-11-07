@@ -1,9 +1,16 @@
+"""Системные функции управления питанием, сессией и курсором мыши в Windows.
+
+Модуль содержит команды и утилиты для блокировки рабочей станции, выключения,
+перезагрузки, перехода в спящий режим, а также определения позиции и
+программного перемещения курсора мыши.
+"""
+
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
 import shutil
 import subprocess
+from ctypes import wintypes
 
 from PySide6.QtCore import QPoint
 from PySide6.QtGui import QCursor
@@ -11,15 +18,11 @@ from PySide6.QtGui import QCursor
 PER_COMMAND_TIMEOUT_S = 5
 
 POWER_ACTIONS: dict[str, tuple[tuple[str, ...], ...]] = {
-    "poweroff": (
-        ("shutdown", "/s", "/t", "0"),
-    ),
+    "poweroff": (("shutdown", "/s", "/t", "0"),),
     "suspend": (
         ("rundll32.exe", "powrprof.dll,SetSuspendState", "0,1,0"),
     ),
-    "reboot": (
-        ("shutdown", "/r", "/t", "0"),
-    ),
+    "reboot": (("shutdown", "/r", "/t", "0"),),
 }
 
 
@@ -37,9 +40,7 @@ def get_mouse_position() -> QPoint:
     return QCursor.pos()
 
 
-def move_mouse_to(
-    x: int, y: int, screen_index: int | None = None
-) -> bool:
+def move_mouse_to(x: int, y: int, screen_index: int | None = None) -> bool:
     try:
         if ctypes.windll.user32.SetCursorPos(int(x), int(y)):
             return True

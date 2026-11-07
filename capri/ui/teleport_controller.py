@@ -1,7 +1,15 @@
+"""Контроллер телепортации и визуальных эффектов перемещения питомца.
+
+Управляет эффектами молниевой привязки к курсору, направлением взгляда
+и квантовой дезинтеграцией/материализацией окна питомца.
+"""
+
 from __future__ import annotations
 
+import contextlib
 import time
-from typing import Callable, TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
@@ -15,8 +23,9 @@ from ..integrations.system_control import get_mouse_position, move_mouse_to
 if TYPE_CHECKING:
     from .pet_window import CapriWindow
 
+
 class TeleportController:
-    
+    """Контроллер квантовой телепортации и эффектов привязки к курсору."""
 
     def __init__(self, window: CapriWindow) -> None:
         self._window = window
@@ -90,11 +99,17 @@ class TeleportController:
         progress = max(0.0, min(1.0, elapsed / self._pull_duration))
 
         pet_center = self._window.geometry().center()
-        current_cursor = get_mouse_position()
+        get_mouse_position()
 
         t = progress * progress * (3.0 - 2.0 * progress)
-        target_x = round(self._pull_initial_cursor.x() + (pet_center.x() - self._pull_initial_cursor.x()) * t)
-        target_y = round(self._pull_initial_cursor.y() + (pet_center.y() - self._pull_initial_cursor.y()) * t)
+        target_x = round(
+            self._pull_initial_cursor.x()
+            + (pet_center.x() - self._pull_initial_cursor.x()) * t
+        )
+        target_y = round(
+            self._pull_initial_cursor.y()
+            + (pet_center.y() - self._pull_initial_cursor.y()) * t
+        )
 
         move_mouse_to(target_x, target_y)
         new_cursor = get_mouse_position()
@@ -104,7 +119,10 @@ class TeleportController:
         self._window.surge_ticks = max(self._window.surge_ticks, 4)
         self._window.update()
 
-        distance_to_pet = ((new_cursor.x() - pet_center.x()) ** 2 + (new_cursor.y() - pet_center.y()) ** 2) ** 0.5
+        distance_to_pet = (
+            (new_cursor.x() - pet_center.x()) ** 2
+            + (new_cursor.y() - pet_center.y()) ** 2
+        ) ** 0.5
         if progress >= 1.0 or distance_to_pet <= 16:
             self.stop_pointing_at_mouse()
 
@@ -124,7 +142,9 @@ class TeleportController:
             cursor_pos = event.globalPosition().toPoint()
             pet_center = self._window.geometry().center()
             overlay = self._ensure_lightning_overlay()
-            overlay.activate(pet_center, cursor_pos, self._window.geometry())
+            overlay.activate(
+                pet_center, cursor_pos, self._window.geometry()
+            )
             return True
 
         return False
@@ -143,7 +163,10 @@ class TeleportController:
         return False
 
     def handle_mouse_release(self, event) -> bool:
-        if event.button() == Qt.MouseButton.LeftButton and self._is_lightning_aiming:
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and self._is_lightning_aiming
+        ):
             self._is_lightning_aiming = False
             self._window._is_dragging = False
             self._window.inactivity_manager.set_paused(False)
@@ -173,10 +196,13 @@ class TeleportController:
         mode: str = "in",
         on_finished_callback: Callable[[], None] | None = None,
     ) -> None:
-        
+
         w = self._window.width()
         h = self._window.height()
-        target_top_left = QPoint(target_center_point.x() - w // 2, target_center_point.y() - h // 2)
+        target_top_left = QPoint(
+            target_center_point.x() - w // 2,
+            target_center_point.y() - h // 2,
+        )
 
         from_rect = QRect(self._window.geometry())
         to_rect = QRect(target_top_left.x(), target_top_left.y(), w, h)
@@ -194,21 +220,23 @@ class TeleportController:
                 target_screen = scr
                 break
         if target_screen is None:
-            target_screen = self._window.screen() or QGuiApplication.primaryScreen()
+            target_screen = (
+                self._window.screen() or QGuiApplication.primaryScreen()
+            )
 
-        screen_rect = target_screen.geometry() if target_screen is not None else to_rect
+        screen_rect = (
+            target_screen.geometry()
+            if target_screen is not None
+            else to_rect
+        )
 
         if self._teleport_overlay_out is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._teleport_overlay_out.close()
-            except Exception:
-                pass
             self._teleport_overlay_out = None
         if self._teleport_overlay_in is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._teleport_overlay_in.close()
-            except Exception:
-                pass
             self._teleport_overlay_in = None
 
         def on_peak() -> None:
@@ -218,14 +246,20 @@ class TeleportController:
             wh = self._window.windowHandle()
             if wh is not None and target_screen is not None:
                 wh.setScreen(target_screen)
-            set_config_value("window.position", {"x": to_rect.x(), "y": to_rect.y()})
-            set_config_value("window.overlay_position", {"x": to_rect.x(), "y": to_rect.y()})
+            set_config_value(
+                "window.position", {"x": to_rect.x(), "y": to_rect.y()}
+            )
+            set_config_value(
+                "window.overlay_position",
+                {"x": to_rect.x(), "y": to_rect.y()},
+            )
             self._window.set_pose("idle")
             self._window.show()
             self._window.raise_()
             self._window.surge_ticks = 12
             try:
                 from ..ui.speech_sfx import get_speech_sfx
+
                 get_speech_sfx().play_teleport_drop()
             except Exception:
                 pass

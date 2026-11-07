@@ -10,7 +10,9 @@ import capri
 class TestImports(unittest.TestCase):
     def test_import_all_submodules(self) -> None:
         failed: list[tuple[str, str]] = []
-        for module_info in pkgutil.walk_packages(capri.__path__, prefix="capri."):
+        for module_info in pkgutil.walk_packages(
+            capri.__path__, prefix="capri."
+        ):
             try:
                 importlib.import_module(module_info.name)
             except Exception as exc:

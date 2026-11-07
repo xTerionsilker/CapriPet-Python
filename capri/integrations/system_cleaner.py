@@ -1,14 +1,30 @@
+"""Безопасная очистка временных файлов и корзины в операционной системе Windows.
+
+Модуль предоставляет средства для очистки системных и пользовательских
+временных каталогов (Temp), освобождения корзины Windows через Shell API
+и форматирования объема высвобожденного дискового пространства.
+"""
+
 from __future__ import annotations
 
+import contextlib
 import ctypes
-from ctypes import wintypes
 import os
-import shutil
 import tempfile
+from ctypes import wintypes
 from typing import NamedTuple
 
 
 class CleanResult(NamedTuple):
+    """Результат выполнения операции системной очистки.
+
+    Attributes:
+        files_deleted: Общее количество успешно удаленных файлов и элементов.
+        bytes_freed: Суммарный объем освобожденного места на диске в байтах.
+        errors: Число файлов или каталогов, пропущенных из-за ошибок доступа.
+        recycle_bin_cleared: Флаг успешной очистки системной корзины.
+    """
+
     files_deleted: int
     bytes_freed: int
     errors: int
@@ -49,7 +65,9 @@ def clear_recycle_bin() -> tuple[bool, int, int]:
     try:
         info = _SHQUERYRBINFO()
         info.cbSize = ctypes.sizeof(_SHQUERYRBINFO)
-        hr = ctypes.windll.shell32.SHQueryRecycleBinW(None, ctypes.byref(info))
+        hr = ctypes.windll.shell32.SHQueryRecycleBinW(
+            None, ctypes.byref(info)
+        )
         if hr != 0:
             return False, 0, 0
 
@@ -72,10 +90,8 @@ def clear_recycle_bin() -> tuple[bool, int, int]:
 def _safe_remove_file(file_path: str) -> tuple[bool, int]:
     try:
         size = 0
-        try:
+        with contextlib.suppress(OSError):
             size = os.path.getsize(file_path)
-        except OSError:
-            pass
         os.remove(file_path)
         return True, size
     except OSError:
@@ -99,15 +115,11 @@ def _safe_remove_dir(dir_path: str) -> tuple[int, int, int]:
                 err_count += 1
         for d in dirs:
             dp = os.path.join(root, d)
-            try:
+            with contextlib.suppress(OSError):
                 os.rmdir(dp)
-            except OSError:
-                pass
 
-    try:
+    with contextlib.suppress(OSError):
         os.rmdir(dir_path)
-    except OSError:
-        pass
 
     return files_del, bytes_del, err_count
 
@@ -142,7 +154,10 @@ def clean_temp_directories() -> tuple[int, int, int]:
 
         for item in items:
             try:
-                if item.is_file(follow_symlinks=False) or item.is_symlink():
+                if (
+                    item.is_file(follow_symlinks=False)
+                    or item.is_symlink()
+                ):
                     ok, sz = _safe_remove_file(item.path)
                     if ok:
                         total_files += 1

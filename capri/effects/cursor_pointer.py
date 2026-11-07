@@ -1,12 +1,14 @@
+"""Полноэкранный оверлей наведения на курсор мыши в стиле киберпанк."""
+
 from __future__ import annotations
 
+import contextlib
 import math
 import random
 import time
-from typing import List
 
 from PySide6.QtCore import QPoint, QPointF, QRect, Qt, QTimer
-from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPen
+from PySide6.QtGui import QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from ..effects.transition_fx import (
@@ -14,18 +16,17 @@ from ..effects.transition_fx import (
     COLOR_CRIMSON,
     COLOR_ELECTRIC_BLUE,
     COLOR_OBSIDIAN,
-    COLOR_VIOLET,
     COLOR_WHITE,
     PIXEL_SIZE,
     CyberKiroshiReticle,
     draw_glitch_mass,
-    draw_screen_glitch_bars,
     pick_palette_color,
     snap_pixel,
     with_alpha,
 )
-from ..ui.theme import get_hud_font
 from ..ui.speech_sfx import get_speech_sfx
+from ..ui.theme import get_hud_font
+
 
 def get_virtual_screen_geometry() -> QRect:
     screens = QGuiApplication.screens()
@@ -36,7 +37,10 @@ def get_virtual_screen_geometry() -> QRect:
         rect = rect.united(scr.geometry())
     return rect
 
+
 class CursorPointerOverlay(QWidget):
+    """Оверлей с анимированной глитч-линией наведения и визиром захвата цели."""
+
     def __init__(self, parent: QWidget | None = None) -> None:
         flags = (
             Qt.WindowType.Tool
@@ -83,13 +87,13 @@ class CursorPointerOverlay(QWidget):
         self.show()
         self._anim_timer.start()
 
-        try:
+        with contextlib.suppress(Exception):
             get_speech_sfx().play_swoosh()
-        except Exception:
-            pass
         self.update()
 
-    def update_positions(self, start_pos: QPoint, target_pos: QPoint) -> None:
+    def update_positions(
+        self, start_pos: QPoint, target_pos: QPoint
+    ) -> None:
         self._start_pos = start_pos
         if self._target_pos != target_pos:
             self._target_pos = target_pos
@@ -118,7 +122,9 @@ class CursorPointerOverlay(QWidget):
 
         elif self._state == "fading":
             elapsed = now - self._fade_start_time
-            self._fade_progress = max(0.0, 1.0 - (elapsed / self._fade_duration))
+            self._fade_progress = max(
+                0.0, 1.0 - (elapsed / self._fade_duration)
+            )
             if self._fade_progress <= 0.0:
                 self.deactivate()
                 return
@@ -163,13 +169,19 @@ class CursorPointerOverlay(QWidget):
         rng = random.Random(self._frame * 31 + int(now * 100))
 
         num_segments = max(4, int(draw_dist // 28))
-        segment_points: List[QPointF] = []
+        segment_points: list[QPointF] = []
         for i in range(num_segments + 1):
             ratio = i / num_segments
-            base_x = local_start.x() + (curr_target_x - local_start.x()) * ratio
-            base_y = local_start.y() + (curr_target_y - local_start.y()) * ratio
+            base_x = (
+                local_start.x() + (curr_target_x - local_start.x()) * ratio
+            )
+            base_y = (
+                local_start.y() + (curr_target_y - local_start.y()) * ratio
+            )
             if 0 < i < num_segments:
-                jitter_val = rng.uniform(-5.0, 5.0) if rng.random() < 0.75 else 0.0
+                jitter_val = (
+                    rng.uniform(-5.0, 5.0) if rng.random() < 0.75 else 0.0
+                )
                 base_x += perp_x * jitter_val
                 base_y += perp_y * jitter_val
             segment_points.append(QPointF(base_x, base_y))
@@ -180,35 +192,57 @@ class CursorPointerOverlay(QWidget):
             (COLOR_ACID_GREEN, 1.5),
         ):
             if rng.random() < 0.85:
-                shift_pen = QPen(with_alpha(color_shift, int(110 * overall_alpha)), 2)
+                shift_pen = QPen(
+                    with_alpha(color_shift, int(110 * overall_alpha)), 2
+                )
                 painter.setPen(shift_pen)
                 for i in range(len(segment_points) - 1):
-                    p1 = segment_points[i] + QPointF(perp_x * shift_val, perp_y * shift_val)
-                    p2 = segment_points[i + 1] + QPointF(perp_x * shift_val, perp_y * shift_val)
+                    p1 = segment_points[i] + QPointF(
+                        perp_x * shift_val, perp_y * shift_val
+                    )
+                    p2 = segment_points[i + 1] + QPointF(
+                        perp_x * shift_val, perp_y * shift_val
+                    )
                     painter.drawLine(p1, p2)
 
-        glow_pen = QPen(with_alpha(COLOR_CRIMSON, int(80 * overall_alpha)), 6)
+        glow_pen = QPen(
+            with_alpha(COLOR_CRIMSON, int(80 * overall_alpha)), 6
+        )
         glow_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(glow_pen)
         for i in range(len(segment_points) - 1):
             painter.drawLine(segment_points[i], segment_points[i + 1])
 
-        core_pen = QPen(with_alpha(COLOR_WHITE, int(230 * overall_alpha)), 2)
+        core_pen = QPen(
+            with_alpha(COLOR_WHITE, int(230 * overall_alpha)), 2
+        )
         core_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(core_pen)
         for i in range(len(segment_points) - 1):
             painter.drawLine(segment_points[i], segment_points[i + 1])
 
-        dot_pen = QPen(with_alpha(COLOR_ACID_GREEN, int(190 * overall_alpha)), 1)
+        dot_pen = QPen(
+            with_alpha(COLOR_ACID_GREEN, int(190 * overall_alpha)), 1
+        )
         dot_pen.setStyle(Qt.PenStyle.DotLine)
         painter.setPen(dot_pen)
         painter.drawLine(QPointF(local_start), current_head)
 
         for _ in range(rng.randint(6, 14)):
             t = rng.random()
-            bx = local_start.x() + (curr_target_x - local_start.x()) * t + perp_x * rng.uniform(-16, 16)
-            by = local_start.y() + (curr_target_y - local_start.y()) * t + perp_y * rng.uniform(-16, 16)
-            bw = snap_pixel(rng.choice((PIXEL_SIZE, PIXEL_SIZE * 2, PIXEL_SIZE * 4)))
+            bx = (
+                local_start.x()
+                + (curr_target_x - local_start.x()) * t
+                + perp_x * rng.uniform(-16, 16)
+            )
+            by = (
+                local_start.y()
+                + (curr_target_y - local_start.y()) * t
+                + perp_y * rng.uniform(-16, 16)
+            )
+            bw = snap_pixel(
+                rng.choice((PIXEL_SIZE, PIXEL_SIZE * 2, PIXEL_SIZE * 4))
+            )
             bh = snap_pixel(rng.choice((PIXEL_SIZE, PIXEL_SIZE * 2)))
             bcolor = pick_palette_color()
             painter.fillRect(
@@ -216,7 +250,9 @@ class CursorPointerOverlay(QWidget):
                 int(by - bh / 2),
                 bw,
                 bh,
-                with_alpha(bcolor, int(rng.randint(140, 240) * overall_alpha)),
+                with_alpha(
+                    bcolor, int(rng.randint(140, 240) * overall_alpha)
+                ),
             )
 
         for _ in range(rng.randint(2, 5)):
@@ -230,14 +266,27 @@ class CursorPointerOverlay(QWidget):
                 int(ly - bar_h / 2),
                 bar_w,
                 bar_h,
-                with_alpha(rng.choice((COLOR_CRIMSON, COLOR_ACID_GREEN, COLOR_WHITE)), int(180 * overall_alpha)),
+                with_alpha(
+                    rng.choice(
+                        (COLOR_CRIMSON, COLOR_ACID_GREEN, COLOR_WHITE)
+                    ),
+                    int(180 * overall_alpha),
+                ),
             )
 
         pulse = (now * 2.2) % 1.0
         if self._build_progress >= 0.15:
             p_dist = draw_dist * pulse
-            px = local_start.x() + (dx / total_dist) * p_dist if total_dist > 0 else local_start.x()
-            py = local_start.y() + (dy / total_dist) * p_dist if total_dist > 0 else local_start.y()
+            px = (
+                local_start.x() + (dx / total_dist) * p_dist
+                if total_dist > 0
+                else local_start.x()
+            )
+            py = (
+                local_start.y() + (dy / total_dist) * p_dist
+                if total_dist > 0
+                else local_start.y()
+            )
             pulse_size = 8
             painter.fillRect(
                 int(px - pulse_size / 2),
@@ -255,17 +304,41 @@ class CursorPointerOverlay(QWidget):
             )
 
         anchor_size = 14
-        anchor_rect = QRect(local_start.x() - anchor_size // 2, local_start.y() - anchor_size // 2, anchor_size, anchor_size)
-        painter.setPen(QPen(with_alpha(COLOR_ACID_GREEN, int(230 * overall_alpha)), 1))
+        anchor_rect = QRect(
+            local_start.x() - anchor_size // 2,
+            local_start.y() - anchor_size // 2,
+            anchor_size,
+            anchor_size,
+        )
+        painter.setPen(
+            QPen(with_alpha(COLOR_ACID_GREEN, int(230 * overall_alpha)), 1)
+        )
         painter.drawRect(anchor_rect)
-        painter.drawLine(local_start.x() - 10, local_start.y(), local_start.x() + 10, local_start.y())
-        painter.drawLine(local_start.x(), local_start.y() - 10, local_start.x(), local_start.y() + 10)
+        painter.drawLine(
+            local_start.x() - 10,
+            local_start.y(),
+            local_start.x() + 10,
+            local_start.y(),
+        )
+        painter.drawLine(
+            local_start.x(),
+            local_start.y() - 10,
+            local_start.x(),
+            local_start.y() + 10,
+        )
 
         if self._build_progress >= 0.35:
-            reticle_progress = min(1.0, (self._build_progress - 0.35) / 0.65) * overall_alpha
+            reticle_progress = (
+                min(1.0, (self._build_progress - 0.35) / 0.65)
+                * overall_alpha
+            )
             reticle_size = 60
-            jitter_head_x = current_head.x() + (rng.uniform(-3, 3) if rng.random() < 0.6 else 0)
-            jitter_head_y = current_head.y() + (rng.uniform(-3, 3) if rng.random() < 0.6 else 0)
+            jitter_head_x = current_head.x() + (
+                rng.uniform(-3, 3) if rng.random() < 0.6 else 0
+            )
+            jitter_head_y = current_head.y() + (
+                rng.uniform(-3, 3) if rng.random() < 0.6 else 0
+            )
 
             reticle_rect = QRect(
                 int(jitter_head_x - reticle_size // 2),
@@ -304,11 +377,22 @@ class CursorPointerOverlay(QWidget):
                 if rng.random() < 0.8
                 else f"ERR//0x{rng.randint(0x1000, 0xFFFF):04X} // SYNC_ERR:{dist_int:04d}"
             )
-            tag_rect = QRect(int(jitter_head_x + 36), int(jitter_head_y - 8), 260, 16)
-            painter.fillRect(tag_rect, with_alpha(COLOR_OBSIDIAN, int(220 * overall_alpha)))
-            painter.setPen(QPen(with_alpha(COLOR_CRIMSON, int(255 * overall_alpha)), 1))
+            tag_rect = QRect(
+                int(jitter_head_x + 36), int(jitter_head_y - 8), 260, 16
+            )
+            painter.fillRect(
+                tag_rect,
+                with_alpha(COLOR_OBSIDIAN, int(220 * overall_alpha)),
+            )
+            painter.setPen(
+                QPen(
+                    with_alpha(COLOR_CRIMSON, int(255 * overall_alpha)), 1
+                )
+            )
             painter.drawRect(tag_rect)
-            painter.setPen(with_alpha(COLOR_WHITE, int(240 * overall_alpha)))
+            painter.setPen(
+                with_alpha(COLOR_WHITE, int(240 * overall_alpha))
+            )
             painter.drawText(
                 tag_rect.adjusted(4, 0, 0, 0),
                 Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,

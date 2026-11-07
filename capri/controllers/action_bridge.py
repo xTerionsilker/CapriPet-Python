@@ -1,3 +1,5 @@
+"""Мост между пользовательскими командами и фоновыми системными операциями."""
+
 from __future__ import annotations
 
 import threading
@@ -5,7 +7,13 @@ import threading
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ..effects.session_animations import SESSION_ACTION_LEAD_MS
-from ..integrations import app_launcher, process_manager, spotify, system_cleaner, web_search
+from ..integrations import (
+    app_launcher,
+    process_manager,
+    spotify,
+    system_cleaner,
+    web_search,
+)
 from ..integrations.system_control import (
     lock_commands,
     power_commands,
@@ -63,7 +71,6 @@ class ActionBridge(QObject):
     def spotify_current_track(self) -> str:
         return spotify.current_track()
 
-
     def lock_screen(self) -> str:
         commands = lock_commands()
         if not commands:
@@ -81,7 +88,6 @@ class ActionBridge(QObject):
         if not run_lock(commands):
             self.speech_requested.emit("Не удалось заблокировать экран.")
 
-
     def power_off(self) -> str:
         return self._queue_power("poweroff", "Выключаю ПК.")
 
@@ -90,7 +96,6 @@ class ActionBridge(QObject):
 
     def reboot(self) -> str:
         return self._queue_power("reboot", "Перезагружаю ПК.")
-
 
     def search_google(self, query: str) -> str:
         return web_search.search_google(query)
@@ -116,7 +121,9 @@ class ActionBridge(QObject):
     def launch_app(self, query: str) -> str:
         trimmed = query.strip()
         if not trimmed:
-            return "Какое приложение запустить? Скажи: «запусти <название>»."
+            return (
+                "Какое приложение запустить? Скажи: «запусти <название>»."
+            )
         threading.Thread(
             target=self._find_apps_worker,
             args=(trimmed,),
@@ -194,9 +201,13 @@ class ActionBridge(QObject):
         remote_str = web_search.format_version_datetime(remote_dt)
 
         if remote_dt > local_dt:
-            self.update_check_finished.emit("update_available", local_str, remote_str)
+            self.update_check_finished.emit(
+                "update_available", local_str, remote_str
+            )
         elif remote_dt == local_dt:
-            self.speech_requested.emit("Установлена актуальная версия. Обновлять нечего.")
+            self.speech_requested.emit(
+                "Установлена актуальная версия. Обновлять нечего."
+            )
         else:
             self.speech_requested.emit(
                 f"Твоя версия ({local_str}) новее репозитория ({remote_str}). Ты из будущего!"
@@ -225,7 +236,7 @@ class ActionBridge(QObject):
         ).start()
         parent = self.parent()
         if parent is not None and hasattr(parent, "_window"):
-            window = getattr(parent, "_window")
+            window = parent._window
             if window is not None and hasattr(window, "close"):
                 QTimer.singleShot(200, window.close)
 
