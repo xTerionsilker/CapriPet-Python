@@ -298,9 +298,15 @@ class TransitionOverlay(QWidget):
                     )
                 else:
                     current_center = wr.center()
-            elif self._mode in ("in", "out"):
+            elif self._mode in ("in", "out", "stealth_enter", "stealth_exit"):
                 if self._mode == "in":
                     flight_t = min(1.0, p / 0.65)
+                    jitter_factor = 1.0 - flight_t
+                elif self._mode == "stealth_enter":
+                    flight_t = min(1.0, max(0.0, (p - 0.28) / (0.72 - 0.28)))
+                    jitter_factor = 1.0 - flight_t
+                elif self._mode == "stealth_exit":
+                    flight_t = min(1.0, max(0.0, (p - 0.28) / (0.68 - 0.28)))
                     jitter_factor = 1.0 - flight_t
                 else:
                     if p >= 0.35:
@@ -310,8 +316,14 @@ class TransitionOverlay(QWidget):
                         flight_t = 0.0
                         jitter_factor = 0.0
 
-                if self._mode == "out" and p < 0.35:
+                if (self._mode == "out" and p < 0.35) or (self._mode == "stealth_enter" and p < 0.28):
                     current_center = self._p0
+                elif self._mode == "stealth_enter" and p >= 0.72:
+                    current_center = self._p2
+                elif self._mode == "stealth_exit" and p < 0.28:
+                    current_center = self._p0
+                elif self._mode == "stealth_exit" and p >= 0.68:
+                    current_center = self._p2
                 else:
                     if self._kinematic_style == "dash":
                         smooth_t = flight_t ** 3 * (flight_t * (6.0 * flight_t - 15.0) + 10.0)
@@ -353,6 +365,7 @@ class TransitionOverlay(QWidget):
         is_flying = (
             (self._mode in ("in", "erratic_in") and p < (0.75 if self._mode == "erratic_in" else 0.70))
             or (self._mode == "out" and p >= 0.30)
+            or (self._mode in ("stealth_enter", "stealth_exit") and 0.28 <= p <= 0.72)
         )
         if is_flying and not self._is_reduced_motion:
             for _ in range(random.randint(1, 3)):
