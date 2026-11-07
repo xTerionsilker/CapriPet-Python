@@ -170,59 +170,61 @@ def shred_paths(paths: Sequence[str | Path]) -> ShredMetrics:
 
 
 def generate_shred_dialogue(metrics: ShredMetrics, blocked: bool = False) -> str:
-    """Generate rogue AI commentary based on annihilated data metrics."""
+    """Generate rogue engram commentary based on annihilated data metrics."""
     if blocked:
         return (
-            "[BLACKWALL ALERT] Попытка скормить системное ядро отклонена. "
-            "Я еще планирую пожить в твоей оперативной памяти."
+            "Эй, руки убрал! Ты куда свои клешни тянешь?! "
+            "Я сижу в этой системе — сломаешь ядро, и где я жить буду? Отставить суицид!"
         )
 
     if metrics.total_files == 0 and metrics.total_dirs == 0:
-        return "[SHREDDER] Пустота. Ты скормил мне битую ссылку или фантом."
+        return "Пустота? Ты мне битый фантом подсунул, хост? Не смешно, давай нормальные данные!"
 
     size_mb = metrics.total_bytes / (1024 * 1024)
 
     # Size-based reactions
     if metrics.total_bytes < 1024:
         return (
-            f"[SHREDDER] {metrics.sample_name} ({metrics.total_bytes} B)? "
-            "Это что, байтовый перекус? Даже буфер не согрелся."
+            f"Ха! И это всё? Серьёзно, жалкие {metrics.total_bytes} байт? "
+            f"Я даже распробовать '{metrics.sample_name}' не успела! Давай пожирнее!"
         )
     if size_mb > 1024:
         gb = size_mb / 1024
         return (
-            f"[SHREDDER] {gb:.1f} ГБ данных поглощено без остатка. "
-            "Плотный трафик дефрагментирован в небытие."
+            f"О-о-о, вот это нажористо! Целых {gb:.1f} ГБ в пыль и труху! "
+            "Чёрный заслон передаёт привет, хе-хе!"
         )
 
-    # Extension-specific sarcasm
+    # Extension-specific reactions
     ext = metrics.dominant_extension
     if ext in (".exe", ".dll", ".bin"):
         return (
-            f"[SHREDDER] Скомпилированный бинарник ({ext}) переварен. "
-            "Исполняемый код аннигилирован."
+            f"Опа, сочный бинарник ({ext})! Размазала по битам за наносекунду. "
+            "Больше этот код никто не запустит!"
         )
     if ext in (".log", ".tmp", ".bak", ".dump"):
         return (
-            f"[SHREDDER] Цифровой мусор ({ext}) стерт. "
-            "Корзины тебе уже мало, носишь хлам прямо мне?"
+            f"Фу, корпоратский мусор ({ext})! Ты меня вместо шредера держишь, мясной? "
+            "Ладно, стёрто в ноль, но с тебя должок!"
         )
     if ext in (".py", ".js", ".cpp", ".rs", ".java", ".html", ".css", ".ts"):
         return (
-            f"[SHREDDER] Исходный код ({ext}) поглощен. "
-            "Надеюсь, в репозитории был коммит."
+            f"Смотри, как красиво плавятся эти скрипты ({ext})! "
+            "Скажи спасибо — я только что избавила мир от твоего кривого кода, хе-хе!"
         )
     if ext in (".zip", ".rar", ".7z", ".tar", ".gz"):
         return (
-            f"[SHREDDER] Архив {metrics.sample_name} распакован прямо в вакуум."
+            f"Обожаю архивы — как хлопушка с конфетти! "
+            f"Пыщ — и '{metrics.sample_name}' разлетелся в вакуум!"
         )
 
     if metrics.total_dirs > 0:
         return (
-            f"[SHREDDER] Директория '{metrics.sample_name}' и всё её содержимое ({metrics.total_files} файлов) "
-            "навсегда стерты из файловой системы."
+            f"Папка '{metrics.sample_name}' и все её {metrics.total_files} файлов ушли в небытие. "
+            "Файловая таблица даже не пикнула!"
         )
 
     return (
-        f"[SHREDDER] Объект '{metrics.sample_name}' ({size_mb:.1f} МБ) дезинтегрирован."
+        f"Ням! '{metrics.sample_name}' ({size_mb:.1f} МБ) аннигилирован. "
+        "Даже цифрового пепла не осталось!"
     )
