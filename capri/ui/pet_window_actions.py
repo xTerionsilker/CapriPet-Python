@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from .speech import SpeechWindow
 
 
-class PetWindowActionDelegate:  # pylint: disable=protected-access,too-many-public-methods
+class PetWindowActionDelegate:
     """Делегат настроек и прикладных действий CapriWindow."""
 
     def __init__(self, window: CapriWindow) -> None:

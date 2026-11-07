@@ -50,7 +50,7 @@
 - **`tests/test_app_lifecycle.py`**:
   - Headless smoke tests verifying end-to-end `CapriWindow` lifecycle, Qt event loop iteration, rendering ticks, pose transitions, and resource teardown.
 - **`tests/test_code_integrity.py`**:
-  - Tests full project syntax compilation (`py_compile`) and static code integrity analysis via `pylint` (verifying code standards and catching syntax or import issues across all codebase modules).
+  - Tests full project syntax compilation (`compile`) across all codebase modules to verify syntax integrity.
 
 ## Rules for Writing & Executing Tests
 

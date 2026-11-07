@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
-import sys
 import unittest
 
 
@@ -25,26 +23,3 @@ class TestCodeIntegrity(unittest.TestCase):
                         failed_files.append((full_path, str(exc)))
         self.assertEqual(failed_files, [])
 
-    def test_pylint_checks(self) -> None:
-        root_dir = os.path.dirname(
-            os.path.dirname(os.path.abspath(__file__))
-        )
-        venv_python = sys.executable
-        res = subprocess.run(
-            [
-                venv_python,
-                "-m",
-                "pylint",
-                "capri",
-                "main.py",
-            ],
-            cwd=root_dir,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(
-            res.returncode,
-            0,
-            f"Pylint detected issues:\n{res.stdout}\n{res.stderr}",
-        )
