@@ -48,6 +48,7 @@ from .speech import (
     SpeechWindow,
     has_active_speech,
     set_speech_suppressed,
+    show_text,
 )
 from .speech import (
     close_all as close_all_speech,
@@ -522,6 +523,24 @@ class CapriWindow(QWidget):
             self.isMaximized() or self.isFullScreen()
         ):
             QTimer.singleShot(0, self.showNormal)
+
+    def speak(
+        self, text: str, hold_ms: int | None = None
+    ) -> SpeechWindow | None:
+        """Показывает реплику питомца во всплывающем киберпанк-облаке речи."""
+        if self._speech is not None:
+            self._speech.close(immediate=True)
+        self._speaking = True
+        self._surge_ticks = max(self._surge_ticks, 12)
+        if hold_ms is None:
+            hold_ms = min(5000, max(1200, len(text) * 45))
+        speech = show_text(text, parent=self, hold_ms=hold_ms)
+        self._speech = speech
+        if speech is not None:
+            speech.destroyed.connect(
+                lambda *_, window=speech: self._forget_speech(window)
+            )
+        return speech
 
     def toggle_glitches(self) -> str:
         return self._toggle_glitches()
