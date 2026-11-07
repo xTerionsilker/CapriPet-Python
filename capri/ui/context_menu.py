@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..audio.recognizer import get_backend
 from ..core.settings import ACTIVITY_TIMEOUT_OPTIONS_MS
 from .speech_sfx import get_speech_sfx
 from .theme import (
@@ -274,7 +275,7 @@ class ReminderRangeDialog(QDialog):
         self._drag_pos = None
         super().mouseReleaseEvent(event)
 
-    def paintEvent(self, event) -> None:
+    def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
 
@@ -438,30 +439,25 @@ class ContextMenuBuilder:
         )
         rpc_act.setCheckable(True)
         rpc_act.setChecked(rpc_enabled)
-        rpc_act.triggered.connect(
-            lambda checked: self.window.set_discord_enabled(checked)
-        )
+        if hasattr(self.window, "set_discord_enabled"):
+            rpc_act.triggered.connect(self.window.set_discord_enabled)
 
         voice_listening = False
         if hasattr(self.window, "voice_coordinator"):
             voice_listening = self.window.voice_coordinator.is_listening
-        elif hasattr(self.window, "_voice"):
-            voice_listening = self.window._voice.is_listening
+        elif hasattr(self.window, "voice"):
+            voice_listening = self.window.voice.is_listening
 
         voice_act = parent_menu.addAction("▶  [VOICE] Голосовой ввод")
         voice_act.setCheckable(True)
         voice_act.setChecked(voice_listening)
         voice_act.triggered.connect(
-            lambda *_: (
-                self.window.toggle_voice()
-                if hasattr(self.window, "toggle_voice")
-                else self.window._toggle_voice()
-            )
+            lambda *_: self.window.toggle_voice()
         )
 
         glitches_enabled = getattr(self.window, "glitches_enabled", False)
-        if not glitches_enabled and hasattr(self.window, "_glitches"):
-            glitches_enabled = self.window._glitches.is_enabled
+        if not glitches_enabled and hasattr(self.window, "glitches"):
+            glitches_enabled = self.window.glitches.is_enabled
 
         glitch_act = parent_menu.addAction("▶  [GLITCH] Экранные глитчи")
         glitch_act.setCheckable(True)
@@ -508,8 +504,8 @@ class ContextMenuBuilder:
             self.window, "voice_coordinator"
         ):
             current_mic = self.window.voice_coordinator.selected_device
-        elif current_mic is None and hasattr(self.window, "_voice"):
-            current_mic = self.window._voice.selected_device
+        elif current_mic is None and hasattr(self.window, "voice"):
+            current_mic = self.window.voice.selected_device
 
         default_mic = QMediaDevices.defaultAudioInput()
         default_label = (
@@ -545,8 +541,6 @@ class ContextMenuBuilder:
         group = QActionGroup(model_menu)
         group.setExclusive(True)
 
-        from ..audio.recognizer import get_backend
-
         current_backend = get_backend()
         options = (
             ("vosk", "Vosk (быстрая, легковесная, ru)"),
@@ -573,16 +567,18 @@ class ContextMenuBuilder:
         )
         msg_sound_act.setCheckable(True)
         msg_sound_act.setChecked(speech_sfx.is_speech_sound_enabled())
-        msg_sound_act.triggered.connect(
-            lambda checked: self.window.set_speech_sound_enabled(checked)
-        )
+        if hasattr(self.window, "set_speech_sound_enabled"):
+            msg_sound_act.triggered.connect(
+                self.window.set_speech_sound_enabled
+            )
 
         fx_sound_act = sound_menu.addAction("▶  [UI] UI эффекты")
         fx_sound_act.setCheckable(True)
         fx_sound_act.setChecked(speech_sfx.is_effects_sound_enabled())
-        fx_sound_act.triggered.connect(
-            lambda checked: self.window.set_effects_sound_enabled(checked)
-        )
+        if hasattr(self.window, "set_effects_sound_enabled"):
+            fx_sound_act.triggered.connect(
+                self.window.set_effects_sound_enabled
+            )
 
     def _add_volume_menu(self, parent_menu: QMenu) -> None:
         volume_menu = self._add_submenu(
@@ -682,9 +678,10 @@ class ContextMenuBuilder:
         remind_act.setChecked(
             bool(getattr(self.window, "reminders_enabled", True))
         )
-        remind_act.triggered.connect(
-            lambda checked: self.window.set_reminders_enabled(checked)
-        )
+        if hasattr(self.window, "set_reminders_enabled"):
+            remind_act.triggered.connect(
+                self.window.set_reminders_enabled
+            )
 
         remind_menu.addSeparator()
         range_menu = remind_menu.addMenu("Частота напоминаний")

@@ -68,6 +68,22 @@ class InactivityManager(QObject):
         return self._transitioning
 
     @property
+    def transitioning(self) -> bool:
+        return self._transitioning
+
+    @transitioning.setter
+    def transitioning(self, val: bool) -> None:
+        self._transitioning = bool(val)
+
+    @property
+    def transition_overlay(self) -> TransitionOverlay | None:
+        return self._transition_overlay
+
+    @transition_overlay.setter
+    def transition_overlay(self, overlay: TransitionOverlay | None) -> None:
+        self._transition_overlay = overlay
+
+    @property
     def current_target_widget(self) -> QWidget:
         return self._main_window
 
@@ -392,37 +408,33 @@ class InactivityManager(QObject):
             screen.geometry() if screen is not None else from_rect
         )
 
-        def on_out_peak() -> None:
-            target.hide()
+        target.setGeometry(to_rect)
 
-        def on_out_finished() -> None:
-            target.setGeometry(to_rect)
+        def on_in_peak() -> None:
+            target.show()
+            target.raise_()
+            if on_peak_in is not None:
+                on_peak_in()
 
-            def on_in_peak() -> None:
-                target.show()
-                target.raise_()
-                if on_peak_in is not None:
-                    on_peak_in()
+        def on_in_finished() -> None:
+            self._transitioning = False
+            self._transition_overlay = None
+            target.show()
+            target.raise_()
+            self._inactivity_timer.start(self._timeout_ms)
+            if on_finished is not None:
+                on_finished()
 
-            def on_in_finished() -> None:
-                self._transitioning = False
-                self._transition_overlay = None
-                target.show()
-                target.raise_()
-                self._inactivity_timer.start(self._timeout_ms)
-                if on_finished is not None:
-                    on_finished()
-
-            overlay_in = TransitionOverlay(
-                screen_rect,
-                to_rect,
-                "in",
-                target=target,
-                on_peak=on_in_peak,
-            )
-            overlay_in.finished.connect(on_in_finished)
-            self._transition_overlay = overlay_in
-            overlay_in.start()
+        overlay_in = TransitionOverlay(
+            screen_rect,
+            to_rect,
+            "in",
+            target=target,
+            on_peak=on_in_peak,
+        )
+        overlay_in.finished.connect(on_in_finished)
+        self._transition_overlay = overlay_in
+        overlay_in.start()
 
 
 MIN_REMINDER_INTERVAL_MS = 600_000
@@ -501,13 +513,16 @@ class PresenceReminder(QObject):
             random.randint(self._min_interval_ms, self._max_interval_ms)
         )
 
-    def _next_phrase(self) -> str:
+    def next_phrase(self) -> str:
+        """Возвращает следующую фразу напоминания."""
         candidates = [
             p for p in REMINDER_PHRASES if p != self._last_phrase
         ]
         phrase = random.choice(candidates or list(REMINDER_PHRASES))
         self._last_phrase = phrase
         return phrase
+
+    _next_phrase = next_phrase
 
     def _fire(self) -> None:
         if not self._active:

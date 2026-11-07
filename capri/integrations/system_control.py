@@ -40,7 +40,7 @@ def get_mouse_position() -> QPoint:
     return QCursor.pos()
 
 
-def move_mouse_to(x: int, y: int, screen_index: int | None = None) -> bool:
+def move_mouse_to(x: int, y: int, _screen_index: int | None = None) -> bool:
     try:
         if ctypes.windll.user32.SetCursorPos(int(x), int(y)):
             return True
@@ -58,9 +58,9 @@ def move_mouse_to_center(
 ) -> bool:
     if screen_center is not None:
         return move_mouse_to(
-            screen_center.x(), screen_center.y(), screen_index=screen_index
+            screen_center.x(), screen_center.y(), _screen_index=screen_index
         )
-    return move_mouse_to(960, 540, screen_index=screen_index)
+    return move_mouse_to(960, 540, _screen_index=screen_index)
 
 
 def lock_commands() -> list[list[str]]:
@@ -78,6 +78,7 @@ def run_lock(commands: list[list[str]]) -> bool:
         try:
             result = subprocess.run(
                 command,
+                check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 timeout=PER_COMMAND_TIMEOUT_S,
@@ -108,6 +109,7 @@ def run_power(commands: list[list[str]]) -> bool:
         try:
             result = subprocess.run(
                 command,
+                check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 timeout=PER_COMMAND_TIMEOUT_S,

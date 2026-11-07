@@ -12,7 +12,7 @@ import ctypes
 import os
 import tempfile
 from ctypes import wintypes
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 
 class CleanResult(NamedTuple):
@@ -37,6 +37,10 @@ class _SHQUERYRBINFO(ctypes.Structure):
         ("i64Size", ctypes.c_int64),
         ("i64NumItems", ctypes.c_int64),
     ]
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.cbSize = ctypes.sizeof(self)
 
 
 SHERB_NOCONFIRMATION = 0x00000001
@@ -64,7 +68,6 @@ def clear_recycle_bin() -> tuple[bool, int, int]:
     """
     try:
         info = _SHQUERYRBINFO()
-        info.cbSize = ctypes.sizeof(_SHQUERYRBINFO)
         hr = ctypes.windll.shell32.SHQueryRecycleBinW(
             None, ctypes.byref(info)
         )

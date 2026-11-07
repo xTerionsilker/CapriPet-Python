@@ -737,11 +737,11 @@ class SpeechSFX(QObject):
         pass
 
 
-_instance: SpeechSFX | None = None
+class _SpeechSFXHolder:
+    instance: SpeechSFX | None = None
 
 
 def get_speech_sfx() -> SpeechSFX:
-    global _instance
-    if _instance is None:
-        _instance = SpeechSFX()
-    return _instance
+    if _SpeechSFXHolder.instance is None:
+        _SpeechSFXHolder.instance = SpeechSFX()
+    return _SpeechSFXHolder.instance

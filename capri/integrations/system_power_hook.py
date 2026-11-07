@@ -80,7 +80,7 @@ class SystemEventHook:
             return False
 
     def handle_windows_message(
-        self, msg_id: int, wparam: int, lparam: int
+        self, msg_id: int, wparam: int, _lparam: int
     ) -> bool:
         if msg_id == WM_POWERBROADCAST:
             if wparam == PBT_APMSUSPEND:

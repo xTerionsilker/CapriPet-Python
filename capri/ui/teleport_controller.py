@@ -19,6 +19,7 @@ from ..effects.cursor_pointer import CursorPointerOverlay
 from ..effects.lightning_tether import LightningTetherOverlay
 from ..effects.transition import TransitionOverlay
 from ..integrations.system_control import get_mouse_position, move_mouse_to
+from .speech_sfx import get_speech_sfx
 
 if TYPE_CHECKING:
     from .pet_window import CapriWindow
@@ -134,7 +135,7 @@ class TeleportController:
 
         if event.button() == Qt.MouseButton.LeftButton:
             self._is_lightning_aiming = True
-            self._window._is_dragging = True
+            self._window.is_dragging = True
             self._window.surge_ticks = max(self._window.surge_ticks, 14)
             self._window.inactivity_manager.set_paused(True)
             self._window.update()
@@ -168,7 +169,7 @@ class TeleportController:
             and self._is_lightning_aiming
         ):
             self._is_lightning_aiming = False
-            self._window._is_dragging = False
+            self._window.is_dragging = False
             self._window.inactivity_manager.set_paused(False)
             target_pos = event.globalPosition().toPoint()
             if self._lightning_overlay is not None:
@@ -184,7 +185,7 @@ class TeleportController:
     def cancel_aiming(self) -> None:
         self.stop_pointing_at_mouse()
         self._is_lightning_aiming = False
-        self._window._is_dragging = False
+        self._window.is_dragging = False
         self._window.inactivity_manager.set_paused(False)
         if self._lightning_overlay is not None:
             self._lightning_overlay.deactivate()
@@ -257,12 +258,8 @@ class TeleportController:
             self._window.show()
             self._window.raise_()
             self._window.surge_ticks = 12
-            try:
-                from ..ui.speech_sfx import get_speech_sfx
-
+            with contextlib.suppress(Exception):
                 get_speech_sfx().play_teleport_drop()
-            except Exception:
-                pass
             self._window.update()
 
         def on_finished() -> None:

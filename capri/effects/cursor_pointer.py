@@ -41,7 +41,7 @@ def get_virtual_screen_geometry() -> QRect:
 class CursorPointerOverlay(QWidget):
     """Оверлей с анимированной глитч-линией наведения и визиром захвата цели."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, _parent: QWidget | None = None) -> None:
         flags = (
             Qt.WindowType.Tool
             | Qt.WindowType.FramelessWindowHint

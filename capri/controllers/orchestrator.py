@@ -5,9 +5,10 @@ from __future__ import annotations
 import contextlib
 import random
 import time
+import webbrowser
 from typing import Any
 
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, QPoint
 from PySide6.QtGui import QGuiApplication
 
 from ..audio.recognizer import get_model_info
@@ -18,7 +19,12 @@ from ..controllers.inactivity_manager import (
     InactivityManager,
     PresenceReminder,
 )
-from ..core.input_flow import InputFlow, _parse_selected_number
+from ..core.input_flow import (
+    AFFIRMATIVE_WORDS,
+    InputFlow,
+    _parse_selected_number,
+    answer_words,
+)
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
     get_config_value,
@@ -164,6 +170,14 @@ class PetOrchestrator(QObject):
         self.inactivity.set_paused(False)
         self.voice_coordinator.wake_if_needed()
 
+    @property
+    def reminders_enabled(self) -> bool:
+        return self._reminders_enabled
+
+    @reminders_enabled.setter
+    def reminders_enabled(self, val: bool) -> None:
+        self._reminders_enabled = bool(val)
+
     def handle_command(self, text: str) -> None:
         self._last_command = text
         if self._discord_enabled:
@@ -220,12 +234,17 @@ class PetOrchestrator(QObject):
             "uptime_seconds": time.monotonic() - self._started_at,
         }
 
+    @property
+    def window(self) -> Any:
+        """Ссылка на главное окно питомца."""
+        return self._window
+
     def _locate_mouse(self) -> str:
         self._window.teleport_controller.point_at_mouse()
         return "Вот курсор!"
 
     def trigger_reminder(self) -> None:
-        phrase = self.reminder._next_phrase()
+        phrase = self.reminder.next_phrase()
         self._on_reminder(phrase)
 
     def _on_reminder(self, phrase: str) -> None:
@@ -281,8 +300,6 @@ class PetOrchestrator(QObject):
                 max_y = max(geo.top(), geo.bottom() - pet_h)
                 target_x = random.randint(geo.left(), max_x)
                 target_y = random.randint(geo.top(), max_y)
-
-            from PySide6.QtCore import QPoint
 
             target_pt = QPoint(
                 target_x + pet_w // 2, target_y + pet_h // 2
@@ -359,8 +376,6 @@ class PetOrchestrator(QObject):
             if choice is None:
                 return "Не поняла номер. Поиск отменён."
             selected = videos[choice - 1]
-            import webbrowser
-
             webbrowser.open(selected["url"])
             return f"Включаю #{choice}: {selected['title']}"
 
@@ -446,12 +461,7 @@ class PetOrchestrator(QObject):
         if status == "update_available":
 
             def _on_confirm(text: str) -> str:
-                from ..core.input_flow import (
-                    AFFIRMATIVE_WORDS,
-                    _answer_words,
-                )
-
-                words = _answer_words(text)
+                words = answer_words(text)
                 if words & AFFIRMATIVE_WORDS:
                     self.actions.open_update_page()
                     return "Открываю страницу обновлений на GitHub."

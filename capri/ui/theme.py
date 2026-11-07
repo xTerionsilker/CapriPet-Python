@@ -24,12 +24,12 @@ CSS_CYBER_TERMINAL = CSS_FONT
 CSS_CYBER_HUD = CSS_FONT
 CSS_CYBER_UI = CSS_FONT
 
-_FONTS_LOADED = False
+class _ThemeState:
+    fonts_loaded: bool = False
 
 
 def init_fonts() -> None:
-    global _FONTS_LOADED
-    if _FONTS_LOADED:
+    if _ThemeState.fonts_loaded:
         return
 
     fonts_dir = Path(__file__).resolve().parents[2] / "assets" / "fonts"
@@ -45,7 +45,7 @@ def init_fonts() -> None:
             families = QFontDatabase.applicationFontFamilies(font_id)
             logger.debug("Loaded font %s -> %s", font_file.name, families)
 
-    _FONTS_LOADED = True
+    _ThemeState.fonts_loaded = True
 
 
 def get_font(

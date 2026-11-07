@@ -10,6 +10,7 @@ from __future__ import annotations
 import ctypes
 import logging
 from ctypes import wintypes
+from typing import Any
 
 import psutil
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -35,6 +36,19 @@ class _RECT(ctypes.Structure):
         ("right", wintypes.LONG),
         ("bottom", wintypes.LONG),
     ]
+
+
+class _MONITORINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", wintypes.DWORD),
+        ("rcMonitor", _RECT),
+        ("rcWork", _RECT),
+        ("dwFlags", wintypes.DWORD),
+    ]
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.cbSize = ctypes.sizeof(self)
 
 
 def query_user_notification_state() -> int:
@@ -80,16 +94,7 @@ def is_window_fullscreen_on_screen(hwnd: int) -> bool:
         if not h_mon:
             return False
 
-        class _MONITORINFO(ctypes.Structure):
-            _fields_ = [
-                ("cbSize", wintypes.DWORD),
-                ("rcMonitor", _RECT),
-                ("rcWork", _RECT),
-                ("dwFlags", wintypes.DWORD),
-            ]
-
         mi = _MONITORINFO()
-        mi.cbSize = ctypes.sizeof(_MONITORINFO)
         if not user32.GetMonitorInfoW(h_mon, ctypes.byref(mi)):
             return False
 

@@ -12,6 +12,11 @@ import os
 import re
 from typing import Any
 
+try:
+    import winreg
+except ImportError:
+    winreg = None
+
 import cyrtranslit
 from rapidfuzz import fuzz
 
@@ -70,9 +75,7 @@ def _scan_windows_applications() -> list[dict[str, Any]]:
                             "path": os.path.join(root, f),
                         }
 
-    try:
-        import winreg
-
+    if winreg is not None:
         for hkey in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
             try:
                 sub = (
@@ -102,8 +105,6 @@ def _scan_windows_applications() -> list[dict[str, Any]]:
                             pass
             except Exception:
                 pass
-    except Exception:
-        pass
 
     return list(apps.values())
 
@@ -155,8 +156,7 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
                 )
                 score = ratio * 70.0
 
-            if score > best:
-                best = score
+            best = max(best, score)
 
     comment_tokens = re.split(r"[\s\-_\.]+", comment)
     for token in comment_tokens:
@@ -175,8 +175,7 @@ def _score_application(query: str, app: dict[str, Any]) -> float:
                 )
                 score = ratio * 40.0
 
-            if score > best:
-                best = score
+            best = max(best, score)
 
     return best
 

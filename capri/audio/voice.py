@@ -10,6 +10,16 @@ from array import array
 from pathlib import Path
 from typing import Any
 
+try:
+    import numpy as np
+except ImportError:
+    np = None  # type: ignore[assignment]
+
+try:
+    import onnxruntime as ort
+except ImportError:
+    ort = None  # type: ignore[assignment]
+
 from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtMultimedia import (
     QAudioDevice,
@@ -59,14 +69,11 @@ class SileroVAD:
 
     def _init_session(self) -> None:
         model_path = self._find_model_path()
-        if not model_path:
+        if not model_path or np is None or ort is None:
             self._available = False
             return
 
         try:
-            import numpy as np
-            import onnxruntime as ort
-
             opts = ort.SessionOptions()
             opts.inter_op_num_threads = 1
             opts.intra_op_num_threads = 1
@@ -89,18 +96,14 @@ class SileroVAD:
         return bool(self._available and self._session is not None)
 
     def reset(self) -> None:
-        if self.is_available:
-            import numpy as np
-
+        if self.is_available and np is not None:
             self._state = np.zeros((2, 1, 128), dtype=np.float32)
 
     def is_speech(self, chunk: bytes) -> tuple[bool, float]:
-        if not self.is_available:
+        if not self.is_available or np is None:
             return False, 0.0
 
         try:
-            import numpy as np
-
             audio_data = (
                 np.frombuffer(chunk, dtype=np.int16).astype(np.float32)
                 / 32768.0
@@ -131,8 +134,7 @@ class SileroVAD:
                     },
                 )
                 prob = float(out[0][0])
-                if prob > max_prob:
-                    max_prob = prob
+                max_prob = max(max_prob, prob)
 
             return max_prob >= self.threshold, max_prob
         except Exception as error:

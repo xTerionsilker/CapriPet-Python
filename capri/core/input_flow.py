@@ -94,10 +94,14 @@ NEGATIVE_WORDS = frozenset(
 )
 
 
-def _answer_words(text: str) -> set[str]:
+def answer_words(text: str) -> set[str]:
+    """Извлекает нормализованные слова ответа."""
     words = set(re.findall(r"[\w-]+", text.casefold()))
     words |= {switch_layout(w) for w in words}
     return words
+
+
+_answer_words = answer_words
 
 
 def _parse_selected_number(text: str, max_number: int = 5) -> int | None:

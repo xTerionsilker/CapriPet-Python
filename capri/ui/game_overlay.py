@@ -85,7 +85,7 @@ class SilentPresenceGlyph(QWidget):
             self._pulse_dir = 1
         self.update()
 
-    def paintEvent(self, event) -> None:
+    def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 

@@ -235,8 +235,8 @@ class ActionBridge(QObject):
             daemon=True,
         ).start()
         parent = self.parent()
-        if parent is not None and hasattr(parent, "_window"):
-            window = parent._window
+        if parent is not None and hasattr(parent, "window"):
+            window = parent.window
             if window is not None and hasattr(window, "close"):
                 QTimer.singleShot(200, window.close)
 

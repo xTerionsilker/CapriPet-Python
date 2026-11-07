@@ -41,7 +41,7 @@ def get_virtual_screen_geometry() -> QRect:
 class LightningTetherOverlay(QWidget):
     """Оверлей анимированных разрядов молнии, связывающих питомца с целевой точкой."""
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, _parent: QWidget | None = None) -> None:
         flags = (
             Qt.WindowType.Tool
             | Qt.WindowType.FramelessWindowHint

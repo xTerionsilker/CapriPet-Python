@@ -104,6 +104,14 @@ class CyberHudBubble(QWidget):
         self._anim_timer.setInterval(16)
         self._anim_timer.timeout.connect(self._on_anim_tick)
 
+    @property
+    def anim_phase(self) -> str:
+        return self._anim_phase
+
+    @anim_phase.setter
+    def anim_phase(self, value: str) -> None:
+        self._anim_phase = value
+
     def set_title(self, title: str) -> None:
         if self._title != title:
             self._title = title
@@ -627,11 +635,11 @@ class SpeechWindow(QFrame):
             return
         if (
             self._phase == "opening"
-            or self._bubble._anim_phase == "opening"
+            or self._bubble.anim_phase == "opening"
         ):
             self._bubble.stop_animations()
             self.setWindowOpacity(1.0)
-            self._bubble._anim_phase = "idle"
+            self._bubble.anim_phase = "idle"
             self._on_bubble_opened()
             return
         if not self._finished:
@@ -856,14 +864,17 @@ class SpeechWindow(QFrame):
         return QGuiApplication.primaryScreen()
 
 
+class _SpeechManager:
+    suppressed: bool = False
+
+
 def is_speech_suppressed() -> bool:
-    return _SUPPRESSED
+    return _SpeechManager.suppressed
 
 
 def set_speech_suppressed(suppressed: bool) -> None:
-    global _SUPPRESSED
-    _SUPPRESSED = bool(suppressed)
-    if _SUPPRESSED:
+    _SpeechManager.suppressed = bool(suppressed)
+    if _SpeechManager.suppressed:
         close_all()
 
 
@@ -875,7 +886,7 @@ def show_text(
     hold_ms: int = 1200,
     max_width: int = _TEXT_WIDTH,
 ) -> SpeechWindow | None:
-    if _SUPPRESSED:
+    if _SpeechManager.suppressed:
         return None
     window = SpeechWindow(
         text,

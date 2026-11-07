@@ -17,8 +17,14 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 
-_resolved_user_agent: str | None = None
-_ua_lock = threading.Lock()
+class _UserAgentCache:
+    """Потокобезопасный контейнер для кэширования User-Agent."""
+
+    resolved: str | None = None
+    lock: threading.Lock = threading.Lock()
+
+
+_ua_cache = _UserAgentCache()
 _DEFAULT_FALLBACK_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/131.0.0.0 Safari/537.36"
@@ -417,14 +423,12 @@ def init_user_agent_async() -> None:
 
 
 def get_user_agent() -> str:
-    global _resolved_user_agent
+    if _ua_cache.resolved is not None:
+        return _ua_cache.resolved
 
-    if _resolved_user_agent is not None:
-        return _resolved_user_agent
-
-    with _ua_lock:
-        if _resolved_user_agent is not None:
-            return _resolved_user_agent
+    with _ua_cache.lock:
+        if _ua_cache.resolved is not None:
+            return _ua_cache.resolved
 
         try:
             custom_ua = get_config_value("network.user_agent")
@@ -433,12 +437,12 @@ def get_user_agent() -> str:
                 and isinstance(custom_ua, str)
                 and custom_ua.strip()
             ):
-                _resolved_user_agent = custom_ua.strip()
+                _ua_cache.resolved = custom_ua.strip()
                 logger.debug(
                     "Используется пользовательский User-Agent из конфига: %s",
-                    _resolved_user_agent,
+                    _ua_cache.resolved,
                 )
-                return _resolved_user_agent
+                return _ua_cache.resolved
         except Exception as e:
             logger.debug(
                 "Не удалось прочитать User-Agent из конфига: %s", e
@@ -446,15 +450,15 @@ def get_user_agent() -> str:
 
         try:
             ua = UserAgent(platforms="pc", fallback=_DEFAULT_FALLBACK_UA)
-            _resolved_user_agent = str(ua.random)
+            _ua_cache.resolved = str(ua.random)
             logger.debug(
                 "Сгенерирован User-Agent через fake-useragent: %s",
-                _resolved_user_agent,
+                _ua_cache.resolved,
             )
         except Exception as e:
             logger.warning(
                 "Ошибка fake-useragent, используется fallback: %s", e
             )
-            _resolved_user_agent = _DEFAULT_FALLBACK_UA
+            _ua_cache.resolved = _DEFAULT_FALLBACK_UA
 
-        return _resolved_user_agent
+        return _ua_cache.resolved

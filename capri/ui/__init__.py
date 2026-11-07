@@ -1,3 +1,5 @@
+"""User interface components, menus, and styling package exports."""
+
 from .context_menu import (
     ContextMenuBuilder,
     CyberMenu,

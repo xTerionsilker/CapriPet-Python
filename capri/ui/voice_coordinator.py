@@ -130,6 +130,9 @@ class VoiceCoordinator(QObject):
     def is_armed(self) -> bool:
         return time.monotonic() < self._voice_armed_until
 
+    def arm(self) -> None:
+        self._arm()
+
     def _arm(self) -> None:
         self._voice_armed_until = (
             time.monotonic() + VOICE_COMMAND_WINDOW_MS / 1000

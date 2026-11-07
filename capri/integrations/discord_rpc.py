@@ -12,6 +12,11 @@ import logging
 import time
 from collections.abc import Callable
 
+try:
+    from pypresence import Presence
+except ImportError:
+    Presence = None
+
 from PySide6.QtCore import QObject, QTimer
 
 logger = logging.getLogger(__name__)
@@ -70,9 +75,9 @@ class DiscordRpcManager(QObject):
     def connect_rpc(self) -> bool:
         if self._connected:
             return True
+        if Presence is None:
+            return False
         try:
-            from pypresence import Presence
-
             self._rpc = Presence(self._client_id)
             self._rpc.connect()
             self._connected = True

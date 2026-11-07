@@ -1,3 +1,5 @@
+"""Visual effects, transitions, and overlay rendering package exports."""
+
 from .cursor_pointer import CursorPointerOverlay
 from .effects_coordinator import EffectsCoordinator
 from .glitch import (

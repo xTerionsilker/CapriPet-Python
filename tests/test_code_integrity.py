@@ -43,6 +43,7 @@ class TestCodeIntegrity(unittest.TestCase):
             cwd=root_dir,
             capture_output=True,
             text=True,
+            check=False,
         )
         self.assertEqual(
             res.returncode,

@@ -424,22 +424,22 @@ class ModelInitOverlay(QWidget):
             self._model_name.upper(),
         )
 
-        bar = QRect(
+        progress_bar = QRect(
             panel.left() + 18, panel.top() + 146, panel.width() - 36, 20
         )
         painter.setPen(
             QPen(_with_alpha(COLOR_VIOLET, int(190 * appear)), 1)
         )
-        painter.drawRect(bar)
+        painter.drawRect(progress_bar)
         segments = 40
         gap = 3
         seg_width = max(
-            2, (bar.width() - gap * (segments + 1)) // segments
+            2, (progress_bar.width() - gap * (segments + 1)) // segments
         )
         filled = int(segments * progress)
         for index in range(segments):
-            x = bar.left() + gap + index * (seg_width + gap)
-            seg = QRect(x, bar.top() + 5, seg_width, bar.height() - 10)
+            x = progress_bar.left() + gap + index * (seg_width + gap)
+            seg = QRect(x, progress_bar.top() + 5, seg_width, progress_bar.height() - 10)
             if index < filled:
                 painter.fillRect(
                     seg,
