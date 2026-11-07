@@ -68,25 +68,6 @@ capri/
 assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
 docs/                           # Дополнительная документация и спецификации (config_spec.md, architecture.md)
 models/                         # Папка моделей (Vosk, Silero VAD onnx)
-tests/                          # Автоматизированные тесты проекта (unittest)
-├── __init__.py
-├── test_imports.py             # Тестирование импорта всех модулей и пакетов capri
-├── test_core.py                # Тестирование ядра (settings, morphology, wake_word)
-├── test_commands.py            # Тестирование команд, раскладки и реестра
-├── test_integrations.py        # Тестирование системных интеграций
-├── test_input_flow.py          # Тестирование диалогового потока, парсинга чисел и ответов
-├── test_system_cleaner.py      # Тестирование системной очистки и форматирования байт
-├── test_theme.py               # Тестирование киберпанк-палитры и шрифтовых стеков
-├── test_command_handlers.py    # Тестирование обработчиков команд с мок-контекстом
-├── test_audio_recognizer.py    # Тестирование состояний ASR-сервиса и бэкендов распознавания
-├── test_process_manager.py     # Тестирование поиска процессов и фильтрации psutil
-├── test_app_launcher.py        # Тестирование транслитерации и фонетической нормализации
-├── test_context_menu.py        # Тестирование диалоговых окон контекстного меню и диапазонов
-├── test_code_integrity.py      # Тестирование синтаксической компиляции всех .py файлов проекта
-├── test_transition_kinematics.py # Тестирование кинематики процедурных траекторий перехода
-├── test_app_lifecycle.py       # Сквозное headless тестирование запуска, рендера и закрытия GUI
-├── test_game_mode.py           # Тестирование детекции игрового режима и подавления HUD/SFX
-└── test_sprite_manager.py      # Тестирование масштабирования спрайтов и хитбокса
 requirements.txt                # Зависимости проекта
 AGENTS.md                       # Главная точка входа правил разработки для AI-агентов
 LICENSE                         # Лицензия MIT
