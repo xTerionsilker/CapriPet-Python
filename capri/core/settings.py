@@ -152,6 +152,7 @@ class BehaviorConfig(BaseModel):
     reminders_enabled: bool = True
     reminder_min_interval_ms: int = 600_000
     reminder_max_interval_ms: int = 3_600_000
+    file_shredder_enabled: bool = True
 
     @field_validator("inactivity_timeout_ms", mode="before")
     @classmethod

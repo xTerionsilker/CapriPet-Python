@@ -446,6 +446,57 @@ def _generate_session_reboot_wav(
         wf.writeframes(frames)
 
 
+def _generate_target_acquired_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.18
+) -> None:
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+        # Cyber lock-on tone: dual pitch beep with metallic ping
+        f1 = 880.0 if p < 0.5 else 1760.0
+        env = (1.0 - (p % 0.5) / 0.5) ** 1.5
+        val = 0.35 * math.sin(2.0 * math.pi * f1 * t) * env
+        val += 0.15 * math.sin(2.0 * math.pi * 2600.0 * t) * env
+        sample = int(val * 32767)
+        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(file_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(frames)
+
+
+def _generate_data_rip_wav(
+    file_path: Path, sample_rate: int = 44100, duration: float = 0.35
+) -> None:
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(42)
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+        env = (1.0 - p) ** 1.2
+        # Data rip sound: harsh static + descending tone + crunch
+        freq = 1200.0 * (1.0 - p) + 60.0
+        tone = math.sin(2.0 * math.pi * freq * t)
+        noise = rng.uniform(-1.0, 1.0)
+        distortion = 1.0 if (noise + tone) > 0.4 else -1.0 if (noise + tone) < -0.4 else (noise + tone)
+        val = 0.45 * distortion * env
+        sample = int(val * 32767)
+        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(file_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(frames)
+
+
 class SpeechSFX(QObject):
     """Менеджер процедурных звуковых эффектов речи и интерфейсных событий."""
 
@@ -465,6 +516,8 @@ class SpeechSFX(QObject):
         self._lightning_strike_path: Path | None = None
         self._lightning_arc_path: Path | None = None
         self._lightning_zap_path: Path | None = None
+        self._target_acquired_path: Path | None = None
+        self._data_rip_path: Path | None = None
         self._session_paths: dict[str, Path] = {}
 
         self._swoosh_effect: QSoundEffect | None = None
@@ -472,6 +525,8 @@ class SpeechSFX(QObject):
         self._lightning_strike_effect: QSoundEffect | None = None
         self._lightning_arc_effect: QSoundEffect | None = None
         self._lightning_zap_effect: QSoundEffect | None = None
+        self._target_acquired_effect: QSoundEffect | None = None
+        self._data_rip_effect: QSoundEffect | None = None
         self._session_effects: dict[str, QSoundEffect] = {}
         self._chirp_pool: list[QSoundEffect] = []
         self._chirp_index = 0
@@ -494,6 +549,8 @@ class SpeechSFX(QObject):
             arc_path = temp_dir / "cyber_lightning_arc.wav"
             zap_path = temp_dir / "cyber_lightning_zap.wav"
             drop_path = temp_dir / "cyber_teleport_drop.wav"
+            target_path = temp_dir / "cyber_target_acquired.wav"
+            data_rip_path = temp_dir / "cyber_data_rip.wav"
 
             session_specs = {
                 "lock": (
@@ -528,6 +585,10 @@ class SpeechSFX(QObject):
                 _generate_lightning_zap_wav(zap_path)
             if not drop_path.exists():
                 _generate_teleport_drop_wav(drop_path)
+            if not target_path.exists():
+                _generate_target_acquired_wav(target_path)
+            if not data_rip_path.exists():
+                _generate_data_rip_wav(data_rip_path)
 
             self._swoosh_path = swoosh_path
             self._close_path = close_path
@@ -536,6 +597,8 @@ class SpeechSFX(QObject):
             self._lightning_arc_path = arc_path
             self._lightning_zap_path = zap_path
             self._teleport_drop_path = drop_path
+            self._target_acquired_path = target_path
+            self._data_rip_path = data_rip_path
 
             for action, (filename, generator) in session_specs.items():
                 path = temp_dir / filename
@@ -576,6 +639,16 @@ class SpeechSFX(QObject):
             drop_sfx.setSource(QUrl.fromLocalFile(str(drop_path)))
             drop_sfx.setVolume(self._volume * 0.95)
             self._teleport_drop_effect = drop_sfx
+
+            target_sfx = QSoundEffect(self)
+            target_sfx.setSource(QUrl.fromLocalFile(str(target_path)))
+            target_sfx.setVolume(self._volume * 0.8)
+            self._target_acquired_effect = target_sfx
+
+            rip_sfx = QSoundEffect(self)
+            rip_sfx.setSource(QUrl.fromLocalFile(str(data_rip_path)))
+            rip_sfx.setVolume(self._volume * 0.9)
+            self._data_rip_effect = rip_sfx
 
             chirp_url = QUrl.fromLocalFile(str(chirp_path))
             self._chirp_pool = []
@@ -663,6 +736,16 @@ class SpeechSFX(QObject):
             and self._teleport_drop_effect is not None
         ):
             self._teleport_drop_effect.setVolume(self._volume * 0.95)
+        if (
+            hasattr(self, "_target_acquired_effect")
+            and self._target_acquired_effect is not None
+        ):
+            self._target_acquired_effect.setVolume(self._volume * 0.8)
+        if (
+            hasattr(self, "_data_rip_effect")
+            and self._data_rip_effect is not None
+        ):
+            self._data_rip_effect.setVolume(self._volume * 0.9)
         for effect in self._session_effects.values():
             effect.setVolume(self._volume * 0.85)
         for effect in self._chirp_pool:
@@ -705,6 +788,22 @@ class SpeechSFX(QObject):
         self._play_file(
             getattr(self, "_teleport_drop_path", None),
             getattr(self, "_teleport_drop_effect", None),
+        )
+
+    def play_target_acquired(self) -> None:
+        if not self.is_effects_sound_enabled():
+            return
+        self._play_file(
+            getattr(self, "_target_acquired_path", None),
+            getattr(self, "_target_acquired_effect", None),
+        )
+
+    def play_data_rip(self) -> None:
+        if not self.is_effects_sound_enabled():
+            return
+        self._play_file(
+            getattr(self, "_data_rip_path", None),
+            getattr(self, "_data_rip_effect", None),
         )
 
     def play_session_action(self, action: str) -> None:

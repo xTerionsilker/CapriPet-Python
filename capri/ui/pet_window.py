@@ -16,6 +16,10 @@ from typing import Any
 
 from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import (
+    QDragEnterEvent,
+    QDragLeaveEvent,
+    QDragMoveEvent,
+    QDropEvent,
     QGuiApplication,
     QKeySequence,
     QPainter,
@@ -36,6 +40,12 @@ from ..effects.effects_coordinator import EffectsCoordinator
 from ..effects.model_init_animation import ModelInitOverlay
 from ..effects.session_animations import SessionAnimationOverlay
 from ..effects.transition import TransitionOverlay
+from ..integrations.data_shredder import (
+    _is_critical_path,
+    analyze_paths,
+    generate_shred_dialogue,
+    shred_paths,
+)
 from ..integrations.game_mode import GameModeDetector
 from ..integrations.system_power_hook import SystemEventHook
 from .context_menu import TrayManager
@@ -117,6 +127,8 @@ class CapriWindow(QWidget):
         self._pose_transition_ticks = 0
         self._is_dragging = False
         self._speaking = False
+        self._target_acquired = False
+        self._consume_ticks = 0
         self._anim_frame = 0
         self._telemetry_tag = "[CAPRI//ONLINE]"
         self._startup_overlay: TransitionOverlay | None = None
@@ -186,6 +198,11 @@ class CapriWindow(QWidget):
         self._game_detector.game_mode_changed.connect(
             self._on_game_mode_changed
         )
+
+        shredder_enabled = bool(
+            get_config_value("behavior.file_shredder_enabled", True)
+        )
+        self.setAcceptDrops(shredder_enabled)
 
     def __getattr__(self, name: str) -> Any:
         actions = self.__dict__.get("_actions")
@@ -390,6 +407,8 @@ class CapriWindow(QWidget):
             self._surge_ticks -= 1
         if self._pose_transition_ticks > 0:
             self._pose_transition_ticks -= 1
+        if self._consume_ticks > 0:
+            self._consume_ticks -= 1
 
         if self._anim_frame % 25 == 0:
             tags = (
@@ -407,6 +426,8 @@ class CapriWindow(QWidget):
             self._spawn_glitch_ticks > 0
             or self._is_dragging
             or self._surge_ticks > 0
+            or self._consume_ticks > 0
+            or self._target_acquired
         ):
             self._glitch_timer.setInterval(35)
         else:
@@ -424,6 +445,8 @@ class CapriWindow(QWidget):
             is_pose_transition=self._pose_transition_ticks > 0,
             is_surge=self._surge_ticks > 0,
             is_speaking=self._speaking,
+            is_target_acquired=self._target_acquired,
+            is_consuming=self._consume_ticks > 0,
             telemetry_tag=self._telemetry_tag,
         )
         self._renderer.render(painter, self.pixmap, state)
@@ -463,6 +486,76 @@ class CapriWindow(QWidget):
             event.accept()
             return
         super().mouseReleaseEvent(event)
+
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        if not get_config_value("behavior.file_shredder_enabled", True):
+            event.ignore()
+            return
+
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+            self._target_acquired = True
+            get_speech_sfx().play_target_acquired()
+            self.update()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event: QDragMoveEvent) -> None:
+        if not get_config_value("behavior.file_shredder_enabled", True):
+            event.ignore()
+            return
+
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+            if not self._target_acquired:
+                self._target_acquired = True
+                self.update()
+        else:
+            event.ignore()
+
+    def dragLeaveEvent(self, event: QDragLeaveEvent) -> None:
+        self._target_acquired = False
+        self.update()
+        super().dragLeaveEvent(event)
+
+    def dropEvent(self, event: QDropEvent) -> None:
+        if not get_config_value("behavior.file_shredder_enabled", True):
+            event.ignore()
+            return
+
+        self._target_acquired = False
+        urls = event.mimeData().urls()
+        if not urls:
+            event.ignore()
+            return
+
+        event.acceptProposedAction()
+
+        paths = [Path(url.toLocalFile()) for url in urls if url.isLocalFile()]
+        if not paths:
+            return
+
+        # Check for critical paths
+        has_blocked = any(_is_critical_path(p) for p in paths)
+        if has_blocked:
+            get_speech_sfx().play_lightning_strike()
+            self._consume_ticks = 18
+            self.update()
+            dialogue = generate_shred_dialogue(None, blocked=True)
+            self._speak(dialogue, hold_ms=4500)
+            return
+
+        # Trigger rogue AI annihilation effects immediately
+        self._consume_ticks = 30
+        self._surge_ticks = 24
+        get_speech_sfx().play_lightning_strike()
+        get_speech_sfx().play_data_rip()
+        self.update()
+
+        # Perform unrecoverable shredding
+        metrics = shred_paths(paths)
+        dialogue = generate_shred_dialogue(metrics)
+        self._speak(dialogue, hold_ms=5000)
 
     def changeEvent(self, event) -> None:
         super().changeEvent(event)
