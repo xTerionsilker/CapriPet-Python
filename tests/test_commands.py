@@ -18,5 +18,5 @@ class TestCommands(unittest.TestCase):
         match = registry.match("пауза")
         self.assertIsNotNone(match)
         if match:
-            cmd, arg = match
+            cmd, _ = match
             self.assertEqual(cmd.name, "пауза")

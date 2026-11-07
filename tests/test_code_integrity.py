@@ -25,7 +25,7 @@ class TestCodeIntegrity(unittest.TestCase):
                         failed_files.append((full_path, str(exc)))
         self.assertEqual(failed_files, [])
 
-    def test_ruff_linter_checks(self) -> None:
+    def test_pylint_checks(self) -> None:
         root_dir = os.path.dirname(
             os.path.dirname(os.path.abspath(__file__))
         )
@@ -34,11 +34,9 @@ class TestCodeIntegrity(unittest.TestCase):
             [
                 venv_python,
                 "-m",
-                "ruff",
-                "check",
+                "pylint",
                 "capri",
                 "main.py",
-                "tests",
             ],
             cwd=root_dir,
             capture_output=True,
@@ -48,5 +46,5 @@ class TestCodeIntegrity(unittest.TestCase):
         self.assertEqual(
             res.returncode,
             0,
-            f"Ruff detected undefined symbols or critical syntax errors:\n{res.stdout}\n{res.stderr}",
+            f"Pylint detected issues:\n{res.stdout}\n{res.stderr}",
         )

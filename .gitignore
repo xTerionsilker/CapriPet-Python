@@ -11,7 +11,6 @@ __pycache__/
 *.so
 
 # Linter & Tooling Caches
-.ruff_cache/
 .pytest_cache/
 .coverage
 htmlcov/
