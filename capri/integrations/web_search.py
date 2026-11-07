@@ -28,9 +28,9 @@ REQUEST_TIMEOUT_SEC = 5
 def search_google(query: str) -> str:
     query = query.strip()
     if not query:
-        return "Что искать в Google? Скажи: «гугл <запрос>»."
+        return "Чё нарыть в Сети? Давай команду: «гугл <запрос>»!"
     webbrowser.open(f"https://www.google.com/search?q={quote_plus(query)}")
-    return f"Ищу в Google: {query}"
+    return f"Запускаю сетевых пауков по запросу: {query}!"
 
 
 def fetch_youtube_top_videos(
@@ -156,4 +156,4 @@ def fetch_remote_version_datetime() -> datetime.datetime | None:
 
 def open_update_page() -> str:
     webbrowser.open(REPO_URL)
-    return "Открыл страницу обновления."
+    return "Открываю страницу на GitHub. Качаем апгрейд!"

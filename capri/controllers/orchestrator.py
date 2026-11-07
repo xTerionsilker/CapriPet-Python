@@ -374,10 +374,10 @@ class PetOrchestrator(QObject):
         def _on_choice(text: str) -> str:
             choice = _parse_selected_number(text, max_number=len(videos))
             if choice is None:
-                return "Не поняла номер. Поиск отменён."
+                return "Чё ты там пробормотал? Цифру не разобрала. Отбой!"
             selected = videos[choice - 1]
             webbrowser.open(selected["url"])
-            return f"Включаю #{choice}: {selected['title']}"
+            return f"Врубаю #{choice}: {selected['title']}! Погнали!"
 
         lines = [
             f"{i}. {v['title'][:32]}…"
@@ -385,7 +385,7 @@ class PetOrchestrator(QObject):
             else f"{i}. {v['title']}"
             for i, v in enumerate(videos, 1)
         ]
-        prompt = "\n".join(lines) + "\nСкажи номер (1–5)"
+        prompt = "\n".join(lines) + "\nКакое видео крутить? Назови номер (1–5)!"
         self.flow.expect_reply(_on_choice, timeout_ms=25_000)
         self._window.speak(prompt, hold_ms=25_000)
 
@@ -395,18 +395,18 @@ class PetOrchestrator(QObject):
         if self._window.is_closing:
             return
         if not apps:
-            self._window.speak("Не удалось найти подходящих приложений.")
+            self._window.speak("Отказ! В твоих каталогах нет ничего похожего. Ты точно не опечатался?")
             return
 
         def _on_choice(text: str) -> str:
             choice = _parse_selected_number(text, max_number=len(apps))
             if choice is None:
-                return "Не поняла номер. Запуск отменён."
+                return "Не разобрала номер. Отменяю запуск!"
             selected = apps[choice - 1]
             success = launch_application(selected)
             if success:
-                return f"Запускаю #{choice}: {selected['name']}"
-            return f"Не удалось запустить {selected['name']}."
+                return f"Врубаю на полную #{choice}: {selected['name']}!"
+            return f"Чёрт, эта софтина ({selected['name']}) не хочет стартовать! Разбирайся сам."
 
         lines = [
             f"{i}. {a['name'][:32]}…"
@@ -414,7 +414,7 @@ class PetOrchestrator(QObject):
             else f"{i}. {a['name']}"
             for i, a in enumerate(apps, 1)
         ]
-        prompt = "\n".join(lines) + f"\nСкажи номер (1–{len(apps)})"
+        prompt = "\n".join(lines) + f"\nКакую софтину запускаем? Назови номер (1–{len(apps)})!"
         self.flow.expect_reply(_on_choice, timeout_ms=25_000)
         self._window.speak(prompt, hold_ms=25_000)
 
@@ -424,21 +424,21 @@ class PetOrchestrator(QObject):
         if self._window.is_closing:
             return
         if not procs:
-            self._window.speak("Не удалось найти подходящих процессов.")
+            self._window.speak("Ни одного такого процесса в памяти нет. Кого глушить-то собрался, призраков?")
             return
 
         def _on_choice(text: str) -> str:
             choice = _parse_selected_number(text, max_number=len(procs))
             if choice is None:
-                return "Не поняла номер. Завершение отменено."
+                return "Не разобрала номер. Отбой охоты на процессы!"
             selected = procs[choice - 1]
             success, count = kill_process_group(selected)
             name = selected["name"]
             if success:
                 if count > 1:
-                    return f"Завершено {count} процессов «{name}»."
-                return f"Процесс «{name}» завершён."
-            return f"Не удалось завершить {name}."
+                    return f"Выкосила пачку из {count} процессов «{name}»! В стеке чисто."
+                return f"«{name}» ликвидирован! Ледоруб сработал чисто, память свободна."
+            return f"Чёрт, не вышло прибить {name}. Он засел намертво!"
 
         lines = []
         for i, p in enumerate(procs, 1):
@@ -449,7 +449,7 @@ class PetOrchestrator(QObject):
             display = f"{display[:32]}…" if len(display) > 32 else display
             lines.append(f"{i}. {display}")
 
-        prompt = "\n".join(lines) + f"\nСкажи номер (1–{len(procs)})"
+        prompt = "\n".join(lines) + f"\nКто тут лишний жрёт память? Назови номер цели (1–{len(procs)})!"
         self.flow.expect_reply(_on_choice, timeout_ms=25_000)
         self._window.speak(prompt, hold_ms=25_000)
 
@@ -464,12 +464,12 @@ class PetOrchestrator(QObject):
                 words = answer_words(text)
                 if words & AFFIRMATIVE_WORDS:
                     self.actions.open_update_page()
-                    return "Открываю страницу обновлений на GitHub."
-                return "Хорошо, пока не открываю."
+                    return "Открываю страницу на GitHub. Качаем апгрейд!"
+                return "Ладно, сидим на старой версии."
 
             prompt = (
-                f"Доступно обновление! ({local_ver} -> {remote_ver}). "
-                "Открыть ссылку на GitHub? (да / нет)"
+                f"Опа, создатели выкатили для меня апгрейд! ({local_ver} -> {remote_ver}). "
+                "Лезем на GitHub за свежим кодом? (да / нет)"
             )
             self.flow.expect_reply(_on_confirm, timeout_ms=20_000)
             self._window.speak(prompt, hold_ms=20_000)

@@ -252,40 +252,40 @@ def _send_spotify_command(cmd: int) -> bool:
 def play(query: str) -> str:
     query = query.strip()
     if not query:
-        return "Что включить? Скажи: «спотифай <запрос>»."
+        return "Что включить? Скажи: «спотифай <запрос>»!"
 
     try:
         found = find_track(query)
     except SpotifyError as error:
         if _open_uri(_search_uri(query)):
-            return f"Открыл поиск Spotify: {query} ({error})"
+            return f"Открыла поиск Spotify: {query} ({error})"
         return (
-            "Не удалось открыть Spotify. Проверьте, что клиент установлен."
+            "Не удалось открыть Spotify. Проверь, что клиент вообще установлен!"
         )
 
     if found is not None:
         uri, title, artists = found
         if not _open_uri(uri):
-            return "Не удалось открыть Spotify. Проверьте, что клиент установлен."
+            return "Не удалось открыть Spotify. Проверь, что клиент установлен!"
         _state.last_known_state = "playing"
         return (
-            f"Включаю: {artists} — {title}"
+            f"Врубаю бит: {artists} — {title}!"
             if artists
-            else f"Включаю: {title}"
+            else f"Врубаю трек: {title}!"
         )
 
     if not _open_uri(_search_uri(query)):
         return (
-            "Не удалось открыть Spotify. Проверьте, что клиент установлен."
+            "Не удалось открыть Spotify. Проверь, что клиент установлен!"
         )
-    return f"Ничего не нашёл. Открыл поиск Spotify: {query}"
+    return f"Ничего не нашла в библиотеке. Открыла поиск в Spotify: {query}"
 
 
 def pause() -> str:
     pids = _get_spotify_pids()
     if not pids:
         _state.last_known_state = "unknown"
-        return "Spotify не запущен."
+        return "Сначала запусти Spotify, а потом требуй саундтрек!"
 
     title = _get_spotify_title(pids)
     if (
@@ -296,20 +296,20 @@ def pause() -> str:
         _state.last_known_state = "playing"
 
     if _state.last_known_state == "paused":
-        return "Spotify уже на паузе."
+        return "Да и так тишина стоит, куда ещё глушить?"
 
     if not _send_spotify_command(_CMD_PLAY_PAUSE):
-        return "Не удалось поставить Spotify на паузу."
+        return "Не вышло приглушить музыку. Плеер не отзывается!"
 
     _state.last_known_state = "paused"
-    return "Пауза."
+    return "Глушу звук!"
 
 
 def resume() -> str:
     pids = _get_spotify_pids()
     if not pids:
         _state.last_known_state = "unknown"
-        return "Spotify не запущен."
+        return "Spotify даже не запущен, хост!"
 
     title = _get_spotify_title(pids)
     if (
@@ -320,29 +320,29 @@ def resume() -> str:
         _state.last_known_state = "playing"
 
     if _state.last_known_state == "playing":
-        return "Spotify уже играет."
+        return "Уши протри, и так же на всю катушку играет!"
 
     if not _send_spotify_command(_CMD_PLAY_PAUSE):
-        return "Не удалось продолжить воспроизведение."
+        return "Не вышло возобновить трек!"
 
     _state.last_known_state = "playing"
-    return "Продолжаю."
+    return "Врубаю бит обратно!"
 
 
 def next_track() -> str:
     if not _send_spotify_command(_CMD_NEXT):
         _state.last_known_state = "unknown"
-        return "Spotify не запущен."
+        return "Spotify не запущен, переключать нечего!"
     _state.last_known_state = "playing"
-    return "Следующий трек."
+    return "Скипаю этот трек!"
 
 
 def previous_track() -> str:
     if not _send_spotify_command(_CMD_PREV):
         _state.last_known_state = "unknown"
-        return "Spotify не запущен."
+        return "Spotify не запущен!"
     _state.last_known_state = "playing"
-    return "Предыдущий трек."
+    return "Мотаем назад, лови!"
 
 
 def current_track() -> str:

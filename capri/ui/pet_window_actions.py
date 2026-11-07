@@ -120,7 +120,7 @@ class PetWindowActionDelegate:
         set_config_value("window.position", {"x": cx, "y": cy})
         set_config_value("window.overlay_position", {"x": cx, "y": cy})
         self._window._orchestrator.inactivity.reset_timer()
-        self.speak(f"Монитор: {screen.name()}")
+        self.speak(f"Перепрыгнула на монитор: {screen.name()}!")
 
     def set_designated_microphone(
         self, device: QAudioDevice | None
@@ -133,25 +133,25 @@ class PetWindowActionDelegate:
             "audio.designated_microphone", desc if desc else None
         )
         name = desc if desc else "По умолчанию"
-        self.speak(f"Микрофон: {name}")
+        self.speak(f"Слушаю тебя через: {name}")
     def set_asr_backend(self, backend: str) -> None:
         set_backend(backend)
         preload_model_async()
         label = "Faster-Whisper" if backend == "whisper" else "Vosk"
         self._window._orchestrator.update_discord_asr(backend)
-        self.speak(f"Модель речи: {label}")
+        self.speak(f"Нейро-ухо переключено на: {label}")
 
     def set_speech_sound_enabled(self, enabled: bool) -> None:
         get_speech_sfx().set_speech_sound_enabled(enabled)
         set_config_value("audio.speech_sound_enabled", bool(enabled))
-        status = "вкл" if enabled else "выкл"
-        self.speak(f"Звук сообщений: {status}")
+        status = "врублен" if enabled else "заглушен"
+        self.speak(f"Голосовой синтез: {status}")
 
     def set_effects_sound_enabled(self, enabled: bool) -> None:
         get_speech_sfx().set_effects_sound_enabled(enabled)
         set_config_value("audio.effects_sound_enabled", bool(enabled))
-        status = "вкл" if enabled else "выкл"
-        self.speak(f"Звук эффектов: {status}")
+        status = "врублены" if enabled else "заглушены"
+        self.speak(f"Кибер-эффекты: {status}")
 
     def set_master_volume(self, percent: int) -> None:
         if percent not in (25, 50, 75, 100):
@@ -161,7 +161,7 @@ class PetWindowActionDelegate:
         self._window._volume_percent = percent
         get_speech_sfx().set_volume(percent / 100.0)
         set_config_value("audio.volume", percent)
-        self.speak(f"Громкость: {percent}%")
+        self.speak(f"Громкость выкручена на: {percent}%!")
 
     def set_glitch_intensity(self, intensity: str) -> None:
         self._window._effects.set_glitch_intensity(intensity)
@@ -174,10 +174,10 @@ class PetWindowActionDelegate:
         self._window._activity_timeout_seconds = timeout_ms // 1000
         set_config_value("behavior.inactivity_timeout_ms", timeout_ms)
         self._window._orchestrator.inactivity.set_timeout_ms(timeout_ms)
-        self.speak(f"Время активности: {seconds} с")
+        self.speak(f"Время в эфире: {seconds} с (потом прячусь)")
     def set_sprite_scale(self, percent: int) -> None:
         if self._window._sprite_manager.set_sprite_scale(percent):
-            self.speak(f"Размер: {percent}%")
+            self.speak(f"Масштаб проекции: {percent}%!")
 
     def set_reminders_enabled(self, enabled: bool) -> None:
         enabled = bool(enabled)
@@ -187,10 +187,10 @@ class PetWindowActionDelegate:
         set_config_value("behavior.reminders_enabled", enabled)
         if enabled:
             self._window._orchestrator.reminder.start()
-            self.speak("Напоминания включены.")
+            self.speak("Буду доставать тебя напоминаниями!")
         else:
             self._window._orchestrator.reminder.stop()
-            self.speak("Напоминания выключены.")
+            self.speak("Ладно, помолчу в тряпочку.")
 
     def set_reminder_interval_range(
         self, min_ms: int, max_ms: int
@@ -231,8 +231,8 @@ class PetWindowActionDelegate:
 
     def set_discord_enabled(self, enabled: bool) -> None:
         self._window._orchestrator.set_discord_enabled(enabled)
-        status = "вкл" if enabled else "выкл"
-        self.speak(f"Discord RPC: {status}")
+        status = "врублено" if enabled else "вырублено"
+        self.speak(f"Хвастаюсь в Discord: {status}")
 
     def show_context_menu(self, pos: QPoint) -> None:
         self._window._orchestrator.inactivity.set_paused(True)

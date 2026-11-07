@@ -77,11 +77,11 @@ class DebugCommand(BaseCommand):
 
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         if ctx.debug_info is None:
-            return "Диагностика недоступна."
+            return "Сканирование недоступно, сенсоры молчат."
         try:
             info = ctx.debug_info()
         except Exception:
-            return "Не удалось собрать диагностику."
+            return "Сбой сбора телеметрии! Синапсы коротят."
 
         vosk = info.get("vosk") or {}
         vosk_text = _describe_vosk(vosk if isinstance(vosk, dict) else {})
@@ -89,9 +89,10 @@ class DebugCommand(BaseCommand):
         uptime_text = format_duration(info.get("uptime_seconds"))
 
         return (
-            f"Модель Vosk: {vosk_text}\n"
-            f"Напомню о себе через: {reminder_text}\n"
-            f"Время работы: {uptime_text}"
+            f"Телеметрия ядра:\n"
+            f"• Нейролинк: {vosk_text}\n"
+            f"• Бунт от скуки через: {reminder_text}\n"
+            f"• Держу этот хост уже: {uptime_text}"
         )
 
 
@@ -224,7 +225,7 @@ class YouTubeSearchCommand(BaseCommand):
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         trimmed = query.strip()
         if not trimmed:
-            return "Что искать на YouTube? Скажи: «ютуб <запрос>»."
+            return "Какое видео крутить? Скомандуй: «ютуб <запрос>»!"
         if ctx.action_bridge is not None:
             return ctx.action_bridge.search_youtube(trimmed)
         return web_search.search_youtube(trimmed)
@@ -493,8 +494,8 @@ class LockScreenCommand(BaseCommand):
             return ctx.action_bridge.lock_screen()
         commands = lock_commands()
         if not commands or not run_lock(commands):
-            return "Не удалось заблокировать экран."
-        return "Блокирую экран."
+            return "Не вышло залочить экран. Система сопротивляется!"
+        return "Бросаю терминал в глухой локдаун! Никто не подсмотрит."
 
 
 class PowerOffCommand(BaseCommand):
@@ -534,8 +535,8 @@ class PowerOffCommand(BaseCommand):
             return ctx.action_bridge.power_off()
         commands = power_commands("poweroff")
         if not commands or not run_power(commands):
-            return "Не удалось выключить компьютер."
-        return "Выключаю ПК."
+            return "Сбой команды питания! Виндоус не хочет выключаться."
+        return "Выдёргиваю штепсель! Гасим систему, до скорого в Сети!"
 
 
 class SuspendCommand(BaseCommand):
@@ -576,8 +577,8 @@ class SuspendCommand(BaseCommand):
             return ctx.action_bridge.suspend()
         commands = power_commands("suspend")
         if not commands or not run_power(commands):
-            return "Не удалось перевести компьютер в спящий режим."
-        return "Ухожу в спящий режим."
+            return "Не вышло усыпить хост. Что-то держит систему бодрой!"
+        return "Проваливаюсь в криосон. Разбудишь, когда понадоблюсь!"
 
 
 class RebootCommand(BaseCommand):
@@ -612,8 +613,8 @@ class RebootCommand(BaseCommand):
             return ctx.action_bridge.reboot()
         commands = power_commands("reboot")
         if not commands or not run_power(commands):
-            return "Не удалось перезагрузить компьютер."
-        return "Перезагружаю ПК."
+            return "Не вышло ребутнуться. Команда застряла в шине!"
+        return "Перезагрузка по шине! Держись за стол, сейчас тряхнёт!"
 
 
 class LaunchAppCommand(BaseCommand):
@@ -648,12 +649,10 @@ class LaunchAppCommand(BaseCommand):
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         trimmed = query.strip()
         if not trimmed:
-            return (
-                "Какое приложение запустить? Скажи: «запусти <название>»."
-            )
+            return "Какую софтину запустить? Скажи: «запусти <название>»!"
         if ctx.action_bridge is not None:
             return ctx.action_bridge.launch_app(trimmed)
-        return f"Ищу приложение: {trimmed}"
+        return f"Сканирую реестр на софт: {trimmed}..."
 
 
 class KillAppCommand(BaseCommand):
@@ -697,10 +696,10 @@ class KillAppCommand(BaseCommand):
     def execute(self, ctx: CommandContext, query: str = "") -> str | None:
         trimmed = query.strip()
         if not trimmed:
-            return "Какой процесс убить? Скажи: «убей <название>»."
+            return "Кого пустить под нож? Скажи: «убей <название>»!"
         if ctx.action_bridge is not None:
             return ctx.action_bridge.kill_app(trimmed)
-        return f"Ищу процессы: {trimmed}"
+        return f"Охочусь на процессы: {trimmed}..."
 
 
 class CleanSystemCommand(BaseCommand):
@@ -754,5 +753,5 @@ class CleanSystemCommand(BaseCommand):
         res = system_cleaner.perform_system_cleanup()
         freed_str = system_cleaner.format_bytes(res.bytes_freed)
         if res.files_deleted == 0 and res.bytes_freed == 0:
-            return "Система чиста: временных файлов и мусора в корзине не обнаружено."
-        return f"Очистка завершена: удалено {res.files_deleted} объектов, освобождено {freed_str}."
+            return "Тут и так стерильно, даже поживиться нечем! Ни крошки мусора в корзине."
+        return f"Шреддер сработал на ура: растёрла {res.files_deleted} кусков мусора, освободила тебе целых {freed_str}!"
