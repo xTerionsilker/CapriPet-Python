@@ -153,6 +153,7 @@ class CapriWindow(QWidget):
         self._tray = TrayManager(self)
         self._silent_glyph = SilentPresenceGlyph()
         self._is_stealth_mode = False
+        self._stealth_transition_overlay: TransitionOverlay | None = None
 
         game_suppression = bool(get_config_value("game_mode.suppression_enabled", True))
         game_cooldown = float(get_config_value("game_mode.cooldown_seconds", 3.0))
@@ -808,14 +809,68 @@ class CapriWindow(QWidget):
         if hasattr(self._orchestrator, "reminder"):
             self._orchestrator.reminder.set_suppressed(active)
 
+        if self._stealth_transition_overlay is not None:
+            try:
+                self._stealth_transition_overlay.stop()
+                self._stealth_transition_overlay.deleteLater()
+            except Exception:
+                pass
+            self._stealth_transition_overlay = None
+
+        screen = self.get_designated_screen() or QGuiApplication.primaryScreen()
+        screen_rect = screen.geometry() if screen else self.geometry()
+        glyph_center = self._silent_glyph.geometry().center()
+
         if active:
+            if not self.isVisible():
+                self._silent_glyph.show()
+                return
+
+            overlay = TransitionOverlay(
+                screen_rect,
+                self.geometry(),
+                "lightning_to_point",
+                target=self,
+                target_point=glyph_center,
+            )
             self.hide()
-            self._silent_glyph.show()
+
+            def on_stealth_in_finish():
+                self._silent_glyph.show()
+                self._stealth_transition_overlay = None
+
+            overlay.finished.connect(on_stealth_in_finish)
+            self._stealth_transition_overlay = overlay
+            overlay.start()
         else:
             self._silent_glyph.hide()
-            if not self._closing:
-                self.show()
-                self.raise_()
+            if self._closing:
+                return
+
+            center_x = screen_rect.center().x() - self.width() // 2
+            center_y = screen_rect.center().y() - self.height() // 2
+            self.move(center_x, center_y)
+
+            overlay = TransitionOverlay(
+                screen_rect,
+                self.geometry(),
+                "in",
+                target=self,
+                target_point=glyph_center,
+                on_peak=self._reveal_on_stealth_peak,
+            )
+
+            def on_stealth_out_finish():
+                self._stealth_transition_overlay = None
+
+            overlay.finished.connect(on_stealth_out_finish)
+            self._stealth_transition_overlay = overlay
+            overlay.start()
+
+    def _reveal_on_stealth_peak(self) -> None:
+        if not self._closing and not self._is_stealth_mode:
+            self.show()
+            self.raise_()
 
     def set_game_suppression_enabled(self, enabled: bool) -> None:
         set_config_value("game_mode.suppression_enabled", enabled)
