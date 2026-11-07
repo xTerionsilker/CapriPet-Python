@@ -38,7 +38,10 @@ from .speech import (
     close_all as close_all_speech,
     has_active_speech,
     show_text,
+    set_speech_suppressed,
 )
+from .game_overlay import SilentPresenceGlyph
+from ..integrations.game_mode import GameModeDetector
 from .speech_sfx import get_speech_sfx
 from .sprite_manager import SpriteManager
 from .teleport_controller import TeleportController
@@ -148,6 +151,21 @@ class CapriWindow(QWidget):
 
         self._orchestrator.start()
         self._tray = TrayManager(self)
+        self._silent_glyph = SilentPresenceGlyph()
+        self._is_stealth_mode = False
+
+        game_suppression = bool(get_config_value("game_mode.suppression_enabled", True))
+        game_cooldown = float(get_config_value("game_mode.cooldown_seconds", 3.0))
+        game_whitelist = list(get_config_value("game_mode.whitelist", []))
+        game_blacklist = list(get_config_value("game_mode.blacklist", []))
+        self._game_detector = GameModeDetector(
+            suppression_enabled=game_suppression,
+            cooldown_seconds=game_cooldown,
+            whitelist=game_whitelist,
+            blacklist=game_blacklist,
+            parent=self,
+        )
+        self._game_detector.game_mode_changed.connect(self._on_game_mode_changed)
 
     @property
     def orchestrator(self) -> PetOrchestrator:
@@ -782,6 +800,30 @@ class CapriWindow(QWidget):
         self._effects.stop_all()
         self._glitch_timer.stop()
         self._finalize_quit()
+
+    def _on_game_mode_changed(self, active: bool) -> None:
+        self._is_stealth_mode = active
+        set_speech_suppressed(active)
+        get_speech_sfx().set_suppressed(active)
+        if hasattr(self._orchestrator, "reminder"):
+            self._orchestrator.reminder.set_suppressed(active)
+
+        if active:
+            self.hide()
+            self._silent_glyph.show()
+        else:
+            self._silent_glyph.hide()
+            if not self._closing:
+                self.show()
+                self.raise_()
+
+    def set_game_suppression_enabled(self, enabled: bool) -> None:
+        set_config_value("game_mode.suppression_enabled", enabled)
+        self._game_detector.set_enabled(enabled)
+
+    @property
+    def game_suppression_enabled(self) -> bool:
+        return self._game_detector.suppression_enabled
 
     def nativeEvent(self, event_type: bytes | bytearray, message: int | object) -> tuple[bool, int]:
         if event_type in (b"windows_generic_MSG", b"windows_dispatcher_MSG"):

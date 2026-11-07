@@ -39,6 +39,7 @@ from .theme import (
 _TEXT_COLOR = PURE_WHITE
 _TEXT_WIDTH = 420
 _GLYPHS = "0123456789ABCDEF$#@%&*+-/<>~_!?░▒▓"
+_SUPPRESSED = False
 
 _STYLE = f"""
 QLabel#text {{
@@ -786,6 +787,15 @@ class SpeechWindow(QFrame):
                     return s
         return QGuiApplication.primaryScreen()
 
+def is_speech_suppressed() -> bool:
+    return _SUPPRESSED
+
+def set_speech_suppressed(suppressed: bool) -> None:
+    global _SUPPRESSED
+    _SUPPRESSED = bool(suppressed)
+    if _SUPPRESSED:
+        close_all()
+
 def show_text(
     text: str,
     parent: QWidget | None = None,
@@ -793,7 +803,9 @@ def show_text(
     chars_per_second: float = 40.0,
     hold_ms: int = 1200,
     max_width: int = _TEXT_WIDTH,
-) -> SpeechWindow:
+) -> SpeechWindow | None:
+    if _SUPPRESSED:
+        return None
     window = SpeechWindow(
         text,
         parent,

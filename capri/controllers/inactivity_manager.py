@@ -448,6 +448,10 @@ class PresenceReminder(QObject):
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._fire)
+        self._suppressed = False
+
+    def set_suppressed(self, suppressed: bool) -> None:
+        self._suppressed = bool(suppressed)
 
     @property
     def min_interval_ms(self) -> int:
@@ -496,5 +500,6 @@ class PresenceReminder(QObject):
         if not self._active:
             return
         self._schedule_next()
-        self._on_remind(self._next_phrase())
+        if not self._suppressed:
+            self._on_remind(self._next_phrase())
 

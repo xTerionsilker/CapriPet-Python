@@ -49,7 +49,7 @@ flowchart TB
         direction TB
         Registry["commands/registry.py<br/>(Реестр и нечёткий поиск)"]
         Handlers["commands/handlers.py<br/>(Обработчики действий)"]
-        Integrations["integrations/<br/>(Spotify, Discord RPC, AppLauncher, SystemControl, Cleaner)"]
+        Integrations["integrations/<br/>(Spotify, Discord RPC, AppLauncher, SystemControl, GameMode, Cleaner)"]
 
         Registry --> Handlers
         Handlers --> Integrations
@@ -64,6 +64,7 @@ flowchart TB
         VoiceCoord["ui/voice_coordinator.py<br/>(Координатор ASR & HUD)"]
         VoiceHUD["ui/voice_hud.py<br/>(Cyberpunk Voice HUD над taskbar)"]
         SpeechHUD["ui/speech.py & speech_sfx.py<br/>(CyberHudBubble и синтез SFX)"]
+        GameOverlay["ui/game_overlay.py<br/>(SilentPresenceGlyph оверлей)"]
         Effects["effects/effects_coordinator.py<br/>(CRT-глитчи, молнии, переходы)"]
 
         PetWindow --> PetRenderer

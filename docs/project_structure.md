@@ -43,11 +43,13 @@ capri/
 │   ├── system_cleaner.py       # Безопасная очистка корзины (Shell API) и временных файлов
 │   ├── system_control.py       # Питание, блокировка экрана и управление курсором
 │   ├── system_power_hook.py    # Win32 хуки событий питания (сон, выключение, сессии)
+│   ├── game_mode.py            # Детекция полноэкранных игр через Win32 API и SHQueryUserNotificationState
 │   ├── web_search.py           # Поиск в веб-браузере и проверка обновлений
 │   └── window_tracker.py       # Определение геометрии активного окна (Win32 DWM)
 └── ui/                         # Графический интерфейс на PySide6 (Qt)
     ├── __init__.py
     ├── context_menu.py         # Контекстное меню, стиль Cyberpunk и системный трей
+    ├── game_overlay.py         # Компактный полупрозрачный HUD-индикатор режима тишины (Stealth)
     ├── pet_renderer.py         # Рендерер спрайта, сканлайны и позиционирование
     ├── pet_window.py           # Окно питомца Qt (View-слой, геометрия и события)
     ├── speech.py               # Диалоговые HUD-облачка с кибер-анимацией
@@ -76,6 +78,7 @@ tests/                          # Автоматизированные тест�
 ├── test_context_menu.py        # Тестирование диалоговых окон контекстного меню и диапазонов
 ├── test_code_integrity.py      # Тестирование компиляции всех .py файлов и статического анализа Ruff
 ├── test_transition_kinematics.py # Тестирование кинематики процедурных траекторий перехода
+├── test_game_mode.py           # Тестирование детекции игрового режима и подавления HUD/SFX
 └── test_sprite_manager.py      # Тестирование масштабирования спрайтов и хитбокса
 requirements.txt                # Зависимости проекта
 ruff.toml                       # Конфигурация линтера Ruff (F821 undefined symbols, E9 syntax)

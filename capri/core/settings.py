@@ -152,6 +152,24 @@ class DiscordConfig(BaseModel):
     client_id: str = "1567968896277938266"
 
 
+class GameModeConfig(BaseModel):
+    suppression_enabled: bool = True
+    cooldown_seconds: float = 3.0
+    whitelist: list[str] = Field(default_factory=list)
+    blacklist: list[str] = Field(
+        default_factory=lambda: [
+            "steam.exe",
+            "steamwebhelper.exe",
+            "epicgameslauncher.exe",
+            "unrealcefsubprocess.exe",
+            "unitycrashhandler64.exe",
+            "riotclientux.exe",
+            "galaxyclient.exe",
+            "battlenet.exe",
+        ]
+    )
+
+
 class CapriConfig(BaseModel):
     version: int = 1
     screen: ScreenConfig = Field(default_factory=ScreenConfig)
@@ -160,6 +178,7 @@ class CapriConfig(BaseModel):
     effects: EffectsConfig = Field(default_factory=EffectsConfig)
     window: WindowConfig = Field(default_factory=WindowConfig)
     behavior: BehaviorConfig = Field(default_factory=BehaviorConfig)
+    game_mode: GameModeConfig = Field(default_factory=GameModeConfig)
     network: NetworkConfig = Field(default_factory=NetworkConfig)
     discord: DiscordConfig = Field(default_factory=DiscordConfig)
 

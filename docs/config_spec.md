@@ -96,6 +96,10 @@
 | `window.overlay_position` | `{"x": int, "y": int} \| null` | `null` | Координаты оверлея питомца на рабочем столе. `null` = центр экрана |
 | `behavior.inactivity_timeout_ms`| `int` | `5000` | Время активности до скрытия питомца в миллисекундах (`5000`, `10000`, `15000`) |
 | `behavior.reminders_enabled` | `bool` | `true` | Включены ли случайные напоминания Капри о себе |
+| `game_mode.suppression_enabled` | `bool` | `true` | Подавление всплывающего HUD и реплик при запуске полноэкранных игр |
+| `game_mode.cooldown_seconds` | `float` | `3.0` | Задержка перед выходом из игрового режима при сворачивании игры |
+| `game_mode.whitelist` | `list[str]` | `[]` | Белый список исполняемых файлов процессов |
+| `game_mode.blacklist` | `list[str]` | `["steam.exe", ...]` | Черный список исполняемых файлов игр и лаунчеров |
 
 ---
 

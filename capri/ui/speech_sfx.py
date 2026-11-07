@@ -389,6 +389,7 @@ class SpeechSFX(QObject):
         self._session_effects: dict[str, QSoundEffect] = {}
         self._chirp_pool: list[QSoundEffect] = []
         self._chirp_index = 0
+        self._suppressed = False
 
         self._init_sounds()
 
@@ -499,7 +500,10 @@ class SpeechSFX(QObject):
         return self._available
 
     def is_enabled(self) -> bool:
-        return self._enabled and self._available
+        return self._enabled and self._available and not self._suppressed
+
+    def set_suppressed(self, suppressed: bool) -> None:
+        self._suppressed = bool(suppressed)
 
     def set_enabled(self, enabled: bool) -> None:
         self._enabled = bool(enabled)

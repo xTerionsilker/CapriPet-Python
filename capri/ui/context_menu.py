@@ -376,6 +376,18 @@ class ContextMenuBuilder:
     def _add_behavior_section(self, parent_menu: QMenu) -> None:
         self._add_activity_timeout_menu(parent_menu)
         self._add_reminder_toggle(parent_menu)
+        self._add_game_mode_toggle(parent_menu)
+
+    def _add_game_mode_toggle(self, parent_menu: QMenu) -> None:
+        game_enabled = getattr(self.window, "game_suppression_enabled", True)
+        game_act = parent_menu.addAction("▶  [GAME] Игровой режим (тишина)")
+        game_act.setCheckable(True)
+        game_act.setChecked(game_enabled)
+        game_act.triggered.connect(
+            lambda checked: self.window.set_game_suppression_enabled(checked)
+            if hasattr(self.window, "set_game_suppression_enabled")
+            else None
+        )
 
     def _add_quick_actions(self, parent_menu: QMenu) -> None:
         orchestrator = getattr(self.window, "_orchestrator", None)
