@@ -82,7 +82,8 @@ tests/                          # Автоматизированные тест�
 ├── test_game_mode.py           # Тестирование детекции игрового режима и подавления HUD/SFX
 └── test_sprite_manager.py      # Тестирование масштабирования спрайтов и хитбокса
 requirements.txt                # Зависимости проекта
-ruff.toml                       # Конфигурация линтера Ruff (F821 undefined symbols, E9 syntax)
+ruff.toml                       # Конфигурация линтера и форматтера Ruff (PEP 8 pycodestyle, pep8-naming, bugbear)
+.pylintrc                       # Конфигурация линтера Pylint (интеграция PySide6, подавление ложных предупреждений)
 .agents/                        # Модульные правила и инструкции для AI-агентов (rules/)
 AGENTS.md                       # Главная точка входа правил разработки для AI-агентов
 LICENSE                         # Лицензия MIT
