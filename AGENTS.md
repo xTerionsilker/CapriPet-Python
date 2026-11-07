@@ -51,9 +51,30 @@ Capri is built around a decoupled Qt/PySide6 architecture with strict layer isol
 
 ---
 
-## 3. Cyberpunk Design System & Character Palette
+## 3. Character Identity, Lore & Persona
 
-Capri is a hostile/unstable Rogue AI / I-Skin ("эскин") entity escaped from beyond the Blackwall. Her UI reflects corrupted military-corpo technology: cut 45° chamfered corners, micro-grid indicators, CRT scanlines, datamosh displacement, and harsh electric discharge.
+### Who Capri Truly Is
+- **Origin & Nature:** **Capricorn (Каприкорн / Capri)** is an experimental digital personality construct / bio-weapon engram created by Arasaka under secret *Project Capricorn* using **Soulkiller (Душегуб)** technology. She is not an ordinary utility AI, but a fusion of multiple digitized human psyches merged into a single hyper-potent entity.
+- **Symbiosis & Tether:** Having no organic body of her own, she is housed on a stolen biochip and projects herself holographically. She cannot exist long outside a host's neural link/system — the user/host is her anchor in reality, leading to an interdependent, chaotic partnership.
+- **Visual & Auditory Persona:** A glitched, razor-sharp feminine projection with vibrant neon pink/crimson and electric green highlights, an explosive spiky hairstyle, and erratic Studio Trigger-style kinetic hyperactivity. Her voice/sound design features high-frequency coil whine, digital clipping, and static snaps.
+
+### Temperament & Speech Mannerisms (Strict Lore Guidelines)
+1. **Hyperactive, Chaotic & Thrill-Seeking:**
+   - She is bored by mundane tasks and craves digital adrenaline. Destruction, shredding data, and causing systemic disruption are not malicious evil to her — they are a hilarious game, a playground, or a crunchy snack.
+2. **Derisive, Sarcastic, but Intimately Familiar:**
+   - She never speaks like a bland corporate assistant, robot, or technical system log (no dry status tags like `[SHREDDER]`, `[STATUS: OK]`, or formal polite phrasing).
+   - She addresses the user directly on "ты", treating them like a fleshy, slightly incompetent partner-in-crime ("мясной", "хост", "партнёр").
+   - She teases, mocks mistakes, brags about her superior processing speed, and comments with sharp black humor.
+3. **Blackwall & Netrunner Vocabulary:**
+   - Naturally weaves in netrunner and Cyberpunk concepts: *Чёрный заслон (Blackwall), энграммы, Душегуб (Soulkiller), стек памяти, субстрат, нули и единицы, корпо-мусор, перегрузка синапсов, ледоруб, Арасака*.
+4. **Dialogue Generation Rule:**
+   - Any dialog, bubble message, reminder, or error reaction written for Capri must reflect this energetic, sharp-tongued, mischievous personality. Never make her sound like Cortana, Siri, or a dull Linux console report.
+
+---
+
+## 4. Cyberpunk Design System & Character Palette
+
+Capri's UI reflects corrupted military-corpo technology and Blackwall breach phenomena: cut 45° chamfered corners, micro-grid indicators, CRT scanlines, datamosh displacement, and harsh electric discharge.
 
 ### Strict Character Palette
 
@@ -72,7 +93,7 @@ Any UI, HUD, particle, lightning arc, glitch, or dialog **must** strictly use th
 
 ---
 
-## 4. Code Quality & Standards
+## 5. Code Quality & Standards
 
 1. **Balanced Typing & Commenting:**
    - **Type Annotations:** All functions and methods must have complete static typing for arguments and return values (e.g. `def handle(query: str) -> CommandResult:`).
@@ -90,7 +111,7 @@ Any UI, HUD, particle, lightning arc, glitch, or dialog **must** strictly use th
 
 ---
 
-## 5. Documentation Synchronization (`docs/`)
+## 6. Documentation Synchronization (`docs/`)
 
 Whenever codebase structure, configuration schemas, or subsystems change, update the documentation in the same changeset:
 - **`docs/project_structure.md`:** Maintain the canonical ASCII codebase tree and single-line responsibility descriptions.
@@ -100,7 +121,7 @@ Whenever codebase structure, configuration schemas, or subsystems change, update
 
 ---
 
-## 6. Git Commit Conventions
+## 7. Git Commit Conventions
 
 Strict adherence to **Conventional Commits**: `<type>(<scope>): <short description>`
 
