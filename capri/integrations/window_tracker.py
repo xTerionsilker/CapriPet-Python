@@ -29,6 +29,12 @@ class _RECT(ctypes.Structure):
     ]
 
 
+SWP_NOZORDER = 0x0004
+SWP_NOSIZE = 0x0001
+SWP_NOACTIVATE = 0x0010
+DWMWA_EXTENDED_FRAME_BOUNDS = 9
+
+
 def get_foreground_hwnd() -> int | None:
     """Возвращает валидный HWND активного пользовательского окна (исключая рабочий стол и трей)."""
     try:
@@ -73,10 +79,6 @@ def shake_window_hwnd(
             return None
 
         orig_x, orig_y = rect.left, rect.top
-
-        SWP_NOZORDER = 0x0004
-        SWP_NOSIZE = 0x0001
-        SWP_NOACTIVATE = 0x0010
         flags = SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE
 
         interval_ms = 25
@@ -149,7 +151,6 @@ def _get_windows_active_window_rect() -> QRect | None:
 
         try:
             dwmapi = ctypes.windll.dwmapi
-            DWMWA_EXTENDED_FRAME_BOUNDS = 9
             res = dwmapi.DwmGetWindowAttribute(
                 hwnd,
                 DWMWA_EXTENDED_FRAME_BOUNDS,

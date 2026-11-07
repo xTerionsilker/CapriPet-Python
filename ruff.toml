@@ -3,14 +3,13 @@ target-version = "py310"
 
 [lint]
 select = [
-    "E4",
-    "E7",
-    "E9",
+    "E",
     "W",
     "F",
-    "B",
     "I",
+    "N",
     "UP",
+    "B",
     "SIM",
     "C4",
     "PIE",
@@ -21,6 +20,7 @@ select = [
 ]
 ignore = [
     "E501",
+    "N802",
     "SIM108",
     "D203",
     "D212",
@@ -30,7 +30,7 @@ exclude = [
     ".git",
     "__pycache__",
     "build",
-    "dist"
+    "dist",
 ]
 
 [lint.per-file-ignores]

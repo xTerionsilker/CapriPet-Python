@@ -20,7 +20,9 @@ class TestAppLifecycle(unittest.TestCase):
 
     def test_headless_window_startup_and_teardown(self) -> None:
         with (
-            patch("capri.ui.voice_coordinator.VoiceInput") as mock_voice_cls,
+            patch(
+                "capri.ui.voice_coordinator.VoiceInput"
+            ) as mock_voice_cls,
             patch("capri.audio.recognizer.preload_model_async"),
             patch("capri.controllers.orchestrator.DiscordRpcManager"),
             patch("capri.ui.pet_window.SystemEventHook"),
@@ -62,7 +64,9 @@ class TestAppLifecycle(unittest.TestCase):
                 QCoreApplication.processEvents()
 
             window.set_pose("stay")
-            self.assertEqual(window._sprite_manager.current_pose, "thinking")
+            self.assertEqual(
+                window._sprite_manager.current_pose, "thinking"
+            )
 
             window.close()
             for _ in range(5):

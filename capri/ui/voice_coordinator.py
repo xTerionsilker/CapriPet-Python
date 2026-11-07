@@ -144,13 +144,19 @@ class VoiceCoordinator(QObject):
         self._voice_armed_until = 0.0
         self._voice_window_timer.stop()
         self._voice.set_armed(False)
-        if not self._window.input_flow.awaiting_reply and self._hud is not None:
+        if (
+            not self._window.input_flow.awaiting_reply
+            and self._hud is not None
+        ):
             self._hud.hide_hud(delay_ms=2200)
 
     def _on_voice_window_expired(self) -> None:
         self._voice_armed_until = 0.0
         self._voice.set_armed(False)
-        if not self._window.input_flow.awaiting_reply and self._hud is not None:
+        if (
+            not self._window.input_flow.awaiting_reply
+            and self._hud is not None
+        ):
             self._hud.hide_hud(delay_ms=300)
 
     def _on_partial_voice_text(self, partial_text: str) -> None:

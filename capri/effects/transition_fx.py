@@ -725,17 +725,33 @@ class CyberHoloReticle:
         painter.fillRect(bx_l, bx_t, corner_len, thickness, c)
         painter.fillRect(bx_l, bx_t, thickness, corner_len, c)
 
-        painter.fillRect(bx_r - corner_len + 1, bx_t, corner_len, thickness, c)
-        painter.fillRect(bx_r - thickness + 1, bx_t, thickness, corner_len, c)
-
-        painter.fillRect(bx_l, bx_b - thickness + 1, corner_len, thickness, c)
-        painter.fillRect(bx_l, bx_b - corner_len + 1, thickness, corner_len, c)
-
         painter.fillRect(
-            bx_r - corner_len + 1, bx_b - thickness + 1, corner_len, thickness, c
+            bx_r - corner_len + 1, bx_t, corner_len, thickness, c
         )
         painter.fillRect(
-            bx_r - thickness + 1, bx_b - corner_len + 1, thickness, corner_len, c
+            bx_r - thickness + 1, bx_t, thickness, corner_len, c
+        )
+
+        painter.fillRect(
+            bx_l, bx_b - thickness + 1, corner_len, thickness, c
+        )
+        painter.fillRect(
+            bx_l, bx_b - corner_len + 1, thickness, corner_len, c
+        )
+
+        painter.fillRect(
+            bx_r - corner_len + 1,
+            bx_b - thickness + 1,
+            corner_len,
+            thickness,
+            c,
+        )
+        painter.fillRect(
+            bx_r - thickness + 1,
+            bx_b - corner_len + 1,
+            thickness,
+            corner_len,
+            c,
         )
 
         cross_sz = snap_pixel(PIXEL_SIZE * 2)

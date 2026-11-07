@@ -276,16 +276,14 @@ class CommandRegistry:
                 and len(words) > len(key_words)
                 and all(kw in words for kw in key_words)
             ):
-                    indices = [words.index(kw) for kw in key_words]
-                    remaining = [
-                        w for i, w in enumerate(words) if i not in indices
-                    ]
-                    if remaining and len(key_words) > best_perm_len:
-                        best_perm_len = len(key_words)
-                        arg_str = normalize_spoken_numbers(
-                            " ".join(remaining)
-                        )
-                        best_perm_match = (command, arg_str)
+                indices = [words.index(kw) for kw in key_words]
+                remaining = [
+                    w for i, w in enumerate(words) if i not in indices
+                ]
+                if remaining and len(key_words) > best_perm_len:
+                    best_perm_len = len(key_words)
+                    arg_str = normalize_spoken_numbers(" ".join(remaining))
+                    best_perm_match = (command, arg_str)
 
         if best_perm_match is not None:
             return best_perm_match
