@@ -6,6 +6,7 @@ import copy
 import json
 import logging
 import os
+import shutil
 import tempfile
 import threading
 from pathlib import Path
@@ -349,7 +350,11 @@ class ConfigManager:
                 json.dump(config, f, ensure_ascii=False, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
-            os.replace(tmp_target, target)
+            try:
+                os.replace(tmp_target, target)
+            except OSError:
+                shutil.copyfile(tmp_target, target)
+                tmp_target.unlink(missing_ok=True)
             self._cached_config = copy.deepcopy(config)
         except Exception as e:
             logger.warning(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from capri.integrations.discord_rpc import DiscordRpcManager
 from capri.integrations.system_control import (
     lock_commands,
     power_commands,
@@ -76,8 +77,6 @@ class TestIntegrations(unittest.TestCase):
         self.assertFalse(hook.handle_windows_message(0x1234, 0, 0))
 
     def test_discord_rpc_track_provider_resolution(self) -> None:
-        from capri.integrations.discord_rpc import DiscordRpcManager
-
         manager = DiscordRpcManager(
             track_provider=lambda: "Сейчас играет: Cyberpunk — Rebel Path"
         )

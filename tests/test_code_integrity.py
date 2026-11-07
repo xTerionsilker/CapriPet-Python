@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import py_compile
 import subprocess
 import sys
 import unittest
@@ -20,8 +19,9 @@ class TestCodeIntegrity(unittest.TestCase):
                 if file.endswith(".py"):
                     full_path = os.path.join(root, file)
                     try:
-                        py_compile.compile(full_path, doraise=True)
-                    except py_compile.PyCompileError as exc:
+                        with open(full_path, "rb") as f:
+                            compile(f.read(), full_path, "exec")
+                    except Exception as exc:
                         failed_files.append((full_path, str(exc)))
         self.assertEqual(failed_files, [])
 
