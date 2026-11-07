@@ -829,7 +829,7 @@ class CapriWindow(QWidget):
             overlay = TransitionOverlay(
                 screen_rect,
                 self.geometry(),
-                "lightning_to_point",
+                "out",
                 target=self,
                 target_point=glyph_center,
             )
