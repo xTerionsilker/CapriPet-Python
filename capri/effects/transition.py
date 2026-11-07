@@ -251,6 +251,8 @@ class TransitionOverlay(QWidget):
             "in": 0.65,
             "erratic_in": 0.72,
             "lightning_to_point": 0.62,
+            "stealth_enter": 0.85,
+            "stealth_exit": 0.85,
         }.get(self._mode, 0.50)
         if p >= peak_threshold and not self._peak_called:
             self._peak_called = True
