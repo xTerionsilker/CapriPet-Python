@@ -153,6 +153,7 @@ class CapriWindow(QWidget):
         self._tray = TrayManager(self)
         self._silent_glyph = SilentPresenceGlyph()
         self._is_stealth_mode = False
+        self._stealth_origin_pos: QPoint | None = None
         self._stealth_transition_overlay: TransitionOverlay | None = None
 
         game_suppression = bool(get_config_value("game_mode.suppression_enabled", True))
@@ -827,10 +828,11 @@ class CapriWindow(QWidget):
                 self._silent_glyph.show()
                 return
 
+            self._stealth_origin_pos = self.pos()
             overlay = TransitionOverlay(
                 screen_rect,
                 self.geometry(),
-                "out",
+                "stealth_enter",
                 target=self,
                 target_point=glyph_center,
             )
@@ -838,45 +840,40 @@ class CapriWindow(QWidget):
 
             def on_stealth_in_finish():
                 self._stealth_transition_overlay = None
-                self._silent_glyph.start_materialize(duration_ms=260)
+                self._silent_glyph.show()
 
             overlay.finished.connect(on_stealth_in_finish)
             self._stealth_transition_overlay = overlay
             overlay.start()
         else:
+            self._silent_glyph.hide()
             if self._closing:
-                self._silent_glyph.hide()
                 return
 
-            center_x = screen_rect.center().x() - self.width() // 2
-            center_y = screen_rect.center().y() - self.height() // 2
-            self.move(center_x, center_y)
-
-            def launch_ball_to_center():
-                if self._closing or self._is_stealth_mode:
-                    return
-                overlay = TransitionOverlay(
-                    screen_rect,
-                    self.geometry(),
-                    "in",
-                    target=self,
-                    target_point=glyph_center,
-                    on_peak=self._reveal_on_stealth_peak,
-                )
-
-                def on_stealth_out_finish():
-                    self._stealth_transition_overlay = None
-
-                overlay.finished.connect(on_stealth_out_finish)
-                self._stealth_transition_overlay = overlay
-                overlay.start()
-
-            if self._silent_glyph.isVisible():
-                self._silent_glyph.start_dissolve(
-                    duration_ms=220, callback=launch_ball_to_center
-                )
+            if self._stealth_origin_pos is not None:
+                orig_x = self._stealth_origin_pos.x()
+                orig_y = self._stealth_origin_pos.y()
+                self.move(orig_x, orig_y)
             else:
-                launch_ball_to_center()
+                center_x = screen_rect.center().x() - self.width() // 2
+                center_y = screen_rect.center().y() - self.height() // 2
+                self.move(center_x, center_y)
+
+            overlay = TransitionOverlay(
+                screen_rect,
+                self.geometry(),
+                "stealth_exit",
+                target=self,
+                target_point=glyph_center,
+                on_peak=self._reveal_on_stealth_peak,
+            )
+
+            def on_stealth_out_finish():
+                self._stealth_transition_overlay = None
+
+            overlay.finished.connect(on_stealth_out_finish)
+            self._stealth_transition_overlay = overlay
+            overlay.start()
 
     def _reveal_on_stealth_peak(self) -> None:
         if not self._closing and not self._is_stealth_mode:

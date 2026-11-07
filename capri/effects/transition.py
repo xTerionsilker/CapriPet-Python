@@ -5,7 +5,7 @@ import random
 from typing import Callable, List
 
 from PySide6.QtCore import QElapsedTimer, QPoint, QRect, Qt, QTimer, Signal
-from PySide6.QtGui import QGuiApplication, QPainter, QPixmap
+from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
 from .transition_fx import (
@@ -48,6 +48,7 @@ from .transition_fx import (
     with_alpha,
 )
 from ..ui.speech_sfx import get_speech_sfx
+from ..ui.theme import get_hud_font
 
 class TransitionOverlay(QWidget):
 \
@@ -84,12 +85,14 @@ class TransitionOverlay(QWidget):
         self._target_point = target_point
         self._peak_called = False
 
-        if mode == "out":
+        if mode == "out" or mode == "stealth_enter":
             self._duration_ms = DURATION_OUT_MS
         elif mode == "lightning_to_point":
             self._duration_ms = DURATION_POINT_MS
         elif mode == "erratic_in":
             self._duration_ms = DURATION_ERRATIC_MS
+        elif mode == "stealth_exit":
+            self._duration_ms = DURATION_IN_MS + 80
         else:
             self._duration_ms = DURATION_IN_MS
 
@@ -148,7 +151,7 @@ class TransitionOverlay(QWidget):
                 ry = snap_pixel(random.randint(40, screen_h))
                 self._erratic_waypoints.append(QPoint(rx, ry))
             self._erratic_waypoints.append(p2)
-        elif mode == "in":
+        elif mode in ("in", "stealth_exit"):
             p0 = self._offscreen_point if target_point is None else (target_point - offset)
             p2 = target_center
         else:
@@ -438,6 +441,10 @@ class TransitionOverlay(QWidget):
 
         if self._mode == "out":
             self._paint_out(painter, p, wr)
+        elif self._mode == "stealth_enter":
+            self._paint_stealth_enter(painter, p, wr)
+        elif self._mode == "stealth_exit":
+            self._paint_stealth_exit(painter, p, wr)
         elif self._mode == "lightning_to_point":
             if self._local_target_point is not None:
                 self._paint_lightning_to_point(
@@ -634,6 +641,176 @@ class TransitionOverlay(QWidget):
         if 0.25 <= p <= 0.55:
             flash_p = (p - 0.25) / 0.30
             self._paint_cyber_flash(painter, wr, flash_p, scheme="crimson")
+
+        for spark in self._sparks:
+            spark.draw(painter)
+
+    def _paint_stealth_enter(self, painter: QPainter, p: float, wr: QRect) -> None:
+        for tr in self._trail:
+            tr.draw(painter)
+
+        if p < 0.28:
+            collapse_p = p / 0.28
+            scale = max(0.15, 1.0 - 0.85 * collapse_p)
+            cur_w = max(1, int(wr.width() * scale))
+            cur_h = max(1, int(wr.height() * scale))
+            cur_rect = QRect(
+                wr.center().x() - cur_w // 2,
+                wr.center().y() - cur_h // 2,
+                cur_w,
+                cur_h,
+            )
+            if self._target_pixmap is not None:
+                self._paint_pixel_matrix_assembly(painter, cur_rect, collapse_p)
+            draw_glitch_mass(
+                painter,
+                wr.center(),
+                int(min(wr.width(), wr.height()) * (0.35 - 0.19 * collapse_p)),
+                intensity=collapse_p,
+                seed=int(p * 1000),
+            )
+        elif p < 0.72:
+            flight_p = (p - 0.28) / (0.72 - 0.28)
+            mass_center = self._last_mass_center
+            intensity = 0.8 + 0.2 * math.sin(flight_p * 25.0)
+            base_sz = max(18, int(min(wr.width(), wr.height()) * 0.16))
+            draw_glitch_mass(
+                painter,
+                mass_center,
+                base_sz,
+                intensity=intensity,
+                seed=int(p * 1000) + mass_center.x() + mass_center.y(),
+            )
+        else:
+            morph_p = (p - 0.72) / (1.0 - 0.72)
+            target_pt = self._p2
+            cur_w = int(24 + (140 - 24) * morph_p)
+            cur_h = int(24 + (36 - 24) * morph_p)
+            cut = int(8 * morph_p)
+            rect = QRect(target_pt.x() - cur_w // 2, target_pt.y() - cur_h // 2, cur_w, cur_h)
+
+            path = QPainterPath()
+            path.moveTo(rect.left() + cut, rect.top())
+            path.lineTo(rect.right(), rect.top())
+            path.lineTo(rect.right(), rect.bottom() - cut)
+            path.lineTo(rect.right() - cut, rect.bottom())
+            path.lineTo(rect.left(), rect.bottom())
+            path.lineTo(rect.left(), rect.top() + cut)
+            path.closeSubpath()
+
+            bg_col = QColor(COLOR_OBSIDIAN)
+            bg_col.setAlpha(int(170 * morph_p))
+            painter.fillPath(path, bg_col)
+
+            pen = QPen(QColor(COLOR_CRIMSON), 1.2)
+            painter.setPen(pen)
+            painter.drawPath(path)
+
+            if morph_p > 0.35:
+                b_pen = QPen(QColor(COLOR_ACID_GREEN), 1.4)
+                painter.setPen(b_pen)
+                painter.drawLine(rect.left(), rect.top() + cut, rect.left() + cut, rect.top())
+                painter.drawLine(rect.right() - cut, rect.bottom(), rect.right(), rect.bottom() - cut)
+
+            if morph_p < 0.55:
+                draw_glitch_mass(
+                    painter,
+                    target_pt,
+                    int(20 * (1.0 - morph_p)),
+                    intensity=1.0 - morph_p,
+                    seed=int(p * 1000),
+                )
+
+            scan_y = rect.top() + int(rect.height() * ((p * 4.0) % 1.0))
+            painter.fillRect(rect.left(), scan_y, rect.width(), 2, with_alpha(COLOR_ACID_GREEN, 200))
+
+            if morph_p > 0.55:
+                txt_alpha = int(255 * (morph_p - 0.55) / 0.45)
+                painter.setFont(get_hud_font(pixel_size=10, bold=True))
+                painter.setPen(QPen(with_alpha(COLOR_WHITE, txt_alpha)))
+                t_rect = QRect(rect.left() + 26, rect.top(), rect.width() - 30, rect.height())
+                painter.drawText(t_rect, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, "CAPRI // STEALTH")
+
+        for spark in self._sparks:
+            spark.draw(painter)
+
+    def _paint_stealth_exit(self, painter: QPainter, p: float, wr: QRect) -> None:
+        for tr in self._trail:
+            tr.draw(painter)
+
+        if p < 0.28:
+            morph_p = 1.0 - (p / 0.28)
+            target_pt = self._p0
+            cur_w = int(24 + (140 - 24) * morph_p)
+            cur_h = int(24 + (36 - 24) * morph_p)
+            cut = int(8 * morph_p)
+            rect = QRect(target_pt.x() - cur_w // 2, target_pt.y() - cur_h // 2, cur_w, cur_h)
+
+            path = QPainterPath()
+            path.moveTo(rect.left() + cut, rect.top())
+            path.lineTo(rect.right(), rect.top())
+            path.lineTo(rect.right(), rect.bottom() - cut)
+            path.lineTo(rect.right() - cut, rect.bottom())
+            path.lineTo(rect.left(), rect.bottom())
+            path.lineTo(rect.left(), rect.top() + cut)
+            path.closeSubpath()
+
+            bg_col = QColor(COLOR_OBSIDIAN)
+            bg_col.setAlpha(int(170 * morph_p))
+            painter.fillPath(path, bg_col)
+
+            pen = QPen(QColor(COLOR_CRIMSON), 1.2)
+            painter.setPen(pen)
+            painter.drawPath(path)
+
+            draw_glitch_mass(
+                painter,
+                target_pt,
+                int(16 + 10 * (1.0 - morph_p)),
+                intensity=1.0 - morph_p,
+                seed=int(p * 1000),
+            )
+        elif p < 0.68:
+            flight_p = (p - 0.28) / (0.68 - 0.28)
+            mass_center = self._last_mass_center
+            intensity = 0.8 + 0.2 * math.sin(flight_p * 25.0)
+            base_sz = max(18, int(min(wr.width(), wr.height()) * 0.16))
+            draw_glitch_mass(
+                painter,
+                mass_center,
+                base_sz,
+                intensity=intensity,
+                seed=int(p * 1000) + mass_center.x() + mass_center.y(),
+            )
+        else:
+            assembly_p = (p - 0.68) / (1.0 - 0.68)
+            scale = 1.0 + 0.08 * math.sin(assembly_p * math.pi)
+            if assembly_p > 0.85:
+                scale = 1.0
+            cur_w = max(1, int(wr.width() * scale))
+            cur_h = max(1, int(wr.height() * scale))
+            cur_rect = QRect(
+                wr.center().x() - cur_w // 2,
+                wr.center().y() - cur_h // 2,
+                cur_w,
+                cur_h,
+            )
+
+            rem = max(0.0, 1.0 - assembly_p)
+            if rem > 0.02 and self._target_pixmap is not None:
+                self._paint_pixel_matrix_assembly(painter, cur_rect, rem)
+
+            if assembly_p < 0.5:
+                draw_glitch_mass(
+                    painter,
+                    wr.center(),
+                    int(min(wr.width(), wr.height()) * (0.16 + 0.35 * assembly_p)),
+                    intensity=1.0 - assembly_p,
+                    seed=int(p * 1000),
+                )
+
+            sweep_y = cur_rect.top() + int(cur_rect.height() * assembly_p)
+            painter.fillRect(cur_rect.left(), sweep_y, cur_rect.width(), 2, with_alpha(COLOR_ACID_GREEN, 210))
 
         for spark in self._sparks:
             spark.draw(painter)
