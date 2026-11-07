@@ -74,7 +74,7 @@ Capri is built around a decoupled Qt/PySide6 architecture with strict layer isol
 
 ## 4. Cyberpunk Design System & Character Palette
 
-Capri's UI reflects corrupted military-corpo technology and Blackwall breach phenomena: cut 45° chamfered corners, micro-grid indicators, CRT scanlines, datamosh displacement, and harsh electric discharge.
+Capri's UI reflects corrupted military-corpo technology and Blackwall breach phenomena fused with **Studio Trigger-style kinetic hyperactivity**: cut 45° chamfered corners, micro-grid indicators, CRT scanlines, datamosh displacement, harsh electric discharge, and dynamic high-contrast duotone framing (Neon Crimson/Pink & Acid Green).
 
 ### Strict Character Palette
 
@@ -82,14 +82,17 @@ Any UI, HUD, particle, lightning arc, glitch, or dialog **must** strictly use th
 
 | Color Name | Hex Code | Approx. Share | Usage Description |
 | :--- | :--- | :--- | :--- |
-| **Neon Crimson** | `#F6023F` | 45% | Primary accent, Blackwall breach, danger indicators, laser reticles, active borders |
-| **Obsidian Black** | `#020106` | 35% | Backgrounds, panel fills, deep shadow contrasts |
-| **Acid Green** | `#06F868` | 16% | Success status, active telemetry, calibration markers, terminal highlights |
-| **White** | `#F9F9F9` | 2% | Overdrive lightning core, sharp text highlights, technical crosshairs |
-| **Electric Blue** | `#126EE9` | 1.5% | Auxiliary data tags, network/link indicators, secondary scanlines |
-| **Neon Violet** | `#9E1FDE` | 0.5% | Rare chromatic aberration, deep energy displacement, exotic glitch artifacts |
+| **Neon Crimson / Hot Pink** | `#F6023F` | 38% | Primary signature color, hair aura, Blackwall breach, danger indicators, laser reticles, active borders |
+| **Obsidian Black** | `#020106` | 32% | Backgrounds, panel fills, deep shadow contrasts |
+| **Acid Green** | `#06F868` | 24% | Capri's secondary signature color, telemetry, active energy arcs, telemetry markers, success highlights |
+| **White** | `#F9F9F9` | 3% | Overdrive lightning core, sharp text highlights, technical crosshairs, kinetic flash sparks |
+| **Electric Blue** | `#126EE9` | 2% | Neural link tether, memory bus indicators, auxiliary data tags, secondary scanlines |
+| **Neon Violet** | `#9E1FDE` | 1% | Chromatic aberration, biochip instability, deep energy displacement, exotic glitch artifacts |
 
-> **Mandatory Rule:** Do not introduce foreign hex colors, generic pastels, or soft rounded corners (`border-radius`). Maintain sharp 45° chamfers and technical monospace typography (`"Press Start 2P"`, `"JetBrains Mono"`, `"Terminus"`, `monospace`).
+> **Mandatory Visual Rules:**
+> 1. **Kinetic & Dynamic:** UI elements and overlays must not feel like static corporate consoles. They should reflect a hijacked, glitching neural link experiencing adrenaline spikes and erratic bursts of personality.
+> 2. **Sharp Geometry:** No soft rounded corners (`border-radius`) or generic pastels. Maintain sharp 45° chamfers, pixel-grid snapping, and technical monospace typography (`"Press Start 2P"`, `"JetBrains Mono"`, `"Terminus"`, `monospace`).
+> 3. **Auditory Persona:** Procedural audio synthesis favors high-frequency coil whines, hyperbolic tangent clipping, and electric snaps over soft melodic bells or dry system beeps.
 
 ---
 
