@@ -732,7 +732,8 @@ class SpeechWindow(QFrame):
         progress = min(1.0, self._clock.elapsed() / self._duration_ms)
         count = round(len(self._text) * progress)
         self._render_scramble(count)
-        get_speech_sfx().play_chirp()
+        current_char = self._text[count - 1] if 0 < count <= len(self._text) else ""
+        get_speech_sfx().play_chirp(current_char)
         if progress >= 1.0:
             self._finish()
 

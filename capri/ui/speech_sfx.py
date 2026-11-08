@@ -20,86 +20,148 @@ from PySide6.QtMultimedia import QMediaDevices, QSoundEffect
 
 logger = logging.getLogger(__name__)
 
+# Master audio parameters (Studio Trigger cyber soundscape)
+DEFAULT_SAMPLE_RATE: int = 44100
+SFX_VERSION: str = "v2_trigger"  # Bust cache on generator update
 
-def _generate_swoosh_wav(
-    file_path: Path, sample_rate: int = 44100, duration: float = 0.10
-) -> None:
-    num_samples = int(sample_rate * duration)
-    frames = bytearray()
-    for i in range(num_samples):
-        t = i / sample_rate
-        p = t / duration
 
-        freq = 350.0 + 1250.0 * (p**1.4)
-
-        if p < 0.1:
-            env = p / 0.1
-        else:
-            env = (1.0 - p) ** 1.3
-        val = math.sin(2.0 * math.pi * freq * t) * env * 0.45
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
-
+def _write_wav_16bit(file_path: Path, frames: bytearray, sample_rate: int = DEFAULT_SAMPLE_RATE) -> None:
+    """Записывает 16-bit моно PCM WAV файл с атомарным созданием директории."""
     file_path.parent.mkdir(parents=True, exist_ok=True)
     with wave.open(str(file_path), "wb") as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         wf.writeframes(frames)
+
+
+def _pack_sample(val: float, drive: float = 1.0, master_gain: float = 0.95) -> bytes:
+    """Применяет нелинейную сатурацию tanh и упаковывает в 16-bit int."""
+    saturated = math.tanh(val * drive) * master_gain
+    clamped = max(-1.0, min(1.0, saturated))
+    sample = int(clamped * 32767.0)
+    return struct.pack("<h", max(-32768, min(32767, sample)))
+
+
+def _generate_swoosh_wav(
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 0.12
+) -> None:
+    """Кинетический CRT-щелчок и развертывание голограммы с высокочастотным свистом."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(101)
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+
+        # Экспоненциальный подъем несущей частоты (coil whine разгона)
+        freq = 420.0 + 3800.0 * (p**1.8)
+        whine = math.sin(2.0 * math.pi * freq * t)
+
+        # Стартовый стеклянный/CRT щелчок лучом
+        click = 0.0
+        if p < 0.15:
+            cp = p / 0.15
+            click = math.sin(2.0 * math.pi * 5400.0 * t) * (1.0 - cp) ** 2.0 * 0.7
+            if rng.random() < 0.2:
+                click += rng.uniform(-0.4, 0.4) * (1.0 - cp)
+
+        env = (math.sin(math.pi * p) ** 0.8) if p < 0.3 else ((1.0 - p) ** 1.4)
+        val = (whine * 0.45 + click * 0.55) * env
+        frames.extend(_pack_sample(val, drive=1.35, master_gain=0.88))
+
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_close_wav(
-    file_path: Path, sample_rate: int = 44100, duration: float = 0.10
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 0.09
 ) -> None:
+    """Схлопывание голографического луча: мгновенный срез частоты со статическим щелчком."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
+    rng = random.Random(202)
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
 
-        freq = 1400.0 - 1100.0 * (p**0.8)
+        # Резкое падение частоты вниз («коллапс луча»)
+        freq = 3200.0 * math.exp(-12.0 * p) + 120.0
+        sweep = math.sin(2.0 * math.pi * freq * t)
 
-        if p < 0.08:
-            env = p / 0.08
-        else:
-            env = (1.0 - p) ** 1.5
-        val = math.sin(2.0 * math.pi * freq * t) * env * 0.40
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+        # Завершающий микро-разряд
+        zap = 0.0
+        if 0.02 <= t < 0.05:
+            zap = rng.uniform(-0.6, 0.6) * (1.0 - (t - 0.02) / 0.03)
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+        env = (1.0 - p) ** 2.2
+        val = (sweep * 0.65 + zap * 0.35) * env
+        frames.extend(_pack_sample(val, drive=1.4, master_gain=0.85))
+
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_chirp_wav(
-    file_path: Path, sample_rate: int = 44100, duration: float = 0.02
+    file_path: Path,
+    sample_rate: int = DEFAULT_SAMPLE_RATE,
+    duration: float = 0.022,
+    base_freq: float = 2400.0,
+    jitter: float = 0.15,
+    style: str = "normal",
 ) -> None:
+    """Высокочастотный кибер-импульс печати с глитч-джиттером и эмоциональной модуляцией."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
+    rng = random.Random(int(base_freq * 13 + duration * 1000))
+    
+    # Расчет эмоциональных модификаторов стиля
+    freq_sweep = 0.0
+    overdrive = 1.6
+    gain = 0.75
+    
+    if style == "exclamation":  # ! — резкий овердрайв и статический щелчок
+        duration = 0.035
+        num_samples = int(sample_rate * duration)
+        base_freq = 3200.0
+        overdrive = 3.2
+        gain = 0.95
+    elif style == "question":  # ? — восходящий высокочастотный пинг/свист
+        duration = 0.032
+        num_samples = int(sample_rate * duration)
+        base_freq = 1900.0
+        freq_sweep = 2200.0
+        overdrive = 1.3
+        gain = 0.80
+    elif style == "ellipsis":  # ... — затухающий шум наводки/шина данных
+        duration = 0.038
+        num_samples = int(sample_rate * duration)
+        base_freq = 1100.0
+        overdrive = 1.1
+        gain = 0.60
+
+    freq_offset = (rng.random() - 0.5) * 2.0 * jitter * base_freq
+    eff_freq = base_freq + freq_offset
+
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
 
-        freq = 1900.0 - 500.0 * p
+        # Частотная модуляция
+        instant_freq = eff_freq + freq_sweep * p
+        carrier = math.sin(2.0 * math.pi * instant_freq * t)
 
-        if p < 0.1:
-            env = p / 0.1
+        # Статический шум/глитч импульс
+        noise = rng.uniform(-0.35, 0.35) if (style == "ellipsis" or rng.random() < 0.25) else 0.0
+
+        # Острая экспоненциальная огибающая
+        if p < 0.12:
+            env = p / 0.12
         else:
-            env = (1.0 - p) ** 1.5
-        val = math.sin(2.0 * math.pi * freq * t) * env * 0.22
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+            env = (1.0 - p) ** 2.2
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+        val = (carrier * 0.75 + noise * 0.25) * env
+        frames.extend(_pack_sample(val, drive=overdrive, master_gain=gain))
+
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_teleport_drop_wav(
@@ -447,54 +509,53 @@ def _generate_session_reboot_wav(
 
 
 def _generate_target_acquired_wav(
-    file_path: Path, sample_rate: int = 44100, duration: float = 0.18
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 0.16
 ) -> None:
+    """Пронзительный кибер-пинг прицела Kiroshi: двухтоновый импульс с резонансом."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
-        # Cyber lock-on tone: dual pitch beep with metallic ping
-        f1 = 880.0 if p < 0.5 else 1760.0
-        env = (1.0 - (p % 0.5) / 0.5) ** 1.5
-        val = 0.35 * math.sin(2.0 * math.pi * f1 * t) * env
-        val += 0.15 * math.sin(2.0 * math.pi * 2600.0 * t) * env
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+        # Двойной щелчок: 1-я половина 1850 Гц, 2-я половина 3700 Гц (октет вверх)
+        part_p = (p % 0.5) / 0.5
+        f1 = 1850.0 if p < 0.5 else 3700.0
+        env = (1.0 - part_p) ** 2.5
+
+        # Высокочастотный металлический призвук
+        ping = math.sin(2.0 * math.pi * f1 * t) * 0.65
+        harm = math.sin(2.0 * math.pi * (f1 * 2.2) * t) * 0.35
+        val = (ping + harm) * env
+        frames.extend(_pack_sample(val, drive=1.5, master_gain=0.85))
+
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_data_rip_wav(
-    file_path: Path, sample_rate: int = 44100, duration: float = 0.35
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 0.32
 ) -> None:
+    """Жесткий цифровой хруст аннигиляции байтов Черного заслона с сатурацией."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(42)
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
-        env = (1.0 - p) ** 1.2
-        # Data rip sound: harsh static + descending tone + crunch
-        freq = 1200.0 * (1.0 - p) + 60.0
-        tone = math.sin(2.0 * math.pi * freq * t)
-        noise = rng.uniform(-1.0, 1.0)
-        distortion = 1.0 if (noise + tone) > 0.4 else -1.0 if (noise + tone) < -0.4 else (noise + tone)
-        val = 0.45 * distortion * env
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+        env = (1.0 - p) ** 1.3
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+        # Нелинейно падающая несущая частота шины данных
+        freq = 2400.0 * math.exp(-8.0 * p) + 80.0
+        tone = math.sin(2.0 * math.pi * freq * t)
+
+        # Дискретный шум и цифровой битовый хруст
+        noise = rng.uniform(-1.0, 1.0)
+        bit_quantized = math.floor((tone + noise * 1.2) * 4.0) / 4.0
+
+        val = (bit_quantized * 0.7 + tone * 0.3) * env
+        frames.extend(_pack_sample(val, drive=2.6, master_gain=0.92))
+
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 class SpeechSFX(QObject):
@@ -530,6 +591,9 @@ class SpeechSFX(QObject):
         self._session_effects: dict[str, QSoundEffect] = {}
         self._chirp_pool: list[QSoundEffect] = []
         self._chirp_index = 0
+        self._chirp_pools_by_style: dict[str, list[QSoundEffect]] = {}
+        self._chirp_indices_by_style: dict[str, int] = {}
+        self._chirp_paths_by_style: dict[str, Path] = {}
         self._suppressed = False
 
         self._media_devices = QMediaDevices(self)
@@ -541,7 +605,7 @@ class SpeechSFX(QObject):
 
     def _init_sounds(self) -> None:
         try:
-            temp_dir = Path(tempfile.gettempdir()) / "capri_sfx"
+            temp_dir = Path(tempfile.gettempdir()) / f"capri_sfx_{SFX_VERSION}"
             swoosh_path = temp_dir / "cyber_swoosh.wav"
             close_path = temp_dir / "cyber_close.wav"
             chirp_path = temp_dir / "retro_chirp.wav"
@@ -650,13 +714,28 @@ class SpeechSFX(QObject):
             rip_sfx.setVolume(self._volume * 0.9)
             self._data_rip_effect = rip_sfx
 
-            chirp_url = QUrl.fromLocalFile(str(chirp_path))
-            self._chirp_pool = []
-            for _ in range(3):
-                effect = QSoundEffect(self)
-                effect.setSource(chirp_url)
-                effect.setVolume(self._volume * 0.7)
-                self._chirp_pool.append(effect)
+            # Генерация и пул эмоциональных звуков речи
+            self._chirp_paths_by_style = {}
+            self._chirp_pools_by_style = {}
+            self._chirp_indices_by_style = {}
+            styles = ("normal", "exclamation", "question", "ellipsis")
+            for st in styles:
+                st_path = temp_dir / f"cyber_chirp_{st}.wav"
+                if not st_path.exists():
+                    _generate_chirp_wav(st_path, style=st)
+                self._chirp_paths_by_style[st] = st_path
+                st_pool: list[QSoundEffect] = []
+                st_url = QUrl.fromLocalFile(str(st_path))
+                for _ in range(3):
+                    eff = QSoundEffect(self)
+                    eff.setSource(st_url)
+                    eff.setVolume(self._volume * (0.85 if st == "exclamation" else 0.7))
+                    st_pool.append(eff)
+                self._chirp_pools_by_style[st] = st_pool
+                self._chirp_indices_by_style[st] = 0
+
+            self._chirp_pool = self._chirp_pools_by_style.get("normal", [])
+            self._chirp_path = self._chirp_paths_by_style.get("normal", chirp_path)
 
             self._available = True
         except Exception as exc:
@@ -748,8 +827,9 @@ class SpeechSFX(QObject):
             self._data_rip_effect.setVolume(self._volume * 0.9)
         for effect in self._session_effects.values():
             effect.setVolume(self._volume * 0.85)
-        for effect in self._chirp_pool:
-            effect.setVolume(self._volume * 0.7)
+        for pool in self._chirp_pools_by_style.values():
+            for effect in pool:
+                effect.setVolume(self._volume * 0.7)
 
     def play_swoosh(self) -> None:
         if not self.is_speech_sound_enabled():
@@ -812,25 +892,34 @@ class SpeechSFX(QObject):
         path = self._session_paths.get(action)
         self._play_file(path, self._session_effects.get(action))
 
-    def play_chirp(self) -> None:
-        if not self.is_speech_sound_enabled() or self._chirp_path is None:
+    def play_chirp(self, char: str = "") -> None:
+        """Воспроизводит фонетический импульс печати с учетом пунктуации."""
+        if not self.is_speech_sound_enabled():
             return
         now = time.monotonic()
         if now - self._last_chirp_time < self._throttle_interval:
             return
         self._last_chirp_time = now
 
-        fallback = (
-            self._chirp_pool[self._chirp_index]
-            if self._chirp_pool
-            else None
-        )
-        if self._chirp_pool:
-            self._chirp_index = (self._chirp_index + 1) % len(
-                self._chirp_pool
-            )
+        # Определение стиля звучания по текущему символу
+        style = "normal"
+        if char in ("!", "¡"):
+            style = "exclamation"
+        elif char in ("?", "¿"):
+            style = "question"
+        elif char in (".", "…", "-", "—"):
+            style = "ellipsis"
 
-        self._play_file(self._chirp_path, fallback)
+        pool = self._chirp_pools_by_style.get(style) or self._chirp_pool
+        path = self._chirp_paths_by_style.get(style) or self._chirp_path
+        if not pool or path is None:
+            return
+
+        idx = self._chirp_indices_by_style.get(style, 0)
+        fallback = pool[idx]
+        self._chirp_indices_by_style[style] = (idx + 1) % len(pool)
+
+        self._play_file(path, fallback)
 
     def stop_all(self, timeout: float = 0.3) -> None:
         pass
