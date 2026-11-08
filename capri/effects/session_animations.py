@@ -319,6 +319,10 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         self._paint_scanlines(painter, accent, p)
         self._paint_target(painter, p, accent, counter)
         self._paint_screen_glitches(painter, p, accent, counter)
+
+        # Кинематографические процедурные слои для каждого действия
+        self._paint_action_scene(painter, p, accent, counter)
+
         self._paint_hud(painter, p, accent, counter)
         self._paint_action_glyph(painter, p, accent, counter)
 
@@ -331,6 +335,23 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
 
         self._paint_screen_takeover(painter, p, accent, counter)
         painter.end()
+
+    def _paint_action_scene(
+        self,
+        painter: QPainter,
+        p: float,
+        accent: QColor,
+        counter: QColor,
+    ) -> None:
+        """Отрисовывает специализированную сюжетную сцену действия."""
+        if self._action == "lock":
+            self._paint_lockdown_lasers(painter, self.rect(), p, accent, counter)
+        elif self._action == "power_off":
+            self._paint_crt_beam_collapse(painter, self.rect(), p, accent, counter)
+        elif self._action == "reboot":
+            self._paint_reboot_rings(painter, self.rect(), p, accent, counter)
+        elif self._action == "suspend":
+            self._paint_cryostasis_waves(painter, self.rect(), p, accent, counter)
 
     def _paint_hud(
         self,
@@ -633,22 +654,128 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         )
 
 
+class LockdownSceneOverlay(SessionAnimationOverlay):
+    """Специализированный оверлей для действия 'lock' (Смертоносный локдаун)."""
+
+    def __init__(
+        self,
+        screen_rect: QRect,
+        window_rect: QRect,
+        target: QWidget | None = None,
+        parent: QWidget | None = None,
+        on_finished: Callable[[], None] | None = None,
+    ) -> None:
+        super().__init__(
+            screen_rect,
+            window_rect,
+            action="lock",
+            target=target,
+            parent=parent,
+            on_finished=on_finished,
+        )
+
+
+class DisconnectSceneOverlay(SessionAnimationOverlay):
+    """Специализированный оверлей для действия 'power_off' (Разрыв нейросвязи)."""
+
+    def __init__(
+        self,
+        screen_rect: QRect,
+        window_rect: QRect,
+        target: QWidget | None = None,
+        parent: QWidget | None = None,
+        on_finished: Callable[[], None] | None = None,
+    ) -> None:
+        super().__init__(
+            screen_rect,
+            window_rect,
+            action="power_off",
+            target=target,
+            parent=parent,
+            on_finished=on_finished,
+        )
+
+
+class RebootCycleOverlay(SessionAnimationOverlay):
+    """Специализированный оверлей для действия 'reboot' (Цикл буйного перезапуска)."""
+
+    def __init__(
+        self,
+        screen_rect: QRect,
+        window_rect: QRect,
+        target: QWidget | None = None,
+        parent: QWidget | None = None,
+        on_finished: Callable[[], None] | None = None,
+    ) -> None:
+        super().__init__(
+            screen_rect,
+            window_rect,
+            action="reboot",
+            target=target,
+            parent=parent,
+            on_finished=on_finished,
+        )
+
+
+class CryostasisSceneOverlay(SessionAnimationOverlay):
+    """Специализированный оверлей для действия 'suspend' (Криостазис)."""
+
+    def __init__(
+        self,
+        screen_rect: QRect,
+        window_rect: QRect,
+        target: QWidget | None = None,
+        parent: QWidget | None = None,
+        on_finished: Callable[[], None] | None = None,
+    ) -> None:
+        super().__init__(
+            screen_rect,
+            window_rect,
+            action="suspend",
+            target=target,
+            parent=parent,
+            on_finished=on_finished,
+        )
+
+
 def play_session_animation(
     target: QWidget,
     action: str,
     on_finished: Callable[[], None] | None = None,
 ) -> SessionAnimationOverlay:
-
+    """Создает и запускает специализированный сюжетный оверлей сессионного действия."""
     screen = target.screen() or QGuiApplication.primaryScreen()
     screen_rect = (
         screen.geometry() if screen is not None else target.geometry()
     )
-    overlay = SessionAnimationOverlay(
-        screen_rect,
-        target.geometry(),
-        action,
-        target=target,
-        on_finished=on_finished,
-    )
+    window_rect = target.geometry()
+
+    overlay_cls: type[SessionAnimationOverlay]
+    if action == "lock":
+        overlay_cls = LockdownSceneOverlay
+    elif action in ("power_off", "poweroff"):
+        overlay_cls = DisconnectSceneOverlay
+    elif action == "reboot":
+        overlay_cls = RebootCycleOverlay
+    elif action in ("suspend", "sleep"):
+        overlay_cls = CryostasisSceneOverlay
+    else:
+        overlay_cls = SessionAnimationOverlay
+
+    if overlay_cls is SessionAnimationOverlay:
+        overlay = SessionAnimationOverlay(
+            screen_rect,
+            window_rect,
+            action,
+            target=target,
+            on_finished=on_finished,
+        )
+    else:
+        overlay = overlay_cls(
+            screen_rect,
+            window_rect,
+            target=target,
+            on_finished=on_finished,
+        )
     overlay.start()
     return overlay

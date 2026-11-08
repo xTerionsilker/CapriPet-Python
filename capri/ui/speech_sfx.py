@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Master audio parameters (Studio Trigger cyber soundscape)
 DEFAULT_SAMPLE_RATE: int = 44100
-SFX_VERSION: str = "v2_trigger"  # Bust cache on generator update
+SFX_VERSION: str = "v3_cinematic"  # Bust cache on generator update
 
 
 def _write_wav_16bit(file_path: Path, frames: bytearray, sample_rate: int = DEFAULT_SAMPLE_RATE) -> None:
@@ -320,8 +320,9 @@ def _generate_lightning_zap_wav(
 
 
 def _generate_session_lock_wav(
-    file_path: Path, sample_rate: int = 44100, duration: float = 0.72
+    file_path: Path, sample_rate: int = 44100, duration: float = 1.10
 ) -> None:
+    """Смертоносный локдаун: тревожная сирена перехвата, лязг затвора и статика."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(2024)
@@ -329,49 +330,46 @@ def _generate_session_lock_wav(
         t = i / sample_rate
         p = t / duration
 
-        servo = 0.0
-        if t < 0.26:
-            sp = t / 0.26
-            freq = 170.0 + 460.0 * sp
-            servo_env = math.sin(math.pi * sp) ** 1.2
-            servo = (
-                0.55 * math.sin(2.0 * math.pi * freq * t)
-                + 0.25 * math.sin(2.0 * math.pi * freq * 2.0 * t)
-                + 0.20 * rng.uniform(-1.0, 1.0)
-            ) * servo_env
+        # 1. Тяжелая тревожная двухтональная сирена изоляции (sweep 420-880 Hz)
+        siren_phase = math.sin(2.0 * math.pi * 3.8 * t)
+        siren_freq = 520.0 + 340.0 * (0.5 + 0.5 * siren_phase)
+        siren_env = min(1.0, t / 0.08) * max(0.0, 1.0 - p * 0.45)
+        siren = (
+            0.50 * math.sin(2.0 * math.pi * siren_freq * t)
+            + 0.25 * math.tanh(math.sin(2.0 * math.pi * siren_freq * 1.5 * t) * 2.5)
+        ) * siren_env
 
-        beep = 0.0
-        for start, freq in ((0.28, 1180.0), (0.42, 1760.0)):
-            if start <= t < start + 0.10:
-                bp = (t - start) / 0.10
-                env = math.sin(math.pi * bp) ** 1.4
-                beep += 0.36 * math.sin(2.0 * math.pi * freq * t) * env
-
-        click = 0.0
-        if 0.25 <= t < 0.29:
-            click = (
-                0.22 * rng.uniform(-1.0, 1.0) * (1.0 - (t - 0.25) / 0.04)
+        # 2. Гидравлический лязг барьера оцепления на 0.35s
+        clank = 0.0
+        if 0.34 <= t < 0.55:
+            cp = (t - 0.34) / 0.21
+            clank_freq = 210.0 * math.exp(-4.5 * cp)
+            clank_env = (1.0 - cp) ** 2.2
+            clank = (
+                0.60 * math.sin(2.0 * math.pi * clank_freq * t)
+                + 0.35 * rng.uniform(-1.0, 1.0) * clank_env
             )
 
-        val = (
-            math.tanh((servo + beep + click) * 1.35)
-            * 0.62
-            * (1.0 - p * 0.25)
-        )
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+        # 3. Финальный подтверждающий щелчок блокировки на 0.75s
+        snap = 0.0
+        if 0.74 <= t < 0.88:
+            sp = (t - 0.74) / 0.14
+            snap_env = math.sin(math.pi * sp) ** 1.8
+            snap = (
+                0.45 * math.sin(2.0 * math.pi * 1760.0 * t)
+                + 0.30 * math.sin(2.0 * math.pi * 2640.0 * t)
+            ) * snap_env
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+        val = _pack_sample(siren + clank + snap, drive=1.35, master_gain=0.92)
+        frames.extend(val)
+
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_session_power_wav(
-    file_path: Path, sample_rate: int = 44100, duration: float = 0.95
+    file_path: Path, sample_rate: int = 44100, duration: float = 1.30
 ) -> None:
+    """Разрыв нейросвязи: кинетический импульс, затухающий спад катушек и схлопывание ЭЛТ."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(404)
@@ -379,134 +377,110 @@ def _generate_session_power_wav(
         t = i / sample_rate
         p = t / duration
 
-        freq = 72.0 + 820.0 * math.exp(-3.8 * p)
-        env = (1.0 - p) ** 0.55
-        tone = (
-            0.52 * math.sin(2.0 * math.pi * freq * t)
-            + 0.22 * math.sin(2.0 * math.pi * freq * 0.5 * t)
-            + 0.18 * math.tanh(math.sin(2.0 * math.pi * freq * t) * 3.0)
-        ) * env
+        # 1. Начальный высоковольтный импульс разрыва нейролинка (0.00 - 0.15s)
+        zap = 0.0
+        if t < 0.15:
+            zp = t / 0.15
+            zap_env = (1.0 - zp) ** 1.5
+            zap = (
+                0.70 * math.sin(2.0 * math.pi * (3400.0 - 2600.0 * zp) * t)
+                + 0.40 * rng.uniform(-1.0, 1.0)
+            ) * zap_env
 
-        clatter = 0.0
-        if 0.18 <= t < 0.30:
-            clatter = (
-                0.28 * rng.uniform(-1.0, 1.0) * (1.0 - (t - 0.18) / 0.12)
-            )
+        # 2. Гул падающего напряжения и разряда мощных конденсаторов
+        spool_freq = 180.0 * math.exp(-3.2 * p)
+        spool_env = (1.0 - p) ** 0.85
+        spool = (
+            0.50 * math.sin(2.0 * math.pi * spool_freq * t)
+            + 0.25 * math.tanh(math.sin(2.0 * math.pi * spool_freq * 2.0 * t) * 2.0)
+        ) * spool_env
 
-        thud = 0.0
-        if 0.55 <= t < 0.95:
-            tp = (t - 0.55) / 0.40
-            thud = (
-                0.55
-                * math.sin(2.0 * math.pi * (48.0 - 16.0 * tp) * t)
-                * (1.0 - tp) ** 2.0
-            )
+        # 3. Финальный хлопок схлопывания ЭЛТ-луча в точку (0.85 - 1.25s)
+        crt_pop = 0.0
+        if 0.85 <= t < 1.25:
+            cp = (t - 0.85) / 0.40
+            crt_freq = 60.0 * math.exp(-6.0 * cp)
+            crt_pop = (
+                0.60 * math.sin(2.0 * math.pi * crt_freq * t)
+                + 0.20 * rng.uniform(-1.0, 1.0) * (1.0 - cp) ** 2.0
+            ) * math.sin(math.pi * cp)
 
-        val = math.tanh((tone + clatter + thud) * 1.25) * 0.70
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+        val = _pack_sample(zap + spool + crt_pop, drive=1.40, master_gain=0.94)
+        frames.extend(val)
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_session_suspend_wav(
-    file_path: Path, sample_rate: int = 44100, duration: float = 1.05
+    file_path: Path, sample_rate: int = 44100, duration: float = 1.25
 ) -> None:
+    """Криостазис: глубокий суб-басовый гул, затухающие гармоники и медленный кардио-импульс."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
 
-        breath = math.sin(
-            2.0
-            * math.pi
-            * (78.0 + 9.0 * math.sin(2.0 * math.pi * 0.7 * t))
-            * t
-        )
+        # 1. Глубокое дыхание крио-камеры (низкочастотный суб-бас 55-45 Hz)
+        sub_freq = 55.0 - 15.0 * p
+        breath = math.sin(2.0 * math.pi * sub_freq * t)
+
+        # 2. Холодный эмбиентный пэд в тональности ре-минор
         pad = (
-            (
-                0.42 * math.sin(2.0 * math.pi * 146.83 * t)
-                + 0.24 * math.sin(2.0 * math.pi * 220.0 * t)
-                + 0.18 * math.sin(2.0 * math.pi * 293.66 * t)
-            )
-            * (0.55 + 0.45 * math.sin(2.0 * math.pi * 1.6 * t))
-            * 0.6
-        )
+            0.35 * math.sin(2.0 * math.pi * 146.83 * t)
+            + 0.25 * math.sin(2.0 * math.pi * 220.0 * t)
+            + 0.15 * math.sin(2.0 * math.pi * 293.66 * t)
+        ) * (0.6 + 0.4 * math.sin(2.0 * math.pi * 1.2 * t))
 
-        blip = 0.0
-        if 0.20 <= t < 0.34:
-            bp = (t - 0.20) / 0.14
-            blip = (
-                0.30
-                * math.sin(2.0 * math.pi * (880.0 - 240.0 * bp) * t)
-                * math.sin(math.pi * bp)
-            )
+        # 3. Редкий затухающий пульс биочипа на 0.25s и 0.70s
+        pulse = 0.0
+        for center_t in (0.25, 0.70):
+            if abs(t - center_t) < 0.06:
+                diff = (t - center_t) / 0.06
+                pulse += 0.28 * math.sin(2.0 * math.pi * 880.0 * t) * (1.0 - diff * diff)
 
-        fade = min(1.0, t / 0.08) * (1.0 - p) ** 1.1
-        val = math.tanh((breath * 0.40 + pad + blip) * 1.2) * 0.60 * fade
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+        fade = min(1.0, t / 0.10) * max(0.0, (1.0 - p) ** 1.3)
+        val = _pack_sample((breath * 0.45 + pad * 0.40 + pulse * 0.35) * fade, drive=1.20, master_gain=0.90)
+        frames.extend(val)
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_session_reboot_wav(
-    file_path: Path, sample_rate: int = 44100, duration: float = 0.95
+    file_path: Path, sample_rate: int = 44100, duration: float = 1.20
 ) -> None:
+    """Цикл буйного перезапуска: восходящий разгон шин памяти, щелчки реле и росчерки молний."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(777)
-    notes = (261.63, 329.63, 392.0, 523.25, 659.25, 783.99)
     for i in range(num_samples):
         t = i / sample_rate
         p = t / duration
 
-        note_index = min(len(notes) - 1, int(p * len(notes) * 1.2))
-        freq = notes[note_index]
-        gate = 0.55 + 0.45 * math.sin(2.0 * math.pi * 7.0 * t)
-        arp = (
-            0.36 * math.sin(2.0 * math.pi * freq * t)
-            + 0.18 * math.sin(2.0 * math.pi * freq * 2.0 * t)
-        ) * gate
+        # 1. Восходящий турбо-разгон шины данных (pitch bend 120 -> 1800 Hz)
+        spool_freq = 120.0 + 1680.0 * (p**2.2)
+        spool = 0.45 * math.sin(2.0 * math.pi * spool_freq * t)
 
-        static = 0.0
-        if p < 0.35:
-            static = 0.11 * rng.uniform(-1.0, 1.0) * (1.0 - p / 0.35)
+        # 2. Быстрые триггерные арпеджио и пакеты данных
+        burst = 0.0
+        if 0.20 <= t < 0.75:
+            step = int((t - 0.20) * 16.0)
+            note_freq = 330.0 * (1.25 ** (step % 6))
+            burst = 0.35 * math.sin(2.0 * math.pi * note_freq * t)
 
-        lock_beep = 0.0
-        if 0.72 <= t < 0.88:
-            bp = (t - 0.72) / 0.16
-            lock_beep = (
-                0.30
-                * math.sin(2.0 * math.pi * 1568.0 * t)
-                * math.sin(math.pi * bp) ** 1.3
-            )
+        # 3. Электрический щелчок реле и перегрузка Acid Green на 0.85s
+        relay = 0.0
+        if 0.82 <= t < 0.98:
+            rp = (t - 0.82) / 0.16
+            relay = (
+                0.60 * math.sin(2.0 * math.pi * 180.0 * t)
+                + 0.40 * rng.uniform(-1.0, 1.0)
+            ) * math.sin(math.pi * rp)
 
-        val = (
-            math.tanh((arp + static + lock_beep) * 1.35)
-            * 0.58
-            * (1.0 - p * 0.18)
-        )
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+        val = _pack_sample(spool + burst + relay, drive=1.45, master_gain=0.92)
+        frames.extend(val)
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_target_acquired_wav(

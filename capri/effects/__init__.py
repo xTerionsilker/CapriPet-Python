@@ -16,6 +16,10 @@ from .glitch import (
 )
 from .model_init_animation import ModelInitOverlay
 from .session_animations import (
+    CryostasisSceneOverlay,
+    DisconnectSceneOverlay,
+    LockdownSceneOverlay,
+    RebootCycleOverlay,
     SessionAnimationOverlay,
     play_session_animation,
 )
@@ -36,6 +40,10 @@ __all__ = [
     "paint_subtle_noise",
     "ModelInitOverlay",
     "SessionAnimationOverlay",
+    "LockdownSceneOverlay",
+    "DisconnectSceneOverlay",
+    "RebootCycleOverlay",
+    "CryostasisSceneOverlay",
     "play_session_animation",
     "TransitionOverlay",
 ]

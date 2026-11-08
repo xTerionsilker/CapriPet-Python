@@ -672,3 +672,223 @@ class SessionAnimEffectsMixin:
                         step,
                         _with_alpha(accent, int(120 * intensity)),
                     )
+
+    def _paint_lockdown_lasers(
+        self,
+        painter: QPainter,
+        rect: QRect,
+        p: float,
+        accent: QColor,
+        counter: QColor,
+    ) -> None:
+        """Смертоносный локдаун: стягивающиеся лазерные барьеры безопасности и хазард-полосы."""
+        w, h = rect.width(), rect.height()
+        if w <= 0 or h <= 0:
+            return
+
+        # 1. Стягивающиеся барьеры изоляции с 4 сторон
+        curtain_w = snap_pixel(int((w // 2) * min(1.0, p * 1.15)))
+        curtain_h = snap_pixel(int((h // 2) * min(1.0, p * 1.15)))
+
+        # Затворы оцепления
+        painter.fillRect(0, 0, curtain_w, h, _with_alpha(COLOR_OBSIDIAN, 230))
+        painter.fillRect(w - curtain_w, 0, curtain_w, h, _with_alpha(COLOR_OBSIDIAN, 230))
+        painter.fillRect(0, 0, w, curtain_h, _with_alpha(COLOR_OBSIDIAN, 230))
+        painter.fillRect(0, h - curtain_h, w, curtain_h, _with_alpha(COLOR_OBSIDIAN, 230))
+
+        # 2. Неоновые лазерные кромки барьеров
+        laser_pen = QPen(_with_alpha(accent, 240), PIXEL_SIZE * 2)
+        painter.setPen(laser_pen)
+        painter.drawLine(curtain_w, 0, curtain_w, h)
+        painter.drawLine(w - curtain_w, 0, w - curtain_w, h)
+        painter.drawLine(0, curtain_h, w, curtain_h)
+        painter.drawLine(0, h - curtain_h, w, h - curtain_h)
+
+        # 3. Диагональные хазард-полосы на затворах (Blackwall Hazard)
+        step = PIXEL_SIZE * 8
+        hazard_pen = QPen(_with_alpha(accent, 90), PIXEL_SIZE * 2)
+        painter.setPen(hazard_pen)
+        if curtain_w > step:
+            for x in range(0, curtain_w + h, step):
+                painter.drawLine(x, 0, x - h, h)
+            for x in range(w - curtain_w, w + h, step):
+                painter.drawLine(x, 0, x - h, h)
+
+        # 4. Штамп аварийного перехвата контроля (Lockdown Stamp) на p > 0.40
+        if p >= 0.40:
+            stamp_p = min(1.0, (p - 0.40) / 0.25)
+            stamp_w, stamp_h = min(w - 40, 520), 120
+            stamp_rect = QRect((w - stamp_w) // 2, (h - stamp_h) // 2, stamp_w, stamp_h)
+
+            painter.fillRect(stamp_rect, _with_alpha(COLOR_OBSIDIAN, int(245 * stamp_p)))
+            painter.setPen(QPen(_with_alpha(accent, int(255 * stamp_p)), PIXEL_SIZE * 2))
+            painter.drawRect(stamp_rect)
+            painter.drawRect(stamp_rect.adjusted(6, 6, -6, -6))
+
+            painter.setFont(_font(16))
+            painter.setPen(_with_alpha(COLOR_WHITE, int(250 * stamp_p)))
+            painter.drawText(
+                stamp_rect.adjusted(0, 16, 0, -48),
+                Qt.AlignmentFlag.AlignCenter,
+                "LOCKDOWN // PROTOCOL ACTIVE",
+            )
+            painter.setFont(_font(9))
+            painter.setPen(_with_alpha(counter, int(220 * stamp_p)))
+            painter.drawText(
+                stamp_rect.adjusted(0, 62, 0, -18),
+                Qt.AlignmentFlag.AlignCenter,
+                "BLACKWALL ISOLATION GRID ENGAGED // HOST SEALED",
+            )
+
+    def _paint_crt_beam_collapse(
+        self,
+        painter: QPainter,
+        rect: QRect,
+        p: float,
+        accent: QColor,
+        counter: QColor,
+    ) -> None:
+        """Разрыв нейросвязи: схлопывание экрана в ЭЛТ-луч («смерть луча») с кинетической вспышкой."""
+        w, h = rect.width(), rect.height()
+        if w <= 0 or h <= 0:
+            return
+
+        # Фаза 1: 0.0 - 0.35: Начальная вспышка и затемнение
+        # Фаза 2: 0.35 - 0.75: Схлопывание по вертикали в узкую горизонтальную полосу
+        # Фаза 3: 0.75 - 1.00: Схлопывание по горизонтали в центральную точку и угасание
+        if p < 0.35:
+            flash = (1.0 - p / 0.35) ** 2.0
+            painter.fillRect(rect, _with_alpha(COLOR_WHITE, int(180 * flash)))
+            return
+
+        cx, cy = w // 2, h // 2
+
+        if p < 0.75:
+            collapse_y = (p - 0.35) / 0.40
+            cur_h = max(PIXEL_SIZE * 2, snap_pixel(int(h * (1.0 - collapse_y**1.8))))
+            beam_rect = QRect(0, cy - cur_h // 2, w, cur_h)
+
+            # Черный фон сверху и снизу схлопывающегося луча
+            painter.fillRect(0, 0, w, beam_rect.top(), _with_alpha(COLOR_OBSIDIAN, 255))
+            painter.fillRect(0, beam_rect.bottom(), w, h - beam_rect.bottom(), _with_alpha(COLOR_OBSIDIAN, 255))
+
+            # Сверхъяркое ядро луча
+            core_h = max(2, cur_h // 3)
+            painter.fillRect(beam_rect, _with_alpha(accent, 220))
+            painter.fillRect(0, cy - core_h // 2, w, core_h, _with_alpha(COLOR_WHITE, 250))
+        else:
+            collapse_x = (p - 0.75) / 0.25
+            cur_w = max(PIXEL_SIZE * 2, snap_pixel(int(w * (1.0 - collapse_x**2.0))))
+            cur_h = max(2, snap_pixel(int(PIXEL_SIZE * 4 * (1.0 - collapse_x))))
+            beam_rect = QRect(cx - cur_w // 2, cy - cur_h // 2, cur_w, cur_h)
+
+            painter.fillRect(rect, _with_alpha(COLOR_OBSIDIAN, 255))
+            painter.fillRect(beam_rect, _with_alpha(counter, 230))
+            painter.fillRect(beam_rect.adjusted(2, 0, -2, 0), _with_alpha(COLOR_WHITE, 255))
+
+            # Точка затухания
+            dot_radius = max(1, int(6 * (1.0 - collapse_x)))
+            dot_rect = QRect(cx - dot_radius, cy - dot_radius, dot_radius * 2, dot_radius * 2)
+            painter.fillRect(dot_rect, _with_alpha(COLOR_WHITE, int(255 * (1.0 - collapse_x))))
+
+    def _paint_reboot_rings(
+        self,
+        painter: QPainter,
+        rect: QRect,
+        p: float,
+        accent: QColor,
+        counter: QColor,
+    ) -> None:
+        """Цикл буйного перезапуска: вращающиеся кольца калибровки с гексагональными стримами данных."""
+        w, h = rect.width(), rect.height()
+        if w <= 0 or h <= 0:
+            return
+
+        cx, cy = w // 2, h // 2
+        base_radius = min(w, h) // 4
+
+        # 3 концентрических вращающихся кольца с противоположным направлением
+        for idx, (r_mult, speed, span, col) in enumerate(
+            (
+                (0.65, 3.5, 45, accent),
+                (1.00, -2.5, 30, counter),
+                (1.35, 4.0, 60, COLOR_WHITE),
+            )
+        ):
+            r = snap_pixel(int(base_radius * r_mult))
+            ring_rect = QRect(cx - r, cy - r, r * 2, r * 2)
+            angle_start = int((p * 360 * speed + idx * 60) % 360)
+
+            painter.setPen(QPen(_with_alpha(col, 220), PIXEL_SIZE * 2))
+            for i in range(4):
+                painter.drawArc(ring_rect, (angle_start + i * 90) * 16, span * 16)
+
+        # Телеметрия частоты шины по центру
+        freq_mhz = int(1200 + 3800 * (p**2.0))
+        painter.setFont(_font(14))
+        painter.setPen(_with_alpha(COLOR_WHITE, 240))
+        center_text = f"SPOOL: {freq_mhz} MHz"
+        painter.drawText(
+            QRect(cx - 180, cy - 20, 360, 40),
+            Qt.AlignmentFlag.AlignCenter,
+            center_text,
+        )
+
+        # Acid Green импульсные молнии при перезапуске на p > 0.60
+        if p >= 0.55:
+            bolt_pen = QPen(_with_alpha(COLOR_ACID_GREEN, 230), PIXEL_SIZE * 2)
+            painter.setPen(bolt_pen)
+            rng = random.Random(int(p * 100) + self._frame)
+            for _ in range(3):
+                lx = cx + rng.randint(-base_radius, base_radius)
+                ly = cy + rng.randint(-base_radius, base_radius)
+                painter.drawLine(lx, ly, lx + rng.randint(-40, 40), ly + rng.randint(-40, 40))
+
+    def _paint_cryostasis_waves(
+        self,
+        painter: QPainter,
+        rect: QRect,
+        p: float,
+        accent: QColor,
+        counter: QColor,
+    ) -> None:
+        """Криостазис: охлаждение палитры, затухающие синусоиды импульсов жизни биочипа."""
+        w, h = rect.width(), rect.height()
+        if w <= 0 or h <= 0:
+            return
+
+        # 1. Охлаждающая градиентная вуаль (Neon Crimson -> Violet -> Electric Blue)
+        cooling_alpha = int(160 * min(1.0, p * 1.3))
+        painter.fillRect(rect, _with_alpha(COLOR_VIOLET, cooling_alpha // 2))
+        painter.fillRect(rect, _with_alpha(COLOR_ELECTRIC_BLUE, cooling_alpha // 3))
+
+        # 2. Кардиограмма / пульс биочипа по центру экрана
+        cy = h // 2
+        painter.setPen(QPen(_with_alpha(counter, 220), PIXEL_SIZE * 2))
+
+        # Плавное угасание амплитуды (синаптическое охлаждение)
+        amp = max(2.0, (1.0 - p**1.2) * (h // 6))
+        freq = 0.015 * (1.0 - p * 0.4)
+
+        prev_x = 0
+        prev_y = cy
+        step = PIXEL_SIZE * 4
+        for x in range(0, w + step, step):
+            wave_y = int(cy + amp * math.sin(x * freq + p * 8.0))
+            # Кардио-всплеск биочипа каждые 400 пикселей
+            if (x % 380) < 60:
+                surge = math.sin((x % 380) / 60.0 * math.pi) * amp * 1.5
+                wave_y += int(surge if (x // 380) % 2 == 0 else -surge)
+            painter.drawLine(prev_x, prev_y, x, wave_y)
+            prev_x, prev_y = x, wave_y
+
+        # 3. Индикатор крио-сна
+        if p >= 0.30:
+            stasis_p = min(1.0, (p - 0.30) / 0.30)
+            painter.setFont(_font(13))
+            painter.setPen(_with_alpha(COLOR_WHITE, int(230 * stasis_p)))
+            painter.drawText(
+                QRect(0, cy + 60, w, 40),
+                Qt.AlignmentFlag.AlignCenter,
+                "CRYOSTASIS // SYNAPSE RATE: MINIMAL",
+            )
