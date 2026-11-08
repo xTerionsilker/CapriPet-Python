@@ -11,6 +11,7 @@ import math
 import random
 import struct
 import tempfile
+import threading
 import time
 import wave
 from pathlib import Path
@@ -638,6 +639,53 @@ def _generate_core_destabilize_wav(
     _write_wav_16bit(file_path, frames, sample_rate)
 
 
+def _ensure_wav_cache_sync(temp_dir: Path) -> None:
+    """Генерирует отсутствующие процедурные WAV файлы в кэше."""
+    try:
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        jobs = [
+            (temp_dir / "cyber_swoosh.wav", lambda p: _generate_swoosh_wav(p)),
+            (temp_dir / "cyber_close.wav", lambda p: _generate_close_wav(p)),
+            (temp_dir / "retro_chirp.wav", lambda p: _generate_chirp_wav(p)),
+            (temp_dir / "cyber_lightning_strike.wav", lambda p: _generate_lightning_strike_wav(p)),
+            (temp_dir / "cyber_lightning_arc.wav", lambda p: _generate_lightning_arc_wav(p)),
+            (temp_dir / "cyber_lightning_zap.wav", lambda p: _generate_lightning_zap_wav(p)),
+            (temp_dir / "cyber_teleport_drop.wav", lambda p: _generate_teleport_drop_wav(p)),
+            (temp_dir / "cyber_target_acquired.wav", lambda p: _generate_target_acquired_wav(p)),
+            (temp_dir / "cyber_data_rip.wav", lambda p: _generate_data_rip_wav(p)),
+            (temp_dir / "cyber_voice_start.wav", lambda p: _generate_voice_start_wav(p)),
+            (temp_dir / "cyber_voice_success.wav", lambda p: _generate_voice_success_wav(p)),
+            (temp_dir / "cyber_voice_cancel.wav", lambda p: _generate_voice_cancel_wav(p)),
+            (temp_dir / "cyber_core_destabilize.wav", lambda p: _generate_core_destabilize_wav(p)),
+            (temp_dir / "cyber_session_lock.wav", lambda p: _generate_session_lock_wav(p)),
+            (temp_dir / "cyber_session_power.wav", lambda p: _generate_session_power_wav(p)),
+            (temp_dir / "cyber_session_suspend.wav", lambda p: _generate_session_suspend_wav(p)),
+            (temp_dir / "cyber_session_reboot.wav", lambda p: _generate_session_reboot_wav(p)),
+            (temp_dir / "cyber_chirp_normal.wav", lambda p: _generate_chirp_wav(p, style="normal")),
+            (temp_dir / "cyber_chirp_exclamation.wav", lambda p: _generate_chirp_wav(p, style="exclamation")),
+            (temp_dir / "cyber_chirp_question.wav", lambda p: _generate_chirp_wav(p, style="question")),
+            (temp_dir / "cyber_chirp_ellipsis.wav", lambda p: _generate_chirp_wav(p, style="ellipsis")),
+        ]
+        for path, generator in jobs:
+            if not path.exists():
+                generator(path)
+    except Exception as exc:
+        logger.warning("Ошибка при фоновой генерации SFX кэша: %s", exc)
+
+
+def preload_sfx_cache_async() -> threading.Thread:
+    """Запускает фоновый воркер предварительной генерации аудио-файлов без блокировки UI."""
+    temp_dir = Path(tempfile.gettempdir()) / f"capri_sfx_{SFX_VERSION}"
+    thread = threading.Thread(
+        target=_ensure_wav_cache_sync,
+        args=(temp_dir,),
+        name="CapriSfxPreloadThread",
+        daemon=True,
+    )
+    thread.start()
+    return thread
+
+
 class SpeechSFX(QObject):
     """Менеджер процедурных звуковых эффектов речи и интерфейсных событий."""
 
@@ -727,32 +775,7 @@ class SpeechSFX(QObject):
                 ),
             }
 
-            if not swoosh_path.exists():
-                _generate_swoosh_wav(swoosh_path)
-            if not close_path.exists():
-                _generate_close_wav(close_path)
-            if not chirp_path.exists():
-                _generate_chirp_wav(chirp_path)
-            if not strike_path.exists():
-                _generate_lightning_strike_wav(strike_path)
-            if not arc_path.exists():
-                _generate_lightning_arc_wav(arc_path)
-            if not zap_path.exists():
-                _generate_lightning_zap_wav(zap_path)
-            if not drop_path.exists():
-                _generate_teleport_drop_wav(drop_path)
-            if not target_path.exists():
-                _generate_target_acquired_wav(target_path)
-            if not data_rip_path.exists():
-                _generate_data_rip_wav(data_rip_path)
-            if not voice_start_path.exists():
-                _generate_voice_start_wav(voice_start_path)
-            if not voice_success_path.exists():
-                _generate_voice_success_wav(voice_success_path)
-            if not voice_cancel_path.exists():
-                _generate_voice_cancel_wav(voice_cancel_path)
-            if not core_destabilize_path.exists():
-                _generate_core_destabilize_wav(core_destabilize_path)
+            _ensure_wav_cache_sync(temp_dir)
 
             self._swoosh_path = swoosh_path
             self._close_path = close_path
@@ -768,10 +791,8 @@ class SpeechSFX(QObject):
             self._voice_cancel_path = voice_cancel_path
             self._core_destabilize_path = core_destabilize_path
 
-            for action, (filename, generator) in session_specs.items():
+            for action, (filename, _generator) in session_specs.items():
                 path = temp_dir / filename
-                if not path.exists():
-                    generator(path)
                 self._session_paths[action] = path
                 effect = QSoundEffect(self)
                 effect.setSource(QUrl.fromLocalFile(str(path)))
@@ -838,15 +859,13 @@ class SpeechSFX(QObject):
             core_destab_sfx.setVolume(self._volume * 0.8)
             self._core_destabilize_effect = core_destab_sfx
 
-            # Генерация и пул эмоциональных звуков речи
+            # Пул эмоциональных звуков речи
             self._chirp_paths_by_style = {}
             self._chirp_pools_by_style = {}
             self._chirp_indices_by_style = {}
             styles = ("normal", "exclamation", "question", "ellipsis")
             for st in styles:
                 st_path = temp_dir / f"cyber_chirp_{st}.wav"
-                if not st_path.exists():
-                    _generate_chirp_wav(st_path, style=st)
                 self._chirp_paths_by_style[st] = st_path
                 st_pool: list[QSoundEffect] = []
                 st_url = QUrl.fromLocalFile(str(st_path))

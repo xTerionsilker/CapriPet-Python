@@ -11,11 +11,13 @@ from PySide6.QtWidgets import QApplication
 from capri import CapriWindow
 from capri.audio.recognizer import preload_model_async
 from capri.core.settings import get_config_value, init_user_agent_async
+from capri.ui.speech_sfx import preload_sfx_cache_async
 from capri.ui.theme import init_fonts
 
 
 def main() -> int:
     QLoggingCategory.setFilterRules("qt.multimedia*=false")
+    preload_sfx_cache_async()
     if get_config_value("audio.voice_enabled", True):
         preload_model_async()
     init_user_agent_async()
