@@ -107,6 +107,7 @@ sequenceDiagram
     participant Orch as orchestrator.py
     participant Cmd as commands/registry & handlers
     participant Integ as integrations
+    participant SFX as SpeechSFX
     participant UI as UI & Effects (HUD)
 
     User->>Voice: «Капри, запусти блокнот»
@@ -114,6 +115,7 @@ sequenceDiagram
     ASR->>Core: Распознанная строка («капри запусти блокнот»)
     Core->>Core: Детекция триггера «капри» + нормализация
     Core->>Orch: Команда: «запусти блокнот»
+    Orch->>SFX: play_voice_success() (кибер-аккорд)
     Orch->>UI: Активация Voice HUD (распознано)
     Orch->>Cmd: Поиск команды в реестре
     Cmd->>Integ: app_launcher.launch("блокнот")
