@@ -558,6 +558,86 @@ def _generate_data_rip_wav(
     _write_wav_16bit(file_path, frames, sample_rate)
 
 
+def _generate_voice_start_wav(
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 0.08
+) -> None:
+    """Открытие канала нейролинка: двойной быстрый высокочастотный чирп-импульс."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+        # Двойной щелчок (2.8 кГц и 3.6 кГц)
+        freq = 2800.0 if p < 0.45 else 3600.0
+        part_p = (p / 0.45) if p < 0.45 else ((p - 0.45) / 0.55)
+        env = (1.0 - part_p) ** 2.0
+        val = math.sin(2.0 * math.pi * freq * t) * env
+        frames.extend(_pack_sample(val, drive=1.4, master_gain=0.82))
+
+    _write_wav_16bit(file_path, frames, sample_rate)
+
+
+def _generate_voice_success_wav(
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 0.14
+) -> None:
+    """Подтверждение распознанной голосовой команды: восходящий кибер-аккорд."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    # Трезвучие пентатоники киберпанка
+    tones = (1318.51, 1760.0, 2637.02)  # E6, A6, E7
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+        tone_idx = min(len(tones) - 1, int(p * len(tones) * 1.05))
+        freq = tones[tone_idx]
+        env = (1.0 - p) ** 1.3
+        sine = math.sin(2.0 * math.pi * freq * t)
+        val = (sine + 0.25 * math.sin(2.0 * math.pi * freq * 2.0 * t)) * env
+        frames.extend(_pack_sample(val, drive=1.3, master_gain=0.85))
+
+    _write_wav_16bit(file_path, frames, sample_rate)
+
+
+def _generate_voice_cancel_wav(
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 0.11
+) -> None:
+    """Сброс/таймаут голосового ввода: нисходящий деактивационный срез."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+        freq = 2200.0 * math.exp(-7.5 * p) + 160.0
+        env = (1.0 - p) ** 1.8
+        val = math.sin(2.0 * math.pi * freq * t) * env
+        frames.extend(_pack_sample(val, drive=1.5, master_gain=0.80))
+
+    _write_wav_16bit(file_path, frames, sample_rate)
+
+
+def _generate_core_destabilize_wav(
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 0.40
+) -> None:
+    """Нарастающий писк катушек и дестабилизация ядра биочипа при скуке/перегрузке."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(99)
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+        # Вой катушек нарастает от 2 кГц до 7.5 кГц
+        carrier_freq = 2100.0 + 5400.0 * (p**2.2)
+        coil = math.sin(2.0 * math.pi * carrier_freq * t)
+        # Интермодуляционный биения и электрические спарки
+        fm = math.sin(2.0 * math.pi * 32.0 * t)
+        spark = rng.uniform(-0.4, 0.4) if rng.random() < 0.15 else 0.0
+        env = math.sin(math.pi * p) ** 0.8
+        val = (coil * (0.8 + 0.2 * fm) + spark) * env
+        frames.extend(_pack_sample(val, drive=2.0, master_gain=0.78))
+
+    _write_wav_16bit(file_path, frames, sample_rate)
+
+
 class SpeechSFX(QObject):
     """Менеджер процедурных звуковых эффектов речи и интерфейсных событий."""
 
@@ -579,6 +659,10 @@ class SpeechSFX(QObject):
         self._lightning_zap_path: Path | None = None
         self._target_acquired_path: Path | None = None
         self._data_rip_path: Path | None = None
+        self._voice_start_path: Path | None = None
+        self._voice_success_path: Path | None = None
+        self._voice_cancel_path: Path | None = None
+        self._core_destabilize_path: Path | None = None
         self._session_paths: dict[str, Path] = {}
 
         self._swoosh_effect: QSoundEffect | None = None
@@ -588,6 +672,10 @@ class SpeechSFX(QObject):
         self._lightning_zap_effect: QSoundEffect | None = None
         self._target_acquired_effect: QSoundEffect | None = None
         self._data_rip_effect: QSoundEffect | None = None
+        self._voice_start_effect: QSoundEffect | None = None
+        self._voice_success_effect: QSoundEffect | None = None
+        self._voice_cancel_effect: QSoundEffect | None = None
+        self._core_destabilize_effect: QSoundEffect | None = None
         self._session_effects: dict[str, QSoundEffect] = {}
         self._chirp_pool: list[QSoundEffect] = []
         self._chirp_index = 0
@@ -615,6 +703,10 @@ class SpeechSFX(QObject):
             drop_path = temp_dir / "cyber_teleport_drop.wav"
             target_path = temp_dir / "cyber_target_acquired.wav"
             data_rip_path = temp_dir / "cyber_data_rip.wav"
+            voice_start_path = temp_dir / "cyber_voice_start.wav"
+            voice_success_path = temp_dir / "cyber_voice_success.wav"
+            voice_cancel_path = temp_dir / "cyber_voice_cancel.wav"
+            core_destabilize_path = temp_dir / "cyber_core_destabilize.wav"
 
             session_specs = {
                 "lock": (
@@ -653,6 +745,14 @@ class SpeechSFX(QObject):
                 _generate_target_acquired_wav(target_path)
             if not data_rip_path.exists():
                 _generate_data_rip_wav(data_rip_path)
+            if not voice_start_path.exists():
+                _generate_voice_start_wav(voice_start_path)
+            if not voice_success_path.exists():
+                _generate_voice_success_wav(voice_success_path)
+            if not voice_cancel_path.exists():
+                _generate_voice_cancel_wav(voice_cancel_path)
+            if not core_destabilize_path.exists():
+                _generate_core_destabilize_wav(core_destabilize_path)
 
             self._swoosh_path = swoosh_path
             self._close_path = close_path
@@ -663,6 +763,10 @@ class SpeechSFX(QObject):
             self._teleport_drop_path = drop_path
             self._target_acquired_path = target_path
             self._data_rip_path = data_rip_path
+            self._voice_start_path = voice_start_path
+            self._voice_success_path = voice_success_path
+            self._voice_cancel_path = voice_cancel_path
+            self._core_destabilize_path = core_destabilize_path
 
             for action, (filename, generator) in session_specs.items():
                 path = temp_dir / filename
@@ -713,6 +817,26 @@ class SpeechSFX(QObject):
             rip_sfx.setSource(QUrl.fromLocalFile(str(data_rip_path)))
             rip_sfx.setVolume(self._volume * 0.9)
             self._data_rip_effect = rip_sfx
+
+            v_start_sfx = QSoundEffect(self)
+            v_start_sfx.setSource(QUrl.fromLocalFile(str(voice_start_path)))
+            v_start_sfx.setVolume(self._volume * 0.85)
+            self._voice_start_effect = v_start_sfx
+
+            v_succ_sfx = QSoundEffect(self)
+            v_succ_sfx.setSource(QUrl.fromLocalFile(str(voice_success_path)))
+            v_succ_sfx.setVolume(self._volume * 0.85)
+            self._voice_success_effect = v_succ_sfx
+
+            v_canc_sfx = QSoundEffect(self)
+            v_canc_sfx.setSource(QUrl.fromLocalFile(str(voice_cancel_path)))
+            v_canc_sfx.setVolume(self._volume * 0.8)
+            self._voice_cancel_effect = v_canc_sfx
+
+            core_destab_sfx = QSoundEffect(self)
+            core_destab_sfx.setSource(QUrl.fromLocalFile(str(core_destabilize_path)))
+            core_destab_sfx.setVolume(self._volume * 0.8)
+            self._core_destabilize_effect = core_destab_sfx
 
             # Генерация и пул эмоциональных звуков речи
             self._chirp_paths_by_style = {}
@@ -825,6 +949,26 @@ class SpeechSFX(QObject):
             and self._data_rip_effect is not None
         ):
             self._data_rip_effect.setVolume(self._volume * 0.9)
+        if (
+            hasattr(self, "_voice_start_effect")
+            and self._voice_start_effect is not None
+        ):
+            self._voice_start_effect.setVolume(self._volume * 0.85)
+        if (
+            hasattr(self, "_voice_success_effect")
+            and self._voice_success_effect is not None
+        ):
+            self._voice_success_effect.setVolume(self._volume * 0.85)
+        if (
+            hasattr(self, "_voice_cancel_effect")
+            and self._voice_cancel_effect is not None
+        ):
+            self._voice_cancel_effect.setVolume(self._volume * 0.8)
+        if (
+            hasattr(self, "_core_destabilize_effect")
+            and self._core_destabilize_effect is not None
+        ):
+            self._core_destabilize_effect.setVolume(self._volume * 0.8)
         for effect in self._session_effects.values():
             effect.setVolume(self._volume * 0.85)
         for pool in self._chirp_pools_by_style.values():
@@ -884,6 +1028,42 @@ class SpeechSFX(QObject):
         self._play_file(
             getattr(self, "_data_rip_path", None),
             getattr(self, "_data_rip_effect", None),
+        )
+
+    def play_voice_start(self) -> None:
+        """Звук активации голосового прослушивания."""
+        if not self.is_speech_sound_enabled():
+            return
+        self._play_file(
+            getattr(self, "_voice_start_path", None),
+            getattr(self, "_voice_start_effect", None),
+        )
+
+    def play_voice_success(self) -> None:
+        """Звук успешного распознавания команды."""
+        if not self.is_speech_sound_enabled():
+            return
+        self._play_file(
+            getattr(self, "_voice_success_path", None),
+            getattr(self, "_voice_success_effect", None),
+        )
+
+    def play_voice_cancel(self) -> None:
+        """Звук отмены/сброса голосового ожидания."""
+        if not self.is_speech_sound_enabled():
+            return
+        self._play_file(
+            getattr(self, "_voice_cancel_path", None),
+            getattr(self, "_voice_cancel_effect", None),
+        )
+
+    def play_core_destabilize(self) -> None:
+        """Звук перегрузки и нарастающего напряжения ядра."""
+        if not self.is_effects_sound_enabled():
+            return
+        self._play_file(
+            getattr(self, "_core_destabilize_path", None),
+            getattr(self, "_core_destabilize_effect", None),
         )
 
     def play_session_action(self, action: str) -> None:

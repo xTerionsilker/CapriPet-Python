@@ -22,6 +22,7 @@ from ..core.wake_word import (
     VOICE_FOLLOWUP_WINDOW_MS,
     command_after_trigger,
 )
+from .speech_sfx import get_speech_sfx
 from .voice_hud import CyberVoiceHud
 
 if TYPE_CHECKING:
@@ -139,6 +140,7 @@ class VoiceCoordinator(QObject):
         )
         self._voice_window_timer.start(VOICE_COMMAND_WINDOW_MS)
         self._voice.set_armed(True)
+        get_speech_sfx().play_voice_start()
         hud = self.ensure_hud()
         hud.show_hud(status="LISTENING_COMMAND", mode="TRIGGER_DETECTED")
         self._speak_fn(random.choice(WAKE_LINES))
@@ -147,6 +149,7 @@ class VoiceCoordinator(QObject):
         self._voice_armed_until = 0.0
         self._voice_window_timer.stop()
         self._voice.set_armed(False)
+        get_speech_sfx().play_voice_cancel()
         if (
             not self._window.input_flow.awaiting_reply
             and self._hud is not None
@@ -156,6 +159,7 @@ class VoiceCoordinator(QObject):
     def _on_voice_window_expired(self) -> None:
         self._voice_armed_until = 0.0
         self._voice.set_armed(False)
+        get_speech_sfx().play_voice_cancel()
         if (
             not self._window.input_flow.awaiting_reply
             and self._hud is not None
@@ -192,6 +196,7 @@ class VoiceCoordinator(QObject):
             hud.set_recognized_text(text, keep_ms=2500)
 
         if command:
+            get_speech_sfx().play_voice_success()
             self._voice_armed_until = (
                 time.monotonic() + VOICE_FOLLOWUP_WINDOW_MS / 1000
             )

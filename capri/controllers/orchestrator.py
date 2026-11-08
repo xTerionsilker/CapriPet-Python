@@ -43,6 +43,7 @@ from ..integrations.window_tracker import (
     shake_window_hwnd,
 )
 from ..ui.pet_renderer import pick_adjacent_position
+from ..ui.speech_sfx import get_speech_sfx
 from ..ui.voice_coordinator import VoiceCoordinator
 
 
@@ -259,6 +260,7 @@ class PetOrchestrator(QObject):
         target_hwnd = get_foreground_hwnd()
         target_rect = get_active_window_rect()
         effects = getattr(self._window, "effects", None)
+        get_speech_sfx().play_core_destabilize()
 
         def _after_glitch_or_direct() -> None:
             if self._window.is_closing:
