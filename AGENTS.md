@@ -131,3 +131,15 @@ Strict adherence to **Conventional Commits**: `<type>(<scope>): <short descripti
 - **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `chore`.
 - **Allowed Scopes:** `audio`, `asr`, `voice`, `ui`, `theme`, `speech`, `menu`, `effects`, `glitch`, `teleport`, `commands`, `input`, `integrations`, `spotify`, `discord`, `system`, `shredder`, `core`, `config`, `morphology`, `rules`, `docs`.
 - **Formatting:** Imperative present tense ("add", "fix", "refactor"), lowercase, no trailing period, maximum 72 characters for the subject line.
+
+---
+
+## 8. GitHub Issues & Release Notes Conventions
+
+When authoring GitHub issues or milestone notes for new features, bug fixes, or enhancements, strictly adhere to the project's canonical technical style:
+
+- **Issue Title:** Must match Conventional Commits format: `<type>(<scope>): <short description>` (e.g. `feat(effects): cinematic story-driven power and session transition screens` or `feat(ui): add movable Cyber HUD console for direct command input`).
+- **Structure:**
+  1. `## Summary`: Concise technical overview (1-2 paragraphs) of the user-facing capability, architectural rationale, and lore integration.
+  2. `## What's Changed`: Categorized breakdown by subsystem with bolded component names, technical bullet points (Win32 APIs, Qt flags, audio synthesis signatures, algorithms, shortcuts), and lore quotes/reactions where applicable.
+  3. `## Verification & Tests`: Markdown checkbox list (`- [x]`) documenting static compilation (`compileall`), runtime Qt/audio validations, event-loop behavior, and edge-case testing.
