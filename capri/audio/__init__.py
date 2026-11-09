@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from .recognizer import (
-    FasterWhisperBackend,
     ModelStatus,
     RecognitionError,
-    SpeechRecognitionBackend,
     VoskSpeechService,
     check_available,
     create_recognizer,
@@ -28,8 +26,6 @@ __all__ = [
     "SileroVAD",
     "ModelStatus",
     "RecognitionError",
-    "SpeechRecognitionBackend",
-    "FasterWhisperBackend",
     "VoskSpeechService",
     "check_available",
     "create_recognizer",
