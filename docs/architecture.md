@@ -20,7 +20,7 @@ flowchart TB
     subgraph AudioSubsystem["2. Аудио и распознавание (capri.audio)"]
         direction TB
         Voice["voice.py<br/>(Захват звука, Silero VAD)"]
-        ASR["recognizer.py<br/>(Vosk / Faster-Whisper ASR)"]
+        ASR["recognizer.py<br/>(Vosk ASR)"]
         Voice -->|Фреймы речи| ASR
     end
 

@@ -8,7 +8,7 @@
 - Выбранный микрофон (`designated_microphone`)
 - Режим отображения, поза и масштаб (`appearance.pose`, `appearance.scale`, `appearance.skin`)
 - Экранные глитчи и интенсивность (`effects.glitches_enabled`, `effects.glitch_intensity`)
-- Голосовой ввод и ASR (`audio.voice_enabled`, `audio.asr_backend`)
+- Голосовой ввод (`audio.voice_enabled`)
 - Громкость звуковых эффектов и медиа (`audio.volume`, `audio.sfx_volume`, `audio.media_volume`)
 - Позиция окон на экране (`window.position`, `window.terminal_position`, `window.overlay_position`)
 - Начальная поза оверлея (`appearance.overlay_pose`) и скин (`appearance.skin`)
@@ -57,8 +57,7 @@
     "media_volume": 0.6,
     "voice_enabled": true,
     "speech_sound_enabled": true,
-    "effects_sound_enabled": true,
-    "asr_backend": "vosk"
+    "effects_sound_enabled": true
   },
   "appearance": {
     "skin": "default",
@@ -120,7 +119,6 @@
 | `audio.voice_enabled` | `bool` | `true` | Состояние голосового распознавания при старте (`VoiceInput`) |
 | `audio.speech_sound_enabled` | `bool` | `true` | Воспроизведение звуков сообщений и облачков текста |
 | `audio.effects_sound_enabled` | `bool` | `true` | Воспроизведение звуков эффектов и молний |
-| `audio.asr_backend` | `str` | `"vosk"` | Бэкенд распознавания речи: `"vosk"` или `"whisper"` |
 | `appearance.skin` | `str` | `"default"` | Имя скина/пака ресурсов |
 | `appearance.pose` | `str` | `"sit"` | Текущая поза питомца: `"sit"`, `"stay"`, `"crouch"` |
 | `appearance.overlay_pose` | `str` | `"sit"` | Поза оверлея по умолчанию: `"sit"`, `"stay"`, `"crouch"` |
@@ -190,7 +188,7 @@
 - **Выбор монитора:** обновление `screen.designated_screen`.
 - **Выбор микрофона:** обновление `audio.designated_microphone`.
 - **Тумблер глитчей:** обновление `effects.glitches_enabled` и `effects.glitch_intensity`.
-- **Тумблер голоса и бэкенда:** обновление `audio.voice_enabled`, `audio.asr_backend`.
+- **Тумблер голоса:** обновление `audio.voice_enabled`.
 - **Смена позы и масштаба:** обновление `appearance.pose`, `appearance.scale`.
 
 ### 5.2. Сохранение позиции окна

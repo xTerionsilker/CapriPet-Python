@@ -76,17 +76,7 @@ if "!VOSK_FOUND!"=="0" (
     )
 )
 
-REM 5. Download Faster-Whisper base model if missing
-if not exist "models\whisper-base\model.bin" (
-    echo [INFO] Faster-Whisper base model not found in models\whisper-base\. Downloading...
-    if not exist "models" mkdir "models"
-    ".venv\Scripts\python.exe" -c "from faster_whisper import WhisperModel; import shutil, os; from pathlib import Path; print('Downloading Whisper base model (~140MB)...'); WhisperModel('base', device='cpu', compute_type='int8', download_root='models/whisper-base'); snap=list(Path('models/whisper-base').glob('**/snapshots/*')); [shutil.copy2(f, 'models/whisper-base/' + f.name) for f in snap[0].iterdir()] if snap else None; [shutil.rmtree(p, ignore_errors=True) for p in [Path('models/whisper-base/.locks'), Path('models/whisper-base/models--Systran--faster-whisper-base')]]; Path('models/whisper-base/CACHEDIR.TAG').unlink(missing_ok=True); print('[INFO] Faster-Whisper model successfully installed.')"
-    if errorlevel 1 (
-        echo [WARNING] Failed to download Faster-Whisper model.
-    )
-)
-
-REM 6. Launch CapriPet without console window via pythonw.exe
+REM 5. Launch CapriPet without console window via pythonw.exe
 start "" ".venv\Scripts\pythonw.exe" main.py %*
 if errorlevel 1 (
     echo.

@@ -28,7 +28,7 @@ Capri is built around a decoupled Qt/PySide6 architecture with strict layer isol
   - `PetRenderer` (`ui/pet_renderer.py`): Procedural rendering of sprite aura, scanlines, Blackwall glitch outlines, targeting reticles, and consumption vortexes.
   - `SpriteManager` (`ui/sprite_manager.py`): Multi-pose sprite loading, caching, scaling bounds, and pixel-alpha hitbox calculation (`assets/var/`).
   - `CyberHudBubble` & `SpeechSFX` (`ui/speech.py`, `ui/speech_sfx.py`): Holographic cyber speech bubbles with procedural CRT open/close animations and on-the-fly 8-bit/cyber audio synthesis.
-  - `VoiceCoordinator` & `CyberVoiceHud` (`ui/voice_coordinator.py`, `ui/voice_hud.py`): Bottom-screen taskbar HUD displaying Vosk/Whisper recognition states, listening feedback, and command chaining countdowns.
+  - `VoiceCoordinator` & `CyberVoiceHud` (`ui/voice_coordinator.py`, `ui/voice_hud.py`): Bottom-screen taskbar HUD displaying Vosk recognition states, listening feedback, and command chaining countdowns.
   - `TeleportController` (`ui/teleport_controller.py`): Tactical lightning tether and LMB repositioning.
   - `ContextMenuBuilder` & `TrayManager` (`ui/context_menu.py`): Cyberpunk styled context menu and system tray.
 - **Controllers & Orchestration (`capri/controllers/`):**
@@ -47,7 +47,7 @@ Capri is built around a decoupled Qt/PySide6 architecture with strict layer isol
   - `EffectsCoordinator` (`effects/effects_coordinator.py`): Facade managing procedural CRT glitch overlays (`glitch.py`), lightning tether overlays (`lightning_tether.py`), model calibration (`model_init_animation.py`), and screen transitions (`transition.py`).
 - **Audio Subsystem (`capri/audio/`):**
   - `VoiceInput` (`audio/voice.py`): Continuous microphone streaming with Silero VAD noise suppression.
-  - `VoskSpeechService` (`audio/recognizer.py`): Thread-safe speech recognition with dynamic silence cutoffs and optional faster-whisper hybrid backend.
+  - `VoskSpeechService` (`audio/recognizer.py`): Thread-safe speech recognition with dynamic silence cutoffs on standalone Vosk engine.
 
 ---
 
