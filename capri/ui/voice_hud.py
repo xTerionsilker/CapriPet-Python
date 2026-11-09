@@ -163,7 +163,21 @@ class CyberVoiceHud(QWidget):
             painter.drawLine(rect.left() + 2, y, rect.right() - 2, y)
 
         cut = _CORNER_CUT
-        border_pen = QPen(QColor(NEON_CRIMSON), 1)
+        border_color = QColor(NEON_CRIMSON)
+        if "TRIGGER" in self._mode_tag or self._status_text == "RECOGNIZED":
+            border_color = (
+                QColor(ELECTRIC_BLUE)
+                if (self._anim_tick // 4) % 2 == 0
+                else QColor(NEON_CRIMSON)
+            )
+        elif "WAITING" in self._status_text or "AWAITING" in self._mode_tag:
+            border_color = (
+                QColor(ACID_GREEN)
+                if (self._anim_tick // 5) % 2 == 0
+                else QColor(NEON_CRIMSON)
+            )
+
+        border_pen = QPen(border_color, 1)
         painter.setPen(border_pen)
 
         painter.drawLine(
@@ -193,6 +207,12 @@ class CyberVoiceHud(QWidget):
             rect.left(), rect.top() + cut, rect.left() + cut, rect.top()
         )
 
+        # 45° chamfer accents
+        accent_cut_pen = QPen(QColor(ACID_GREEN), 2)
+        painter.setPen(accent_cut_pen)
+        painter.drawLine(rect.left(), rect.top() + cut, rect.left() + cut, rect.top())
+        painter.drawLine(rect.right() - cut, rect.bottom(), rect.right(), rect.bottom() - cut)
+
         painter.fillRect(
             QRect(rect.left() + cut + 6, rect.top() + 3, 4, 3),
             QColor(ACID_GREEN),
@@ -218,31 +238,29 @@ class CyberVoiceHud(QWidget):
             rect.bottom() - cut - 4,
         )
 
-        eq_x = rect.right() - 95
+        eq_x = rect.right() - 110
         eq_y_base = rect.top() + 18
         painter.setPen(Qt.PenStyle.NoPen)
-        for i in range(8):
-            bar_height = ((self._anim_tick + i * 3) % 7) * 2 + 3
-            bar_color = (
-                QColor(ACID_GREEN) if i < 6 else QColor(NEON_CRIMSON)
+        for i in range(12):
+            cycle = (self._anim_tick * 2 + i * 3) % 9
+            bar_height = max(2, int(cycle * 1.6))
+            bar_x = eq_x + i * 4
+            painter.fillRect(
+                QRect(bar_x, eq_y_base - bar_height + 12, 3, bar_height),
+                QColor(ACID_GREEN) if i < 10 else QColor(NEON_CRIMSON),
             )
             painter.fillRect(
-                QRect(
-                    eq_x + i * 5,
-                    eq_y_base - bar_height + 12,
-                    3,
-                    bar_height,
-                ),
-                bar_color,
+                QRect(bar_x, eq_y_base - bar_height + 11, 3, 1),
+                QColor(PURE_WHITE),
             )
 
         rec_dot_color = (
             QColor(NEON_CRIMSON)
-            if (self._anim_tick // 6) % 2 == 0
+            if (self._anim_tick // 5) % 2 == 0
             else QColor(OBSIDIAN_BLACK)
         )
         painter.fillRect(
-            QRect(eq_x + 52, rect.top() + 10, 6, 6), rec_dot_color
+            QRect(eq_x + 52, rect.top() + 10, 5, 5), rec_dot_color
         )
 
         font_header = get_hud_font(12, bold=True)
@@ -254,10 +272,11 @@ class CyberVoiceHud(QWidget):
             rect.left() + cut + 20, rect.top() + 18, status_display
         )
 
-        font_sub = get_hud_font(10, bold=False)
+        font_sub = get_hud_font(9, bold=False)
         painter.setFont(font_sub)
         painter.setPen(QColor(ELECTRIC_BLUE))
-        painter.drawText(rect.right() - 95, rect.top() + 14, "MIC//IN")
+        bus_hex = f"BUS:0x{(self._anim_tick * 13) % 256:02X}"
+        painter.drawText(rect.right() - 110, rect.top() + 13, f"{bus_hex} // MIC")
 
         painter.setPen(QPen(QColor(NEON_CRIMSON), 1))
         painter.drawLine(

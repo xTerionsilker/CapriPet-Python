@@ -55,17 +55,17 @@ capri/
     ├── __init__.py
     ├── console_hud.py          # Cyber HUD терминал прямого ввода команд с кнопкой TERMINATE
     ├── context_menu.py         # Контекстное меню, стиль Cyberpunk и системный трей
-    ├── game_overlay.py         # Компактный полупрозрачный HUD-индикатор режима тишины (Stealth)
-    ├── pet_renderer.py         # Рендерер спрайта, сканлайны и позиционирование
+    ├── game_overlay.py         # Компактный клиновидный HUD-индикатор режима тишины (Stealth)
+    ├── pet_renderer.py         # Рендерер спрайта, сканлайны, аура и кинетические экшен-линии
     ├── pet_window.py           # Окно питомца Qt (View-слой, геометрия и события)
     ├── pet_window_actions.py   # Делегат действий и обработчиков настроек окна питомца
-    ├── speech.py               # Диалоговые HUD-облачка с кибер-анимацией
+    ├── speech.py               # Диалоговые HUD-облачка в дуотоне Studio Trigger с CRT-коллапсом
     ├── speech_sfx.py           # Процедурный синтез звуков речи на лету и Studio Trigger кибер-саундскейп
     ├── sprite_manager.py       # Менеджер загрузки, кэширования и масштабирования поз
     ├── teleport_controller.py  # Контроллер перемещения окна через наведение молнией
-    ├── theme.py                # Цветовая палитра, шрифты и CSS-стили интерфейса
+    ├── theme.py                # Цветовая палитра дуотона Studio Trigger, шрифты и стили UI
     ├── voice_coordinator.py    # Координация распознавания речи, триггеров и Voice HUD
-    └── voice_hud.py            # Cyberpunk 2077 HUD голосового ввода над taskbar
+    └── voice_hud.py            # HUD голосового ввода над taskbar с реактивным эквалайзером
 assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
 docs/                           # Дополнительная документация и спецификации (config_spec.md, architecture.md)
 models/                         # Папка моделей (Vosk, Silero VAD onnx)

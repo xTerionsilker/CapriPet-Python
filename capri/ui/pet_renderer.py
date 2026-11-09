@@ -278,6 +278,9 @@ class PetRenderer:
 
         self._draw_sparks(painter, w, h, severity)
 
+        if state.is_dragging or state.is_target_acquired or state.is_consuming:
+            self._draw_action_lines(painter, w, h, state)
+
         if state.is_target_acquired or state.is_consuming:
             self._draw_target_acquired_overlay(painter, w, h, state)
 
@@ -313,9 +316,13 @@ class PetRenderer:
                     else random.randint(55, 95)
                 )
             )
-            color = (
-                COLOR_CRIMSON if random.random() < 0.8 else COLOR_OBSIDIAN
-            )
+            r_val = random.random()
+            if r_val < 0.60:
+                color = COLOR_CRIMSON
+            elif r_val < 0.85:
+                color = COLOR_ACID_GREEN
+            else:
+                color = COLOR_OBSIDIAN
 
             tinted = QPixmap(pixmap.size())
             tinted.fill(Qt.GlobalColor.transparent)
@@ -582,6 +589,33 @@ class PetRenderer:
                         PIXEL_SIZE * 2,
                         spark_color,
                     )
+
+    def _draw_action_lines(
+        self, painter: QPainter, w: int, h: int, state: PetRenderState
+    ) -> None:
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        line_count = 6 if state.is_consuming else (4 if state.is_dragging else 3)
+        cx, cy = w // 2, h // 2
+        for _ in range(line_count):
+            edge = random.choice(("left", "right", "top", "bottom"))
+            color = random.choice((COLOR_CRIMSON, COLOR_ACID_GREEN, COLOR_WHITE))
+            pen = QPen(QColor(color), random.choice((1, 2)))
+            painter.setPen(pen)
+            length = random.randint(w // 6, max(w // 6 + 1, w // 3))
+            if edge == "left":
+                sy = random.randint(4, max(5, h - 4))
+                painter.drawLine(0, sy, length, cy + (sy - cy) // 3)
+            elif edge == "right":
+                sy = random.randint(4, max(5, h - 4))
+                painter.drawLine(w, sy, w - length, cy + (sy - cy) // 3)
+            elif edge == "top":
+                sx = random.randint(4, max(5, w - 4))
+                painter.drawLine(sx, 0, cx + (sx - cx) // 3, length)
+            elif edge == "bottom":
+                sx = random.randint(4, max(5, w - 4))
+                painter.drawLine(sx, h, cx + (sx - cx) // 3, h - length)
+        painter.restore()
 
     def _draw_hud_telemetry(
         self,

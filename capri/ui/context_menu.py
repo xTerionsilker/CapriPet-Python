@@ -83,7 +83,8 @@ class CyberMenu(QMenu):
         path.lineTo(w - c, 0)
         path.lineTo(w, c)
         path.lineTo(w, h)
-        path.lineTo(0, h)
+        path.lineTo(c, h)
+        path.lineTo(0, h - c)
         path.closeSubpath()
 
         painter.fillPath(path, QColor(OBSIDIAN_BLACK))
@@ -102,6 +103,7 @@ class CyberMenu(QMenu):
         accent_pen = QPen(QColor(ACID_GREEN), 2)
         painter.setPen(accent_pen)
         painter.drawLine(w - c, 0, w, c)
+        painter.drawLine(c, h, 0, h - c)
 
         painter.drawLine(0, 0, 10, 0)
         painter.drawLine(0, 0, 0, 10)
@@ -291,7 +293,8 @@ class ReminderRangeDialog(QDialog):
         path.lineTo(bw - c, 0)
         path.lineTo(bw, c)
         path.lineTo(bw, bh)
-        path.lineTo(0, bh)
+        path.lineTo(c, bh)
+        path.lineTo(0, bh - c)
         path.closeSubpath()
 
         shadow_path = path.translated(so, so)
@@ -313,6 +316,7 @@ class ReminderRangeDialog(QDialog):
         accent_pen = QPen(QColor(ACID_GREEN), 2)
         painter.setPen(accent_pen)
         painter.drawLine(bw - c, 0, bw, c)
+        painter.drawLine(c, bh, 0, bh - c)
 
         painter.drawLine(0, 0, 10, 0)
         painter.drawLine(0, 0, 0, 10)

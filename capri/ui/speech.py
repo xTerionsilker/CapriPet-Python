@@ -92,6 +92,7 @@ class CyberHudBubble(QWidget):
         self._chamfer = chamfer
         self._shadow_offset = shadow_offset
         self._pointer_direction = "left"
+        self._is_excited: bool = False
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
         self._anim_phase: str = "opening"
@@ -120,6 +121,11 @@ class CyberHudBubble(QWidget):
     def set_pointer_direction(self, direction: str) -> None:
         if self._pointer_direction != direction:
             self._pointer_direction = direction
+            self.update()
+
+    def set_excited(self, excited: bool) -> None:
+        if self._is_excited != excited:
+            self._is_excited = excited
             self.update()
 
     def start_open(
@@ -304,39 +310,44 @@ class CyberHudBubble(QWidget):
         shake_x = (
             int(random.uniform(-4, 4) * intensity) if is_glitch else 0
         )
+        shake_y = 0
+        if self._is_excited:
+            shake_x += random.randint(-2, 2)
+            shake_y = random.randint(-1, 1)
 
         dir_ = self._pointer_direction
         path = QPainterPath()
-        path.moveTo(shake_x, 0)
+        path.moveTo(shake_x, shake_y)
 
         if dir_ == "up":
-            path.lineTo(x_mid - 12 + shake_x, 0)
-            path.lineTo(x_mid - 5 + shake_x, 6)
-            path.lineTo(x_mid + 5 + shake_x, 6)
-            path.lineTo(x_mid + 12 + shake_x, 0)
-        path.lineTo(bw - c + shake_x, 0)
+            path.lineTo(x_mid - 12 + shake_x, shake_y)
+            path.lineTo(x_mid - 5 + shake_x, 6 + shake_y)
+            path.lineTo(x_mid + 5 + shake_x, 6 + shake_y)
+            path.lineTo(x_mid + 12 + shake_x, shake_y)
+        path.lineTo(bw - c + shake_x, shake_y)
 
-        path.lineTo(bw + shake_x, c)
+        path.lineTo(bw + shake_x, c + shake_y)
 
         if dir_ == "right":
-            path.lineTo(bw + shake_x, y_mid - 12)
-            path.lineTo(bw + shake_x - 6, y_mid - 5)
-            path.lineTo(bw + shake_x - 6, y_mid + 5)
-            path.lineTo(bw + shake_x, y_mid + 12)
-        path.lineTo(bw + shake_x, bh)
+            path.lineTo(bw + shake_x, y_mid - 12 + shake_y)
+            path.lineTo(bw + shake_x - 6, y_mid - 5 + shake_y)
+            path.lineTo(bw + shake_x - 6, y_mid + 5 + shake_y)
+            path.lineTo(bw + shake_x, y_mid + 12 + shake_y)
+        path.lineTo(bw + shake_x, bh + shake_y)
 
         if dir_ == "down":
-            path.lineTo(x_mid + 12 + shake_x, bh)
-            path.lineTo(x_mid + 5 + shake_x, bh - 6)
-            path.lineTo(x_mid - 5 + shake_x, bh - 6)
-            path.lineTo(x_mid - 12 + shake_x, bh)
-        path.lineTo(shake_x, bh)
+            path.lineTo(x_mid + 12 + shake_x, bh + shake_y)
+            path.lineTo(x_mid + 5 + shake_x, bh - 6 + shake_y)
+            path.lineTo(x_mid - 5 + shake_x, bh - 6 + shake_y)
+            path.lineTo(x_mid - 12 + shake_x, bh + shake_y)
+        path.lineTo(c + shake_x, bh + shake_y)
+        path.lineTo(shake_x, bh - c + shake_y)
 
         if dir_ == "left":
-            path.lineTo(shake_x, y_mid + 12)
-            path.lineTo(shake_x + 6, y_mid + 5)
-            path.lineTo(shake_x + 6, y_mid - 5)
-            path.lineTo(shake_x, y_mid - 12)
+            path.lineTo(shake_x, y_mid + 12 + shake_y)
+            path.lineTo(shake_x + 6, y_mid + 5 + shake_y)
+            path.lineTo(shake_x + 6, y_mid - 5 + shake_y)
+            path.lineTo(shake_x, y_mid - 12 + shake_y)
         path.closeSubpath()
 
         shadow_path = path.translated(so, so)
@@ -381,14 +392,24 @@ class CyberHudBubble(QWidget):
         accent_pen = QPen(QColor(ACID_GREEN), 2)
         painter.setPen(accent_pen)
 
-        painter.drawLine(bw - c + shake_x, 0, bw + shake_x, c)
+        painter.drawLine(bw - c + shake_x, shake_y, bw + shake_x, c + shake_y)
+        painter.drawLine(c + shake_x, bh + shake_y, shake_x, bh - c + shake_y)
 
-        painter.drawLine(shake_x, 0, shake_x + 10, 0)
-        painter.drawLine(shake_x, 0, shake_x, 10)
-        painter.drawLine(shake_x, bh - 10, shake_x, bh)
-        painter.drawLine(shake_x, bh, shake_x + 10, bh)
-        painter.drawLine(bw - 10 + shake_x, bh, bw + shake_x, bh)
-        painter.drawLine(bw + shake_x, bh - 10, bw + shake_x, bh)
+        painter.drawLine(shake_x, shake_y, shake_x + 10, shake_y)
+        painter.drawLine(shake_x, shake_y, shake_x, 10 + shake_y)
+        painter.drawLine(shake_x, bh - 10 + shake_y, shake_x, bh + shake_y)
+        painter.drawLine(shake_x, bh + shake_y, shake_x + 10, bh + shake_y)
+        painter.drawLine(bw - 10 + shake_x, bh + shake_y, bw + shake_x, bh + shake_y)
+        painter.drawLine(bw + shake_x, bh - 10 + shake_y, bw + shake_x, bh + shake_y)
+
+        if self._is_excited:
+            spark_pen = QPen(QColor(PURE_WHITE), 1.5)
+            painter.setPen(spark_pen)
+            painter.drawLine(bw + shake_x, c + shake_y, bw + shake_x + 6, c - 6 + shake_y)
+            painter.drawLine(bw + shake_x - 2, c - 2 + shake_y, bw + shake_x + 4, c - 7 + shake_y)
+            painter.setPen(QPen(QColor(ACID_GREEN), 1.5))
+            painter.drawLine(shake_x, bh - c + shake_y, shake_x - 6, bh - c + 6 + shake_y)
+            painter.drawLine(shake_x - 2, bh - c + 2 + shake_y, shake_x - 6, bh - c + 8 + shake_y)
 
         chevron_color = (
             QColor(NEON_CRIMSON) if is_glitch else QColor(ACID_GREEN)
@@ -431,13 +452,23 @@ class CyberHudBubble(QWidget):
         font = get_hud_font(11, bold=True)
         painter.setFont(font)
 
-        badge_rect = QRect(14 + shake_x, 5, max(10, bw - c - 20), 16)
+        badge_w = min(190, max(120, bw - c - 24))
+        badge_rect = QRect(16 + shake_x, 5 + shake_y, badge_w, 16)
         painter.fillRect(
-            QRect(12 + shake_x, 5, 168, 16), QColor(246, 2, 63, 35)
+            QRect(12 + shake_x, 5 + shake_y, badge_w + 6, 16),
+            QColor(246, 2, 63, 40),
         )
-        painter.setPen(QColor(ACID_GREEN))
+        painter.fillRect(
+            QRect(12 + shake_x, 5 + shake_y, 2, 16),
+            QColor(ACID_GREEN),
+        )
+
+        t_phase = int(time.monotonic() * 4) % 4
+        glyph = ("◈", "◇", "◆", "◈")[t_phase]
         chevron = _CHEVRONS.get(dir_, "")
-        title_with_dir = f"{self._title} {chevron}".strip()
+        title_with_dir = f"{glyph} {self._title} {chevron}".strip()
+
+        painter.setPen(QColor(ACID_GREEN))
         painter.drawText(
             badge_rect,
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
@@ -506,6 +537,10 @@ class SpeechWindow(QFrame):
 
         self._bubble = CyberHudBubble(self)
         self._bubble.setObjectName("bubble")
+        is_excited = "!" in self._text or any(
+            w.isupper() and len(w) > 2 for w in self._text.split()
+        )
+        self._bubble.set_excited(is_excited)
         self._bubble.setSizePolicy(
             QSizePolicy.Policy.Preferred,
             QSizePolicy.Policy.MinimumExpanding,

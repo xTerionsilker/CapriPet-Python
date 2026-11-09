@@ -102,14 +102,22 @@ class SilentPresenceGlyph(QWidget):
         path.lineTo(0, cut)
         path.closeSubpath()
         bg_color = QColor(OBSIDIAN_BLACK)
-        bg_color.setAlpha(170)
+        bg_color.setAlpha(180)
         painter.fillPath(path, bg_color)
+
+        painter.save()
+        painter.setClipPath(path)
+        grid_pen = QPen(QColor(246, 2, 63, 22), 1)
+        painter.setPen(grid_pen)
+        for y in range(2, h, 3):
+            painter.drawLine(0, y, w, y)
+        painter.restore()
 
         pen = QPen(QColor(NEON_CRIMSON), 1.2)
         painter.setPen(pen)
         painter.drawPath(path)
 
-        bracket_pen = QPen(QColor(ACID_GREEN), 1.4)
+        bracket_pen = QPen(QColor(ACID_GREEN), 1.6)
         painter.setPen(bracket_pen)
         painter.drawLine(0, cut, cut, 0)
         painter.drawLine(w - cut, h, w, h - cut)
@@ -118,7 +126,17 @@ class SilentPresenceGlyph(QWidget):
         dot_color.setAlpha(self._pulse_alpha)
         painter.setBrush(dot_color)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawEllipse(12, h // 2 - 4, 8, 8)
+
+        # Sharp 45° diamond indicator instead of round ellipse
+        cx, cy = 15, h // 2
+        r = 4
+        diamond = QPainterPath()
+        diamond.moveTo(cx, cy - r)
+        diamond.lineTo(cx + r, cy)
+        diamond.lineTo(cx, cy + r)
+        diamond.lineTo(cx - r, cy)
+        diamond.closeSubpath()
+        painter.fillPath(diamond, dot_color)
 
         text_pen = QPen(QColor(PURE_WHITE))
         painter.setPen(text_pen)
@@ -127,5 +145,5 @@ class SilentPresenceGlyph(QWidget):
         painter.drawText(
             text_rect,
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-            "CAPRI // STEALTH",
+            "CAPRI // STEALTH ACTIVE",
         )

@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtGui import QColor, QFont, QFontDatabase
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +84,17 @@ ACID_GREEN = "#06F868"
 PURE_WHITE = "#F9F9F9"
 ELECTRIC_BLUE = "#126EE9"
 NEON_VIOLET = "#9E1FDE"
+
+CHAMFER_DEFAULT = 8
+CHAMFER_BUBBLE = 10
+CHAMFER_HUD = 8
+
+COLOR_CRIMSON = QColor(NEON_CRIMSON)
+COLOR_OBSIDIAN = QColor(OBSIDIAN_BLACK)
+COLOR_ACID_GREEN = QColor(ACID_GREEN)
+COLOR_WHITE = QColor(PURE_WHITE)
+COLOR_ELECTRIC_BLUE = QColor(ELECTRIC_BLUE)
+COLOR_NEON_VIOLET = QColor(NEON_VIOLET)
 
 _MENU_ARROW = (
     Path(__file__).resolve().parents[2] / "assets" / "menu_arrow.svg"
