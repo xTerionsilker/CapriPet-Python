@@ -10,6 +10,7 @@ from . import (
     system_cleaner,
     system_control,
     system_power_hook,
+    system_volume,
     web_search,
     window_tracker,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "system_cleaner",
     "system_control",
     "system_power_hook",
+    "system_volume",
     "web_search",
     "window_tracker",
 ]

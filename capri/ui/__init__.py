@@ -37,12 +37,14 @@ from .theme import (
     init_fonts,
 )
 from .voice_hud import CyberVoiceHud
+from .volume_hud import CyberVolumeHud
 
 __all__ = [
     "CapriWindow",
     "CyberConsoleHud",
     "SpeechWindow",
     "CyberVoiceHud",
+    "CyberVolumeHud",
     "show_text",
     "APP_STYLE",
     "ContextMenuBuilder",

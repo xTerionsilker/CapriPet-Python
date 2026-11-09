@@ -38,6 +38,7 @@ from ..effects.session_animations import (
 from ..integrations.app_launcher import launch_application
 from ..integrations.discord_rpc import DiscordRpcManager
 from ..integrations.process_manager import kill_process_group
+from ..integrations.system_volume import get_system_volume_service
 from ..integrations.window_tracker import (
     get_active_window_rect,
     get_foreground_hwnd,
@@ -221,6 +222,40 @@ class PetOrchestrator(QObject):
         result = self.flow.handle(text)
         self._window.speak(result)
 
+    def update_system_volume(
+        self,
+        delta: int | None = None,
+        target: int | None = None,
+        mute: bool | None = None,
+        toggle_mute: bool = False,
+    ) -> tuple[int, bool, float]:
+        """Управление мастер-громкостью Windows с выводом OSD и звуком реле."""
+        svc = get_system_volume_service()
+        if toggle_mute:
+            is_muted = svc.toggle_mute()
+            vol = svc.get_volume()
+        elif mute is not None:
+            is_muted = svc.set_mute(mute)
+            vol = svc.get_volume()
+        elif target is not None:
+            vol = svc.set_volume(target)
+            is_muted = svc.is_muted()
+        elif delta is not None:
+            vol = svc.change_volume(delta)
+            is_muted = svc.is_muted()
+        else:
+            vol = svc.get_volume()
+            is_muted = svc.is_muted()
+
+        vol_db = svc.get_volume_db()
+        get_speech_sfx().play_relay_snap()
+
+        show_hud = getattr(self._window, "show_volume_hud", None)
+        if callable(show_hud):
+            show_hud(vol, is_muted, vol_db)
+
+        return vol, is_muted, vol_db
+
     def _register_commands(self) -> None:
         context = CommandContext(
             speak=self._window.speak,
@@ -234,6 +269,7 @@ class PetOrchestrator(QObject):
             action_bridge=self.actions,
             debug_info=self.debug_info,
             open_console=getattr(self._window, "open_console", None),
+            change_volume=self.update_system_volume,
         )
         self.commands.set_context(context)
         register_default_commands(self.commands)

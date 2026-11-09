@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Master audio parameters (Studio Trigger cyber soundscape)
 DEFAULT_SAMPLE_RATE: int = 44100
-SFX_VERSION: str = "v3_cinematic"  # Bust cache on generator update
+SFX_VERSION: str = "v4_volume_relay"  # Bust cache on generator update
 
 
 def _write_wav_16bit(file_path: Path, frames: bytearray, sample_rate: int = DEFAULT_SAMPLE_RATE) -> None:
@@ -613,6 +613,32 @@ def _generate_core_destabilize_wav(
     _write_wav_16bit(file_path, frames, sample_rate)
 
 
+def _generate_relay_snap_wav(
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 0.08
+) -> None:
+    """Щелчок аппаратного электромагнитного реле / разряда конденсатора при смене аудио-регистра."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(77)
+    for i in range(num_samples):
+        t = i / sample_rate
+        p = t / duration
+
+        # Быстрый экспоненциальный спад
+        env = math.exp(-32.0 * p)
+        # Высокочастотный металлический щелчок контакта (3400 Гц)
+        snap = math.sin(2.0 * math.pi * 3400.0 * t) * 0.6
+        # Механический глухой стук сердечника реле (210 Гц)
+        thud = math.sin(2.0 * math.pi * 210.0 * t) * 0.4
+        # Микро-искра размыкания контакта в начале импульса
+        spark = rng.uniform(-0.5, 0.5) if p < 0.2 else 0.0
+
+        val = (snap + thud + spark) * env
+        frames.extend(_pack_sample(val, drive=1.8, master_gain=0.90))
+
+    _write_wav_16bit(file_path, frames, sample_rate)
+
+
 def _ensure_wav_cache_sync(temp_dir: Path) -> None:
     """Генерирует отсутствующие процедурные WAV файлы в кэше."""
     try:
@@ -631,6 +657,7 @@ def _ensure_wav_cache_sync(temp_dir: Path) -> None:
             (temp_dir / "cyber_voice_success.wav", lambda p: _generate_voice_success_wav(p)),
             (temp_dir / "cyber_voice_cancel.wav", lambda p: _generate_voice_cancel_wav(p)),
             (temp_dir / "cyber_core_destabilize.wav", lambda p: _generate_core_destabilize_wav(p)),
+            (temp_dir / "cyber_relay_snap.wav", lambda p: _generate_relay_snap_wav(p)),
             (temp_dir / "cyber_session_lock.wav", lambda p: _generate_session_lock_wav(p)),
             (temp_dir / "cyber_session_power.wav", lambda p: _generate_session_power_wav(p)),
             (temp_dir / "cyber_session_suspend.wav", lambda p: _generate_session_suspend_wav(p)),
@@ -729,6 +756,7 @@ class SpeechSFX(QObject):
             voice_success_path = temp_dir / "cyber_voice_success.wav"
             voice_cancel_path = temp_dir / "cyber_voice_cancel.wav"
             core_destabilize_path = temp_dir / "cyber_core_destabilize.wav"
+            relay_snap_path = temp_dir / "cyber_relay_snap.wav"
 
             session_specs = {
                 "lock": (
@@ -764,6 +792,7 @@ class SpeechSFX(QObject):
             self._voice_success_path = voice_success_path
             self._voice_cancel_path = voice_cancel_path
             self._core_destabilize_path = core_destabilize_path
+            self._relay_snap_path = relay_snap_path
 
             for action, (filename, _generator) in session_specs.items():
                 path = temp_dir / filename
@@ -832,6 +861,11 @@ class SpeechSFX(QObject):
             core_destab_sfx.setSource(QUrl.fromLocalFile(str(core_destabilize_path)))
             core_destab_sfx.setVolume(self._volume * 0.8)
             self._core_destabilize_effect = core_destab_sfx
+
+            relay_sfx = QSoundEffect(self)
+            relay_sfx.setSource(QUrl.fromLocalFile(str(relay_snap_path)))
+            relay_sfx.setVolume(self._volume * 0.9)
+            self._relay_snap_effect = relay_sfx
 
             # Пул эмоциональных звуков речи
             self._chirp_paths_by_style = {}
@@ -962,6 +996,11 @@ class SpeechSFX(QObject):
             and self._core_destabilize_effect is not None
         ):
             self._core_destabilize_effect.setVolume(self._volume * 0.8)
+        if (
+            hasattr(self, "_relay_snap_effect")
+            and self._relay_snap_effect is not None
+        ):
+            self._relay_snap_effect.setVolume(self._volume * 0.9)
         for effect in self._session_effects.values():
             effect.setVolume(self._volume * 0.85)
         for pool in self._chirp_pools_by_style.values():
@@ -1057,6 +1096,15 @@ class SpeechSFX(QObject):
         self._play_file(
             getattr(self, "_core_destabilize_path", None),
             getattr(self, "_core_destabilize_effect", None),
+        )
+
+    def play_relay_snap(self) -> None:
+        """Звук аппаратного переключения реле / разряда конденсатора при регулировке звука."""
+        if not self.is_effects_sound_enabled():
+            return
+        self._play_file(
+            getattr(self, "_relay_snap_path", None),
+            getattr(self, "_relay_snap_effect", None),
         )
 
     def play_session_action(self, action: str) -> None:

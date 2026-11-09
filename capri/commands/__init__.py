@@ -23,6 +23,11 @@ from .handlers import (
     SpotifyResumeCommand,
     SuspendCommand,
     UpdateCommand,
+    VolumeDownCommand,
+    VolumeMuteCommand,
+    VolumeSetCommand,
+    VolumeUnmuteCommand,
+    VolumeUpCommand,
     YouTubeSearchCommand,
 )
 from .registry import CommandRegistry, switch_layout
@@ -48,6 +53,11 @@ DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     LocateMouseCommand,
     LaunchAppCommand,
     KillAppCommand,
+    VolumeUpCommand,
+    VolumeDownCommand,
+    VolumeSetCommand,
+    VolumeMuteCommand,
+    VolumeUnmuteCommand,
 )
 
 
@@ -93,4 +103,9 @@ __all__ = [
     "LocateMouseCommand",
     "LaunchAppCommand",
     "KillAppCommand",
+    "VolumeUpCommand",
+    "VolumeDownCommand",
+    "VolumeSetCommand",
+    "VolumeMuteCommand",
+    "VolumeUnmuteCommand",
 ]

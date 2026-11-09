@@ -50,6 +50,7 @@ capri/
 │   ├── system_cleaner.py       # Безопасная очистка корзины (Shell API) и временных файлов
 │   ├── system_control.py       # Питание, блокировка экрана и управление курсором
 │   ├── system_power_hook.py    # Win32 хуки событий питания (сон, выключение, сессии)
+│   ├── system_volume.py        # Прямой контроль мастер-громкости Windows (Core Audio API / pycaw)
 │   ├── game_mode.py            # Детекция полноэкранных игр через Win32 API и SHQueryUserNotificationState
 │   ├── web_search.py           # Поиск в веб-браузере и проверка обновлений
 │   └── window_tracker.py       # Определение геометрии активного окна (Win32 DWM)
@@ -67,7 +68,8 @@ capri/
     ├── teleport_controller.py  # Контроллер перемещения окна через наведение молнией
     ├── theme.py                # Цветовая палитра дуотона Studio Trigger, шрифты и стили UI
     ├── voice_coordinator.py    # Координация распознавания речи, триггеров и Voice HUD
-    └── voice_hud.py            # HUD голосового ввода над taskbar с реактивным эквалайзером
+    ├── voice_hud.py            # HUD голосового ввода над taskbar с реактивным эквалайзером
+    └── volume_hud.py           # Cyber Audio HUD экранный оверлей регулировки системной громкости
 assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
 docs/                           # Дополнительная документация и спецификации (config_spec.md, architecture.md)
 models/                         # Папка моделей (Vosk, Silero VAD onnx)

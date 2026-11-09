@@ -30,6 +30,7 @@ class CommandContext:
     action_bridge: Any = None
     debug_info: Callable[[], dict[str, Any]] | None = None
     open_console: Callable[[], Any] | None = None
+    change_volume: Callable[..., tuple[int, bool, float]] | None = None
 
 
 class BaseCommand:

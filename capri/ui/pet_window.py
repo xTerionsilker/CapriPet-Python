@@ -51,6 +51,7 @@ from ..integrations.system_power_hook import SystemEventHook
 from .console_hud import CyberConsoleHud
 from .context_menu import TrayManager
 from .game_overlay import SilentPresenceGlyph
+from .volume_hud import CyberVolumeHud
 from .pet_renderer import PetRenderer, PetRenderState
 from .pet_window_actions import PetWindowActionDelegate
 from .speech import (
@@ -181,6 +182,7 @@ class CapriWindow(QWidget):
         )
         self._tray = TrayManager(self)
         self._silent_glyph = SilentPresenceGlyph()
+        self._volume_hud: CyberVolumeHud | None = None
         self._is_stealth_mode = False
         self._stealth_origin_pos: QPoint | None = None
         self._stealth_transition_overlay: TransitionOverlay | None = None
@@ -875,6 +877,15 @@ class CapriWindow(QWidget):
             self.show()
             self.raise_()
 
+    def show_volume_hud(
+        self, volume_percent: int, is_muted: bool = False, volume_db: float = 0.0
+    ) -> None:
+        """Отобразить кибернетический экранный оверлей изменения громкости."""
+        if not get_config_value("audio.volume_hud_enabled", True):
+            return
+        if self._volume_hud is None:
+            self._volume_hud = CyberVolumeHud()
+        self._volume_hud.show_volume(volume_percent, is_muted, volume_db)
 
     def nativeEvent(
         self, event_type: bytes | bytearray, message: int | object

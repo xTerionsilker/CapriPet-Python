@@ -53,6 +53,8 @@
   "audio": {
     "designated_microphone": null,
     "volume": 50,
+    "volume_step_default": 10,
+    "volume_hud_enabled": true,
     "sfx_volume": 0.5,
     "media_volume": 0.6,
     "voice_enabled": true,
@@ -122,6 +124,8 @@
 | `screen.designated_screen` | `str \| null` | `null` | Имя монитора (например, `"HDMI-1"`, `"eDP-1"`). `null` = системный экран |
 | `audio.designated_microphone` | `str \| null` | `null` | Описание аудиоустройства ввода. `null` = системный микрофон по умолчанию |
 | `audio.volume` | `int` | `50` | Общая системная громкость (25, 50, 75, 100) |
+| `audio.volume_step_default` | `int` | `10` | Шаг относительного изменения мастер-громкости в процентах (1..50) |
+| `audio.volume_hud_enabled` | `bool` | `true` | Отображение экранного оверлея CyberVolumeHud при смене звука |
 | `audio.sfx_volume` | `float` | `0.5` | Громкость звуков интерфейса и речи (0.0 .. 1.0) в `SpeechSFX` |
 | `audio.media_volume` | `float` | `0.6` | Громкость медиа и видео (0.0 .. 1.0) |
 | `audio.voice_enabled` | `bool` | `true` | Состояние голосового распознавания при старте (`VoiceInput`) |

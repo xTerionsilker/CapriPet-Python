@@ -55,6 +55,8 @@ class AudioConfig(BaseModel):
 
     designated_microphone: str | None = None
     volume: int = 50
+    volume_step_default: int = Field(default=10, ge=1, le=50)
+    volume_hud_enabled: bool = True
     sfx_volume: float = Field(default=0.5, ge=0.0, le=1.0)
     media_volume: float = Field(default=0.6, ge=0.0, le=1.0)
     voice_enabled: bool = True
