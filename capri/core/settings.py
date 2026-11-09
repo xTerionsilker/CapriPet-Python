@@ -14,7 +14,7 @@ from typing import Any, Literal
 
 from fake_useragent import UserAgent
 from platformdirs import user_config_dir
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +51,8 @@ class ScreenConfig(BaseModel):
 class AudioConfig(BaseModel):
     """Параметры аудиосистемы, громкости и распознавания речи."""
 
+    model_config = ConfigDict(extra="ignore")
+
     designated_microphone: str | None = None
     volume: int = 50
     sfx_volume: float = Field(default=0.5, ge=0.0, le=1.0)
@@ -58,7 +60,6 @@ class AudioConfig(BaseModel):
     voice_enabled: bool = True
     speech_sound_enabled: bool = True
     effects_sound_enabled: bool = True
-    asr_backend: Literal["vosk", "whisper"] = "vosk"
 
     @field_validator("volume", mode="before")
     @classmethod
