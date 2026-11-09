@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Master audio parameters (Studio Trigger cyber soundscape)
 DEFAULT_SAMPLE_RATE: int = 44100
-SFX_VERSION: str = "v4_volume_relay"  # Bust cache on generator update
+SFX_VERSION: str = "v5_intro_breach"  # Bust cache on generator update
 
 
 def _write_wav_16bit(file_path: Path, frames: bytearray, sample_rate: int = DEFAULT_SAMPLE_RATE) -> None:
@@ -639,6 +639,47 @@ def _generate_relay_snap_wav(
     _write_wav_16bit(file_path, frames, sample_rate)
 
 
+def _generate_intro_breach_wav(
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 2.4
+) -> None:
+    """Кинематографичный звук первого пробоя Blackwall: свист катушек, раскалывающееся стекло и рокот данных."""
+    num_samples = int(sample_rate * duration)
+    frames = bytearray()
+    rng = random.Random(101)
+    for i in range(num_samples):
+        t = i / sample_rate
+        if t < 0.65:
+            p = t / 0.65
+            freq = 2400.0 + 8200.0 * (p ** 2.5)
+            env = p ** 1.8
+            coil = math.sin(2.0 * math.pi * freq * t)
+            noise = rng.uniform(-0.3, 0.3) * p
+            val = (coil * 0.8 + noise) * env
+            frames.extend(_pack_sample(val, drive=2.2, master_gain=0.85))
+        elif t < 1.35:
+            t_impact = t - 0.65
+            thud = math.sin(2.0 * math.pi * 58.0 * t_impact) * math.exp(-14.0 * t_impact)
+            glass = (
+                math.sin(2.0 * math.pi * 3200.0 * t_impact) * 0.45 * math.exp(-8.0 * t_impact)
+                + math.sin(2.0 * math.pi * 5400.0 * t_impact) * 0.35 * math.exp(-12.0 * t_impact)
+                + math.sin(2.0 * math.pi * 7800.0 * t_impact) * 0.25 * math.exp(-16.0 * t_impact)
+                + math.sin(2.0 * math.pi * 10200.0 * t_impact) * 0.20 * math.exp(-22.0 * t_impact)
+            )
+            shards = rng.uniform(-0.6, 0.6) * math.exp(-6.0 * t_impact) if rng.random() < 0.4 else 0.0
+            val = thud * 0.9 + glass * 1.1 + shards
+            frames.extend(_pack_sample(val, drive=2.5, master_gain=0.95))
+        else:
+            t_matrix = t - 1.35
+            p = t_matrix / 1.05
+            env = max(0.0, 1.0 - p) ** 1.2
+            sub = math.sin(2.0 * math.pi * (48.0 + 8.0 * math.sin(2.0 * math.pi * 8.0 * t_matrix)) * t_matrix)
+            data_chirp = math.sin(2.0 * math.pi * 1850.0 * t_matrix) * (1.0 if rng.random() < 0.1 else 0.0)
+            val = (sub * 0.6 + data_chirp * 0.25) * env
+            frames.extend(_pack_sample(val, drive=1.6, master_gain=0.82))
+
+    _write_wav_16bit(file_path, frames, sample_rate)
+
+
 def _ensure_wav_cache_sync(temp_dir: Path) -> None:
     """Генерирует отсутствующие процедурные WAV файлы в кэше."""
     try:
@@ -658,6 +699,7 @@ def _ensure_wav_cache_sync(temp_dir: Path) -> None:
             (temp_dir / "cyber_voice_cancel.wav", lambda p: _generate_voice_cancel_wav(p)),
             (temp_dir / "cyber_core_destabilize.wav", lambda p: _generate_core_destabilize_wav(p)),
             (temp_dir / "cyber_relay_snap.wav", lambda p: _generate_relay_snap_wav(p)),
+            (temp_dir / "cyber_intro_breach.wav", lambda p: _generate_intro_breach_wav(p)),
             (temp_dir / "cyber_session_lock.wav", lambda p: _generate_session_lock_wav(p)),
             (temp_dir / "cyber_session_power.wav", lambda p: _generate_session_power_wav(p)),
             (temp_dir / "cyber_session_suspend.wav", lambda p: _generate_session_suspend_wav(p)),
@@ -757,6 +799,7 @@ class SpeechSFX(QObject):
             voice_cancel_path = temp_dir / "cyber_voice_cancel.wav"
             core_destabilize_path = temp_dir / "cyber_core_destabilize.wav"
             relay_snap_path = temp_dir / "cyber_relay_snap.wav"
+            intro_breach_path = temp_dir / "cyber_intro_breach.wav"
 
             session_specs = {
                 "lock": (
@@ -793,6 +836,7 @@ class SpeechSFX(QObject):
             self._voice_cancel_path = voice_cancel_path
             self._core_destabilize_path = core_destabilize_path
             self._relay_snap_path = relay_snap_path
+            self._intro_breach_path = intro_breach_path
 
             for action, (filename, _generator) in session_specs.items():
                 path = temp_dir / filename
@@ -866,6 +910,11 @@ class SpeechSFX(QObject):
             relay_sfx.setSource(QUrl.fromLocalFile(str(relay_snap_path)))
             relay_sfx.setVolume(self._volume * 0.9)
             self._relay_snap_effect = relay_sfx
+
+            intro_breach_sfx = QSoundEffect(self)
+            intro_breach_sfx.setSource(QUrl.fromLocalFile(str(intro_breach_path)))
+            intro_breach_sfx.setVolume(self._volume * 0.95)
+            self._intro_breach_effect = intro_breach_sfx
 
             # Пул эмоциональных звуков речи
             self._chirp_paths_by_style = {}
@@ -1001,6 +1050,11 @@ class SpeechSFX(QObject):
             and self._relay_snap_effect is not None
         ):
             self._relay_snap_effect.setVolume(self._volume * 0.9)
+        if (
+            hasattr(self, "_intro_breach_effect")
+            and self._intro_breach_effect is not None
+        ):
+            self._intro_breach_effect.setVolume(self._volume * 0.95)
         for effect in self._session_effects.values():
             effect.setVolume(self._volume * 0.85)
         for pool in self._chirp_pools_by_style.values():
@@ -1105,6 +1159,15 @@ class SpeechSFX(QObject):
         self._play_file(
             getattr(self, "_relay_snap_path", None),
             getattr(self, "_relay_snap_effect", None),
+        )
+
+    def play_intro_breach(self) -> None:
+        """Кинематографичный звук первого пробоя Blackwall (свист катушек + раскол стекла)."""
+        if not self.is_effects_sound_enabled():
+            return
+        self._play_file(
+            getattr(self, "_intro_breach_path", None),
+            getattr(self, "_intro_breach_effect", None),
         )
 
     def play_session_action(self, action: str) -> None:

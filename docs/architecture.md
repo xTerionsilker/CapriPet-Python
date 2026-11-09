@@ -214,3 +214,45 @@ sequenceDiagram
         Orch->>Speech: speak(phrase) + SpeechSFX
     end
 ```
+
+---
+
+## 6. Диаграмма последовательности первого появления Капри (Blackwall First Breach)
+
+Кинематографичный оверлей первого запуска с захватом экрана, раскалыванием стекла и обнажением дампа памяти Blackwall.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Пользователь / ОС
+    participant Pet as CapriWindow
+    participant Config as CapriConfig (settings.py)
+    participant Effects as EffectsCoordinator
+    participant Overlay as IntroBreachOverlay
+    participant Screen as QScreen (Win32 Desktop)
+    participant SFX as SpeechSFX
+    participant Matrix as BlackwallDataStream
+
+    User->>Pet: Запуск CapriPet (main.py)
+    Pet->>Config: get_config_value("appearance.first_run_intro_completed")
+    alt first_run_intro_completed == False
+        Pet->>Pet: hide() (скрытие основного окна)
+        Pet->>Effects: play_intro_breach(on_finished)
+        Effects->>Overlay: IntroBreachOverlay(screen, sprite)
+        Overlay->>Screen: grabWindow(0) (захват статичных или живых обоев)
+        Overlay->>SFX: play_intro_breach() (нарастающий coil whine)
+        Overlay->>Overlay: Фаза 0: Прицел и микро-дрожание
+        Overlay->>SFX: Звуковой импульс удара и раскола стекла
+        Overlay->>Overlay: Фаза 1: Паутина трещин (хроматический сдвиг RGB)
+        Overlay->>Matrix: Отрисовка красного HEX-дампа сквозь пролом
+        Overlay->>Overlay: Фаза 2: Опад пиксельных осколков
+        Overlay->>Overlay: Фаза 3: Материализация спрайта Капри + баннер реплики
+        Overlay->>SFX: play_voice_success()
+        Overlay->>Overlay: Фаза 4: Плавное растворение разбитого экрана (fade-out)
+        Overlay->>Pet: finished.emit()
+        Pet->>Config: set_config_value("appearance.first_run_intro_completed", True)
+        Pet->>Pet: reveal_on_startup() (показ рабочего окна на столе)
+    else first_run_intro_completed == True
+        Pet->>Effects: Стандартный TransitionOverlay (появление)
+    end
+```

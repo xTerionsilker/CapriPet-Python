@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QObject, QRect
 
 from .glitch import GlitchBurstOverlay, GlitchManager
+from .intro_breach_overlay import IntroBreachOverlay
 from .model_init_animation import ModelInitOverlay
 from .session_animations import (
     SessionAnimationOverlay,
@@ -31,6 +32,7 @@ class EffectsCoordinator(QObject):
         self._model_init_overlay: ModelInitOverlay | None = None
         self._session_overlay: SessionAnimationOverlay | None = None
         self._burst_overlay: GlitchBurstOverlay | None = None
+        self._intro_breach_overlay: IntroBreachOverlay | None = None
 
     @property
     def glitches(self) -> GlitchManager:
@@ -124,6 +126,35 @@ class EffectsCoordinator(QObject):
     def _clear_model_init_overlay(self) -> None:
         self._model_init_overlay = None
 
+    def play_intro_breach(
+        self, on_finished: Callable[[], None] | None = None
+    ) -> IntroBreachOverlay | None:
+        if getattr(self._window, "is_closing", False):
+            return None
+
+        if self._intro_breach_overlay is not None:
+            with contextlib.suppress(Exception):
+                self._intro_breach_overlay.close()
+            self._intro_breach_overlay = None
+
+        self._window.setWindowOpacity(0.0)
+        self._window.hide()
+
+        screen = self._window.screen()
+        sprite = getattr(self._window, "current_pixmap", None)
+        overlay = IntroBreachOverlay(
+            screen=screen,
+            sprite_pixmap=sprite,
+            on_finished=on_finished,
+        )
+        self._intro_breach_overlay = overlay
+        overlay.finished.connect(self._clear_intro_breach_overlay)
+        overlay.start()
+        return overlay
+
+    def _clear_intro_breach_overlay(self) -> None:
+        self._intro_breach_overlay = None
+
     def stop_all(self) -> None:
 
         self._glitches.stop()
@@ -144,6 +175,11 @@ class EffectsCoordinator(QObject):
             with contextlib.suppress(Exception):
                 self._session_overlay.close()
             self._session_overlay = None
+
+        if self._intro_breach_overlay is not None:
+            with contextlib.suppress(Exception):
+                self._intro_breach_overlay.close()
+            self._intro_breach_overlay = None
 
         if self._startup_overlay is not None:
             with contextlib.suppress(Exception):

@@ -349,18 +349,47 @@ class CapriWindow(QWidget):
                 else self.geometry()
             )
             self.set_pose("idle")
-            self.hide()
-            self._startup_overlay = TransitionOverlay(
-                screen_rect,
-                self.geometry(),
-                "in",
-                target=self,
-                on_peak=self._reveal_on_startup,
-            )
-            self._startup_overlay.finished.connect(
-                self._on_startup_finished
-            )
-            self._startup_overlay.start()
+            first_run_done = get_config_value("appearance.first_run_intro_completed", False)
+            if not first_run_done:
+                self.setWindowOpacity(0.0)
+                self.hide()
+                QTimer.singleShot(80, self._do_launch_intro_breach)
+            else:
+                self.hide()
+                self._startup_overlay = TransitionOverlay(
+                    screen_rect,
+                    self.geometry(),
+                    "in",
+                    target=self,
+                    on_peak=self._reveal_on_startup,
+                )
+                self._startup_overlay.finished.connect(
+                    self._on_startup_finished
+                )
+                self._startup_overlay.start()
+
+    def trigger_intro_breach(self) -> None:
+        """Ручной запуск интро-оверлея пробоя экрана (Blackwall Breach)."""
+        if self._closing:
+            return
+        self.setWindowOpacity(0.0)
+        self.hide()
+        QTimer.singleShot(80, self._do_launch_intro_breach)
+
+    def _do_launch_intro_breach(self) -> None:
+        if self._closing:
+            return
+        self._effects.play_intro_breach(on_finished=self._on_intro_breach_finished)
+
+    def _on_intro_breach_finished(self) -> None:
+        set_config_value("appearance.first_run_intro_completed", True)
+        self.set_pose("idle")
+        self.setWindowOpacity(1.0)
+        self.show()
+        self.raise_()
+        self.update()
+        self._start_model_init_animation()
+        QTimer.singleShot(400, lambda: self._speak("Стек захвачен. Системы в норме, мясной."))
 
     def _reveal_on_startup(self) -> None:
         self.set_pose("idle")

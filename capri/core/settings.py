@@ -88,6 +88,7 @@ class AppearanceConfig(BaseModel):
     pose: Literal["sit", "stay", "crouch"] = "sit"
     overlay_pose: Literal["sit", "stay", "crouch"] = "sit"
     scale: int = 100
+    first_run_intro_completed: bool = False
 
     @field_validator("scale", mode="before")
     @classmethod

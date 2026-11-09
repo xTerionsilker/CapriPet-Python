@@ -65,7 +65,8 @@
     "skin": "default",
     "pose": "sit",
     "overlay_pose": "sit",
-    "scale": 100
+    "scale": 100,
+    "first_run_intro_completed": false
   },
   "effects": {
     "glitches_enabled": true,
@@ -135,6 +136,7 @@
 | `appearance.pose` | `str` | `"sit"` | Текущая поза питомца: `"sit"`, `"stay"`, `"crouch"` |
 | `appearance.overlay_pose` | `str` | `"sit"` | Поза оверлея по умолчанию: `"sit"`, `"stay"`, `"crouch"` |
 | `appearance.scale` | `int` | `100` | Масштаб спрайта питомца в процентах (50, 75, 100, 125, 150) |
+| `appearance.first_run_intro_completed` | `bool` | `false` | Завершено ли вступительное интро первого появления с пробоем экрана |
 | `effects.glitches_enabled` | `bool` | `true` | Включены ли экранные глитч-эффекты (`GlitchManager`) |
 | `effects.glitch_intensity` | `str` | `"weak"` | Интенсивность глитчей: `"weak"`, `"medium"`, `"strong"` |
 | `window.position` | `{"x": int, "y": int} \| null` | `null` | Координаты положения окна на рабочем столе. `null` = центр экрана |

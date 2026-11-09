@@ -1,5 +1,6 @@
 """Visual effects, transitions, and overlay rendering package exports."""
 
+from .blackwall_data_stream import BlackwallDataStream
 from .cursor_pointer import CursorPointerOverlay
 from .effects_coordinator import EffectsCoordinator
 from .glitch import (
@@ -14,6 +15,7 @@ from .glitch import (
     paint_subtle_noise,
     paint_tears,
 )
+from .intro_breach_overlay import IntroBreachOverlay
 from .model_init_animation import ModelInitOverlay
 from .session_animations import (
     CryostasisSceneOverlay,
@@ -26,10 +28,12 @@ from .session_animations import (
 from .transition import TransitionOverlay
 
 __all__ = [
+    "BlackwallDataStream",
     "CursorPointerOverlay",
     "EffectsCoordinator",
     "GlitchBurstOverlay",
     "GlitchManager",
+    "IntroBreachOverlay",
     "paint_frame",
     "paint_scanlines",
     "paint_tears",

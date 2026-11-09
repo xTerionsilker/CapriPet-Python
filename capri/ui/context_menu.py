@@ -405,6 +405,12 @@ class ContextMenuBuilder:
         self._add_scale_menu(parent_menu)
         self._add_glitch_intensity_menu(parent_menu)
         self._add_screen_menu(parent_menu)
+        self._add_intro_breach_action(parent_menu)
+
+    def _add_intro_breach_action(self, parent_menu: QMenu) -> None:
+        if hasattr(self.window, "trigger_intro_breach"):
+            breach_act = parent_menu.addAction("⚡  [FX] Blackwall Breach Intro")
+            breach_act.triggered.connect(self.window.trigger_intro_breach)
 
     def _add_behavior_section(self, parent_menu: QMenu) -> None:
         self._add_activity_timeout_menu(parent_menu)
