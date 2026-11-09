@@ -22,67 +22,8 @@ def switch_layout(text: str) -> str:
     return text.translate(_LAYOUT_TRANSLATION)
 
 
-_EN_COMMAND_PREFIXES: dict[str, str] = {
-    "pause": "пауза",
-    "stop": "пауза",
-    "play": "продолжить",
-    "resume": "продолжить",
-    "next": "следующий трек",
-    "next track": "следующий трек",
-    "skip": "следующий трек",
-    "prev": "предыдущий трек",
-    "previous": "предыдущий трек",
-    "previous track": "предыдущий трек",
-    "open": "запусти",
-    "launch": "запусти",
-    "run": "запусти",
-    "start": "запусти",
-    "close": "убей",
-    "kill": "убей",
-    "exit": "убей",
-    "lock": "блокировка",
-    "lock screen": "блокировка",
-    "sleep": "сон",
-    "reboot": "перезагрузка",
-    "restart": "перезагрузка",
-    "shutdown": "выключи",
-    "power off": "выключи",
-    "status": "дебаг",
-    "debug": "дебаг",
-    "info": "дебаг",
-    "glitch": "глитч",
-    "glitches": "глитч",
-    "spotify": "спотифай",
-    "google": "гугл",
-    "youtube": "ютуб",
-    "where mouse": "где мышь",
-    "where is mouse": "где мышь",
-    "where is cursor": "где мышь",
-    "what is playing": "что играет",
-    "what's playing": "что играет",
-    "update": "обновление",
-    "clean": "очистить",
-    "cleanup": "очистить",
-    "clean disk": "очистить",
-    "clean system": "очистить",
-    "clear cache": "очистить",
-}
 
 
-def normalize_english_command(text: str) -> str:
-    clean = text.strip()
-    lower = clean.lower()
-
-    if lower in _EN_COMMAND_PREFIXES:
-        return _EN_COMMAND_PREFIXES[lower]
-
-    for prefix in sorted(_EN_COMMAND_PREFIXES, key=len, reverse=True):
-        if lower.startswith((prefix + " ", prefix + ":")):
-            rest = clean[len(prefix) :].lstrip(" :,\t")
-            ru_prefix = _EN_COMMAND_PREFIXES[prefix]
-            return f"{ru_prefix} {rest}" if rest else ru_prefix
-
-    return clean
 
 
 class CommandRegistry:
@@ -140,7 +81,6 @@ class CommandRegistry:
         return command.execute(ctx, argument)
 
     def match(self, text: str) -> tuple[BaseCommand, str] | None:
-        text = normalize_english_command(text)
         normalized = self._normalize(text)
         if not normalized:
             return None
@@ -184,7 +124,6 @@ class CommandRegistry:
         return None
 
     def exact_match(self, text: str) -> tuple[BaseCommand, str] | None:
-        text = normalize_english_command(text)
         normalized = self._normalize(text)
         if not normalized:
             return None
