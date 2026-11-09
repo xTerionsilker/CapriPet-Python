@@ -9,7 +9,7 @@ from PySide6.QtCore import QPoint
 from PySide6.QtGui import QGuiApplication, QScreen
 from PySide6.QtMultimedia import QAudioDevice
 
-from ..audio.recognizer import preload_model_async, set_backend
+from ..audio.recognizer import preload_model_async
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
     set_config_value,
@@ -134,12 +134,7 @@ class PetWindowActionDelegate:
         )
         name = desc if desc else "По умолчанию"
         self.speak(f"Слушаю тебя через: {name}")
-    def set_asr_backend(self, backend: str) -> None:
-        set_backend(backend)
-        preload_model_async()
-        label = "Faster-Whisper" if backend == "whisper" else "Vosk"
-        self._window._orchestrator.update_discord_asr(backend)
-        self.speak(f"Нейро-ухо переключено на: {label}")
+
 
     def set_speech_sound_enabled(self, enabled: bool) -> None:
         get_speech_sfx().set_speech_sound_enabled(enabled)

@@ -212,19 +212,12 @@ class PetOrchestrator(QObject):
         else:
             self.discord_rpc.stop()
 
-    def update_discord_asr(self, backend: str) -> None:
-        if self._discord_enabled:
-            self._sync_discord_status(backend=backend)
-
-    def _sync_discord_status(self, backend: str | None = None) -> None:
-        if backend is None:
-            backend = str(get_config_value("audio.asr_backend", "vosk"))
-        asr_name = "Faster-Whisper" if backend == "whisper" else "Vosk"
+    def _sync_discord_status(self) -> None:
         last_cmd = self._last_command[:30] + (
             "…" if len(self._last_command) > 30 else ""
         )
         self.discord_rpc.update_presence(
-            state=f"Модель: {asr_name}",
+            state="Модель: Vosk",
             details=f"Команда: {last_cmd}",
             large_text="CapriPet // Cyber AI",
         )

@@ -256,14 +256,6 @@ class VoskSpeechService:
 _service = VoskSpeechService()
 
 
-def get_backend() -> str:
-    return "vosk"
-
-
-def set_backend(backend: str) -> None:
-    pass
-
-
 
 
 
