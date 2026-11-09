@@ -30,10 +30,12 @@ flowchart TB
         WakeWord["wake_word.py<br/>(Детектор активации «Капри»)"]
         InputFlow["input_flow.py<br/>(Конвейер сессий и подтверждений)"]
         Morphology["morphology.py<br/>(Стемминг, нормализация числительных)"]
+        Classifier["process_classifier.py<br/>(Классификатор ПО и реплики)"]
         Settings["settings.py<br/>(Pydantic v2 .capri/config.json)"]
 
         WakeWord --> InputFlow
         Morphology -.-> InputFlow
+        Classifier -.-> Settings
     end
 
     %% Контроллеры и оркестрация
@@ -41,6 +43,7 @@ flowchart TB
         direction TB
         Orchestrator["orchestrator.py<br/>(Центральный оркестратор)"]
         Inactivity["inactivity_manager.py<br/>(Таймер неактивности + PresenceReminder)"]
+        Watcher["process_watcher.py<br/>(Гибридный ProcessWatcher)"]
         ActionBridge["action_bridge.py<br/>(Асинхронный мост потоков)"]
     end
 
@@ -86,6 +89,7 @@ flowchart TB
     Orchestrator --> ActionBridge
     ActionBridge --> Handlers
     Inactivity --> Orchestrator
+    Watcher -->|Контекст активного/тяжелого ПО| Orchestrator
 
     Orchestrator -->|Состояние позы, речь, анимация| PetWindow
     Orchestrator -->|Координация статуса и текста ASR| VoiceCoord
@@ -170,5 +174,41 @@ sequenceDiagram
         Window->>Shredder: shred_paths(paths) (рекурсивное безвозвратное стирание)
         Shredder-->>Window: ShredMetrics (размер, типы, количество)
         Window->>Speech: generate_shred_dialogue(metrics)
+    end
+```
+
+---
+
+## 5. Диаграмма последовательности телеметрии процессов (ProcessWatcher)
+
+Гибридный сбор системной телеметрии активных окон (Win32) и фоновых процессов (psutil) с валидацией кулдаунов и реакцией Капри.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Пользователь / ОС
+    participant Win32 as Win32 API (Foreground)
+    participant Watcher as ProcessWatcher (QTimer)
+    participant GameMode as GameModeDetector
+    participant Classifier as ProcessClassifier
+    participant Orch as PetOrchestrator
+    participant Speech as CyberHudBubble
+
+    User->>Win32: Переключение фокуса (напр. code.exe)
+    Watcher->>Win32: GetForegroundWindow() + GetWindowThreadProcessId()
+    Win32-->>Watcher: Имя процесса (code.exe)
+    Watcher->>GameMode: is_game_active()?
+    alt Игра активна (Game Mode)
+        GameMode-->>Watcher: True
+        Note over Watcher: 100% молчание, пропуск реакции
+    else Обычный режим
+        GameMode-->>Watcher: False
+        Watcher->>Watcher: Проверка глобального дебаунса (30s) и кулдауна категории (240s)
+        Watcher->>Classifier: classify("code.exe")
+        Classifier-->>Watcher: category ("dev")
+        Watcher->>Classifier: get_reaction_phrase("dev")
+        Classifier-->>Watcher: Саркастичная реплика энграммы
+        Watcher->>Orch: sig_process_context_changed("dev", "code.exe", phrase)
+        Orch->>Speech: speak(phrase) + SpeechSFX
     end
 ```

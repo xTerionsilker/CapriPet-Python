@@ -102,6 +102,14 @@
   "discord": {
     "enabled": true,
     "client_id": "1567968896277938266"
+  },
+  "telemetry": {
+    "process_monitoring_enabled": true,
+    "foreground_poll_ms": 1000,
+    "background_scan_interval_sec": 8.0,
+    "category_cooldown_sec": 240,
+    "global_cooldown_sec": 30,
+    "custom_rules": {}
   }
 }
 ```
@@ -139,6 +147,12 @@
 | `network.user_agent` | `str \| null` | `null` | Пользовательский User-Agent (если null, генерируется автоматически) |
 | `discord.enabled` | `bool` | `true` | Включена ли интеграция с Discord Rich Presence |
 | `discord.client_id` | `str` | `"1567968896277938266"` | Client ID приложения Discord RPC |
+| `telemetry.process_monitoring_enabled` | `bool` | `true` | Включение/отключение фоновой телеметрии и контекстных реакций |
+| `telemetry.foreground_poll_ms` | `int` | `1000` | Интервал опроса активного окна Win32 (в мс) |
+| `telemetry.background_scan_interval_sec` | `float` | `8.0` | Интервал вторичного psutil-скана фоновых процессов (в сек) |
+| `telemetry.category_cooldown_sec` | `int` | `240` | Кулдаун между реакциями на одну и ту же категорию ПО (в сек) |
+| `telemetry.global_cooldown_sec` | `int` | `30` | Глобальный интервал тишины между сменами приложений (в сек) |
+| `telemetry.custom_rules` | `dict[str, str]` | `{}` | Пользовательские маппинги процессов на категории («proc.exe»: «cat») |
 
 ---
 

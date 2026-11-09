@@ -206,6 +206,17 @@ class GameModeConfig(BaseModel):
     )
 
 
+class TelemetryConfig(BaseModel):
+    """Параметры фоновой телеметрии процессов и контекстно-адаптивного поведения."""
+
+    process_monitoring_enabled: bool = True
+    foreground_poll_ms: int = 1000
+    background_scan_interval_sec: float = 8.0
+    category_cooldown_sec: int = 240
+    global_cooldown_sec: int = 30
+    custom_rules: dict[str, str] = Field(default_factory=dict)
+
+
 class CapriConfig(BaseModel):
     """Корневая модель конфигурации приложения CapriPet."""
 
@@ -219,6 +230,7 @@ class CapriConfig(BaseModel):
     game_mode: GameModeConfig = Field(default_factory=GameModeConfig)
     network: NetworkConfig = Field(default_factory=NetworkConfig)
     discord: DiscordConfig = Field(default_factory=DiscordConfig)
+    telemetry: TelemetryConfig = Field(default_factory=TelemetryConfig)
 
 
 DEFAULT_CONFIG: dict[str, Any] = CapriConfig().model_dump()

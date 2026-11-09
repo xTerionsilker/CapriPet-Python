@@ -19,6 +19,7 @@ from ..controllers.inactivity_manager import (
     InactivityManager,
     PresenceReminder,
 )
+from ..controllers.process_watcher import ProcessWatcher
 from ..core.input_flow import (
     AFFIRMATIVE_WORDS,
     InputFlow,
@@ -113,6 +114,14 @@ class PetOrchestrator(QObject):
         self._last_command: str = "нет"
         self._sync_discord_status()
 
+        self.process_watcher = ProcessWatcher(
+            is_game_active=self._is_game_active,
+            parent=self,
+        )
+        self.process_watcher.sig_process_context_changed.connect(
+            self._on_process_context_changed
+        )
+
         self._register_commands()
 
     def _connect_action_signals(self) -> None:
@@ -149,10 +158,12 @@ class PetOrchestrator(QObject):
     def start(self) -> None:
         self.voice_coordinator.start_if_enabled()
         self.inactivity.start()
+        self.process_watcher.start()
         if self._discord_enabled:
             self.discord_rpc.start()
 
     def stop(self) -> None:
+        self.process_watcher.stop()
         self.discord_rpc.stop()
         self.inactivity.stop()
         self.reminder.stop()
@@ -163,13 +174,37 @@ class PetOrchestrator(QObject):
             self._session_overlay = None
 
     def pause(self) -> None:
+        self.process_watcher.stop()
         self.inactivity.set_paused(True)
         self.reminder.stop()
         self.voice_coordinator.voice.cancel()
 
     def resume(self) -> None:
         self.inactivity.set_paused(False)
+        self.process_watcher.start()
         self.voice_coordinator.wake_if_needed()
+
+    def _is_game_active(self) -> bool:
+        detector = getattr(self._window, "_game_detector", None)
+        if detector and hasattr(detector, "is_game_active"):
+            val = detector.is_game_active
+            return bool(val() if callable(val) else val)
+        return False
+
+    def _on_process_context_changed(
+        self, category: str, app_name: str, phrase: str
+    ) -> None:
+        """Реакция на смену рабочего контекста пользователя (ProcessWatcher)."""
+        if getattr(self._window, "is_closing", False):
+            return
+        if getattr(self._window, "is_speaking", False):
+            return
+
+        # Если окно скрыто, показываем питомца перед воспроизведением реплики
+        if not self._window.isVisible():
+            self.inactivity.show_with_callback(lambda: self._window.speak(phrase))
+        else:
+            self._window.speak(phrase)
 
     @property
     def reminders_enabled(self) -> bool:
