@@ -5,6 +5,7 @@ from __future__ import annotations
 from .base import BaseCommand, CommandContext, CommandResult
 from .handlers import (
     CleanSystemCommand,
+    ConsoleCommand,
     DebugCommand,
     GlitchToggleCommand,
     GoogleSearchCommand,
@@ -27,6 +28,7 @@ from .handlers import (
 from .registry import CommandRegistry, switch_layout
 
 DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
+    ConsoleCommand,
     DebugCommand,
     CleanSystemCommand,
     GlitchToggleCommand,

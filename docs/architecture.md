@@ -61,6 +61,7 @@ flowchart TB
         PetWindow["ui/pet_window.py & pet_window_actions.py<br/>(Главное окно питомца, View и ActionDelegate)"]
         PetRenderer["ui/pet_renderer.py<br/>(Рендерер спрайтов, глитч-ауры Blackwall и сканлайнов)"]
         ContextMenu["ui/context_menu.py<br/>(Кибер-меню и настройки)"]
+        ConsoleHUD["ui/console_hud.py<br/>(CyberConsoleHud прямой ввод команд)"]
         VoiceCoord["ui/voice_coordinator.py<br/>(Координатор ASR & HUD)"]
         VoiceHUD["ui/voice_hud.py<br/>(Cyberpunk Voice HUD над taskbar)"]
         SpeechHUD["ui/speech.py & speech_sfx.py<br/>(CyberHudBubble и синтез SFX)"]
@@ -69,6 +70,7 @@ flowchart TB
 
         PetWindow --> PetRenderer
         PetWindow --> ContextMenu
+        PetWindow --> ConsoleHUD
         VoiceCoord --> VoiceHUD
     end
 

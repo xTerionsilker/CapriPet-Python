@@ -198,6 +198,7 @@ class PetOrchestrator(QObject):
             expect_reply=self.flow.expect_reply,
             action_bridge=self.actions,
             debug_info=self.debug_info,
+            open_console=getattr(self._window, "open_console", None),
         )
         self.commands.set_context(context)
         register_default_commands(self.commands)

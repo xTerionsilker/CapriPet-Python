@@ -48,6 +48,7 @@ from ..integrations.data_shredder import (
 )
 from ..integrations.game_mode import GameModeDetector
 from ..integrations.system_power_hook import SystemEventHook
+from .console_hud import CyberConsoleHud
 from .context_menu import TrayManager
 from .game_overlay import SilentPresenceGlyph
 from .pet_renderer import PetRenderer, PetRenderState
@@ -174,6 +175,10 @@ class CapriWindow(QWidget):
         )
 
         self._orchestrator.start()
+        self._console_hud = CyberConsoleHud(
+            command_executor=self._orchestrator.handle_command,
+            pet_window=self,
+        )
         self._tray = TrayManager(self)
         self._silent_glyph = SilentPresenceGlyph()
         self._is_stealth_mode = False
@@ -243,6 +248,11 @@ class CapriWindow(QWidget):
     @property
     def is_closing(self) -> bool:
         return self._closing
+
+    def open_console(self) -> None:
+        """Открывает окно консоли прямого ввода команд."""
+        if hasattr(self, "_console_hud") and self._console_hud is not None:
+            self._console_hud.show_console()
 
     @property
     def surge_ticks(self) -> int:
@@ -720,6 +730,8 @@ class CapriWindow(QWidget):
 
         self._closing = True
         event.ignore()
+        if hasattr(self, "_console_hud") and self._console_hud is not None:
+            self._console_hud.hide()
         self._orchestrator.stop()
         self._effects.stop_all()
         self._glitch_timer.stop()

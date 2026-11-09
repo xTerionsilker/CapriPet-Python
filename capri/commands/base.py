@@ -29,6 +29,7 @@ class CommandContext:
     expect_reply: Callable[..., None] | None = None
     action_bridge: Any = None
     debug_info: Callable[[], dict[str, Any]] | None = None
+    open_console: Callable[[], Any] | None = None
 
 
 class BaseCommand:

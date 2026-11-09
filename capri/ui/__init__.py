@@ -1,5 +1,6 @@
 """User interface components, menus, and styling package exports."""
 
+from .console_hud import CyberConsoleHud
 from .context_menu import (
     ContextMenuBuilder,
     CyberMenu,
@@ -39,6 +40,7 @@ from .voice_hud import CyberVoiceHud
 
 __all__ = [
     "CapriWindow",
+    "CyberConsoleHud",
     "SpeechWindow",
     "CyberVoiceHud",
     "show_text",

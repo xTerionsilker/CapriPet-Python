@@ -53,6 +53,7 @@ capri/
 │   └── window_tracker.py       # Определение геометрии активного окна (Win32 DWM)
 └── ui/                         # Графический интерфейс на PySide6 (Qt)
     ├── __init__.py
+    ├── console_hud.py          # Cyber HUD терминал прямого ввода команд с кнопкой TERMINATE
     ├── context_menu.py         # Контекстное меню, стиль Cyberpunk и системный трей
     ├── game_overlay.py         # Компактный полупрозрачный HUD-индикатор режима тишины (Stealth)
     ├── pet_renderer.py         # Рендерер спрайта, сканлайны и позиционирование
