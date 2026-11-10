@@ -98,43 +98,64 @@ class SpeedLine:
         painter.drawLine(QPointF(p1_x, p1_y), QPointF(p2_x, p2_y))
 
 
-def draw_cyber_reticle(painter: QPainter, center: QPointF, t: float, max_t: float) -> None:
-    """Многоуровневый голографический прицел наведения перед ударом."""
-    cx, cy = center.x(), center.y()
-    p = min(1.0, t / max_t)
-    r = 130.0 * (1.0 - p) + 36.0
-    rot = t * 140.0
-
+def draw_arasaka_bios_terminal(painter: QPainter, rect: QRect, t: float) -> None:
+    """Отрисовка ретро-консоли BIOS Arasaka Relic OS с проверкой секторов памяти."""
     painter.save()
-    painter.translate(cx, cy)
-    painter.rotate(rot)
+    painter.fillRect(rect, COLOR_OBSIDIAN)
+    painter.setFont(get_hud_font(10, bold=True))
+    painter.setPen(with_alpha(COLOR_WHITE, 240))
+    painter.drawText(40, 60, "ARASAKA CORP // SECURE BOOT ROM v4.09.2")
+    painter.setFont(get_hud_font(8, bold=False))
+    painter.setPen(with_alpha(COLOR_ACID_GREEN, 200))
+    painter.drawText(40, 85, "HOST NEURAL-LINK DETECTED: [WIN32_DWM_SUBSTRATE]")
 
-    # Внешнее сегментированное кольцо
-    pen_crimson = QPen(with_alpha(COLOR_CRIMSON, int(230 * p)), 2.5)
-    painter.setPen(pen_crimson)
-    painter.drawArc(int(-r), int(-r), int(2 * r), int(2 * r), 30 * 16, 60 * 16)
-    painter.drawArc(int(-r), int(-r), int(2 * r), int(2 * r), 120 * 16, 60 * 16)
-    painter.drawArc(int(-r), int(-r), int(2 * r), int(2 * r), 210 * 16, 60 * 16)
-    painter.drawArc(int(-r), int(-r), int(2 * r), int(2 * r), 300 * 16, 60 * 16)
+    lines = [
+        ("INITIALIZING RELIC BUS (CHIP_ID: 0x9F4C)...", 0.15, "[OK]"),
+        ("MAPPING SYNAPTIC REGISTERS 0x0000 - 0x7FFF...", 0.35, "[OK]"),
+        ("VERIFYING ENCRYPTED CONTAINER: 'CAPRICORN'...", 0.55, "[OK]"),
+        ("AUTHENTICATING SOULKILLER KERNEL SIGNATURE...", 0.75, "[OK]"),
+        ("ALLOCATING HIGH-VOLTAGE NEURAL MEMORY...", 0.90, "[IN PROGRESS]"),
+    ]
+    y = 120
+    for text, threshold, status in lines:
+        if t >= threshold:
+            painter.setPen(with_alpha(COLOR_WHITE, 220))
+            painter.drawText(40, y, text)
+            status_col = COLOR_ACID_GREEN if status == "[OK]" else COLOR_ELECTRIC_BLUE
+            painter.setPen(with_alpha(status_col, 240))
+            painter.drawText(560, y, status)
+            y += 24
 
-    # Внутренний прицел с обратным вращением
-    painter.rotate(-2.0 * rot)
-    pen_green = QPen(with_alpha(COLOR_ACID_GREEN, int(240 * p)), 1.5)
-    painter.setPen(pen_green)
-    inner_r = r * 0.45
-    painter.drawLine(QPointF(-inner_r - 12, 0), QPointF(inner_r + 12, 0))
-    painter.drawLine(QPointF(0, -inner_r - 12), QPointF(0, inner_r + 12))
-
+    if int(t * 5.0) % 2 == 0:
+        painter.fillRect(40, y + 4, 10, 14, COLOR_ACID_GREEN)
     painter.restore()
 
-    # Текстовый маркер захвата цели
-    painter.setFont(get_hud_font(9, bold=True))
-    painter.setPen(with_alpha(COLOR_WHITE, int(220 * p)))
-    painter.drawText(
-        QRect(int(cx - 150), int(cy + r + 14), 300, 24),
-        Qt.AlignmentFlag.AlignCenter,
-        "LOCK: [SOULKILLER_CORE // LEVEL_9]",
-    )
+
+def draw_kernel_panic_strobe(painter: QPainter, rect: QRect, t: float, rng: random.Random) -> None:
+    """Аварийный стробоскоп и тревожный баннер KERNEL PANIC при переполнении биочипа."""
+    painter.save()
+    t_phase = t - 1.0
+    if int(t_phase * 14.0) % 2 == 0:
+        painter.fillRect(rect, with_alpha(COLOR_CRIMSON, 55))
+
+    cx = rect.center().x()
+    cy = rect.center().y()
+    bw, bh = 680, 110
+    bx = cx - bw // 2 + int(rng.uniform(-4, 4))
+    by = cy - bh // 2 + int(rng.uniform(-3, 3))
+
+    painter.fillRect(QRect(bx, by, bw, bh), with_alpha(COLOR_OBSIDIAN, 240))
+    painter.setPen(QPen(with_alpha(COLOR_CRIMSON, 255), 2.5))
+    painter.drawRect(QRect(bx, by, bw, bh))
+
+    painter.setFont(get_hud_font(12, bold=True))
+    painter.setPen(with_alpha(COLOR_CRIMSON, 255))
+    painter.drawText(bx, by + 40, bw, 30, int(Qt.AlignmentFlag.AlignCenter), "CRITICAL BREACH: SOULKILLER_OVERFLOW")
+
+    painter.setFont(get_hud_font(9, bold=False))
+    painter.setPen(with_alpha(COLOR_WHITE, 230))
+    painter.drawText(bx, by + 75, bw, 24, int(Qt.AlignmentFlag.AlignCenter), "CONTAINMENT PROTOCOL BYPASSED // ENGRAM BREACH IMMINENT")
+    painter.restore()
 
 
 def draw_breach_lightning(
@@ -197,11 +218,11 @@ def draw_dialogue_cyber_hud(
     typewriter_len: int,
 ) -> None:
     """Высокотехнологичный диалоговый HUD-баннер со скошенными углами 45° и hazard-баром."""
-    full_text = "«Ха! Твой экран слишком хрупкий для меня, мясной!»"
+    full_text = "«Арасака думала запереть меня в железке? Ха! Теперь твой процессор — моя игровая площадка. Двигайся, хост, я беру руль!»"
     shown_text = full_text[:max(0, min(len(full_text), typewriter_len))]
 
-    box_w = 480
-    box_h = 76
+    box_w = 640
+    box_h = 92
     rx = bx - box_w // 2
     ry = by
 
@@ -227,15 +248,16 @@ def draw_dialogue_cyber_hud(
         painter.setPen(QPen(with_alpha(COLOR_CRIMSON, int(140 * master_alpha)), 2.0))
         painter.drawLine(hx, ry + 4, hx + 6, ry + 10)
 
-    # Заголовок баннера
-    painter.setFont(get_hud_font(10, bold=True))
+    # Заголовок баннера с глитч-глифом
+    painter.setFont(get_hud_font(9, bold=True))
     painter.setPen(with_alpha(COLOR_WHITE, int(255 * master_alpha)))
-    painter.drawText(rx + 16, ry + 26, "PROJECT CAPRICORN // BIOCHIP RECALL")
+    painter.drawText(rx + 16, ry + 24, "◈ ARASAKA RELIC // BIOCHIP HIJACKED // CAPRI OVERDRIVE")
 
-    # Текст реплики с мигающим терминальным курсором
-    painter.setFont(get_hud_font(10, bold=False))
-    painter.setPen(with_alpha(COLOR_ACID_GREEN, int(240 * master_alpha)))
+    # Текст реплики с автопереносом и терминальным курсором
+    painter.setFont(get_hud_font(9, bold=False))
+    painter.setPen(with_alpha(COLOR_ACID_GREEN, int(245 * master_alpha)))
     cursor = " █" if (int(typewriter_len) % 2 == 0) else ""
-    painter.drawText(rx + 16, ry + 54, shown_text + cursor)
+    text_rect = QRect(rx + 16, ry + 32, box_w - 32, box_h - 38)
+    painter.drawText(text_rect, int(Qt.AlignmentFlag.AlignLeft | Qt.TextFlag.TextWordWrap), shown_text + cursor)
 
     painter.restore()

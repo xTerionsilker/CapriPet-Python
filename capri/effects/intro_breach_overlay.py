@@ -21,6 +21,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QColor,
     QGuiApplication,
+    QKeyEvent,
     QPainter,
     QPainterPath,
     QPen,
@@ -35,9 +36,10 @@ from .blackwall_data_stream import BlackwallDataStream
 from .intro_breach_helpers import (
     GlassShard,
     SpeedLine,
+    draw_arasaka_bios_terminal,
     draw_breach_lightning,
-    draw_cyber_reticle,
     draw_dialogue_cyber_hud,
+    draw_kernel_panic_strobe,
 )
 from .transition_base import (
     COLOR_ACID_GREEN,
@@ -83,8 +85,8 @@ class IntroBreachOverlay(QWidget):
             | Qt.WindowType.NoDropShadowWindowHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self._target_screen = screen or QGuiApplication.primaryScreen()
         screen_geo = self._target_screen.geometry() if self._target_screen else QRect(0, 0, 1920, 1080)
@@ -122,6 +124,8 @@ class IntroBreachOverlay(QWidget):
         self._rng = random.Random(77)
 
         self._dialogue_sfx_played = False
+        self._is_skipping = False
+        self._skip_start_sec = 0.0
         self._generate_scene()
 
 
@@ -210,20 +214,37 @@ class IntroBreachOverlay(QWidget):
     def start(self) -> None:
         self.show()
         self.raise_()
+        self.activateWindow()
+        self.setFocus()
         self._elapsed_timer.start()
         self._timer.start()
         get_speech_sfx().play_intro_breach()
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.key() in (Qt.Key.Key_Escape, Qt.Key.Key_Space):
+            if not self._is_skipping:
+                self._is_skipping = True
+                self._skip_start_sec = self._elapsed_sec
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def _on_tick(self) -> None:
         dt = 0.016
         self._elapsed_sec = self._elapsed_timer.elapsed() / 1000.0
         self._matrix_stream.update(dt)
 
-        if self._elapsed_sec >= 0.70:
+        if self._is_skipping and (self._elapsed_sec - self._skip_start_sec) >= 0.30:
+            self._timer.stop()
+            self.finished.emit()
+            self.close()
+            return
+
+        if self._elapsed_sec >= 1.8:
             for s in self._shards:
                 s.update(dt)
 
-        if self._elapsed_sec >= 2.2 and not self._dialogue_sfx_played:
+        if self._elapsed_sec >= 2.6 and not self._dialogue_sfx_played:
             self._dialogue_sfx_played = True
             get_speech_sfx().play_voice_success()
 
@@ -249,34 +270,43 @@ class IntroBreachOverlay(QWidget):
         cx = self._center.x()
         cy = self._center.y()
 
-        # Плавное угасание в фазе растворения
         master_alpha = 1.0
-        if t >= 3.8:
+        if self._is_skipping:
+            skip_p = min(1.0, (t - self._skip_start_sec) / 0.30)
+            master_alpha = max(0.0, 1.0 - skip_p)
+        elif t >= 3.8:
             p_fade = min(1.0, (t - 3.8) / 1.0)
             master_alpha = 1.0 - QEasingCurve(QEasingCurve.Type.OutCubic).valueForProgress(p_fade)
 
-        # 1. Захваченный рабочий стол с микро-дрожанием
+        painter.setOpacity(master_alpha)
+
+        # Фаза 0: Arasaka Relic BIOS терминал (0.0 - 1.0s)
+        if t < 1.0:
+            draw_arasaka_bios_terminal(painter, self.rect(), t)
+            return
+
+        # Фаза 1: Сбой биочипа и стробоскоп KERNEL PANIC (1.0 - 1.8s)
+        if t < 1.8:
+            draw_arasaka_bios_terminal(painter, self.rect(), 1.0)
+            draw_kernel_panic_strobe(painter, self.rect(), t, self._rng)
+            return
+
+        # Вспышка в момент прорыва (1.80 - 1.86s)
+        if 1.80 <= t < 1.86:
+            painter.fillRect(self.rect(), with_alpha(COLOR_WHITE, 240))
+            return
+
+        # 1. Захваченный рабочий стол с микро-дрожанием при разрыве
         shake_x, shake_y = 0, 0
-        if 0.1 <= t < 0.70:
-            shake_amp = (t / 0.70) * 8.0
+        if 1.86 <= t < 2.4:
+            shake_amp = (1.0 - (t - 1.86) / 0.54) * 8.0
             shake_x = int(self._rng.uniform(-shake_amp, shake_amp))
             shake_y = int(self._rng.uniform(-shake_amp, shake_amp))
 
-        painter.setOpacity(master_alpha)
         painter.drawPixmap(shake_x, shake_y, self._desktop_pixmap)
 
-        # Фаза 0: прицеливание
-        if t < 0.70:
-            draw_cyber_reticle(painter, self._center, t, 0.70)
-            return
-
-        # Вспышка в момент удара (Impact Flash)
-        if 0.70 <= t < 0.76:
-            painter.fillRect(self.rect(), with_alpha(COLOR_WHITE, 230))
-            return
-
-        # 2. Отрисовка потока Blackwall сквозь пролом
-        breach_progress = min(1.0, (t - 0.70) / 0.50)
+        # 2. Отрисовка потока Blackwall сквозь разрыв
+        breach_progress = min(1.0, (t - 1.86) / 0.50)
         scale_curve = QEasingCurve(QEasingCurve.Type.OutBack).valueForProgress(breach_progress)
 
         scaled_hole_pts = [
@@ -296,8 +326,8 @@ class IntroBreachOverlay(QWidget):
         draw_breach_lightning(painter, QPolygonF(scaled_hole_pts), self._rng, master_alpha)
 
         # 4. Расходящаяся ударная волна (Shockwave Ring)
-        if t < 1.4:
-            sw_r = int((t - 0.70) * 1200.0)
+        if 1.86 <= t < 2.5:
+            sw_r = int((t - 1.86) * 1400.0)
             CyberShockwaveRing.draw(
                 painter,
                 QPoint(int(cx), int(cy)),
@@ -318,18 +348,18 @@ class IntroBreachOverlay(QWidget):
             shard.draw(painter, master_alpha)
 
         # 7. Экшен-линии скорости Studio Trigger
-        if 1.4 <= t < 3.2:
-            sl_progress = min(1.0, (t - 1.4) / 0.6)
+        if 2.0 <= t < 3.6:
+            sl_progress = min(1.0, (t - 2.0) / 0.6)
             for line in self._speedlines:
                 line.draw(painter, self._center, sl_progress, master_alpha)
 
         # 8. Кинетическое появление Капри
-        if t >= 1.5:
+        if t >= 2.0:
             self._paint_capri_entrance(painter, t, master_alpha)
 
     def _paint_capri_entrance(self, painter: QPainter, t: float, master_alpha: float) -> None:
         cx, cy = int(self._center.x()), int(self._center.y())
-        enter_p = min(1.0, (t - 1.5) / 0.7)
+        enter_p = min(1.0, (t - 2.0) / 0.6)
         scale = QEasingCurve(QEasingCurve.Type.OutBack).valueForProgress(enter_p)
 
         if not self._sprite_pixmap or self._sprite_pixmap.isNull():
@@ -339,14 +369,14 @@ class IntroBreachOverlay(QWidget):
         sh = int(self._sprite_pixmap.height() * scale)
         rect = QRect(cx - sw // 2, cy - sh // 2, sw, sh)
 
-        # Фаза А (1.5 - 2.1s): драматичный силуэт с неоновой Crimson-аурой
-        if t < 2.1:
+        # Фаза А (2.0 - 2.6s): драматичный силуэт с неоновой Crimson-аурой
+        if t < 2.6:
             pulse = int(abs(math.sin(t * 16.0)) * 12.0)
             painter.setOpacity(0.50 * master_alpha)
             painter.drawPixmap(rect.adjusted(-10 - pulse, -10 - pulse, 10 + pulse, 10 + pulse), self._sprite_pixmap)
             painter.setOpacity(0.85 * master_alpha)
             painter.drawPixmap(rect, self._sprite_pixmap)
-        # Фаза Б (2.1s+): яркий спрайт в полный цвет с мягкой аурой
+        # Фаза Б (2.6s+): яркий спрайт в полный цвет с мягкой аурой
         else:
             painter.setOpacity(0.40 * master_alpha)
             glow_offset = int(10.0 * math.sin(t * 7.0))
@@ -355,6 +385,6 @@ class IntroBreachOverlay(QWidget):
             painter.drawPixmap(rect, self._sprite_pixmap)
 
         # Вывод HUD-баннера реплики с печатной машинкой
-        if t >= 2.2:
-            chars_count = int((t - 2.2) * 36.0)
-            draw_dialogue_cyber_hud(painter, cx, cy + 150, master_alpha, chars_count)
+        if t >= 2.6:
+            chars_count = int((t - 2.6) * 45.0)
+            draw_dialogue_cyber_hud(painter, cx, cy + 160, master_alpha, chars_count)

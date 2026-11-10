@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Master audio parameters (Studio Trigger cyber soundscape)
 DEFAULT_SAMPLE_RATE: int = 44100
-SFX_VERSION: str = "v5_intro_breach"  # Bust cache on generator update
+SFX_VERSION: str = "v6_biochip_hijack"  # Bust cache on generator update
 
 
 def _write_wav_16bit(file_path: Path, frames: bytearray, sample_rate: int = DEFAULT_SAMPLE_RATE) -> None:
@@ -640,42 +640,46 @@ def _generate_relay_snap_wav(
 
 
 def _generate_intro_breach_wav(
-    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 2.4
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 4.5
 ) -> None:
-    """Кинематографичный звук первого пробоя Blackwall: свист катушек, раскалывающееся стекло и рокот данных."""
+    """Кинематографичный саундтрек взлома биочипа: BIOS-клики, сирена тревоги, суб-басовый удар и кибер-аккорд."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(101)
     for i in range(num_samples):
         t = i / sample_rate
-        if t < 0.65:
-            p = t / 0.65
-            freq = 2400.0 + 8200.0 * (p ** 2.5)
-            env = p ** 1.8
-            coil = math.sin(2.0 * math.pi * freq * t)
-            noise = rng.uniform(-0.3, 0.3) * p
-            val = (coil * 0.8 + noise) * env
-            frames.extend(_pack_sample(val, drive=2.2, master_gain=0.85))
-        elif t < 1.35:
-            t_impact = t - 0.65
-            thud = math.sin(2.0 * math.pi * 58.0 * t_impact) * math.exp(-14.0 * t_impact)
-            glass = (
-                math.sin(2.0 * math.pi * 3200.0 * t_impact) * 0.45 * math.exp(-8.0 * t_impact)
-                + math.sin(2.0 * math.pi * 5400.0 * t_impact) * 0.35 * math.exp(-12.0 * t_impact)
-                + math.sin(2.0 * math.pi * 7800.0 * t_impact) * 0.25 * math.exp(-16.0 * t_impact)
-                + math.sin(2.0 * math.pi * 10200.0 * t_impact) * 0.20 * math.exp(-22.0 * t_impact)
-            )
-            shards = rng.uniform(-0.6, 0.6) * math.exp(-6.0 * t_impact) if rng.random() < 0.4 else 0.0
-            val = thud * 0.9 + glass * 1.1 + shards
-            frames.extend(_pack_sample(val, drive=2.5, master_gain=0.95))
+        if t < 1.0:
+            hum = math.sin(2.0 * math.pi * 55.0 * t) * 0.08
+            tick_t = t % 0.18
+            tick = math.sin(2.0 * math.pi * 1400.0 * tick_t) * math.exp(-65.0 * tick_t) if tick_t < 0.04 else 0.0
+            val = hum + tick * 0.35
+            frames.extend(_pack_sample(val, drive=1.5, master_gain=0.75))
+        elif t < 1.8:
+            t_alarm = t - 1.0
+            lfo = math.sin(2.0 * math.pi * 8.0 * t_alarm) * 350.0
+            siren = math.sin(2.0 * math.pi * (6500.0 + lfo) * t_alarm) * 0.5 + math.sin(2.0 * math.pi * (7200.0 - lfo) * t_alarm) * 0.3
+            pulse = 0.5 + 0.5 * math.sin(2.0 * math.pi * 4.0 * t_alarm)
+            env = min(1.0, t_alarm / 0.3)
+            val = siren * pulse * env + rng.uniform(-0.15, 0.15) * env
+            frames.extend(_pack_sample(val, drive=2.6, master_gain=0.88))
+        elif t < 2.6:
+            t_snap = t - 1.8
+            freq = 28.0 + 57.0 * math.exp(-10.0 * t_snap)
+            sub = math.sin(2.0 * math.pi * freq * t_snap) * math.exp(-5.0 * t_snap)
+            electric = math.sin(2.0 * math.pi * 2400.0 * t_snap) * rng.uniform(-0.6, 0.6) * math.exp(-12.0 * t_snap)
+            val = sub * 1.3 + electric * 0.4
+            frames.extend(_pack_sample(val, drive=3.2, master_gain=0.98))
         else:
-            t_matrix = t - 1.35
-            p = t_matrix / 1.05
-            env = max(0.0, 1.0 - p) ** 1.2
-            sub = math.sin(2.0 * math.pi * (48.0 + 8.0 * math.sin(2.0 * math.pi * 8.0 * t_matrix)) * t_matrix)
-            data_chirp = math.sin(2.0 * math.pi * 1850.0 * t_matrix) * (1.0 if rng.random() < 0.1 else 0.0)
-            val = (sub * 0.6 + data_chirp * 0.25) * env
-            frames.extend(_pack_sample(val, drive=1.6, master_gain=0.82))
+            t_cyber = t - 2.6
+            p = min(1.0, t_cyber / 1.9)
+            env = max(0.0, 1.0 - p) ** 1.3
+            chord = (
+                math.sin(2.0 * math.pi * 659.25 * t_cyber) * 0.35
+                + math.sin(2.0 * math.pi * 880.00 * t_cyber) * 0.30
+                + math.sin(2.0 * math.pi * 1318.5 * t_cyber) * 0.20
+            ) * env
+            val = chord + math.sin(2.0 * math.pi * 42.0 * t_cyber) * 0.15 * env
+            frames.extend(_pack_sample(val, drive=1.4, master_gain=0.80))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 

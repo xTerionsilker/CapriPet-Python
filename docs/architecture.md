@@ -217,9 +217,9 @@ sequenceDiagram
 
 ---
 
-## 6. Диаграмма последовательности первого появления Капри (Blackwall First Breach)
+## 6. Диаграмма последовательности первого появления Капри (Arasaka Biochip Hijack)
 
-Кинематографичный оверлей первого запуска с захватом экрана, раскалыванием стекла и обнажением дампа памяти Blackwall.
+Кинематографичный оверлей первого запуска: эмуляция консоли BIOS Arasaka Relic, аварийный сбой памяти, кинетический прорыв энграммы Капри сквозь Blackwall и возможность пропуска (Esc/Space).
 
 ```mermaid
 sequenceDiagram
@@ -239,16 +239,19 @@ sequenceDiagram
         Pet->>Pet: hide() (скрытие основного окна)
         Pet->>Effects: play_intro_breach(on_finished)
         Effects->>Overlay: IntroBreachOverlay(screen, sprite)
-        Overlay->>Screen: grabWindow(0) (захват статичных или живых обоев)
-        Overlay->>SFX: play_intro_breach() (нарастающий coil whine)
-        Overlay->>Overlay: Фаза 0: Прицел и микро-дрожание
-        Overlay->>SFX: Звуковой импульс удара и раскола стекла
-        Overlay->>Overlay: Фаза 1: Паутина трещин (хроматический сдвиг RGB)
-        Overlay->>Matrix: Отрисовка красного HEX-дампа сквозь пролом
-        Overlay->>Overlay: Фаза 2: Опад пиксельных осколков
-        Overlay->>Overlay: Фаза 3: Материализация спрайта Капри + баннер реплики
+        Overlay->>Screen: grabWindow(0) (захват рабочего стола)
+        Overlay->>SFX: play_intro_breach() (саундтрек BIOS + сирена + sub-bass)
+        Overlay->>Overlay: Фаза 0 (0-1.0s): Терминал Arasaka Relic BIOS
+        Overlay->>Overlay: Фаза 1 (1.0-1.8s): KERNEL PANIC и стробоскоп
+        opt Пользователь нажал Esc или Space
+            User->>Overlay: keyPressEvent (Esc / Space)
+            Overlay->>Overlay: Мягкий 300мс CRT-fadeout
+        end
+        Overlay->>Overlay: Фаза 2 (1.8-2.6s): Вспышка, молнии и разрыв Blackwall
+        Overlay->>Matrix: Отрисовка потока Blackwall сквозь разлом
+        Overlay->>Overlay: Фаза 3 (2.6-4.8s): Материализация Капри + HUD реплики
         Overlay->>SFX: play_voice_success()
-        Overlay->>Overlay: Фаза 4: Плавное растворение разбитого экрана (fade-out)
+        Overlay->>Overlay: CRT-схлопывание в рабочий стол (fade-out)
         Overlay->>Pet: finished.emit()
         Pet->>Config: set_config_value("appearance.first_run_intro_completed", True)
         Pet->>Pet: reveal_on_startup() (показ рабочего окна на столе)
