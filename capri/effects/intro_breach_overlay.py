@@ -147,7 +147,7 @@ class IntroBreachOverlay(QWidget):
         hole_points: list[QPointF] = []
         for i in range(_NUM_RADIAL_CRACKS):
             angle = (2.0 * math.pi / _NUM_RADIAL_CRACKS) * i + self._rng.uniform(-0.09, 0.09)
-            pts: list[QPointF] = [QPointF(cx, cy)]
+            pts: list[QPointF] = []
             curr_r = 0.0
             hole_r = _BREACH_RADIUS * self._rng.uniform(0.80, 1.25)
             hole_recorded = False
@@ -157,15 +157,19 @@ class IntroBreachOverlay(QWidget):
                 angle += self._rng.uniform(-0.07, 0.07)
                 px = cx + curr_r * math.cos(angle)
                 py = cy + curr_r * math.sin(angle)
-                pts.append(QPointF(px, py))
 
                 if not hole_recorded and curr_r >= hole_r:
-                    hole_points.append(QPointF(px, py))
+                    edge_pt = QPointF(px, py)
+                    hole_points.append(edge_pt)
+                    pts.append(edge_pt)
                     hole_recorded = True
+                elif hole_recorded:
+                    pts.append(QPointF(px, py))
 
-            self._cracks.append(_GlassCrack(points=pts, color=COLOR_WHITE, width=2.4))
-            pts_red = [QPointF(p.x() + 3.0, p.y() - 1.5) for p in pts]
-            self._cracks.append(_GlassCrack(points=pts_red, color=COLOR_CRIMSON, width=1.5))
+            if pts:
+                self._cracks.append(_GlassCrack(points=pts, color=COLOR_WHITE, width=2.4))
+                pts_red = [QPointF(p.x() + 3.0, p.y() - 1.5) for p in pts]
+                self._cracks.append(_GlassCrack(points=pts_red, color=COLOR_CRIMSON, width=1.5))
 
         self._hole_polygon = QPolygonF(hole_points)
 
@@ -336,12 +340,19 @@ class IntroBreachOverlay(QWidget):
                 thickness=4,
             )
 
-        # 5. Отрисовка трещин расколотого стекла
+        # 5. Отрисовка трещин расколотого стекла (строго за пределами разлома)
+        outer_path = QPainterPath()
+        outer_path.addRect(self.rect())
+        glass_clip = outer_path.subtracted(hole_path)
+
+        painter.save()
+        painter.setClipPath(glass_clip)
         crack_alpha = int(255 * master_alpha)
         for crack in self._cracks:
             painter.setPen(QPen(with_alpha(crack.color, int(crack_alpha * 0.9)), crack.width))
             for idx in range(len(crack.points) - 1):
                 painter.drawLine(crack.points[idx], crack.points[idx + 1])
+        painter.restore()
 
         # 6. Отрисовка падающих граненых осколков
         for shard in self._shards:
