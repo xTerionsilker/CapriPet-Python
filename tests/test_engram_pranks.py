@@ -69,16 +69,16 @@ class TestEngramPrankCoordinator(unittest.TestCase):
         coord.sig_trigger_melt.connect(mock_melt)
         coord.sig_trigger_relic_dump.connect(mock_dump)
 
-        # 1. Первая ступень: random >= 0.33 -> пасхалка не срабатывает
-        with patch("random.random", return_value=0.50):
+        # 1. Первая ступень: random >= 0.60 -> пасхалка не срабатывает
+        with patch("random.random", return_value=0.75):
             triggered = coord.on_pet_appeared()
             self.assertFalse(triggered)
             mock_dodge.assert_not_called()
             mock_melt.assert_not_called()
             mock_dump.assert_not_called()
 
-        # 2. Первая ступень: random < 0.33 -> срабатывает
-        with patch("random.random", return_value=0.10):
+        # 2. Первая ступень: random < 0.60 -> срабатывает (проверяем на 0.50, при 33% это не сработало бы)
+        with patch("random.random", return_value=0.50):
             with patch("random.choice", return_value="dodge"):
                 with patch("random.randint", return_value=3):
                     triggered = coord.on_pet_appeared()
