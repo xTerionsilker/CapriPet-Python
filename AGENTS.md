@@ -9,9 +9,11 @@ This document provides strict operational, architectural, and design constraints
 - **Target Platform:** Windows 10 / 11 (DWM-native, Multi-DPI, Win32 APIs).
 - **Python Interpreter:** Always use the local virtual environment: `.\.venv\Scripts\python.exe`.
 - **Run Application:** `.\.venv\Scripts\python.exe main.py` or `capriWin.bat`.
-- **Syntax & Integrity Verification:**
+- **Syntax, Linter & Integrity Verification:**
   ```cmd
-  .\.venv\Scripts\python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_file('main.py')"
+  .\.venv\Scripts\ruff.exe check .
+  .\.venv\Scripts\python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_dir('scripts', force=True); compileall.compile_file('main.py')"
+  .\.venv\Scripts\python.exe -m unittest discover -s tests
   ```
 - **Tool Operation Constraints:**
   - Operate on at most **50 lines per tool call** during edits or reads when necessary to prevent serialization latencies.
@@ -106,11 +108,14 @@ Any UI, HUD, particle, lightning arc, glitch, or dialog **must** strictly use th
    - No backward-compatibility shims, adapter wrappers, deprecated aliases, or fake arguments.
    - When refactoring a function signature or class, update all callers directly.
    - Rely on established packages (`pydantic`, `psutil`, `rapidfuzz`, `httpx`, `pywin32`) instead of brittle custom workarounds.
-3. **Verification Workflow:**
-   - Run syntax compilation checks across all modules after modifying code:
+3. **Mandatory Verification Workflow:**
+   - Execute mandatory linter, compilation, and test checks across all modules after modifying code:
      ```cmd
-     .\.venv\Scripts\python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_file('main.py')"
+     .\.venv\Scripts\ruff.exe check .
+     .\.venv\Scripts\python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_dir('scripts', force=True); compileall.compile_file('main.py')"
+     .\.venv\Scripts\python.exe -m unittest discover -s tests
      ```
+   - All tests must pass (100%), and zero linter warnings or syntax errors are permitted before completing tasks or creating PRs.
 
 ---
 
@@ -143,3 +148,31 @@ When authoring GitHub issues or milestone notes for new features, bug fixes, or 
   1. `## Summary`: Concise technical overview (1-2 paragraphs) of the user-facing capability, architectural rationale, and lore integration.
   2. `## What's Changed`: Categorized breakdown by subsystem with bolded component names, technical bullet points (Win32 APIs, Qt flags, audio synthesis signatures, algorithms, shortcuts), and lore quotes/reactions where applicable.
   3. `## Verification & Tests`: Markdown checkbox list (`- [x]`) documenting static compilation (`compileall`), runtime Qt/audio validations, event-loop behavior, and edge-case testing.
+
+---
+
+## 9. Superpowers Skills & Autonomous Workflow
+
+CapriPet utilizes the **Superpowers** skill framework for disciplined, reproducible software engineering. Whenever a task matches an available skill, agents **must invoke and follow the skill before acting**.
+
+### Core Invocation Protocol
+- **Skill-First Discipline:** Check for applicable skills before writing code, proposing solutions, or asking clarifying questions. If a skill applies to the task, invoking it is mandatory.
+- **Process Skills Precedence:** Process skills (`brainstorming`, `systematic-debugging`) take priority over implementation skills (`writing-plans`, `test-driven-development`).
+- **Antigravity Tool Mapping:**
+  - **Subagents:** Use `invoke_subagent` (`TypeName: "self"` for full execution or `"research"` for read-only exploration).
+  - **Task Tracking:** Maintain task artifacts (`write_file` / `edit_file` with `ArtifactMetadata`) as the living checklist (`- [ ]` / `- [x]`). Do not misuse `manage_task` (which is reserved for OS background processes).
+
+### Essential Skills Matrix
+| Trigger / Workflow Phase | Mandatory Skill | Scope & Primary Objectives |
+| :--- | :--- | :--- |
+| **New features / Architecture** | `brainstorming` | Explore requirements, design trade-offs, and visual/lore impact before planning. |
+| **Multi-step implementation** | `writing-plans` | Formulate granular plans with explicit file paths, tasks, and verification steps. |
+| **Plan execution (inline)** | `executing-plans` | Execute plans sequentially with task artifact checklist updates. |
+| **Plan execution (subagents)**| `subagent-driven-development` | Dispatch focused subagents per independent work item. |
+| **Feature / Bugfix coding** | `test-driven-development` | Red-Green-Refactor: failing test first, minimal implementation, clean refactor. |
+| **Bug or unexpected behavior** | `systematic-debugging` | Trace root causes and test hypotheses before touching code. |
+| **Verification & completion** | `verification-before-completion` | Run deterministic verification (`ruff check .`, `compileall`, full test suite) before claiming completion. |
+| **Code reviews & feedback** | `requesting-code-review` / `receiving-code-review` | Pre-merge verification and objective technical review of feedback. |
+| **Branch & task completion** | `finishing-a-development-branch` | Clean integration, commit hygiene, and branch disposition. |
+| **Workspace isolation** | `using-git-worktrees` | Maintain isolated workspace state when developing parallel features. |
+
