@@ -12,6 +12,7 @@ import os
 import time
 from collections.abc import Callable
 from ctypes import wintypes
+from typing import Any
 
 import psutil
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -22,6 +23,7 @@ from ..core.settings import get_config_value
 logger = logging.getLogger(__name__)
 
 # Инициализация Win32 User32
+user32: Any
 try:
     user32 = ctypes.windll.user32
 except AttributeError:

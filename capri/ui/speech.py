@@ -31,6 +31,7 @@ from PySide6.QtGui import (
     QTextDocument,
 )
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QLabel,
     QSizePolicy,
@@ -604,11 +605,9 @@ class SpeechWindow(QFrame):
         if widget is not None:
             return widget
 
-        app = QGuiApplication.instance()
-        if app is not None:
-            for w in app.topLevelWidgets():
-                if w.isVisible() and w.__class__.__name__ == "CapriWindow":
-                    return w
+        for w in QApplication.topLevelWidgets():
+            if w.isVisible() and w.__class__.__name__ == "CapriWindow":
+                return w
         return None
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:

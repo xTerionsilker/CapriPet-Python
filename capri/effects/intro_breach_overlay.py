@@ -312,8 +312,11 @@ class IntroBreachOverlay(QWidget):
         scale_curve = QEasingCurve(QEasingCurve.Type.OutBack).valueForProgress(breach_progress)
 
         scaled_hole_pts = [
-            QPointF(cx + (p.x() - cx) * scale_curve, cy + (p.y() - cy) * scale_curve)
-            for p in self._hole_polygon
+            QPointF(
+                cx + (self._hole_polygon.at(i).x() - cx) * scale_curve,
+                cy + (self._hole_polygon.at(i).y() - cy) * scale_curve,
+            )
+            for i in range(self._hole_polygon.count())
         ]
         hole_path = QPainterPath()
         hole_path.addPolygon(QPolygonF(scaled_hole_pts))

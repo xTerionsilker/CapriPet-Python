@@ -13,6 +13,7 @@ This document provides strict operational, architectural, and design constraints
   ```cmd
   .\.venv\Scripts\ruff.exe check .
   .\.venv\Scripts\python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_dir('scripts', force=True); compileall.compile_file('main.py')"
+  .\.venv\Scripts\mypy.exe capri
   .\.venv\Scripts\python.exe -m unittest discover -s tests
   ```
 - **Tool Operation Constraints:**
@@ -113,6 +114,7 @@ Any UI, HUD, particle, lightning arc, glitch, or dialog **must** strictly use th
      ```cmd
      .\.venv\Scripts\ruff.exe check .
      .\.venv\Scripts\python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_dir('scripts', force=True); compileall.compile_file('main.py')"
+     .\.venv\Scripts\mypy.exe capri
      .\.venv\Scripts\python.exe -m unittest discover -s tests
      ```
    - All tests must pass (100%), and zero linter warnings or syntax errors are permitted before completing tasks or creating PRs.

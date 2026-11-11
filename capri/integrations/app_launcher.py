@@ -16,7 +16,7 @@ from typing import Any
 try:
     import winreg
 except ImportError:
-    winreg = None
+    winreg = None  # type: ignore[assignment]
 
 import cyrtranslit
 from rapidfuzz import fuzz

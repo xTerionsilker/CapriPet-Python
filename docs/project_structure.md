@@ -43,11 +43,14 @@ capri/
 │   ├── blackwall_data_stream.py # Процедурный генератор вертикального дампа памяти Blackwall
 │   ├── cursor_pointer.py       # Эффект прицеливания молниями на позицию курсора мыши
 │   ├── effects_coordinator.py  # Фасад управления эффектами, глитчами и оверлеями
+│   ├── engram_prank_coordinator.py # Координатор пасхалок энграммы, двухступенчатых шансов и кулдаунов
 │   ├── glitch.py               # CRT/ЭЛТ-глитч-оверлей и алгоритмы искажений
 │   ├── intro_breach_helpers.py # Процедурные отрисовщики BIOS Arasaka, KERNEL PANIC, HUD и молний интро
 │   ├── intro_breach_overlay.py # Кинематографичный оверлей первого запуска с перехватом биочипа и пропуском
 │   ├── lightning_tether.py     # Оверлей прицеливания молнией при перемещении Капри
+│   ├── melting_screen.py       # Процедурный вирусный оверлей тающего экрана (Melting Screen Glitch)
 │   ├── model_init_animation.py # HUD-анимация инициализации модели Vosk при запуске
+│   ├── relic_dump_overlay.py   # Киберпанк-оверлей мини-терминала сбоя памяти биочипа Relic
 │   ├── session_anim_helpers.py # Вспомогательные отрисовщики сессионных кибер-анимаций
 │   ├── session_animations.py   # Киберпанк-анимации перед системными действиями
 │   ├── transition_base.py      # Базовые цветовые константы и утилиты процедурных переходов
@@ -92,15 +95,18 @@ capri/
 tests/                          # Модульные и интеграционные тесты (unittest)
 ├── test_commands_modular.py    # Тесты модульных команд и фасада handlers
 ├── test_download_models.py     # Тесты загрузчика и валидатора моделей ASR/VAD
+├── test_engram_pranks.py       # Тесты пасхалок энграммы, уклонения от курсора, тающего экрана и кулдаунов
 ├── test_game_mode.py           # Тесты детектора игрового режима и фильтрации развёрнутых окон
 ├── test_imports.py             # Тесты целостности импортов и UI контекстного меню
 ├── test_process_telemetry.py   # Тесты классификатора и телеметрии процессов
 ├── test_registry_scanner.py    # Тесты безопасного сканера системного реестра
-└── test_security_hardening.py  # Тесты валидации URL, путей и защиты от инъекций
+├── test_security_hardening.py  # Тесты валидации URL, путей и защиты от инъекций
+└── test_window_lifecycle.py   # Интеграционный Smoke-тест жизненного цикла CapriWindow
 assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
 docs/                           # Дополнительная документация и спецификации (config_spec.md, architecture.md)
 models/                         # Папка моделей (Vosk, Silero VAD onnx)
 requirements.txt                # Зависимости проекта
+mypy.ini                        # Конфигурация статического тайп-чекера Mypy
 AGENTS.md                       # Главная точка входа правил разработки для AI-агентов
 LICENSE                         # Лицензия MIT
 ```

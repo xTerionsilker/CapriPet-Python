@@ -280,3 +280,50 @@ sequenceDiagram
    - **Защита от JSON-бомб:** Конфигурационный файл защищен строгим лимитом размера (`MAX_CONFIG_FILE_SIZE = 2 МБ`). При превышении размера файл считается поврежденным и сбрасывается в дефолтное безопасное состояние.
    - **DoS / ReDoS защита:** Длина входящих текстовых и распознанных ASR команд ограничена лимитом в 500 символов, предотвращая исчерпание процессорного времени при нечетком поиске (`rapidfuzz`, стемминг).
 
+---
+
+## 8. Координация пасхалок и глитч-розыгрышей энграммы (EngramPrankCoordinator)
+
+Координация интерактивных пасхалок оцифрованного сознания Капри (уклонение от курсора, вирусный оверлей тающего экрана, дамп регистров памяти Relic) под защитой двухступенчатого фильтра и глобального кулдауна.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Пользователь / Мышь
+    participant Window as CapriWindow
+    participant Coord as EngramPrankCoordinator
+    participant GameMode as GameModeDetector
+    participant Effects as EffectsCoordinator
+    participant Melt as MeltingScreenOverlay
+    participant Relic as RelicDumpOverlay
+    participant SFX as SpeechSFX
+
+    Note over Window,Coord: Событие появления (старт, пробуждение, напоминание)
+    Window->>Coord: on_pet_appeared()
+    Coord->>GameMode: is_game_active?
+    alt Game Mode активен или кулдаун (8-12 мин) не истёк
+        Coord-->>Window: False (тишина)
+    else Кулдаун истёк и Game Mode неактивен
+        Coord->>Coord: Ступень 1: roll < 0.33 (мягкий шанс)
+        Coord->>Coord: Ступень 2: выбор кандидата (Anti-Repeat)
+        Coord->>Coord: arm_cooldown(480..720 сек)
+        alt Выбран Cursor Dodge
+            Coord->>Window: sig_trigger_dodge(hops=2..3)
+            User->>Window: enterEvent / mousePressEvent (ЛКМ)
+            Window->>Window: compute_dodge_position() (прыжок на 80-120px)
+            Window->>SFX: play_lightning_strike() + реплика подкола
+        else Выбран Melting Screen
+            Coord->>Effects: sig_trigger_melt()
+            Effects->>Melt: play_melting_screen(1400ms)
+            Melt->>Melt: grabWindow(0) + процедурный дрип колонок (#F6023F / #06F868)
+        else Выбран Relic Memory Dump
+            Coord->>Effects: sig_trigger_relic_dump(variant)
+            alt Вариант А (50%)
+                Effects->>Relic: play_relic_dump_terminal(340x130px, 2500ms)
+            else Вариант Б (50%)
+                Window->>Window: speak(fault_log) + coil whine + самоодёргивание
+            end
+        end
+    end
+```
+

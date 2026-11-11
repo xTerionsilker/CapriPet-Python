@@ -11,11 +11,12 @@ import contextlib
 import logging
 import time
 from collections.abc import Callable
+from typing import Any
 
 try:
     from pypresence import Presence
 except ImportError:
-    Presence = None
+    Presence = None  # type: ignore[misc,assignment]
 
 from PySide6.QtCore import QObject, QTimer
 
@@ -43,7 +44,7 @@ class DiscordRpcManager(QObject):
         super().__init__(parent)
         self._client_id: str = client_id
         self._track_provider: Callable[[], str] | None = track_provider
-        self._rpc: object | None = None
+        self._rpc: Any = None
         self._connected: bool = False
         self._start_time: int = int(time.time())
         self._current_state: str = "ASR: Vosk | IDLE"

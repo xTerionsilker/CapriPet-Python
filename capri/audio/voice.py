@@ -20,7 +20,7 @@ try:
 except ImportError:
     ort = None  # type: ignore[assignment]
 
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtCore import QIODevice, QObject, QTimer, Signal
 from PySide6.QtMultimedia import (
     QAudioDevice,
     QAudioFormat,
@@ -161,7 +161,7 @@ class VoiceInput(QObject):
     ) -> None:
         super().__init__(parent)
         self._source: QAudioSource | None = None
-        self._io = None
+        self._io: QIODevice | None = None
         self._format: QAudioFormat | None = None
         self._selected_device: QAudioDevice | None = None
         self._buffer = bytearray()
@@ -357,7 +357,7 @@ class VoiceInput(QObject):
         if self._io is None:
             return
 
-        chunk = bytes(self._io.readAll())
+        chunk = bytes(self._io.readAll().data())
         if chunk:
             self._buffer.extend(chunk)
             level = self._rms(chunk)

@@ -137,7 +137,7 @@ def parse_version_datetime(raw_text: str) -> datetime.datetime | None:
             return None
 
     if parsed.tzinfo is not None:
-        parsed = parsed.astimezone(datetime.UTC).replace(
+        parsed = parsed.astimezone(datetime.timezone.utc).replace(
             tzinfo=None
         )
     return parsed

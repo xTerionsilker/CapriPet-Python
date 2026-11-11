@@ -29,7 +29,7 @@ class SpriteManager:
 
     def __init__(
         self,
-        on_pose_changed: Callable[[QPixmap, QImage, str], None]
+        on_pose_changed: Callable[[QPixmap, QImage | None, str], None]
         | None = None,
     ) -> None:
         self._on_pose_changed = on_pose_changed

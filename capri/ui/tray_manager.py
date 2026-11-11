@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QGuiApplication, QIcon, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 CAPRI_ICON = (
@@ -48,7 +48,7 @@ class TrayManager:
 
         self._window.setWindowIcon(icon)
         app = QApplication.instance()
-        if app is not None:
+        if isinstance(app, (QApplication, QGuiApplication)):
             app.setWindowIcon(icon)
 
         self._tray_icon = QSystemTrayIcon(icon, self._window)

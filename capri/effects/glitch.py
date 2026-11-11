@@ -630,7 +630,7 @@ class GlitchManager(QObject):
         )
 
         app = QGuiApplication.instance()
-        if app is not None:
+        if isinstance(app, QGuiApplication):
             app.screenAdded.connect(self._add_screen)
             app.screenRemoved.connect(self._remove_screen)
         for screen in QGuiApplication.screens():
@@ -695,7 +695,7 @@ class GlitchManager(QObject):
 
     def stop(self) -> None:
         app = QGuiApplication.instance()
-        if app is not None:
+        if isinstance(app, QGuiApplication):
             for signal, slot in (
                 (app.screenAdded, self._add_screen),
                 (app.screenRemoved, self._remove_screen),
