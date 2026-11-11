@@ -149,6 +149,7 @@
 | `behavior.reminders_enabled` | `bool` | `true` | Включены ли случайные напоминания Капри о себе |
 | `behavior.reminder_min_interval_ms` | `int` | `600000` | Минимальный интервал периодических напоминаний (10 минут) |
 | `behavior.reminder_max_interval_ms` | `int` | `3600000` | Максимальный интервал периодических напоминаний (60 минут) |
+| `behavior.file_shredder_enabled` | `bool` | `true` | Разрешение drag-and-drop уничтожения файлов протоколом Blackwall |
 | `game_mode.suppression_enabled` | `bool` | `true` | Подавление всплывающего HUD и реплик при запуске полноэкранных игр |
 | `game_mode.cooldown_seconds` | `float` | `3.0` | Задержка перед выходом из игрового режима при сворачивании игры |
 | `game_mode.whitelist` | `list[str]` | `[]` | Белый список исполняемых файлов процессов |
