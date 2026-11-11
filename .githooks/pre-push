@@ -1,0 +1,28 @@
+#!/bin/sh
+# CapriPet Pre-Push Verification Hook
+# Blocks git push if linter, byte compilation, mypy or tests fail.
+
+echo ">> [GIT PRE-PUSH HOOK] Running CapriPet pre-flight verification battery..."
+
+# Ensure UTF-8 and offscreen Qt
+export PYTHONUTF8=1
+export QT_QPA_PLATFORM=offscreen
+
+if [ -f ".venv/Scripts/python.exe" ]; then
+    PYTHON_EXE=".venv/Scripts/python.exe"
+elif [ -f ".venv/bin/python" ]; then
+    PYTHON_EXE=".venv/bin/python"
+else
+    PYTHON_EXE="python"
+fi
+
+"$PYTHON_EXE" scripts/verify_codebase.py
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+    echo ">> [GIT PRE-PUSH BLOCKED] ПУШ ЗАБЛОКИРОВАН: Проверки качества кода не пройдены (код $EXIT_CODE)!"
+    echo ">> Устраните ошибки выше и повторите git push."
+    exit $EXIT_CODE
+fi
+
+exit 0

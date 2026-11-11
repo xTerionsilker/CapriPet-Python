@@ -10,12 +10,18 @@ This document provides strict operational, architectural, and design constraints
 - **Python Interpreter:** Always use the local virtual environment: `.\.venv\Scripts\python.exe`.
 - **Run Application:** `.\.venv\Scripts\python.exe main.py` or `capriWin.bat`.
 - **Syntax, Linter & Integrity Verification:**
-  ```cmd
-  .\.venv\Scripts\ruff.exe check .
-  .\.venv\Scripts\python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_dir('scripts', force=True); compileall.compile_file('main.py')"
-  .\.venv\Scripts\mypy.exe capri
-  .\.venv\Scripts\python.exe -m unittest discover -s tests
-  ```
+  - One-click comprehensive runner (all 4 quality gates + test coverage):
+    ```cmd
+    .\scripts\verify_codebase.bat
+    ```
+  - Or run individual stages:
+    ```cmd
+    .\.venv\Scripts\ruff.exe check .
+    .\.venv\Scripts\python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_dir('scripts', force=True); compileall.compile_file('main.py')"
+    .\.venv\Scripts\mypy.exe capri
+    .\.venv\Scripts\coverage.exe run -m unittest discover -s tests
+    .\.venv\Scripts\coverage.exe report
+    ```
 - **Tool Operation Constraints:**
   - Operate on at most **50 lines per tool call** during edits or reads when necessary to prevent serialization latencies.
 
@@ -110,12 +116,9 @@ Any UI, HUD, particle, lightning arc, glitch, or dialog **must** strictly use th
    - When refactoring a function signature or class, update all callers directly.
    - Rely on established packages (`pydantic`, `psutil`, `rapidfuzz`, `httpx`, `pywin32`) instead of brittle custom workarounds.
 3. **Mandatory Verification Workflow:**
-   - Execute mandatory linter, compilation, and test checks across all modules after modifying code:
+   - Execute mandatory Quality Gates across all modules after modifying code (run `.\scripts\verify_codebase.bat` or individual tools):
      ```cmd
-     .\.venv\Scripts\ruff.exe check .
-     .\.venv\Scripts\python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_dir('scripts', force=True); compileall.compile_file('main.py')"
-     .\.venv\Scripts\mypy.exe capri
-     .\.venv\Scripts\python.exe -m unittest discover -s tests
+     .\scripts\verify_codebase.bat
      ```
    - All tests must pass (100%), and zero linter warnings or syntax errors are permitted before completing tasks or creating PRs.
 

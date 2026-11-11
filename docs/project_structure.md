@@ -4,11 +4,16 @@
 main.py                         # Главная точка входа приложения
 capriWin.bat                    # Фасад-оркестратор быстрого запуска для Windows
 version.txt                     # Текущая версия приложения
-scripts/                        # Модульные скрипты подготовки и запуска
+scripts/                        # Модульные скрипты подготовки, запуска и верификации
 ├── download_models.py          # Загрузка и проверка моделей Silero VAD и Vosk ASR
 ├── install_deps.bat            # Проверка и установка зависимостей из requirements.txt
+├── install_hooks.bat           # Установка Git hook pre-push (git config core.hooksPath .githooks)
 ├── run_app.bat                 # Запуск приложения (фоновый режим / консоль через --console)
-└── setup_env.bat               # Проверка системного Python и создание виртуального окружения .venv
+├── setup_env.bat               # Проверка системного Python и создание виртуального окружения .venv
+├── verify_codebase.bat         # 1-клик запуск локальных Quality Gates для Windows
+└── verify_codebase.py          # Комплексный верификатор кодовой базы (Ruff, Compileall, Mypy, Tests, Coverage)
+.githooks/                      # Версионируемые Git-хуки репозитория
+└── pre-push                    # Хук защиты от пуша сломанного кода (запускает Quality Gates)
 capri/
 ├── __init__.py
 ├── audio/                      # Голосовой ввод и распознавание речи
@@ -107,6 +112,7 @@ docs/                           # Дополнительная документ�
 models/                         # Папка моделей (Vosk, Silero VAD onnx)
 requirements.txt                # Зависимости проекта
 mypy.ini                        # Конфигурация статического тайп-чекера Mypy
+.coveragerc                     # Конфигурация анализа покрытия тестами (coverage.py)
 AGENTS.md                       # Главная точка входа правил разработки для AI-агентов
 LICENSE                         # Лицензия MIT
 ```

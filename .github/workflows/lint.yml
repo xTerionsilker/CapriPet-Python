@@ -38,10 +38,11 @@ jobs:
           python -m compileall capri main.py
 
   test:
-    name: Unit Tests & Import Validation
+    name: Unit Tests, Mypy & Coverage
     runs-on: windows-latest
     env:
       PYTHONUTF8: "1"
+      QT_QPA_PLATFORM: "offscreen"
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -56,12 +57,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install mypy
+          pip install mypy coverage
 
       - name: Run Static Type Verification (Mypy)
         run: |
           mypy capri
 
-      - name: Run Import Validation & Test Suite
+      - name: Run Unit Tests with Coverage
         run: |
-          python -m unittest discover tests
+          coverage run -m unittest discover -s tests
+
+      - name: Display Coverage Report
+        run: |
+          coverage report
