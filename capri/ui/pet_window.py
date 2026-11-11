@@ -271,7 +271,7 @@ class CapriWindow(QWidget):
         self._prank_coordinator.sig_trigger_relic_dump.connect(self._on_prank_relic_dump)
         self._prank_coordinator.set_game_active_checker(lambda: self._game_detector.is_game_active)
         self._prank_coordinator.set_shredding_checker(
-            lambda: self._renderer.state.is_target_acquired or self._renderer.state.is_consuming
+            lambda: getattr(self, "_target_acquired", False) or getattr(self, "_consume_ticks", 0) > 0
         )
         self._game_detector.game_mode_changed.connect(
             self._on_game_mode_changed
@@ -618,7 +618,7 @@ class CapriWindow(QWidget):
         if (
             self._dodge_hops_remaining > 0
             and not getattr(self._drop_handler, "is_dragging", False)
-            and not self._renderer.state.is_target_acquired
+            and not getattr(self, "_target_acquired", False)
         ):
             cursor_pos = self.cursor().pos()
             self._execute_cursor_dodge(cursor_pos)

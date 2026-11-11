@@ -140,6 +140,22 @@ class TestEngramPrankCoordinator(unittest.TestCase):
         self.assertLessEqual(new_edge_pos.x(), screen_rect.right() - window_size.width())
         self.assertLessEqual(new_edge_pos.y(), screen_rect.bottom() - window_size.height())
 
+    def test_window_shredding_checker_no_attribute_error(self) -> None:
+        from capri.ui.pet_window import CapriWindow
+
+        window = CapriWindow()
+        # Проверяем, что can_trigger_prank() вызывается без исключения
+        self.assertFalse(window.prank_coordinator._check_shredding())
+        window._target_acquired = True
+        self.assertTrue(window.prank_coordinator._check_shredding())
+        window._target_acquired = False
+        window._consume_ticks = 5
+        self.assertTrue(window.prank_coordinator._check_shredding())
+        # Проверяем вызов on_pet_appeared
+        self.assertIsInstance(window.prank_coordinator.on_pet_appeared(), bool)
+        window.close()
+        window.deleteLater()
+
 
 if __name__ == "__main__":
     unittest.main()
