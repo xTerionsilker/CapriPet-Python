@@ -143,3 +143,31 @@ When authoring GitHub issues or milestone notes for new features, bug fixes, or 
   1. `## Summary`: Concise technical overview (1-2 paragraphs) of the user-facing capability, architectural rationale, and lore integration.
   2. `## What's Changed`: Categorized breakdown by subsystem with bolded component names, technical bullet points (Win32 APIs, Qt flags, audio synthesis signatures, algorithms, shortcuts), and lore quotes/reactions where applicable.
   3. `## Verification & Tests`: Markdown checkbox list (`- [x]`) documenting static compilation (`compileall`), runtime Qt/audio validations, event-loop behavior, and edge-case testing.
+
+---
+
+## 9. Superpowers Skills & Autonomous Workflow
+
+CapriPet utilizes the **Superpowers** skill framework for disciplined, reproducible software engineering. Whenever a task matches an available skill, agents **must invoke and follow the skill before acting**.
+
+### Core Invocation Protocol
+- **Skill-First Discipline:** Check for applicable skills before writing code, proposing solutions, or asking clarifying questions. If a skill applies to the task, invoking it is mandatory.
+- **Process Skills Precedence:** Process skills (`brainstorming`, `systematic-debugging`) take priority over implementation skills (`writing-plans`, `test-driven-development`).
+- **Antigravity Tool Mapping:**
+  - **Subagents:** Use `invoke_subagent` (`TypeName: "self"` for full execution or `"research"` for read-only exploration).
+  - **Task Tracking:** Maintain task artifacts (`write_file` / `edit_file` with `ArtifactMetadata`) as the living checklist (`- [ ]` / `- [x]`). Do not misuse `manage_task` (which is reserved for OS background processes).
+
+### Essential Skills Matrix
+| Trigger / Workflow Phase | Mandatory Skill | Scope & Primary Objectives |
+| :--- | :--- | :--- |
+| **New features / Architecture** | `brainstorming` | Explore requirements, design trade-offs, and visual/lore impact before planning. |
+| **Multi-step implementation** | `writing-plans` | Formulate granular plans with explicit file paths, tasks, and verification steps. |
+| **Plan execution (inline)** | `executing-plans` | Execute plans sequentially with task artifact checklist updates. |
+| **Plan execution (subagents)**| `subagent-driven-development` | Dispatch focused subagents per independent work item. |
+| **Feature / Bugfix coding** | `test-driven-development` | Red-Green-Refactor: failing test first, minimal implementation, clean refactor. |
+| **Bug or unexpected behavior** | `systematic-debugging` | Trace root causes and test hypotheses before touching code. |
+| **Verification & completion** | `verification-before-completion` | Run deterministic verification (`compileall`, tests) before claiming completion. |
+| **Code reviews & feedback** | `requesting-code-review` / `receiving-code-review` | Pre-merge verification and objective technical review of feedback. |
+| **Branch & task completion** | `finishing-a-development-branch` | Clean integration, commit hygiene, and branch disposition. |
+| **Workspace isolation** | `using-git-worktrees` | Maintain isolated workspace state when developing parallel features. |
+
