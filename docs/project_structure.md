@@ -67,7 +67,7 @@ capri/
 │   ├── system_control.py       # Питание, блокировка экрана и управление курсором
 │   ├── system_power_hook.py    # Win32 хуки событий питания (сон, выключение, сессии)
 │   ├── system_volume.py        # Прямой контроль мастер-громкости Windows (Core Audio API / pycaw)
-│   ├── game_mode.py            # Детекция полноэкранных игр через Win32 API и SHQueryUserNotificationState
+│   ├── game_mode.py            # Детекция полноэкранных игр через Win32 API и SHQueryUserNotificationState с фильтрацией Maximized окон
 │   ├── web_search.py           # Поиск в веб-браузере и проверка обновлений
 │   └── window_tracker.py       # Определение геометрии активного окна (Win32 DWM)
 └── ui/                         # Графический интерфейс на PySide6 (Qt)
@@ -89,6 +89,14 @@ capri/
     ├── voice_coordinator.py    # Координация распознавания речи, триггеров и Voice HUD
     ├── voice_hud.py            # HUD голосового ввода над taskbar с реактивным эквалайзером
     └── volume_hud.py           # Cyber Audio HUD экранный оверлей регулировки системной громкости
+tests/                          # Модульные и интеграционные тесты (unittest)
+├── test_commands_modular.py    # Тесты модульных команд и фасада handlers
+├── test_download_models.py     # Тесты загрузчика и валидатора моделей ASR/VAD
+├── test_game_mode.py           # Тесты детектора игрового режима и фильтрации развёрнутых окон
+├── test_imports.py             # Тесты целостности импортов и UI контекстного меню
+├── test_process_telemetry.py   # Тесты классификатора и телеметрии процессов
+├── test_registry_scanner.py    # Тесты безопасного сканера системного реестра
+└── test_security_hardening.py  # Тесты валидации URL, путей и защиты от инъекций
 assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
 docs/                           # Дополнительная документация и спецификации (config_spec.md, architecture.md)
 models/                         # Папка моделей (Vosk, Silero VAD onnx)
