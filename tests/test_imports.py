@@ -46,6 +46,58 @@ class TestImportIntegrity(unittest.TestCase):
                 + "\n".join(f"  • {err}" for err in failed_imports)
             )
 
+    def test_context_menu_no_emojis_and_has_deck(self) -> None:
+        """Проверяет, что контекстное меню содержит кнопку дэки и не содержит эмодзи."""
+        from unittest.mock import MagicMock
+
+        from PySide6.QtWidgets import QApplication
+
+        from capri.ui.context_menu import build_pet_context_menu
+
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication([])
+
+        mock_window = MagicMock()
+        mock_window.open_console = MagicMock()
+        mock_window.reminder_interval_range = (600_000, 3_600_000)
+        mock_window.get_designated_screen.return_value = None
+
+        menu = build_pet_context_menu(mock_window)
+        all_actions = menu.actions()
+
+        # Проверяем наличие кнопки дэки
+        action_texts = [a.text() for a in all_actions]
+        has_deck = any("[DECK]" in t and "команд" in t for t in action_texts)
+        self.assertTrue(has_deck, f"Кнопка дэки не найдена в контекстном меню: {action_texts}")
+
+        # Проверяем отсутствие эмодзи и спец-символов в пунктах меню
+        forbidden_ranges = [
+            (0x1F300, 0x1FAFF),
+            (0x2600, 0x27BF),
+        ]
+        forbidden_chars = {0x25B6, 0x25B2, 0x2716, 0x25C7}
+
+        def check_menu_actions(actions):
+            for act in actions:
+                text = act.text()
+                for ch in text:
+                    code = ord(ch)
+                    self.assertNotIn(
+                        code,
+                        forbidden_chars,
+                        f"Спец-символ U+{code:04X} ({ch}) в пункте '{text}'",
+                    )
+                    for start, end in forbidden_ranges:
+                        self.assertFalse(
+                            start <= code <= end,
+                            f"Эмодзи U+{code:04X} ({ch}) в пункте '{text}'",
+                        )
+                if act.menu() is not None:
+                    check_menu_actions(act.menu().actions())
+
+        check_menu_actions(all_actions)
+
 
 if __name__ == "__main__":
     unittest.main()

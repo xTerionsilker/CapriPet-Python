@@ -252,6 +252,14 @@ class CapriWindow(QWidget):
         if hasattr(self, "_console_hud") and self._console_hud is not None:
             self._console_hud.show_console()
 
+    def toggle_console(self) -> None:
+        """Переключает видимость консоли прямого ввода команд (кибердэки)."""
+        if hasattr(self, "_console_hud") and self._console_hud is not None:
+            if self._console_hud.isVisible():
+                self._console_hud.hide_console()
+            else:
+                self._console_hud.show_console()
+
     @property
     def surge_ticks(self) -> int:
         return self._surge_ticks

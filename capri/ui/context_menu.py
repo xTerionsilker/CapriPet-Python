@@ -121,12 +121,12 @@ class ContextMenuBuilder:
             self.window if isinstance(self.window, QWidget) else None
         )
 
-        hdr = menu.addAction("▶ CAPRI//NEURAL_LINK [ONLINE]")
+        hdr = menu.addAction("[ONLINE] CAPRI//NEURAL_LINK")
         hdr.setEnabled(False)
         menu.addSeparator()
 
         if for_tray:
-            call_act = menu.addAction("▲  [SUMMON] Позвать Капри")
+            call_act = menu.addAction("[SUMMON] Позвать Капри")
             trigger_fn = getattr(
                 self.window,
                 "activate_command_mode",
@@ -156,7 +156,7 @@ class ContextMenuBuilder:
 
         menu.addSeparator()
 
-        quit_act = menu.addAction("✖  [SYS.HALT] Завершить работу")
+        quit_act = menu.addAction("[SYS.HALT] Завершить работу")
         quit_act.triggered.connect(self.window.close)
 
         return menu
@@ -179,7 +179,7 @@ class ContextMenuBuilder:
 
     def _add_intro_breach_action(self, parent_menu: QMenu) -> None:
         if hasattr(self.window, "trigger_intro_breach"):
-            breach_act = parent_menu.addAction("⚡  [FX] Blackwall Breach Intro")
+            breach_act = parent_menu.addAction("[FX] Blackwall Breach Intro")
             breach_act.triggered.connect(self.window.trigger_intro_breach)
 
     def _add_behavior_section(self, parent_menu: QMenu) -> None:
@@ -192,7 +192,7 @@ class ContextMenuBuilder:
             self.window, "game_suppression_enabled", True
         )
         game_act = parent_menu.addAction(
-            "▶  [GAME] Игровой режим (тишина)"
+            "[GAME] Игровой режим (тишина)"
         )
         game_act.setCheckable(True)
         game_act.setChecked(game_enabled)
@@ -205,6 +205,12 @@ class ContextMenuBuilder:
         )
 
     def _add_quick_actions(self, parent_menu: QMenu) -> None:
+        if hasattr(self.window, "open_console"):
+            deck_act = parent_menu.addAction(
+                "[DECK] Кибердэка (ввод команд)"
+            )
+            deck_act.triggered.connect(self.window.open_console)
+
         orchestrator = getattr(self.window, "_orchestrator", None)
         rpc_enabled = (
             getattr(orchestrator, "_discord_enabled", True)
@@ -213,7 +219,7 @@ class ContextMenuBuilder:
         )
 
         rpc_act = parent_menu.addAction(
-            "▶  [DISCORD] Discord Rich Presence"
+            "[DISCORD] Discord Rich Presence"
         )
         rpc_act.setCheckable(True)
         rpc_act.setChecked(rpc_enabled)
@@ -226,7 +232,7 @@ class ContextMenuBuilder:
         elif hasattr(self.window, "voice"):
             voice_listening = self.window.voice.is_listening
 
-        voice_act = parent_menu.addAction("▶  [VOICE] Голосовой ввод")
+        voice_act = parent_menu.addAction("[VOICE] Голосовой ввод")
         voice_act.setCheckable(True)
         voice_act.setChecked(voice_listening)
         voice_act.triggered.connect(
@@ -237,7 +243,7 @@ class ContextMenuBuilder:
         if not glitches_enabled and hasattr(self.window, "glitches"):
             glitches_enabled = self.window.glitches.is_enabled
 
-        glitch_act = parent_menu.addAction("▶  [GLITCH] Экранные глитчи")
+        glitch_act = parent_menu.addAction("[GLITCH] Экранные глитчи")
         glitch_act.setCheckable(True)
         glitch_act.setChecked(glitches_enabled)
         glitch_act.triggered.connect(
@@ -245,7 +251,7 @@ class ContextMenuBuilder:
         )
 
     def _add_screen_menu(self, parent_menu: QMenu) -> None:
-        screen_menu = self._add_submenu(parent_menu, "◇  [DISP] Монитор")
+        screen_menu = self._add_submenu(parent_menu, "[DISP] Монитор")
         screen_group = QActionGroup(screen_menu)
         screen_group.setExclusive(True)
 
@@ -272,7 +278,7 @@ class ContextMenuBuilder:
 
     def _add_microphone_menu(self, parent_menu: QMenu) -> None:
         mic_menu = self._add_submenu(
-            parent_menu, "◇  [AUDIO.IN] Входной микрофон"
+            parent_menu, "[AUDIO.IN] Входной микрофон"
         )
         mic_group = QActionGroup(mic_menu)
         mic_group.setExclusive(True)
@@ -316,12 +322,12 @@ class ContextMenuBuilder:
 
     def _add_sound_menu(self, parent_menu: QMenu) -> None:
         sound_menu = self._add_submenu(
-            parent_menu, "◇  [AUDIO.FX] Звуковые эффекты"
+            parent_menu, "[AUDIO.FX] Звуковые эффекты"
         )
         speech_sfx = get_speech_sfx()
 
         msg_sound_act = sound_menu.addAction(
-            "▶  [SYNTH] Синтез речи (SFX)"
+            "[SYNTH] Синтез речи (SFX)"
         )
         msg_sound_act.setCheckable(True)
         msg_sound_act.setChecked(speech_sfx.is_speech_sound_enabled())
@@ -330,7 +336,7 @@ class ContextMenuBuilder:
                 self.window.set_speech_sound_enabled
             )
 
-        fx_sound_act = sound_menu.addAction("▶  [UI] UI эффекты")
+        fx_sound_act = sound_menu.addAction("[UI] UI эффекты")
         fx_sound_act.setCheckable(True)
         fx_sound_act.setChecked(speech_sfx.is_effects_sound_enabled())
         if hasattr(self.window, "set_effects_sound_enabled"):
@@ -340,7 +346,7 @@ class ContextMenuBuilder:
 
     def _add_volume_menu(self, parent_menu: QMenu) -> None:
         volume_menu = self._add_submenu(
-            parent_menu, "◇  [VOL] Громкость SFX"
+            parent_menu, "[VOL] Громкость SFX"
         )
         volume_group = QActionGroup(volume_menu)
         volume_group.setExclusive(True)
@@ -358,7 +364,7 @@ class ContextMenuBuilder:
 
     def _add_scale_menu(self, parent_menu: QMenu) -> None:
         size_menu = self._add_submenu(
-            parent_menu, "◇  [SCALE] Масштаб проекции"
+            parent_menu, "[SCALE] Масштаб проекции"
         )
         size_group = QActionGroup(size_menu)
         size_group.setExclusive(True)
@@ -381,7 +387,7 @@ class ContextMenuBuilder:
 
     def _add_glitch_intensity_menu(self, parent_menu: QMenu) -> None:
         intensity_menu = self._add_submenu(
-            parent_menu, "◇  [FX.RATE] Интенсивность глитчей"
+            parent_menu, "[FX.RATE] Интенсивность глитчей"
         )
         group = QActionGroup(intensity_menu)
         group.setExclusive(True)
@@ -406,7 +412,7 @@ class ContextMenuBuilder:
 
     def _add_activity_timeout_menu(self, parent_menu: QMenu) -> None:
         timeout_menu = self._add_submenu(
-            parent_menu, "◇  [STANDBY] Таймаут ухода в сон"
+            parent_menu, "[STANDBY] Таймаут ухода в сон"
         )
         timeout_group = QActionGroup(timeout_menu)
         timeout_group.setExclusive(True)
@@ -429,7 +435,7 @@ class ContextMenuBuilder:
 
     def _add_reminder_toggle(self, parent_menu: QMenu) -> None:
         remind_menu = parent_menu.addMenu(
-            "▶  [AUTONOMY] Автономные реплики"
+            "[AUTONOMY] Автономные реплики"
         )
         remind_act = remind_menu.addAction("Включить реплики")
         remind_act.setCheckable(True)
