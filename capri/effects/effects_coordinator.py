@@ -119,7 +119,7 @@ class EffectsCoordinator(QObject):
                 self._model_init_overlay.close()
             self._model_init_overlay = None
 
-        overlay = ModelInitOverlay(self._window)
+        overlay = ModelInitOverlay(self._window.geometry())
         self._model_init_overlay = overlay
         overlay.finished.connect(self._clear_model_init_overlay)
         overlay.start()

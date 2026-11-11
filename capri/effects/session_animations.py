@@ -263,7 +263,7 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         rate *= 0.65 + self._glitch_power(p)
         if random.random() > rate * dt:
             return
-        accent: QColor = self._profile["accent"]
+        accent = QColor(self._profile["accent"])
         for _ in range(2):
             x = wr.center().x() + random.randint(
                 -wr.width() // 2, wr.width() // 2
@@ -306,8 +306,8 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
         p = self._progress
-        accent: QColor = self._profile["accent"]
-        counter: QColor = self._profile["counter"]
+        accent = QColor(self._profile["accent"])
+        counter = QColor(self._profile["counter"])
 
         backdrop = 110 + 45 * math.sin(p * math.pi) + 120 * (p**2)
         painter.fillRect(
@@ -769,7 +769,7 @@ def play_session_animation(
             on_finished=on_finished,
         )
     else:
-        overlay = overlay_cls(
+        overlay = overlay_cls(  # type: ignore[call-arg]
             screen_rect,
             window_rect,
             target=target,

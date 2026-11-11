@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QEvent, QPoint, Qt
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt
 from PySide6.QtGui import (
     QColor,
     QGuiApplication,
@@ -168,7 +168,7 @@ class CyberConsoleHud(QWidget):
         self._drag_start_pos = None
         super().mouseReleaseEvent(event)
 
-    def eventFilter(self, watched: object, event: QEvent) -> bool:
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Перехват навигации по истории команд (Up/Down) и клавиши Esc."""
         if watched is self._input_line and event.type() == QEvent.Type.KeyPress:
             key_event: QKeyEvent = event  # type: ignore[assignment]

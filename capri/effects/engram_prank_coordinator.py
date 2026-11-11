@@ -32,9 +32,9 @@ class EngramPrankCoordinator(QObject):
     @staticmethod
     def _default_game_check() -> bool:
         try:
-            from ..integrations.game_mode import is_game_active
+            from ..integrations.game_mode import GameModeDetector
 
-            return is_game_active()
+            return bool(GameModeDetector().is_game_active)
         except Exception:
             return False
 

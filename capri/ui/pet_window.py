@@ -20,6 +20,7 @@ from PySide6.QtGui import (
     QDragLeaveEvent,
     QDragMoveEvent,
     QDropEvent,
+    QEnterEvent,
     QGuiApplication,
     QKeySequence,
     QPainter,
@@ -613,7 +614,7 @@ class CapriWindow(QWidget):
         phrase = random.choice(DODGE_TEASE_PHRASES)
         self.speak(phrase)
 
-    def enterEvent(self, event: QEvent) -> None:
+    def enterEvent(self, event: QEnterEvent) -> None:
         super().enterEvent(event)
         if (
             self._dodge_hops_remaining > 0
@@ -906,7 +907,7 @@ class CapriWindow(QWidget):
 
         if self._stealth_transition_overlay is not None:
             with contextlib.suppress(Exception):
-                self._stealth_transition_overlay.stop()
+                self._stealth_transition_overlay.close()
                 self._stealth_transition_overlay.deleteLater()
             self._stealth_transition_overlay = None
 
@@ -984,9 +985,9 @@ class CapriWindow(QWidget):
             self._volume_hud = CyberVolumeHud()
         self._volume_hud.show_volume(volume_percent, is_muted, volume_db)
 
-    def nativeEvent(
-        self, event_type: bytes | bytearray, message: int | object
-    ) -> tuple[bool, int]:
+    def nativeEvent(  # type: ignore[override]
+        self, event_type: Any, message: Any
+    ) -> Any:
         if event_type in (
             b"windows_generic_MSG",
             b"windows_dispatcher_MSG",
