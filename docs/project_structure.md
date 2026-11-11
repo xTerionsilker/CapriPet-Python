@@ -8,7 +8,8 @@ scripts/                        # Модульные скрипты подгот
 ├── download_models.py          # Загрузка и проверка моделей Silero VAD и Vosk ASR
 ├── install_deps.bat            # Проверка и установка зависимостей из requirements.txt
 ├── run_app.bat                 # Запуск приложения (фоновый режим / консоль через --console)
-└── setup_env.bat               # Проверка системного Python и создание виртуального окружения .venv
+├── setup_env.bat               # Проверка системного Python и создание виртуального окружения .venv
+└── verify.bat                  # Комплексная локальная верификация (Ruff, Compile, Mypy, Tests) и установка Git pre-push хука
 capri/
 ├── __init__.py
 ├── audio/                      # Голосовой ввод и распознавание речи
