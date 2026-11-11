@@ -33,7 +33,6 @@ def _get_critical_system_dirs() -> set[str]:
     crit = set(CRITICAL_SYSTEM_DIRS)
     env_vars = (
         "SystemRoot",
-        "SystemDrive",
         "ProgramFiles",
         "ProgramFiles(x86)",
         "ProgramW6432",
@@ -88,11 +87,16 @@ def _is_critical_path(path: str | Path) -> bool:
             return True
 
         # Disk roots like 'c:', 'c:\', 'd:', etc.
+        raw_norm = raw_str.replace("/", "\\").rstrip("\\")
         if (
-            len(resolved_str) <= 3
-            and len(resolved_str) >= 2
-            and resolved_str[1] == ":"
-        ) or resolved == resolved.parent:
+            (len(raw_norm) == 2 and raw_norm[1] == ":" and raw_norm[0].isalpha())
+            or (
+                len(resolved_str) <= 3
+                and len(resolved_str) >= 2
+                and resolved_str[1] == ":"
+            )
+            or resolved == resolved.parent
+        ):
             return True
 
         # System and protected directories
