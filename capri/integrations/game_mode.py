@@ -26,6 +26,8 @@ QUNS_QUIET_TIME = 6
 QUNS_APP = 7
 
 WS_POPUP = 0x80000000
+WS_MAXIMIZE = 0x01000000
+WS_CAPTION = 0x00C00000
 GWL_STYLE = -16
 
 
@@ -84,6 +86,13 @@ def is_window_fullscreen_on_screen(hwnd: int) -> bool:
         desktop_hwnd = user32.GetDesktopWindow()
         shell_hwnd = user32.GetShellWindow()
         if hwnd in (desktop_hwnd, shell_hwnd):
+            return False
+
+        if user32.IsZoomed(hwnd):
+            return False
+
+        style = user32.GetWindowLongW(hwnd, GWL_STYLE)
+        if (style & WS_MAXIMIZE) != 0 or (style & WS_CAPTION) == WS_CAPTION:
             return False
 
         rect = _RECT()
@@ -184,13 +193,6 @@ class GameModeDetector(QObject):
         self._blacklist = [b.lower() for b in blacklist]
 
     def _is_game_foreground(self) -> bool:
-        user_state = query_user_notification_state()
-        if user_state in (
-            QUNS_RUNNING_D3D_FULL_SCREEN,
-            QUNS_PRESENTATION_MODE,
-        ):
-            return True
-
         user32 = ctypes.windll.user32
         hwnd = user32.GetForegroundWindow()
         if not hwnd:
@@ -203,8 +205,22 @@ class GameModeDetector(QObject):
             if proc_name in self._blacklist:
                 return True
 
+        # Развёрнутые на весь экран окна обычных приложений (Discord, браузер) не являются играми
+        if user32.IsZoomed(hwnd):
+            return False
+
+        style = user32.GetWindowLongW(hwnd, GWL_STYLE)
+        if (style & WS_MAXIMIZE) != 0:
+            return False
+
+        user_state = query_user_notification_state()
+        if user_state in (
+            QUNS_RUNNING_D3D_FULL_SCREEN,
+            QUNS_PRESENTATION_MODE,
+        ):
+            return True
+
         if is_window_fullscreen_on_screen(hwnd):
-            style = user32.GetWindowLongW(hwnd, GWL_STYLE)
             if (style & WS_POPUP) != 0 or user_state == QUNS_BUSY:
                 return True
 
