@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from capri.commands import create_default_registry
 from capri.commands.base import CommandContext
 from capri.commands.handlers import RegistryCommand
 from capri.integrations.registry_scanner import (
     RegistryIssue,
+    ScanReport,
     extract_executable_path,
     generate_report_file,
     perform_registry_scan,
@@ -62,8 +65,10 @@ class TestRegistryScanner(unittest.TestCase):
             if report_path.exists():
                 report_path.unlink()
 
-    def test_perform_registry_scan_live(self) -> None:
+    @patch("capri.integrations.registry_scanner.os.startfile")
+    def test_perform_registry_scan_live(self, mock_startfile: MagicMock) -> None:
         report = perform_registry_scan(open_report=False)
+        mock_startfile.assert_not_called()
         self.assertGreater(report.total_scanned, 0)
         self.assertTrue(report.report_path.exists())
         try:
@@ -87,7 +92,13 @@ class TestRegistryScanner(unittest.TestCase):
         self.assertIsNotNone(matched_en)
         self.assertIsInstance(matched_en, RegistryCommand)
 
-    def test_registry_command_execute_direct(self) -> None:
+    @patch("capri.commands.system.registry_scanner.perform_registry_scan")
+    def test_registry_command_execute_direct(self, mock_scan: MagicMock) -> None:
+        mock_scan.return_value = ScanReport(
+            issues=[],
+            total_scanned=42,
+            report_path=Path("dummy_report.txt"),
+        )
         cmd = RegistryCommand()
         ctx = CommandContext(
             speak=lambda msg: None,
@@ -99,11 +110,27 @@ class TestRegistryScanner(unittest.TestCase):
             set_config=lambda k, v: None,
             action_bridge=None,
         )
-        result = cmd.execute(ctx)
-        self.assertIsNotNone(result)
-        self.assertTrue(
-            ("Прошерстила" in result) or ("Анализ реестра завершён" in result)
+        result_clean = cmd.execute(ctx)
+        self.assertIsNotNone(result_clean)
+        self.assertIn("Прошерстила 42 записей реестра", result_clean)
+        mock_scan.assert_called_once_with(open_report=True)
+
+        # Проверка поведения при наличии найденных аномалий
+        mock_scan.return_value = ScanReport(
+            issues=[
+                RegistryIssue(
+                    category="Битая деинсталляция",
+                    hive_name="HKLM",
+                    key_path=r"Software\App",
+                    details="Not found",
+                )
+            ],
+            total_scanned=100,
+            report_path=Path("dummy_report.txt"),
         )
+        result_issues = cmd.execute(ctx)
+        self.assertIsNotNone(result_issues)
+        self.assertIn("откопала 1 аномалий", result_issues)
 
 
 if __name__ == "__main__":
