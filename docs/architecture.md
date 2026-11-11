@@ -21,6 +21,7 @@ flowchart TB
         direction TB
         Voice["voice.py<br/>(Захват звука, Silero VAD)"]
         ASR["recognizer.py<br/>(Vosk ASR)"]
+        SFXGen["sfx_generators.py<br/>(Процедурный DSP синтез PCM)"]
         Voice -->|Фреймы речи| ASR
     end
 
@@ -51,7 +52,7 @@ flowchart TB
     subgraph CommandsSubsystem["5. Модульная система команд и интеграции"]
         direction TB
         Registry["commands/registry.py<br/>(Реестр и нечёткий поиск)"]
-        Handlers["commands/handlers.py<br/>(Обработчики действий)"]
+        Handlers["commands/ (system, volume, media, apps, web, debug)<br/>(Доменные обработчики + handlers.py)"]
         Integrations["integrations/<br/>(Spotify, Discord RPC, AppLauncher, SystemControl, SystemVolume, GameMode, Cleaner, DataShredder)"]
 
         Registry --> Handlers
@@ -61,14 +62,14 @@ flowchart TB
     %% UI и Визуальные эффекты
     subgraph VisualPresentation["6. Графический интерфейс и эффекты (capri.ui / capri.effects)"]
         direction TB
-        PetWindow["ui/pet_window.py & pet_window_actions.py<br/>(Главное окно питомца, View и ActionDelegate)"]
+        PetWindow["ui/pet_window.py, pet_window_actions.py, shredder_drop_handler.py<br/>(Главное окно питомца, View, Actions и DnD-делегат)"]
         PetRenderer["ui/pet_renderer.py<br/>(Рендерер спрайтов, глитч-ауры Blackwall и сканлайнов)"]
-        ContextMenu["ui/context_menu.py<br/>(Кибер-меню и настройки)"]
+        ContextMenu["ui/context_menu.py, tray_manager.py, reminder_dialog.py<br/>(Кибер-меню, трей и настройки)"]
         ConsoleHUD["ui/console_hud.py<br/>(CyberConsoleHud прямой ввод команд)"]
         VoiceCoord["ui/voice_coordinator.py<br/>(Координатор ASR & HUD)"]
         VoiceHUD["ui/voice_hud.py<br/>(Cyberpunk Voice HUD над taskbar)"]
         VolumeHUD["ui/volume_hud.py<br/>(CyberVolumeHud экранный OSD)"]
-        SpeechHUD["ui/speech.py & speech_sfx.py<br/>(CyberHudBubble и синтез SFX)"]
+        SpeechHUD["ui/speech.py & speech_sfx.py<br/>(CyberHudBubble и плеер SFX)"]
         GameOverlay["ui/game_overlay.py<br/>(SilentPresenceGlyph оверлей)"]
         Effects["effects/effects_coordinator.py<br/>(CRT-глитчи, молнии, переходы)"]
 
@@ -154,7 +155,7 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor User as Пользователь
-    participant Window as PetWindow (Qt DnD)
+    participant Window as PetWindow & ShredderDropHandler
     participant SFX as SpeechSFX
     participant Renderer as PetRenderer
     participant Shredder as DataShredder

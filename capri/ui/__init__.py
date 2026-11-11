@@ -20,6 +20,7 @@ from .pet_renderer import (
     random_free_point,
 )
 from .pet_window import CapriWindow
+from .shredder_drop_handler import ShredderDropHandler
 from .speech import SpeechWindow, show_text
 from .theme import (
     APP_STYLE,
@@ -57,6 +58,7 @@ __all__ = [
     "PetRenderState",
     "PetRenderer",
     "ReminderRangeDialog",
+    "ShredderDropHandler",
     "SpeechWindow",
     "TrayManager",
     "build_pet_context_menu",
