@@ -40,11 +40,6 @@ from ..effects.effects_coordinator import EffectsCoordinator
 from ..effects.model_init_animation import ModelInitOverlay
 from ..effects.session_animations import SessionAnimationOverlay
 from ..effects.transition import TransitionOverlay
-from ..integrations.data_shredder import (
-    _is_critical_path,
-    generate_shred_dialogue,
-    shred_paths,
-)
 from ..integrations.game_mode import GameModeDetector
 from ..integrations.system_power_hook import SystemEventHook
 from .console_hud import CyberConsoleHud
@@ -52,6 +47,7 @@ from .context_menu import TrayManager
 from .game_overlay import SilentPresenceGlyph
 from .pet_renderer import PetRenderer, PetRenderState
 from .pet_window_actions import PetWindowActionDelegate
+from .shredder_drop_handler import ShredderDropHandler
 from .speech import (
     SpeechWindow,
     set_speech_suppressed,
@@ -180,6 +176,7 @@ class CapriWindow(QWidget):
             pet_window=self,
         )
         self._tray = TrayManager(self)
+        self._drop_handler = ShredderDropHandler(self)
         self._silent_glyph = SilentPresenceGlyph()
         self._volume_hud: CyberVolumeHud | None = None
         self._is_stealth_mode = False
@@ -526,74 +523,17 @@ class CapriWindow(QWidget):
         super().mouseReleaseEvent(event)
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
-        if not get_config_value("behavior.file_shredder_enabled", True):
-            event.ignore()
-            return
-
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-            self._target_acquired = True
-            get_speech_sfx().play_target_acquired()
-            self.update()
-        else:
-            event.ignore()
+        self._drop_handler.handle_drag_enter(event)
 
     def dragMoveEvent(self, event: QDragMoveEvent) -> None:
-        if not get_config_value("behavior.file_shredder_enabled", True):
-            event.ignore()
-            return
-
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-            if not self._target_acquired:
-                self._target_acquired = True
-                self.update()
-        else:
-            event.ignore()
+        self._drop_handler.handle_drag_move(event)
 
     def dragLeaveEvent(self, event: QDragLeaveEvent) -> None:
-        self._target_acquired = False
-        self.update()
+        self._drop_handler.handle_drag_leave(event)
         super().dragLeaveEvent(event)
 
     def dropEvent(self, event: QDropEvent) -> None:
-        if not get_config_value("behavior.file_shredder_enabled", True):
-            event.ignore()
-            return
-
-        self._target_acquired = False
-        urls = event.mimeData().urls()
-        if not urls:
-            event.ignore()
-            return
-
-        event.acceptProposedAction()
-
-        paths = [Path(url.toLocalFile()) for url in urls if url.isLocalFile()]
-        if not paths:
-            return
-
-        # Check for critical paths
-        has_blocked = any(_is_critical_path(p) for p in paths)
-        if has_blocked:
-            get_speech_sfx().play_lightning_strike()
-            self._consume_ticks = 18
-            self.update()
-            dialogue = generate_shred_dialogue(None, blocked=True)
-            self._speak(dialogue, hold_ms=4500)
-            return
-
-        # Trigger rogue AI annihilation effects immediately
-        self._consume_ticks = 30
-        self._surge_ticks = 24
-        get_speech_sfx().play_lightning_strike()
-        get_speech_sfx().play_data_rip()
-        self.update()
-
-        # Perform unrecoverable shredding
-        metrics = shred_paths(paths)
-        dialogue = generate_shred_dialogue(metrics)
-        self._speak(dialogue, hold_ms=5000)
+        self._drop_handler.handle_drop(event)
 
     def changeEvent(self, event) -> None:
         super().changeEvent(event)
