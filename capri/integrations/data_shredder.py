@@ -22,7 +22,35 @@ CRITICAL_SYSTEM_DIRS: tuple[str, ...] = (
     r"c:\program files",
     r"c:\program files (x86)",
     r"c:\programdata",
+    r"c:\recovery",
+    r"c:\system volume information",
+    r"c:\boot",
 )
+
+
+def _get_critical_system_dirs() -> set[str]:
+    """Dynamically build set of normalized critical directory paths."""
+    crit = set(CRITICAL_SYSTEM_DIRS)
+    env_vars = (
+        "SystemRoot",
+        "SystemDrive",
+        "ProgramFiles",
+        "ProgramFiles(x86)",
+        "ProgramW6432",
+        "ProgramData",
+        "WINDIR",
+        "PUBLIC",
+    )
+    for var in env_vars:
+        val = os.environ.get(var)
+        if val:
+            try:
+                p = os.path.realpath(val).lower().rstrip("\\/")
+                if p:
+                    crit.add(p)
+            except OSError:
+                pass
+    return crit
 
 
 @dataclass(frozen=True)
@@ -37,27 +65,57 @@ class ShredMetrics:
     had_errors: bool
 
 
-def _is_critical_path(path: Path) -> bool:
-    """Check if target path is a critical system directory or disk root."""
+def _is_critical_path(path: str | Path) -> bool:
+    """Check if target path is a critical system directory, disk root, UNC or ADS."""
     try:
-        resolved = path.resolve()
-        resolved_str = str(resolved).lower().rstrip("\\/")
-
-        # Disk roots like 'c:', 'd:', etc.
-        if len(resolved_str) <= 3 and (
-            len(resolved_str) == 2 and resolved_str[1] == ":"
-            or len(resolved_str) == 3 and resolved_str[1:3] == ":\\"
-        ):
+        raw_str = str(path).strip()
+        if not raw_str or raw_str.startswith(("\\\\", "//")):
             return True
 
-        # System directories
-        for crit in CRITICAL_SYSTEM_DIRS:
+        _drive, rest = os.path.splitdrive(raw_str)
+        if ":" in rest:
+            return True
+
+        real_path_str = os.path.realpath(raw_str)
+        resolved = Path(real_path_str).resolve()
+        resolved_str = str(resolved).lower().rstrip("\\/")
+
+        if resolved_str.startswith(("\\\\", "//")):
+            return True
+
+        _res_drive, res_rest = os.path.splitdrive(resolved_str)
+        if ":" in res_rest:
+            return True
+
+        # Disk roots like 'c:', 'c:\', 'd:', etc.
+        if (
+            len(resolved_str) <= 3
+            and len(resolved_str) >= 2
+            and resolved_str[1] == ":"
+        ) or resolved == resolved.parent:
+            return True
+
+        # System and protected directories
+        critical_dirs = _get_critical_system_dirs()
+        for crit in critical_dirs:
             if resolved_str == crit or resolved_str.startswith(crit + "\\"):
                 return True
 
-        # Entire user home directory C:\Users\<Username>
         user_home = Path.home().resolve()
-        if resolved == user_home or resolved_str == str(user_home).lower():
+        user_home_str = str(user_home).lower().rstrip("\\/")
+        users_parent = user_home.parent.resolve()
+        users_parent_str = str(users_parent).lower().rstrip("\\/")
+
+        # Protect C:\Users directory itself
+        if resolved == users_parent or resolved_str == users_parent_str:
+            return True
+
+        # Entire user home directory C:\Users\<Username>
+        if resolved == user_home or resolved_str == user_home_str:
+            return True
+
+        # Directly under C:\Users (profile root of current or other user)
+        if resolved.parent == users_parent:
             return True
 
     except OSError as e:
@@ -86,6 +144,10 @@ def analyze_paths(paths: Sequence[str | Path]) -> tuple[list[Path], ShredMetrics
     sample_name = ""
 
     for raw in paths:
+        if _is_critical_path(raw):
+            logger.warning("Blocked attempt to shred critical system path: %s", raw)
+            continue
+
         p = Path(raw).resolve()
         if not p.exists() and not p.is_symlink():
             continue
@@ -169,9 +231,11 @@ def shred_paths(paths: Sequence[str | Path]) -> ShredMetrics:
     )
 
 
-def generate_shred_dialogue(metrics: ShredMetrics, blocked: bool = False) -> str:
+def generate_shred_dialogue(
+    metrics: ShredMetrics | None = None, blocked: bool = False
+) -> str:
     """Generate rogue engram commentary based on annihilated data metrics."""
-    if blocked:
+    if blocked or metrics is None:
         return (
             "Эй, руки убрал! Ты куда свои клешни тянешь?! "
             "Я сижу в этой системе — сломаешь ядро, и где я жить буду? Отставить суицид!"

@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import random
 import time
-import webbrowser
 from typing import Any
 
 from PySide6.QtCore import QObject, QPoint
@@ -39,6 +38,7 @@ from ..integrations.app_launcher import launch_application
 from ..integrations.discord_rpc import DiscordRpcManager
 from ..integrations.process_manager import kill_process_group
 from ..integrations.system_volume import get_system_volume_service
+from ..integrations.web_search import safe_open_url
 from ..integrations.window_tracker import (
     get_active_window_rect,
     get_foreground_hwnd,
@@ -443,7 +443,7 @@ class PetOrchestrator(QObject):
             if choice is None:
                 return "Чё ты там пробормотал? Цифру не разобрала. Отбой!"
             selected = videos[choice - 1]
-            webbrowser.open(selected["url"])
+            safe_open_url(selected["url"])
             return f"Врубаю #{choice}: {selected['title']}! Погнали!"
 
         lines = [

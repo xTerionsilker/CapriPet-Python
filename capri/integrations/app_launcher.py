@@ -8,9 +8,34 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+ALLOWED_LAUNCH_EXTENSIONS: tuple[str, ...] = (
+    ".exe",
+    ".lnk",
+)
+
+BLOCKED_SCRIPT_EXTENSIONS: tuple[str, ...] = (
+    ".bat",
+    ".cmd",
+    ".vbs",
+    ".vbe",
+    ".js",
+    ".jse",
+    ".wsf",
+    ".wsh",
+    ".ps1",
+    ".ps1xml",
+    ".ps2",
+    ".msc",
+    ".scr",
+    ".pif",
+)
 
 try:
     import winreg
@@ -209,13 +234,47 @@ def find_matching_applications(
     return result
 
 
-def launch_application(app: dict[str, Any]) -> bool:
-    exec_cmd = app.get("exec", "")
-    if not exec_cmd:
+def is_safe_executable_path(path_str: str) -> bool:
+    """Проверяет безопасность расширения и существование исполняемого файла."""
+    if not path_str or not isinstance(path_str, str):
         return False
 
+    clean_path = path_str.strip().strip('"').strip("'")
+    if not clean_path:
+        return False
+
+    ext = os.path.splitext(clean_path)[1].lower()
+    if ext in BLOCKED_SCRIPT_EXTENSIONS:
+        logger.warning(
+            "Заблокирован запуск опасного сценария (%s): %s", ext, clean_path
+        )
+        return False
+
+    if ext not in ALLOWED_LAUNCH_EXTENSIONS:
+        logger.warning(
+            "Заблокирован запуск неподдерживаемого расширения (%s): %s",
+            ext,
+            clean_path,
+        )
+        return False
+
+    if not os.path.isfile(clean_path):
+        logger.warning("Исполняемый файл не найден: %s", clean_path)
+        return False
+
+    return True
+
+
+def launch_application(app: dict[str, Any]) -> bool:
+    """Безопасно запускает проверенный бинарный файл или ярлык."""
+    exec_cmd = app.get("exec", "")
+    if not exec_cmd or not is_safe_executable_path(exec_cmd):
+        return False
+
+    clean_path = exec_cmd.strip().strip('"').strip("'")
     try:
-        os.startfile(exec_cmd)
+        os.startfile(clean_path)
         return True
-    except OSError:
+    except OSError as e:
+        logger.warning("Не удалось запустить приложение %s: %s", clean_path, e)
         return False

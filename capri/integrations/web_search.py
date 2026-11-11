@@ -11,7 +11,7 @@ import datetime
 import logging
 import webbrowser
 from pathlib import Path
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlsplit
 
 import httpx
 import yt_dlp
@@ -23,13 +23,39 @@ REPO_URL = "https://github.com/xTerionsilker/CapriPet-Python"
 UPDATE_FILE_URL = "https://raw.githubusercontent.com/xTerionsilker/CapriPet-Python/main/version.txt"
 VERSION_FILENAME = "version.txt"
 REQUEST_TIMEOUT_SEC = 5
+ALLOWED_URL_SCHEMES: frozenset[str] = frozenset({"http", "https"})
+
+
+def safe_open_url(url: str) -> bool:
+    """Безопасно открывает URL в браузере только по разрешенным веб-схемам."""
+    if not url or not isinstance(url, str):
+        return False
+
+    clean_url = url.strip()
+    try:
+        parsed = urlsplit(clean_url)
+        if parsed.scheme.lower() not in ALLOWED_URL_SCHEMES:
+            logger.warning(
+                "Заблокирована попытка открытия URL с неподдерживаемой схемой: %r",
+                parsed.scheme,
+            )
+            return False
+        if not parsed.netloc:
+            logger.warning(
+                "Заблокирован некорректный URL без хоста: %s", clean_url
+            )
+            return False
+        return bool(webbrowser.open(clean_url))
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Ошибка при открытии URL %s: %s", clean_url, e)
+        return False
 
 
 def search_google(query: str) -> str:
     query = query.strip()
     if not query:
         return "Чё нарыть в Сети? Давай команду: «гугл <запрос>»!"
-    webbrowser.open(f"https://www.google.com/search?q={quote_plus(query)}")
+    safe_open_url(f"https://www.google.com/search?q={quote_plus(query)}")
     return f"Запускаю сетевых пауков по запросу: {query}!"
 
 
@@ -82,7 +108,7 @@ def search_youtube(query: str) -> str:
     query = query.strip()
     if not query:
         return "Что искать на YouTube? Скажи: «ютуб <запрос>»."
-    webbrowser.open(
+    safe_open_url(
         f"https://www.youtube.com/results?search_query={quote_plus(query)}"
     )
     return f"Ищу на YouTube: {query}"
@@ -155,5 +181,5 @@ def fetch_remote_version_datetime() -> datetime.datetime | None:
 
 
 def open_update_page() -> str:
-    webbrowser.open(REPO_URL)
+    safe_open_url(REPO_URL)
     return "Открываю страницу на GitHub. Качаем апгрейд!"

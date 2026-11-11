@@ -10,6 +10,7 @@ from ..core.wake_word import MAX_TYPO_DISTANCE, keyword_score, similarity
 from .base import BaseCommand, CommandContext
 
 ARGUMENT_PUNCTUATION = ' \t,.:;–-!?()[]{}«»…"'
+MAX_COMMAND_INPUT_LENGTH = 500
 
 _EN_KEYS = "qwertyuiop[]asdfghjkl;'zxcvbnm,./`"
 _RU_KEYS = "йцукенгшщзхъфывапролджэячсмитьбю.ё"
@@ -251,7 +252,9 @@ class CommandRegistry:
 
     @staticmethod
     def _normalize(text: str) -> str:
-        return " ".join(text.casefold().strip(' .!?«»"').split())
+        return " ".join(
+            text[:MAX_COMMAND_INPUT_LENGTH].casefold().strip(' .!?«»"').split()
+        )
 
     @property
     def commands(self) -> list[BaseCommand]:

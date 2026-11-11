@@ -12,6 +12,7 @@ from ..commands.registry import switch_layout
 
 CONFIRM_TIMEOUT_MS = 15_000
 YOUTUBE_SELECT_TIMEOUT_MS = 25_000
+MAX_INPUT_TEXT_LENGTH = 500
 
 NUMBER_WORDS_MAP: dict[str, int] = {
     "1": 1,
@@ -96,7 +97,7 @@ NEGATIVE_WORDS = frozenset(
 
 def answer_words(text: str) -> set[str]:
     """Извлекает нормализованные слова ответа."""
-    words = set(re.findall(r"[\w-]+", text.casefold()))
+    words = set(re.findall(r"[\w-]+", text[:MAX_INPUT_TEXT_LENGTH].casefold()))
     words |= {switch_layout(w) for w in words}
     return words
 
@@ -166,6 +167,7 @@ class InputFlow(QObject):
         self.awaiting_reply_changed.emit(True)
 
     def handle(self, text: str) -> str:
+        text = text[:MAX_INPUT_TEXT_LENGTH]
         if self._custom_waiter is not None:
             handler, timer = self._custom_waiter
             timer.stop()

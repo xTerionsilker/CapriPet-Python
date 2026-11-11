@@ -33,6 +33,7 @@ _DEFAULT_FALLBACK_UA = (
 
 ACTIVITY_TIMEOUT_OPTIONS_MS: tuple[int, ...] = (5_000, 10_000, 15_000)
 GLITCH_INTENSITY_OPTIONS: tuple[str, ...] = ("weak", "medium", "strong")
+MAX_CONFIG_FILE_SIZE: int = 2 * 1024 * 1024
 
 
 class WindowPosition(BaseModel):
@@ -302,7 +303,8 @@ class ConfigManager:
 
     def __init__(self, config_path: Path | None = None) -> None:
         self._is_custom_path = config_path is not None
-        self._config_path = config_path or _get_default_config_path()
+        resolved_path = (config_path or _get_default_config_path()).resolve()
+        self._config_path = resolved_path
         self._cached_config: dict[str, Any] | None = None
 
     @property
@@ -336,6 +338,17 @@ class ConfigManager:
             return copy.deepcopy(config)
 
         try:
+            st = self._config_path.stat()
+            if st.st_size > MAX_CONFIG_FILE_SIZE:
+                logger.warning(
+                    "Файл конфигурации %s превышает лимит (%d байт). Применяются дефолты.",
+                    self._config_path,
+                    st.st_size,
+                )
+                config = copy.deepcopy(DEFAULT_CONFIG)
+                self._cached_config = config
+                return copy.deepcopy(config)
+
             with open(self._config_path, encoding="utf-8") as f:
                 raw_data = json.load(f)
             if not isinstance(raw_data, dict):
@@ -358,13 +371,20 @@ class ConfigManager:
         return copy.deepcopy(config)
 
     def save_config(self, config: dict[str, Any]) -> None:
-        """Атомарно сохраняет конфигурацию во временный файл и заменяет целевой."""
-        target = self._config_path
+        """Атомарно сохраняет валидированную конфигурацию во временный файл и заменяет целевой."""
+        target = self._config_path.resolve()
+        if target.is_dir() or target == target.parent:
+            logger.warning(
+                "Недопустимый путь сохранения конфигурации: %s", target
+            )
+            return
+
+        sanitized = self._validate_and_sanitize(config)
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
             tmp_target = target.with_suffix(f"{target.suffix}.tmp")
             with open(tmp_target, "w", encoding="utf-8") as f:
-                json.dump(config, f, ensure_ascii=False, indent=2)
+                json.dump(sanitized, f, ensure_ascii=False, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
             try:
@@ -372,7 +392,7 @@ class ConfigManager:
             except OSError:
                 shutil.copyfile(tmp_target, target)
                 tmp_target.unlink(missing_ok=True)
-            self._cached_config = copy.deepcopy(config)
+            self._cached_config = copy.deepcopy(sanitized)
         except Exception as e:  # noqa: BLE001
             logger.warning(
                 "Не удалось сохранить конфигурацию в %s: %s", target, e

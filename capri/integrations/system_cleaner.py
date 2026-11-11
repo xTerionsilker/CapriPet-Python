@@ -12,6 +12,7 @@ import ctypes
 import os
 import tempfile
 from ctypes import wintypes
+from pathlib import Path
 from typing import Any, NamedTuple
 
 
@@ -90,8 +91,27 @@ def clear_recycle_bin() -> tuple[bool, int, int]:
     return False, 0, 0
 
 
-def _safe_remove_file(file_path: str) -> tuple[bool, int]:
+def _is_strictly_within(
+    target_path: str | Path, base_dir: str | Path
+) -> bool:
+    """Проверяет, что target_path находится строго внутри base_dir и не выходит за его пределы."""
     try:
+        target_res = Path(target_path).resolve()
+        base_res = Path(base_dir).resolve()
+        return target_res.is_relative_to(base_res) and target_res != base_res
+    except (OSError, ValueError):
+        return False
+
+
+def _safe_remove_file(
+    file_path: str, base_dir: str | None = None
+) -> tuple[bool, int]:
+    try:
+        if base_dir and not _is_strictly_within(file_path, base_dir):
+            return False, 0
+        if os.path.islink(file_path):
+            os.unlink(file_path)
+            return True, 0
         size = 0
         with contextlib.suppress(OSError):
             size = os.path.getsize(file_path)
@@ -101,16 +121,28 @@ def _safe_remove_file(file_path: str) -> tuple[bool, int]:
         return False, 0
 
 
-def _safe_remove_dir(dir_path: str) -> tuple[int, int, int]:
+def _safe_remove_dir(
+    dir_path: str, base_dir: str | None = None
+) -> tuple[int, int, int]:
     """Рекурсивно удаляет содержимое папки снизу вверх, пропуская заблокированные файлы."""
     files_del = 0
     bytes_del = 0
     err_count = 0
 
-    for root, dirs, files in os.walk(dir_path, topdown=False):
+    if base_dir and not _is_strictly_within(dir_path, base_dir):
+        return 0, 0, 1
+
+    if os.path.islink(dir_path):
+        try:
+            os.unlink(dir_path)
+            return 1, 0, 0
+        except OSError:
+            return 0, 0, 1
+
+    for root, dirs, files in os.walk(dir_path, topdown=False, followlinks=False):
         for f in files:
             fp = os.path.join(root, f)
-            ok, sz = _safe_remove_file(fp)
+            ok, sz = _safe_remove_file(fp, base_dir=base_dir)
             if ok:
                 files_del += 1
                 bytes_del += sz
@@ -118,8 +150,15 @@ def _safe_remove_dir(dir_path: str) -> tuple[int, int, int]:
                 err_count += 1
         for d in dirs:
             dp = os.path.join(root, d)
-            with contextlib.suppress(OSError):
-                os.rmdir(dp)
+            if os.path.islink(dp):
+                try:
+                    os.unlink(dp)
+                    files_del += 1
+                except OSError:
+                    err_count += 1
+            else:
+                with contextlib.suppress(OSError):
+                    os.rmdir(dp)
 
     with contextlib.suppress(OSError):
         os.rmdir(dir_path)
@@ -157,18 +196,24 @@ def clean_temp_directories() -> tuple[int, int, int]:
 
         for item in items:
             try:
+                if not _is_strictly_within(item.path, temp_dir):
+                    total_errors += 1
+                    continue
+
                 if (
                     item.is_file(follow_symlinks=False)
                     or item.is_symlink()
                 ):
-                    ok, sz = _safe_remove_file(item.path)
+                    ok, sz = _safe_remove_file(item.path, base_dir=temp_dir)
                     if ok:
                         total_files += 1
                         total_bytes += sz
                     else:
                         total_errors += 1
                 elif item.is_dir(follow_symlinks=False):
-                    f_del, b_del, errs = _safe_remove_dir(item.path)
+                    f_del, b_del, errs = _safe_remove_dir(
+                        item.path, base_dir=temp_dir
+                    )
                     total_files += f_del
                     total_bytes += b_del
                     total_errors += errs

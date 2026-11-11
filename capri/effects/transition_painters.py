@@ -8,6 +8,7 @@ import random
 from PySide6.QtCore import QPoint, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPen, QPolygon
 
+from ..ui.theme import get_hud_font
 from .transition_base import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
@@ -19,7 +20,6 @@ from .transition_base import (
     snap_pixel,
     with_alpha,
 )
-from ..ui.theme import get_hud_font
 
 
 class CyberShockwaveRing:
