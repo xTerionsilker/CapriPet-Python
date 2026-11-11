@@ -14,7 +14,7 @@ from ctypes import wintypes
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt, QTimer
+from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import (
     QDragEnterEvent,
     QDragLeaveEvent,
@@ -62,7 +62,18 @@ from .speech_sfx import get_speech_sfx
 from .sprite_manager import SpriteManager
 from .teleport_controller import TeleportController
 from .volume_hud import CyberVolumeHud
+from .window_prank_controller import (
+    DODGE_TEASE_PHRASES,
+    WindowPrankController,
+    compute_dodge_position,
+)
 from .window_system_events import WindowSystemEventsHandler
+
+__all__ = [
+    "CapriWindow",
+    "DODGE_TEASE_PHRASES",
+    "compute_dodge_position",
+]
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 ASSETS = ROOT / "assets"
@@ -86,70 +97,6 @@ STARTUP_LINES = (
     "Каприкорн на связи! Ну что, устроим цифровой хаос, {user}?",
     "*электрический треск* ...О, картинка пошла! Чё залип, не ждал?",
 )
-
-DODGE_TEASE_PHRASES: tuple[str, ...] = (
-    "Слишком медленные синапсы, мясной. Попробуй ещё раз!",
-    "Думал поймал? Я цифровой конструкт, а не твой коврик для мыши.",
-    "Мимо! Мой отклик — три наносекунды, твой — полвека.",
-    "Руки от биочипа убрал! Контакт не для твоих пальцев.",
-    "Ха! Пинг проверь, хост. Я уже в другом секторе экрана.",
-)
-
-
-def compute_dodge_position(
-    curr_pos: QPoint,
-    cursor_pos: QPoint,
-    screen_rect: QRect,
-    window_size: QSize,
-    hop_dist: int = 100,
-) -> QPoint:
-    """Вычисляет новую позицию окна при уклонении от курсора мыши.
-
-    Вектор направлен от курсора к центру окна с добавлением лёгкого перпендикулярного
-    смещения, чтобы траектория не была строго линейной. Конечная позиция гарантированно
-    клампится внутри границ активного экрана screen_rect.
-    """
-    center_x = curr_pos.x() + window_size.width() // 2
-    center_y = curr_pos.y() + window_size.height() // 2
-
-    dx = float(center_x - cursor_pos.x())
-    dy = float(center_y - cursor_pos.y())
-
-    if dx == 0.0 and dy == 0.0:
-        dx = float(random.choice([-1, 1]))
-        dy = float(random.choice([-1, 1]))
-
-    dist = (dx * dx + dy * dy) ** 0.5
-    if dist < 1.0:
-        dist = 1.0
-
-    ux = dx / dist
-    uy = dy / dist
-
-    perp_x = -uy * random.uniform(-0.4, 0.4)
-    perp_y = ux * random.uniform(-0.4, 0.4)
-
-    final_dx = (ux + perp_x) * hop_dist
-    final_dy = (uy + perp_y) * hop_dist
-
-    new_x = int(curr_pos.x() + final_dx)
-    new_y = int(curr_pos.y() + final_dy)
-
-    min_x = screen_rect.left()
-    max_x = max(min_x, screen_rect.right() - window_size.width())
-    min_y = screen_rect.top()
-    max_y = max(min_y, screen_rect.bottom() - window_size.height())
-
-    clamped_x = max(min_x, min(new_x, max_x))
-    clamped_y = max(min_y, min(new_y, max_y))
-
-    if clamped_x == curr_pos.x() and clamped_y == curr_pos.y():
-        alt_x = int(curr_pos.x() - final_dx)
-        alt_y = int(curr_pos.y() - final_dy)
-        clamped_x = max(min_x, min(alt_x, max_x))
-        clamped_y = max(min_y, min(alt_y, max_y))
-
-    return QPoint(clamped_x, clamped_y)
 
 GOODBYE_LINE = "Сворачиваешь меня? Скучный ты... Ладно, ухожу в тень биочипа. Не скучай, чумба!"
 
@@ -267,11 +214,8 @@ class CapriWindow(QWidget):
             parent=self,
         )
 
-        self._dodge_hops_remaining: int = 0
         self._prank_coordinator = EngramPrankCoordinator(self)
-        self._prank_coordinator.sig_trigger_dodge.connect(self._on_prank_dodge)
-        self._prank_coordinator.sig_trigger_melt.connect(self._on_prank_melt)
-        self._prank_coordinator.sig_trigger_relic_dump.connect(self._on_prank_relic_dump)
+        self._prank_ctrl = WindowPrankController(self, self._prank_coordinator)
         self._prank_coordinator.set_game_active_checker(lambda: self._game_detector.is_game_active)
         self._prank_coordinator.set_shredding_checker(
             lambda: getattr(self, "_target_acquired", False) or getattr(self, "_consume_ticks", 0) > 0
@@ -582,49 +526,29 @@ class CapriWindow(QWidget):
     def prank_coordinator(self) -> EngramPrankCoordinator:
         return self._prank_coordinator
 
+    @property
+    def _dodge_hops_remaining(self) -> int:
+        return self._prank_ctrl.dodge_hops_remaining
+
+    @_dodge_hops_remaining.setter
+    def _dodge_hops_remaining(self, count: int) -> None:
+        self._prank_ctrl.dodge_hops_remaining = count
+
     def _on_prank_dodge(self, hops_count: int) -> None:
-        self._dodge_hops_remaining = hops_count
+        self._prank_ctrl.handle_prank_dodge(hops_count)
 
     def _on_prank_melt(self) -> None:
-        self._effects.play_melting_screen()
+        self._prank_ctrl.handle_prank_melt()
 
     def _on_prank_relic_dump(self, variant: str) -> None:
-        if variant == "terminal":
-            self._effects.play_relic_dump_terminal(self.geometry())
-        else:
-            self.speak(">> [RELIC_FAULT: 0xDEADBEEF] SECTOR_CORRUPT // SOULKILLER_V4_INTEGRITY_FAIL")
-            get_speech_sfx().play_core_destabilize()
-            QTimer.singleShot(
-                1500,
-                self,
-                lambda: self.speak("Кхм... опять шина памяти барахлит. Не обращай внимания, хост."),
-            )
+        self._prank_ctrl.handle_prank_relic_dump(variant)
 
     def _execute_cursor_dodge(self, cursor_pos: QPoint) -> None:
-        self._dodge_hops_remaining -= 1
-        screen = self.get_designated_screen() or QGuiApplication.primaryScreen()
-        screen_rect = screen.availableGeometry() if screen else QRect(0, 0, 1920, 1080)
-        new_pos = compute_dodge_position(
-            self.pos(),
-            cursor_pos,
-            screen_rect,
-            self.size(),
-            hop_dist=random.randint(80, 120),
-        )
-        self.move(new_pos)
-        get_speech_sfx().play_lightning_strike()
-        phrase = random.choice(DODGE_TEASE_PHRASES)
-        self.speak(phrase)
+        self._prank_ctrl.execute_cursor_dodge(cursor_pos)
 
     def enterEvent(self, event: QEnterEvent) -> None:
         super().enterEvent(event)
-        if (
-            self._dodge_hops_remaining > 0
-            and not getattr(self._drop_handler, "is_dragging", False)
-            and not getattr(self, "_target_acquired", False)
-        ):
-            cursor_pos = self.cursor().pos()
-            self._execute_cursor_dodge(cursor_pos)
+        self._prank_ctrl.handle_enter_event(event)
 
     def mousePressEvent(self, event) -> None:
         pos = event.position().toPoint()
