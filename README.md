@@ -74,6 +74,7 @@ capriWin.bat
 - `scripts\install_deps.bat [--upgrade]` — установка и обновление зависимостей.
 - `scripts\download_models.py [--check-only] [--vad] [--vosk]` — утилита загрузки и валидации моделей.
 - `scripts\run_app.bat [--console]` — прямой запуск приложения.
+- `scripts\verify.bat [--install-hook]` — запуск комплексной локальной верификации (линтер Ruff, компиляция байткода, Mypy, тесты) и установка pre-push Git-хука.
 </details>
 
 ---
