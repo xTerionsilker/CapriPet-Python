@@ -18,6 +18,7 @@ from .glitch import (
 from .intro_breach_overlay import IntroBreachOverlay
 from .melting_screen import MeltingScreenOverlay
 from .model_init_animation import ModelInitOverlay
+from .relic_dump_overlay import RelicDumpOverlay
 from .session_animations import (
     CryostasisSceneOverlay,
     DisconnectSceneOverlay,
@@ -41,6 +42,7 @@ __all__ = [
     "MeltingScreenOverlay",
     "ModelInitOverlay",
     "RebootCycleOverlay",
+    "RelicDumpOverlay",
     "SessionAnimationOverlay",
     "TransitionOverlay",
     "paint_circuit_traces",

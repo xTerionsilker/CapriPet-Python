@@ -12,6 +12,7 @@ from .glitch import GlitchBurstOverlay, GlitchManager
 from .intro_breach_overlay import IntroBreachOverlay
 from .melting_screen import MeltingScreenOverlay
 from .model_init_animation import ModelInitOverlay
+from .relic_dump_overlay import RelicDumpOverlay
 from .session_animations import (
     SessionAnimationOverlay,
     play_session_animation,
@@ -35,6 +36,7 @@ class EffectsCoordinator(QObject):
         self._burst_overlay: GlitchBurstOverlay | None = None
         self._intro_breach_overlay: IntroBreachOverlay | None = None
         self._melting_overlay: MeltingScreenOverlay | None = None
+        self._relic_dump_overlay: RelicDumpOverlay | None = None
 
     @property
     def glitches(self) -> GlitchManager:
@@ -186,9 +188,45 @@ class EffectsCoordinator(QObject):
         overlay.start()
         return overlay
 
+    def play_relic_dump_terminal(
+        self,
+        target_rect: QRect,
+        duration_ms: int = 2500,
+        on_finished: Callable[[], None] | None = None,
+    ) -> RelicDumpOverlay | None:
+        if getattr(self._window, "is_closing", False):
+            return None
+
+        if self._relic_dump_overlay is not None:
+            with contextlib.suppress(Exception):
+                self._relic_dump_overlay.close()
+                self._relic_dump_overlay.deleteLater()
+            self._relic_dump_overlay = None
+
+        overlay = RelicDumpOverlay(
+            target_rect=target_rect,
+            duration_ms=duration_ms,
+        )
+        self._relic_dump_overlay = overlay
+
+        def _cleanup() -> None:
+            if self._relic_dump_overlay is overlay:
+                self._relic_dump_overlay = None
+            if on_finished is not None:
+                on_finished()
+
+        overlay.finished.connect(_cleanup)
+        overlay.start()
+        return overlay
+
     def stop_all(self) -> None:
 
         self._glitches.stop()
+        if self._relic_dump_overlay is not None:
+            with contextlib.suppress(Exception):
+                self._relic_dump_overlay.close()
+                self._relic_dump_overlay.deleteLater()
+            self._relic_dump_overlay = None
         if self._melting_overlay is not None:
             with contextlib.suppress(Exception):
                 self._melting_overlay.close()

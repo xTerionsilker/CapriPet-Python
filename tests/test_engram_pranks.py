@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QRect, Qt
 from PySide6.QtWidgets import QApplication
 
 
@@ -102,6 +102,18 @@ class TestEngramPrankCoordinator(unittest.TestCase):
         self.assertTrue(bool(flags & Qt.WindowType.WindowTransparentForInput))
         self.assertTrue(bool(flags & Qt.WindowType.FramelessWindowHint))
         self.assertTrue(bool(flags & Qt.WindowType.WindowStaysOnTopHint))
+        overlay.close()
+        overlay.deleteLater()
+
+    def test_relic_dump_overlay_attributes(self) -> None:
+        from capri.effects.relic_dump_overlay import RelicDumpOverlay
+
+        overlay = RelicDumpOverlay(target_rect=QRect(100, 100, 200, 200), duration_ms=500)
+        flags = overlay.windowFlags()
+        self.assertTrue(bool(flags & Qt.WindowType.WindowTransparentForInput))
+        self.assertTrue(bool(flags & Qt.WindowType.FramelessWindowHint))
+        self.assertTrue(bool(flags & Qt.WindowType.WindowStaysOnTopHint))
+        self.assertIn("0xDEADBEEF", overlay.get_dump_text())
         overlay.close()
         overlay.deleteLater()
 
