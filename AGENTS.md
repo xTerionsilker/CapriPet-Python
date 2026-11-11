@@ -149,7 +149,11 @@ When authoring GitHub issues or milestone notes for new features, bug fixes, or 
 - **Structure:**
   1. `## Summary`: Concise technical overview (1-2 paragraphs) of the user-facing capability, architectural rationale, and lore integration.
   2. `## What's Changed`: Categorized breakdown by subsystem with bolded component names, technical bullet points (Win32 APIs, Qt flags, audio synthesis signatures, algorithms, shortcuts), and lore quotes/reactions where applicable.
-  3. `## Verification & Tests`: Markdown checkbox list (`- [x]`) documenting static compilation (`compileall`), runtime Qt/audio validations, event-loop behavior, and edge-case testing.
+  3. `## Merge Requirements`: Explicit reminder of the mandatory branch protection status check (`Local CI / Integrity`).
+  4. `## Verification & Tests`: Markdown checkbox list (`- [x]`) documenting static compilation (`compileall`), runtime Qt/audio validations, event-loop behavior, and edge-case testing.
+- **PR Merge Gate & Template:**
+  - Pull requests MUST adhere to `.github/pull_request_template.md`.
+  - Merging into `main` strictly requires the `Local CI / Integrity` status check to pass (enforced by GitHub Branch Protection on `main`). Agents must execute `scripts\verify.bat --report-status` before or during PR submission to register this status.
 
 ---
 
