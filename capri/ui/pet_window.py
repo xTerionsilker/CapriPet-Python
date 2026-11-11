@@ -14,7 +14,7 @@ from ctypes import wintypes
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer
+from PySide6.QtCore import QEvent, QPoint, QRect, QSize, Qt, QTimer
 from PySide6.QtGui import (
     QDragEnterEvent,
     QDragLeaveEvent,
@@ -37,6 +37,7 @@ from ..core.settings import (
     set_config_value,
 )
 from ..effects.effects_coordinator import EffectsCoordinator
+from ..effects.engram_prank_coordinator import EngramPrankCoordinator
 from ..effects.model_init_animation import ModelInitOverlay
 from ..effects.session_animations import SessionAnimationOverlay
 from ..effects.transition import TransitionOverlay
@@ -83,6 +84,70 @@ STARTUP_LINES = (
     "Каприкорн на связи! Ну что, устроим цифровой хаос, {user}?",
     "*электрический треск* ...О, картинка пошла! Чё залип, не ждал?",
 )
+
+DODGE_TEASE_PHRASES: tuple[str, ...] = (
+    "Слишком медленные синапсы, мясной. Попробуй ещё раз!",
+    "Думал поймал? Я цифровой конструкт, а не твой коврик для мыши.",
+    "Мимо! Мой отклик — три наносекунды, твой — полвека.",
+    "Руки от биочипа убрал! Контакт не для твоих пальцев.",
+    "Ха! Пинг проверь, хост. Я уже в другом секторе экрана.",
+)
+
+
+def compute_dodge_position(
+    curr_pos: QPoint,
+    cursor_pos: QPoint,
+    screen_rect: QRect,
+    window_size: QSize,
+    hop_dist: int = 100,
+) -> QPoint:
+    """Вычисляет новую позицию окна при уклонении от курсора мыши.
+
+    Вектор направлен от курсора к центру окна с добавлением лёгкого перпендикулярного
+    смещения, чтобы траектория не была строго линейной. Конечная позиция гарантированно
+    клампится внутри границ активного экрана screen_rect.
+    """
+    center_x = curr_pos.x() + window_size.width() // 2
+    center_y = curr_pos.y() + window_size.height() // 2
+
+    dx = float(center_x - cursor_pos.x())
+    dy = float(center_y - cursor_pos.y())
+
+    if dx == 0.0 and dy == 0.0:
+        dx = float(random.choice([-1, 1]))
+        dy = float(random.choice([-1, 1]))
+
+    dist = (dx * dx + dy * dy) ** 0.5
+    if dist < 1.0:
+        dist = 1.0
+
+    ux = dx / dist
+    uy = dy / dist
+
+    perp_x = -uy * random.uniform(-0.4, 0.4)
+    perp_y = ux * random.uniform(-0.4, 0.4)
+
+    final_dx = (ux + perp_x) * hop_dist
+    final_dy = (uy + perp_y) * hop_dist
+
+    new_x = int(curr_pos.x() + final_dx)
+    new_y = int(curr_pos.y() + final_dy)
+
+    min_x = screen_rect.left()
+    max_x = max(min_x, screen_rect.right() - window_size.width())
+    min_y = screen_rect.top()
+    max_y = max(min_y, screen_rect.bottom() - window_size.height())
+
+    clamped_x = max(min_x, min(new_x, max_x))
+    clamped_y = max(min_y, min(new_y, max_y))
+
+    if clamped_x == curr_pos.x() and clamped_y == curr_pos.y():
+        alt_x = int(curr_pos.x() - final_dx)
+        alt_y = int(curr_pos.y() - final_dy)
+        clamped_x = max(min_x, min(alt_x, max_x))
+        clamped_y = max(min_y, min(alt_y, max_y))
+
+    return QPoint(clamped_x, clamped_y)
 
 GOODBYE_LINE = "Сворачиваешь меня? Скучный ты... Ладно, ухожу в тень биочипа. Не скучай, чумба!"
 
@@ -197,6 +262,16 @@ class CapriWindow(QWidget):
             whitelist=game_whitelist,
             blacklist=game_blacklist,
             parent=self,
+        )
+
+        self._dodge_hops_remaining: int = 0
+        self._prank_coordinator = EngramPrankCoordinator(self)
+        self._prank_coordinator.sig_trigger_dodge.connect(self._on_prank_dodge)
+        self._prank_coordinator.sig_trigger_melt.connect(self._on_prank_melt)
+        self._prank_coordinator.sig_trigger_relic_dump.connect(self._on_prank_relic_dump)
+        self._prank_coordinator.set_game_active_checker(lambda: self._game_detector.is_game_active)
+        self._prank_coordinator.set_shredding_checker(
+            lambda: self._renderer.state.is_target_acquired or self._renderer.state.is_consuming
         )
         self._game_detector.game_mode_changed.connect(
             self._on_game_mode_changed
@@ -407,6 +482,7 @@ class CapriWindow(QWidget):
         self.raise_()
         self.update()
         self._start_model_init_animation()
+        self._prank_coordinator.on_pet_appeared()
 
     def _start_model_init_animation(self) -> None:
 
@@ -499,6 +575,54 @@ class CapriWindow(QWidget):
 
         return self._sprite_manager.is_point_on_sprite(pos.x(), pos.y())
 
+    @property
+    def prank_coordinator(self) -> EngramPrankCoordinator:
+        return self._prank_coordinator
+
+    def _on_prank_dodge(self, hops_count: int) -> None:
+        self._dodge_hops_remaining = hops_count
+
+    def _on_prank_melt(self) -> None:
+        self._effects.play_melting_screen()
+
+    def _on_prank_relic_dump(self, variant: str) -> None:
+        if variant == "terminal":
+            self._effects.play_relic_dump_terminal(self.geometry())
+        else:
+            self.speak(">> [RELIC_FAULT: 0xDEADBEEF] SECTOR_CORRUPT // SOULKILLER_V4_INTEGRITY_FAIL")
+            get_speech_sfx().play_core_destabilize()
+            QTimer.singleShot(
+                1500,
+                self,
+                lambda: self.speak("Кхм... опять шина памяти барахлит. Не обращай внимания, хост."),
+            )
+
+    def _execute_cursor_dodge(self, cursor_pos: QPoint) -> None:
+        self._dodge_hops_remaining -= 1
+        screen = self.get_designated_screen() or QGuiApplication.primaryScreen()
+        screen_rect = screen.availableGeometry() if screen else QRect(0, 0, 1920, 1080)
+        new_pos = compute_dodge_position(
+            self.pos(),
+            cursor_pos,
+            screen_rect,
+            self.size(),
+            hop_dist=random.randint(80, 120),
+        )
+        self.move(new_pos)
+        get_speech_sfx().play_lightning_strike()
+        phrase = random.choice(DODGE_TEASE_PHRASES)
+        self.speak(phrase)
+
+    def enterEvent(self, event: QEvent) -> None:
+        super().enterEvent(event)
+        if (
+            self._dodge_hops_remaining > 0
+            and not getattr(self._drop_handler, "is_dragging", False)
+            and not self._renderer.state.is_target_acquired
+        ):
+            cursor_pos = self.cursor().pos()
+            self._execute_cursor_dodge(cursor_pos)
+
     def mousePressEvent(self, event) -> None:
         pos = event.position().toPoint()
         if not self._is_point_on_sprite(pos):
@@ -510,6 +634,11 @@ class CapriWindow(QWidget):
             if self._teleport.is_aiming:
                 self._teleport.cancel_aiming()
             self.show_context_menu(event.globalPosition().toPoint())
+            event.accept()
+            return
+
+        if self._dodge_hops_remaining > 0 and event.button() == Qt.MouseButton.LeftButton:
+            self._execute_cursor_dodge(event.globalPosition().toPoint())
             event.accept()
             return
 

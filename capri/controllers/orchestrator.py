@@ -374,6 +374,8 @@ class PetOrchestrator(QObject):
 
             def _on_appeared() -> None:
                 self._window.speak(phrase)
+                if hasattr(self._window, "prank_coordinator"):
+                    self._window.prank_coordinator.on_pet_appeared()
 
             if self._window.isVisible():
                 teleport_ctrl = getattr(self._window, "_teleport", None)

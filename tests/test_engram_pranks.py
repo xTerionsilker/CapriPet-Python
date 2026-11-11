@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from PySide6.QtCore import QRect, Qt
+from PySide6.QtCore import QPoint, QRect, QSize, Qt
 from PySide6.QtWidgets import QApplication
 
 
@@ -116,6 +116,29 @@ class TestEngramPrankCoordinator(unittest.TestCase):
         self.assertIn("0xDEADBEEF", overlay.get_dump_text())
         overlay.close()
         overlay.deleteLater()
+
+    def test_cursor_dodge_bounds_clamping_and_phrases(self) -> None:
+        from capri.ui.pet_window import DODGE_TEASE_PHRASES, compute_dodge_position
+
+        self.assertEqual(len(DODGE_TEASE_PHRASES), 5)
+        self.assertIn("синапсы", DODGE_TEASE_PHRASES[0])
+
+        screen_rect = QRect(0, 0, 1920, 1080)
+        window_size = QSize(200, 200)
+
+        # 1. Обычное уклонение в центре
+        curr_pos = QPoint(500, 500)
+        cursor_pos = QPoint(520, 520)
+        new_pos = compute_dodge_position(curr_pos, cursor_pos, screen_rect, window_size, hop_dist=100)
+        self.assertTrue(screen_rect.contains(QRect(new_pos, window_size)))
+
+        # 2. Клампинг у правого нижнего края
+        edge_pos = QPoint(1850, 1000)
+        edge_cursor = QPoint(1840, 990)
+        new_edge_pos = compute_dodge_position(edge_pos, edge_cursor, screen_rect, window_size, hop_dist=120)
+        self.assertTrue(screen_rect.contains(QRect(new_edge_pos, window_size)))
+        self.assertLessEqual(new_edge_pos.x(), screen_rect.right() - window_size.width())
+        self.assertLessEqual(new_edge_pos.y(), screen_rect.bottom() - window_size.height())
 
 
 if __name__ == "__main__":
