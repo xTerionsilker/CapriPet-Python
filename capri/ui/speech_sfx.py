@@ -21,6 +21,7 @@ from ..audio.sfx_generators import (
     _generate_session_power_wav,
     _generate_session_reboot_wav,
     _generate_session_suspend_wav,
+    preload_sfx_cache_async,
 )
 
 logger = logging.getLogger(__name__)
@@ -514,3 +515,10 @@ def get_speech_sfx() -> SpeechSFX:
     if _SpeechSFXHolder.instance is None:
         _SpeechSFXHolder.instance = SpeechSFX()
     return _SpeechSFXHolder.instance
+
+
+__all__ = [
+    "SpeechSFX",
+    "get_speech_sfx",
+    "preload_sfx_cache_async",
+]
