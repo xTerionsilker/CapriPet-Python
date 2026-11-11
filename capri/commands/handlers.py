@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 
 from ..core.morphology import normalize_spoken_numbers
-from ..integrations import spotify, system_cleaner, web_search
+from ..integrations import registry_scanner, spotify, system_cleaner, web_search
 from ..integrations.system_control import (
     lock_commands,
     power_commands,
@@ -758,6 +758,50 @@ class CleanSystemCommand(BaseCommand):
         if res.files_deleted == 0 and res.bytes_freed == 0:
             return "Тут и так стерильно, даже поживиться нечем! Ни крошки мусора в корзине."
         return f"Шреддер сработал на ура: растёрла {res.files_deleted} кусков мусора, освободила тебе целых {freed_str}!"
+
+
+class RegistryCommand(BaseCommand):
+    """Сканирование реестра Windows на пустые и битые ветки с открытием отчёта."""
+
+    name = "реестр"
+    description = "сканировать реестр Windows на пустые и битые ключи с сохранением отчёта."
+    aliases = (
+        "сканировать реестр",
+        "сканируй реестр",
+        "проверить реестр",
+        "проверь реестр",
+        "анализ реестра",
+        "проверка реестра",
+        "битые ключи",
+        "почистить реестр",
+        "почисти реестр",
+        "очистка реестра",
+        "очисти реестр",
+        "чек реестра",
+        "registry",
+        "scan registry",
+        "check registry",
+        "clean registry",
+    )
+    keywords = (
+        "реестр",
+        "регистр",
+        "registry",
+    )
+
+    def execute(self, ctx: CommandContext, query: str = "") -> str | None:
+        if ctx.action_bridge is not None:
+            return ctx.action_bridge.scan_registry()
+        report = registry_scanner.perform_registry_scan(open_report=True)
+        if not report.issues:
+            return (
+                f"Прошерстила {report.total_scanned} записей реестра: всё чисто, "
+                "ни единого заброшенного ключа!"
+            )
+        return (
+            f"Анализ реестра завершён: откопала {len(report.issues)} аномалий! "
+            "Текстовый отчёт уже открыт."
+        )
 
 
 class ConsoleCommand(BaseCommand):

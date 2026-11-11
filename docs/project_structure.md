@@ -49,6 +49,7 @@ capri/
 │   ├── data_shredder.py        # Безвозвратное уничтожение файлов/папок и сарказм-диалоги энграммы
 │   ├── discord_rpc.py          # Discord Rich Presence (статус, ASR модель, таймер, кнопка)
 │   ├── process_manager.py      # Мониторинг, группировка и завершение процессов
+│   ├── registry_scanner.py     # Безопасный аудит реестра Windows на пустые и битые ветки с генерацией отчета
 │   ├── spotify.py              # Клиент и Web API для Spotify
 │   ├── system_cleaner.py       # Безопасная очистка корзины (Shell API) и временных файлов
 │   ├── system_control.py       # Питание, блокировка экрана и управление курсором
