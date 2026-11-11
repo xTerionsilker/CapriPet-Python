@@ -113,12 +113,12 @@ def _generate_chirp_wav(
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(int(base_freq * 13 + duration * 1000))
-    
+
     # Расчет эмоциональных модификаторов стиля
     freq_sweep = 0.0
     overdrive = 1.6
     gain = 0.75
-    
+
     if style == "exclamation":  # ! — резкий овердрайв и статический щелчок
         duration = 0.035
         num_samples = int(sample_rate * duration)

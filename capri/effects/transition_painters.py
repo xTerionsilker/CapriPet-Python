@@ -19,6 +19,7 @@ from .transition_base import (
     snap_pixel,
     with_alpha,
 )
+from ..ui.theme import get_hud_font
 
 
 class CyberShockwaveRing:
@@ -628,4 +629,3 @@ def draw_glitch_text(
     painter.setPen(with_alpha(color, 245))
     painter.drawText(x, y, text)
     painter.restore()
-from capri.ui.theme import get_hud_font

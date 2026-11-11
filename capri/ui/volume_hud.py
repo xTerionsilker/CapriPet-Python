@@ -105,15 +105,15 @@ class CyberVolumeHud(QWidget):
     def _create_chamfered_path(self, rect: QRectF, c: float) -> QPainterPath:
         """Полигон со скошенными под 45 градусов углами в стиле Studio Trigger."""
         path = QPainterPath()
-        l, t, r, b = rect.left(), rect.top(), rect.right(), rect.bottom()
-        path.moveTo(l + c, t)
-        path.lineTo(r - c, t)
-        path.lineTo(r, t + c)
-        path.lineTo(r, b - c)
-        path.lineTo(r - c, b)
-        path.lineTo(l + c, b)
-        path.lineTo(l, b - c)
-        path.lineTo(l, t + c)
+        left, top, right, bottom = rect.left(), rect.top(), rect.right(), rect.bottom()
+        path.moveTo(left + c, top)
+        path.lineTo(right - c, top)
+        path.lineTo(right, top + c)
+        path.lineTo(right, bottom - c)
+        path.lineTo(right - c, bottom)
+        path.lineTo(left + c, bottom)
+        path.lineTo(left, bottom - c)
+        path.lineTo(left, top + c)
         path.closeSubpath()
         return path
 
