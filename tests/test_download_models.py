@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root / "scripts"))
 
-import download_models  # type: ignore[import-not-found]
+import download_models  # noqa: E402
 
 
 class TestDownloadModels(unittest.TestCase):
