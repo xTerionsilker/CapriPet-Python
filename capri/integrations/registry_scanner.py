@@ -153,7 +153,10 @@ def scan_empty_software_keys() -> tuple[list[RegistryIssue], int]:
                                                     category="Пустой раздел (мусор ПО)",
                                                     hive_name=hive_name,
                                                     key_path=app_subpath,
-                                                    details="Подраздел приложения пуст (остаток после удаления программы).",
+                                                    details=(
+                                                        "Подраздел приложения пуст "
+                                                        "(остаток после удаления программы)."
+                                                    ),
                                                 )
                                             )
                                 except OSError:

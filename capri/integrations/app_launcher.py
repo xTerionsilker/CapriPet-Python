@@ -13,6 +13,16 @@ import os
 import re
 from typing import Any
 
+try:
+    import winreg
+except ImportError:
+    winreg = None
+
+import cyrtranslit
+from rapidfuzz import fuzz
+
+from ..commands.registry import switch_layout
+
 logger = logging.getLogger(__name__)
 
 ALLOWED_LAUNCH_EXTENSIONS: tuple[str, ...] = (
@@ -36,16 +46,6 @@ BLOCKED_SCRIPT_EXTENSIONS: tuple[str, ...] = (
     ".scr",
     ".pif",
 )
-
-try:
-    import winreg
-except ImportError:
-    winreg = None
-
-import cyrtranslit
-from rapidfuzz import fuzz
-
-from ..commands.registry import switch_layout
 
 
 def translit_ru_to_en(text: str) -> str:

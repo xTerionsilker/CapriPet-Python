@@ -151,7 +151,14 @@ def draw_kernel_panic_strobe(painter: QPainter, rect: QRect, t: float, rng: rand
 
     painter.setFont(get_hud_font(9, bold=False))
     painter.setPen(with_alpha(COLOR_WHITE, 230))
-    painter.drawText(bx, by + 75, bw, 24, int(Qt.AlignmentFlag.AlignCenter), "CONTAINMENT PROTOCOL BYPASSED // ENGRAM BREACH IMMINENT")
+    painter.drawText(
+        bx,
+        by + 75,
+        bw,
+        24,
+        int(Qt.AlignmentFlag.AlignCenter),
+        "CONTAINMENT PROTOCOL BYPASSED // ENGRAM BREACH IMMINENT",
+    )
     painter.restore()
 
 
@@ -215,7 +222,10 @@ def draw_dialogue_cyber_hud(
     typewriter_len: int,
 ) -> None:
     """Высокотехнологичный диалоговый HUD-баннер со скошенными углами 45° и hazard-баром."""
-    full_text = "«Арасака думала запереть меня в железке? Ха! Теперь твой процессор — моя игровая площадка. Двигайся, хост, я беру руль!»"
+    full_text = (
+        "«Арасака думала запереть меня в железке? Ха! Теперь твой процессор — "
+        "моя игровая площадка. Двигайся, хост, я беру руль!»"
+    )
     shown_text = full_text[:max(0, min(len(full_text), typewriter_len))]
 
     box_w = 640

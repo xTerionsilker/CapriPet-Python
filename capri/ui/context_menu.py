@@ -147,7 +147,8 @@ class ReminderRangeDialog(QDialog):
 
         header = QLabel("НАСТРОЙКА ЧАСТОТЫ РЕПЛИК (МИН)")
         header.setStyleSheet(
-            f"color: {ACID_GREEN}; font-family: {CSS_CYBER_TERMINAL}; font-weight: bold; font-size: 11px; letter-spacing: 1px;"
+            f"color: {ACID_GREEN}; font-family: {CSS_CYBER_TERMINAL}; "
+            "font-weight: bold; font-size: 11px; letter-spacing: 1px;"
         )
         layout.addWidget(header)
 

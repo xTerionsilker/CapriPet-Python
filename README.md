@@ -1,6 +1,7 @@
 # CapriPet
 
 [![Security Audit](https://github.com/xTerionsilker/CapriPet-Python/actions/workflows/security.yml/badge.svg)](https://github.com/xTerionsilker/CapriPet-Python/actions/workflows/security.yml)
+[![Lint & Code Quality](https://github.com/xTerionsilker/CapriPet-Python/actions/workflows/lint.yml/badge.svg)](https://github.com/xTerionsilker/CapriPet-Python/actions/workflows/lint.yml)
 
 Компактный десктопный кибер-питомец на PySide6 (Qt). Капри отображается поверх окон, принимает голосовые команды через офлайн-модель Vosk, поддерживает прямой ввод команд через всплывающую кибердеку-консоль, отвечает в кибернетических HUD-облачках и выводит HUD распознавания над панелью задач.
 
