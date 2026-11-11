@@ -40,6 +40,8 @@ jobs:
   test:
     name: Unit Tests & Import Validation
     runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
