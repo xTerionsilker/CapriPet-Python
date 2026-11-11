@@ -49,7 +49,7 @@ def get_running_processes() -> list[dict[str, Any]]:
             psutil.ZombieProcess,
         ):
             continue
-        except Exception as exc:
+        except (psutil.Error, OSError) as exc:
             logger.debug("Ошибка при чтении процесса: %s", exc)
             continue
 
@@ -169,7 +169,7 @@ def kill_process_group(group: dict[str, Any]) -> tuple[bool, int]:
             psutil.ZombieProcess,
         ):
             continue
-        except Exception as exc:
+        except (psutil.Error, OSError) as exc:
             logger.debug(
                 "Ошибка при завершении процесса PID %s: %s", pid, exc
             )

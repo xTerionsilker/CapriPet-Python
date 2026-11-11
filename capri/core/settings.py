@@ -69,7 +69,7 @@ class AudioConfig(BaseModel):
         try:
             val = int(v)
             return val if val in (25, 50, 75, 100) else 50
-        except Exception:
+        except (ValueError, TypeError):
             return 50
 
     @field_validator("sfx_volume", "media_volume", mode="before")
@@ -77,7 +77,7 @@ class AudioConfig(BaseModel):
     def clamp_vol(cls, v: Any) -> float:
         try:
             return max(0.0, min(1.0, float(v)))
-        except Exception:
+        except (ValueError, TypeError):
             return 0.5
 
 
@@ -96,7 +96,7 @@ class AppearanceConfig(BaseModel):
         try:
             val = int(v)
             return val if val in (50, 75, 100, 125, 150) else 100
-        except Exception:
+        except (ValueError, TypeError):
             return 100
 
     @field_validator("pose", "overlay_pose", mode="before")
@@ -144,7 +144,7 @@ class WindowConfig(BaseModel):
         if isinstance(v, dict) and "x" in v and "y" in v:
             try:
                 return {"x": int(v["x"]), "y": int(v["y"])}
-            except Exception:
+            except (ValueError, TypeError, KeyError):
                 return None
         return None
 
@@ -164,7 +164,7 @@ class BehaviorConfig(BaseModel):
         try:
             val = int(v)
             return val if val in ACTIVITY_TIMEOUT_OPTIONS_MS else 5_000
-        except Exception:
+        except (ValueError, TypeError):
             return 5_000
 
     @model_validator(mode="after")
@@ -258,7 +258,7 @@ def _resolve_config_dir() -> Path:
         try:
             path.mkdir(parents=True, exist_ok=True)
             return path
-        except Exception as e:
+        except OSError as e:
             logger.warning(
                 "Не удалось использовать CAPRI_CONFIG_DIR=%s: %s",
                 env_dir,
@@ -318,7 +318,7 @@ class ConfigManager:
                 data if isinstance(data, dict) else {}
             )
             return model.model_dump()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(
                 "Ошибка валидации настроек Pydantic: %s. Применяются дефолты.",
                 e,
@@ -346,7 +346,7 @@ class ConfigManager:
                 config = copy.deepcopy(DEFAULT_CONFIG)
             else:
                 config = self._validate_and_sanitize(raw_data)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(
                 "Ошибка чтения конфигурации из %s: %s. Используются дефолты.",
                 self._config_path,
@@ -373,7 +373,7 @@ class ConfigManager:
                 shutil.copyfile(tmp_target, target)
                 tmp_target.unlink(missing_ok=True)
             self._cached_config = copy.deepcopy(config)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(
                 "Не удалось сохранить конфигурацию в %s: %s", target, e
             )
@@ -465,7 +465,7 @@ def get_user_agent() -> str:
                     _ua_cache.resolved,
                 )
                 return _ua_cache.resolved
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug(
                 "Не удалось прочитать User-Agent из конфига: %s", e
             )
@@ -478,7 +478,7 @@ def get_user_agent() -> str:
                 "Сгенерирован User-Agent через fake-useragent: %s",
                 _ua_cache.resolved,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(
                 "Ошибка fake-useragent, используется fallback: %s", e
             )

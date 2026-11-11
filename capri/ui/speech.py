@@ -881,12 +881,10 @@ class SpeechWindow(QFrame):
     def _target_screen(parent: QWidget | None) -> QScreen | None:
         if parent is not None:
             if hasattr(parent, "get_designated_screen"):
-                try:
+                with contextlib.suppress(Exception):
                     scr = parent.get_designated_screen()
                     if scr is not None:
                         return scr
-                except Exception:
-                    pass
             wh = parent.windowHandle()
             if wh is not None and wh.screen() is not None:
                 return wh.screen()

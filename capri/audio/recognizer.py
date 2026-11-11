@@ -115,7 +115,7 @@ class VoskSpeechService:
             if not vosk_version:
                 try:
                     vosk_version = importlib.metadata.version("vosk")
-                except Exception:
+                except importlib.metadata.PackageNotFoundError:
                     vosk_version = ""
 
         model_path = self.find_model_path()

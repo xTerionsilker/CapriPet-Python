@@ -297,11 +297,9 @@ class CapriWindow(QWidget):
     def showEvent(self, event) -> None:
         super().showEvent(event)
         self._glitch_timer.start()
-        try:
+        with contextlib.suppress(Exception):
             hwnd = int(self.winId())
             self._power_hook.register_session_notification(hwnd)
-        except Exception:
-            pass
         if not self._greeted:
             self._greeted = True
             screen = (
@@ -747,7 +745,7 @@ class CapriWindow(QWidget):
             event.accept()
             return
 
-        try:
+        with contextlib.suppress(Exception):
             pos = self.pos()
             set_config_value(
                 "window.position", {"x": pos.x(), "y": pos.y()}
@@ -755,8 +753,6 @@ class CapriWindow(QWidget):
             set_config_value(
                 "window.overlay_position", {"x": pos.x(), "y": pos.y()}
             )
-        except Exception:
-            pass
 
         self._closing = True
         event.ignore()
@@ -811,7 +807,7 @@ class CapriWindow(QWidget):
         if self._closing:
             return
         self._closing = True
-        try:
+        with contextlib.suppress(Exception):
             pos = self.pos()
             set_config_value(
                 "window.position", {"x": pos.x(), "y": pos.y()}
@@ -819,8 +815,6 @@ class CapriWindow(QWidget):
             set_config_value(
                 "window.overlay_position", {"x": pos.x(), "y": pos.y()}
             )
-        except Exception:
-            pass
         self._orchestrator.stop()
         self._effects.stop_all()
         self._glitch_timer.stop()
@@ -834,11 +828,9 @@ class CapriWindow(QWidget):
             self._orchestrator.reminder.set_suppressed(active)
 
         if self._stealth_transition_overlay is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._stealth_transition_overlay.stop()
                 self._stealth_transition_overlay.deleteLater()
-            except Exception:
-                pass
             self._stealth_transition_overlay = None
 
         screen = (
@@ -922,14 +914,12 @@ class CapriWindow(QWidget):
             b"windows_generic_MSG",
             b"windows_dispatcher_MSG",
         ):
-            try:
+            with contextlib.suppress(Exception):
                 msg = wintypes.MSG.from_address(int(message))
                 if self._power_hook.handle_windows_message(
                     msg.message, msg.wParam, msg.lParam
                 ):
                     return True, 0
-            except Exception:
-                pass
         return super().nativeEvent(event_type, message)
 
 

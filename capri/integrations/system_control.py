@@ -35,7 +35,7 @@ def get_mouse_position() -> QPoint:
         pt = _POINT()
         if ctypes.windll.user32.GetCursorPos(ctypes.byref(pt)):
             return QPoint(pt.x, pt.y)
-    except Exception:
+    except (OSError, AttributeError):
         pass
     return QCursor.pos()
 
@@ -44,12 +44,12 @@ def move_mouse_to(x: int, y: int, _screen_index: int | None = None) -> bool:
     try:
         if ctypes.windll.user32.SetCursorPos(int(x), int(y)):
             return True
-    except Exception:
+    except (OSError, AttributeError):
         pass
     try:
         QCursor.setPos(x, y)
         return True
-    except Exception:
+    except (RuntimeError, TypeError):
         return False
 
 
@@ -72,7 +72,7 @@ def run_lock(commands: list[list[str]]) -> bool:
     try:
         if ctypes.windll.user32.LockWorkStation():
             return True
-    except Exception:
+    except (OSError, AttributeError):
         pass
     for command in commands:
         try:
@@ -103,7 +103,7 @@ def run_power(commands: list[list[str]]) -> bool:
             try:
                 if ctypes.windll.powrprof.SetSuspendState(0, 1, 0):
                     return True
-            except Exception:
+            except (OSError, AttributeError):
                 pass
     for command in commands:
         try:

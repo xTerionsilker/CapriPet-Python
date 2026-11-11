@@ -57,7 +57,7 @@ def query_user_notification_state() -> int:
         state = ctypes.c_int()
         if shell32.SHQueryUserNotificationState(ctypes.byref(state)) == 0:
             return int(state.value)
-    except Exception:
+    except (OSError, AttributeError):
         pass
     return QUNS_NOT_PRESENT
 
@@ -70,7 +70,7 @@ def get_foreground_process_info(hwnd: int) -> tuple[int, str]:
         if pid.value:
             proc = psutil.Process(pid.value)
             return pid.value, proc.name().lower()
-    except Exception:
+    except (psutil.Error, OSError, AttributeError):
         pass
     return 0, ""
 
@@ -113,7 +113,7 @@ def is_window_fullscreen_on_screen(hwnd: int) -> bool:
         return (
             is_matching_monitor and width >= m_width and height >= m_height
         )
-    except Exception:
+    except (OSError, AttributeError):
         return False
 
 

@@ -60,7 +60,7 @@ def _is_critical_path(path: Path) -> bool:
         if resolved == user_home or resolved_str == str(user_home).lower():
             return True
 
-    except Exception as e:
+    except OSError as e:
         logger.warning("Failed to resolve path %s for safety check: %s", path, e)
         return True
 
@@ -72,7 +72,7 @@ def _remove_readonly(func, path, exc_info):
     try:
         os.chmod(path, stat.S_IWRITE)
         func(path)
-    except Exception as e:
+    except OSError as e:
         logger.debug("Failed readonly removal fallback on %s: %s", path, e)
 
 
@@ -155,7 +155,7 @@ def shred_paths(paths: Sequence[str | Path]) -> ShredMetrics:
                 except OSError:
                     pass
                 target.unlink(missing_ok=True)
-        except Exception as e:
+        except OSError as e:
             logger.error("Failed to shred target %s: %s", target, e)
             had_errors = True
 

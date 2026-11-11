@@ -244,7 +244,7 @@ def _send_spotify_command(cmd: int) -> bool:
                 hwnd, 0x0319, 0, lparam, 2, 150, ctypes.byref(result)
             ) or user32.PostMessageW(hwnd, 0x0319, 0, lparam):
                 success = True
-        except Exception:
+        except (OSError, AttributeError):
             continue
     return success
 

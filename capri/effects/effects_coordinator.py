@@ -64,11 +64,9 @@ class EffectsCoordinator(QObject):
             return None
 
         if self._burst_overlay is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._burst_overlay.close()
                 self._burst_overlay.deleteLater()
-            except Exception:
-                pass
             self._burst_overlay = None
 
         overlay = GlitchBurstOverlay(
@@ -159,11 +157,9 @@ class EffectsCoordinator(QObject):
 
         self._glitches.stop()
         if self._burst_overlay is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._burst_overlay.close()
                 self._burst_overlay.deleteLater()
-            except Exception:
-                pass
             self._burst_overlay = None
 
         if self._model_init_overlay is not None:

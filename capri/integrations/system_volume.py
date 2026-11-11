@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 import comtypes
@@ -31,10 +32,8 @@ class SystemVolumeService:
 
     def _ensure_endpoint(self) -> IAudioEndpointVolume | None:
         """Инициализировать или вернуть кэшированный аудио-эндпоинт с поддержкой COM."""
-        try:
+        with contextlib.suppress(Exception):
             comtypes.CoInitialize()
-        except Exception:
-            pass
 
         try:
             device = AudioUtilities.GetSpeakers()
@@ -42,7 +41,7 @@ class SystemVolumeService:
                 logger.warning("Устройство вывода звука по умолчанию не найдено.")
                 return None
             return device.EndpointVolume
-        except Exception as exc:
+        except (comtypes.COMError, OSError, AttributeError) as exc:
             logger.error("Ошибка при получении IAudioEndpointVolume: %s", exc)
             return None
 
@@ -53,8 +52,8 @@ class SystemVolumeService:
             return 50
         try:
             scalar: float = endpoint.GetMasterVolumeLevelScalar()
-            return int(round(scalar * 100.0))
-        except Exception as exc:
+            return round(scalar * 100.0)
+        except (comtypes.COMError, OSError, AttributeError) as exc:
             logger.error("Ошибка чтения громкости: %s", exc)
             return 50
 
@@ -74,7 +73,7 @@ class SystemVolumeService:
             if clamped > 0 and self.is_muted():
                 self.set_mute(False)
             return clamped
-        except Exception as exc:
+        except (comtypes.COMError, OSError, AttributeError) as exc:
             logger.error("Ошибка установки громкости на %d%%: %s", clamped, exc)
             return clamped
 
@@ -94,7 +93,7 @@ class SystemVolumeService:
             return False
         try:
             return bool(endpoint.GetMute())
-        except Exception as exc:
+        except (comtypes.COMError, OSError, AttributeError) as exc:
             logger.error("Ошибка чтения статуса mute: %s", exc)
             return False
 
@@ -109,7 +108,7 @@ class SystemVolumeService:
         try:
             endpoint.SetMute(1 if mute else 0, None)
             return mute
-        except Exception as exc:
+        except (comtypes.COMError, OSError, AttributeError) as exc:
             logger.error("Ошибка изменения mute на %s: %s", mute, exc)
             return mute
 
@@ -127,7 +126,7 @@ class SystemVolumeService:
             return 0.0
         try:
             return float(endpoint.GetMasterVolumeLevel())
-        except Exception as exc:
+        except (comtypes.COMError, OSError, AttributeError) as exc:
             logger.error("Ошибка чтения уровня громкости в dB: %s", exc)
             return 0.0
 

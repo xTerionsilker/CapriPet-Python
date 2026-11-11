@@ -357,7 +357,7 @@ def is_reduced_motion_enabled() -> bool:
             0x1042, 0, ctypes.byref(val), 0
         ):
             return not val.value
-    except Exception:
+    except (OSError, AttributeError):
         pass
     return False
 

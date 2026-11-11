@@ -60,7 +60,7 @@ class SystemEventHook:
             if res:
                 self._registered_hwnd = hwnd
             return res
-        except Exception:
+        except (OSError, AttributeError):
             return False
 
     def unregister_session_notification(self) -> bool:
@@ -75,7 +75,7 @@ class SystemEventHook:
             )
             self._registered_hwnd = None
             return res
-        except Exception:
+        except (OSError, AttributeError):
             self._registered_hwnd = None
             return False
 

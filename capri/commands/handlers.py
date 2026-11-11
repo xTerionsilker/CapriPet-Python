@@ -83,7 +83,7 @@ class DebugCommand(BaseCommand):
             return "Сканирование недоступно, сенсоры молчат."
         try:
             info = ctx.debug_info()
-        except Exception:
+        except Exception:  # noqa: BLE001
             return "Сбой сбора телеметрии! Синапсы коротят."
 
         vosk = info.get("vosk") or {}

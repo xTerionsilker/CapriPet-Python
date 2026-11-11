@@ -148,7 +148,7 @@ class ProcessWatcher(QObject):
                         current_heavy.add(name_clean)
                 except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     continue
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             logger.debug("ProcessWatcher background scan error: %s", ex)
             return
 

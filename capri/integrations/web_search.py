@@ -73,7 +73,7 @@ def fetch_youtube_top_videos(
                         }
                     )
             return videos[:limit]
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.debug("Ошибка при поиске через yt-dlp: %s", exc)
         return []
 

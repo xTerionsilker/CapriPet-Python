@@ -35,7 +35,7 @@ def pick_palette_color() -> QColor:
 
 def snap_pixel(val: float, step: int = PIXEL_SIZE) -> int:
     """Выравнивает координату по пиксельной сетке."""
-    return int(round(val / step)) * step
+    return round(val / step) * step
 
 
 def snap_point(pt: QPoint, step: int = PIXEL_SIZE) -> QPoint:

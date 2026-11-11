@@ -101,7 +101,7 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
         ):
             try:
                 self._target_pixmap = target.grab()
-            except Exception:
+            except Exception:  # noqa: BLE001
                 self._target_pixmap = None
 
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -248,7 +248,7 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
         self.raise_()
         self.show()
         self._timer.start()
-        try:
+        with contextlib.suppress(Exception):
             sfx = get_speech_sfx()
             if self._mode == "out":
                 sfx.play_lightning_strike()
@@ -256,8 +256,6 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
                 sfx.play_lightning_arc()
             else:
                 sfx.play_lightning_arc()
-        except Exception:
-            pass
 
     def _tick(self) -> None:
         if self._clock is None:
@@ -279,14 +277,12 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
         }.get(self._mode, 0.50)
         if p >= peak_threshold and not self._peak_called:
             self._peak_called = True
-            try:
+            with contextlib.suppress(Exception):
                 sfx = get_speech_sfx()
                 if self._mode in ("in", "erratic_in"):
                     sfx.play_lightning_strike()
                 elif self._mode == "lightning_to_point":
                     sfx.play_lightning_zap()
-            except Exception:
-                pass
             if self._on_peak is not None:
                 with contextlib.suppress(Exception):
                     self._on_peak()

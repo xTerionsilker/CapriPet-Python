@@ -52,7 +52,7 @@ def get_foreground_hwnd() -> int | None:
             return None
 
         return int(hwnd)
-    except Exception as e:
+    except (OSError, AttributeError) as e:
         logger.debug("get_foreground_hwnd failed: %s", e)
         return None
 
@@ -112,7 +112,7 @@ def shake_window_hwnd(
         timer.timeout.connect(_tick)
         timer.start()
         return timer
-    except Exception as e:
+    except (OSError, AttributeError, RuntimeError) as e:
         logger.debug("shake_window_hwnd failed: %s", e)
         if on_finished:
             on_finished()
@@ -162,7 +162,7 @@ def _get_windows_active_window_rect() -> QRect | None:
                 h = rect.bottom - rect.top
                 if w > 50 and h > 50:
                     return QRect(rect.left, rect.top, w, h)
-        except Exception:
+        except (OSError, AttributeError):
             pass
 
         if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
@@ -170,6 +170,6 @@ def _get_windows_active_window_rect() -> QRect | None:
             h = rect.bottom - rect.top
             if w > 50 and h > 50:
                 return QRect(rect.left, rect.top, w, h)
-    except Exception as e:
+    except (OSError, AttributeError) as e:
         logger.debug("Windows get_foreground_window failed: %s", e)
     return None

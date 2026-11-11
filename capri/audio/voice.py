@@ -85,7 +85,7 @@ class SileroVAD:
             )
             self._state = np.zeros((2, 1, 128), dtype=np.float32)
             self._available = True
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             logger.warning(
                 "Не удалось загрузить Silero VAD ONNX: %s", error
             )
@@ -137,7 +137,7 @@ class SileroVAD:
                 max_prob = max(max_prob, prob)
 
             return max_prob >= self.threshold, max_prob
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             logger.debug("Ошибка инференса Silero VAD: %s", error)
             return False, 0.0
 
@@ -465,7 +465,7 @@ class VoiceInput(QObject):
         except RecognitionError as error:
             self._round_failed.emit(str(error))
             return
-        except Exception:
+        except Exception:  # noqa: BLE001
             self._round_failed.emit("Ошибка распознавания речи.")
             return
 

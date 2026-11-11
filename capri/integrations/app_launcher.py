@@ -101,9 +101,9 @@ def _scan_windows_applications() -> list[dict[str, Any]]:
                                             "comment": "",
                                             "path": val,
                                         }
-                        except Exception:
+                        except OSError:
                             pass
-            except Exception:
+            except OSError:
                 pass
 
     return list(apps.values())
@@ -217,5 +217,5 @@ def launch_application(app: dict[str, Any]) -> bool:
     try:
         os.startfile(exec_cmd)
         return True
-    except Exception:
+    except OSError:
         return False

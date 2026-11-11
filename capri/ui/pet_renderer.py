@@ -297,7 +297,7 @@ class PetRenderer:
         h: int,
         severity: float,
     ) -> None:
-        echo_count = 3 if severity > 0.6 else (2 if severity > 0.3 else 2)
+        echo_count = 3 if severity > 0.6 else 2
         step_base = 8 if severity > 0.6 else (5 if severity > 0.3 else 3)
 
         for i in range(echo_count):

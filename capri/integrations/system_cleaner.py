@@ -85,7 +85,7 @@ def clear_recycle_bin() -> tuple[bool, int, int]:
         # S_OK = 0
         if res == 0:
             return True, num_items, max(0, bytes_size)
-    except Exception:
+    except (OSError, AttributeError):
         pass
     return False, 0, 0
 

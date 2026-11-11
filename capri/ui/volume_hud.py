@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from PySide6.QtCore import QPropertyAnimation, QRect, QRectF, Qt, QTimer
@@ -96,10 +97,8 @@ class CyberVolumeHud(QWidget):
         self._fade_anim.start()
 
     def _on_fade_finished(self) -> None:
-        try:
+        with contextlib.suppress(Exception):
             self._fade_anim.finished.disconnect(self._on_fade_finished)
-        except Exception:
-            pass
         if self._opacity_effect.opacity() <= 0.05:
             self.hide()
 
@@ -167,7 +166,7 @@ class CyberVolumeHud(QWidget):
         painter.fillRect(QRectF(bar_x, bar_y, bar_w, bar_h), QColor(10, 8, 18, 180))
 
         num_segments = 25
-        filled_segments = int(round((self._volume_percent / 100.0) * num_segments))
+        filled_segments = round((self._volume_percent / 100.0) * num_segments)
         seg_gap = 2.0
         seg_w = (bar_w - (num_segments - 1) * seg_gap) / num_segments
 

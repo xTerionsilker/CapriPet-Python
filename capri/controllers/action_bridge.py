@@ -52,7 +52,7 @@ class ActionBridge(QObject):
     def _spotify_play_worker(self, query: str) -> None:
         try:
             message = spotify.play(query)
-        except Exception:
+        except Exception:  # noqa: BLE001
             message = "Не удалось обратиться к Spotify."
         self.speech_requested.emit(message)
 
@@ -179,7 +179,7 @@ class ActionBridge(QObject):
                 msg = "Система чиста: временных файлов и мусора в корзине не обнаружено."
             else:
                 msg = f"Очистка завершена: удалено {res.files_deleted} объектов, освобождено {freed_str}."
-        except Exception:
+        except Exception:  # noqa: BLE001
             msg = "Произошла ошибка при очистке системы."
         self.speech_requested.emit(msg)
 

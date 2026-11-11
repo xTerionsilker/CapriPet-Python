@@ -716,7 +716,7 @@ def _ensure_wav_cache_sync(temp_dir: Path) -> None:
         for path, generator in jobs:
             if not path.exists():
                 generator(path)
-    except Exception as exc:
+    except (OSError, ValueError, RuntimeError) as exc:
         logger.warning("Ошибка при фоновой генерации SFX кэша: %s", exc)
 
 
@@ -942,7 +942,7 @@ class SpeechSFX(QObject):
             self._chirp_path = self._chirp_paths_by_style.get("normal", chirp_path)
 
             self._available = True
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             logger.warning(
                 "Не удалось инициализировать SFX звуки: %s. Работаем в беззвучном режиме.",
                 exc,
@@ -955,7 +955,7 @@ class SpeechSFX(QObject):
     def reload_audio_devices(self) -> None:
         try:
             self._init_sounds()
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             logger.debug("SFX device reload failed: %s", exc)
 
     def _play_file(
@@ -971,7 +971,7 @@ class SpeechSFX(QObject):
             ):
                 fallback_effect.setSource(QUrl.fromLocalFile(str(path)))
             fallback_effect.play()
-        except Exception as exc:
+        except (RuntimeError, OSError) as exc:
             logger.debug("QSoundEffect error: %s", exc)
 
     @property

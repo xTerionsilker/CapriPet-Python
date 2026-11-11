@@ -83,7 +83,7 @@ class DiscordRpcManager(QObject):
             self._connected = True
             self._push_presence()
             return True
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.debug("Discord RPC connection failed: %s", exc)
             self._connected = False
             self._rpc = None
@@ -137,7 +137,7 @@ class DiscordRpcManager(QObject):
             if raw.startswith(prefix):
                 return raw[len(prefix) :].strip()
             return None
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.debug("Spotify track provider error: %s", exc)
             return None
 
@@ -165,7 +165,7 @@ class DiscordRpcManager(QObject):
                 start=self._start_time,
                 buttons=self._buttons,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.debug("Discord RPC update error: %s", exc)
             self._connected = False
             self._rpc = None

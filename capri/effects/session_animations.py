@@ -107,7 +107,7 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         ):
             try:
                 self._target_pixmap = target.grab()
-            except Exception:
+            except Exception:  # noqa: BLE001
                 self._target_pixmap = None
 
         self._clock: QElapsedTimer | None = None
@@ -163,7 +163,7 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
 
         if p >= 0.46 and not self._peak_sound_played:
             self._peak_sound_played = True
-            try:
+            with contextlib.suppress(Exception):
                 sfx = get_speech_sfx()
                 if self._action == "reboot":
                     sfx.play_lightning_zap()
@@ -171,8 +171,6 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
                     sfx.play_lightning_strike()
                 elif self._action == "lock":
                     sfx.play_lightning_arc()
-            except Exception:
-                pass
 
         self._spawn_action_particles(p, dt)
         self._particles = [
