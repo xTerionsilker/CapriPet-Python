@@ -103,7 +103,7 @@ tests/                          # Модульные и интеграционн
 ├── test_security_hardening.py  # Тесты валидации URL, путей и защиты от инъекций
 └── test_window_lifecycle.py   # Интеграционный Smoke-тест жизненного цикла CapriWindow
 assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
-docs/                           # Дополнительная документация и спецификации (config_spec.md, architecture.md)
+docs/                           # Инженерная документация и спецификации (architecture.md, config_spec.md, project_structure.md)
 models/                         # Папка моделей (Vosk, Silero VAD onnx)
 requirements.txt                # Зависимости проекта
 mypy.ini                        # Конфигурация статического тайп-чекера Mypy
