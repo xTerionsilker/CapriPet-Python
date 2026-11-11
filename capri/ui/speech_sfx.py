@@ -657,7 +657,10 @@ def _generate_intro_breach_wav(
         elif t < 1.8:
             t_alarm = t - 1.0
             lfo = math.sin(2.0 * math.pi * 8.0 * t_alarm) * 350.0
-            siren = math.sin(2.0 * math.pi * (6500.0 + lfo) * t_alarm) * 0.5 + math.sin(2.0 * math.pi * (7200.0 - lfo) * t_alarm) * 0.3
+            siren = (
+                math.sin(2.0 * math.pi * (6500.0 + lfo) * t_alarm) * 0.5
+                + math.sin(2.0 * math.pi * (7200.0 - lfo) * t_alarm) * 0.3
+            )
             pulse = 0.5 + 0.5 * math.sin(2.0 * math.pi * 4.0 * t_alarm)
             env = min(1.0, t_alarm / 0.3)
             val = siren * pulse * env + rng.uniform(-0.15, 0.15) * env

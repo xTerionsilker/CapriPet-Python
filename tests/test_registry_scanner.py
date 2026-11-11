@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import unittest
-from pathlib import Path
 
 from capri.commands import create_default_registry
 from capri.commands.base import CommandContext
 from capri.commands.handlers import RegistryCommand
 from capri.integrations.registry_scanner import (
+    RegistryIssue,
     extract_executable_path,
     generate_report_file,
     perform_registry_scan,
-    RegistryIssue,
 )
 
 

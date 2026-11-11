@@ -1,0 +1,26 @@
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors (PEP 8)
+    "W",    # pycodestyle warnings (PEP 8)
+    "F",    # pyflakes (code defects, syntax errors, undefined names)
+    "I",    # isort (import ordering)
+    "B",    # flake8-bugbear (common design flaws and bugs)
+    "UP",   # pyupgrade (modern Python syntax)
+    "C4",   # flake8-comprehensions
+]
+ignore = [
+    "RUF001",  # Cyrillic characters in strings (Russian dialogue and persona)
+    "RUF002",  # Cyrillic characters in docstrings
+    "RUF003",  # Cyrillic characters in comments
+]

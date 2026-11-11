@@ -757,7 +757,10 @@ class CleanSystemCommand(BaseCommand):
         freed_str = system_cleaner.format_bytes(res.bytes_freed)
         if res.files_deleted == 0 and res.bytes_freed == 0:
             return "Тут и так стерильно, даже поживиться нечем! Ни крошки мусора в корзине."
-        return f"Шреддер сработал на ура: растёрла {res.files_deleted} кусков мусора, освободила тебе целых {freed_str}!"
+        return (
+            f"Шреддер сработал на ура: растёрла {res.files_deleted} кусков мусора, "
+            f"освободила тебе целых {freed_str}!"
+        )
 
 
 class RegistryCommand(BaseCommand):
