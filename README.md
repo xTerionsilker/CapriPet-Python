@@ -29,6 +29,17 @@
 capriWin.bat
 ```
 
+Для запуска с интерактивной отладочной консолью:
+```cmd
+capriWin.bat --console
+```
+
+Скрипты в папке `scripts/` децентрализованы и доступны для независимого запуска:
+- `scripts\setup_env.bat` — создание и валидация виртуального окружения `.venv`.
+- `scripts\install_deps.bat [--upgrade]` — установка и обновление зависимостей.
+- `scripts\download_models.py [--check-only] [--vad] [--vosk]` — утилита загрузки и валидации моделей.
+- `scripts\run_app.bat [--console]` — прямой запуск приложения.
+
 ---
 
 ### Ручная установка и запуск (PowerShell / CMD)
