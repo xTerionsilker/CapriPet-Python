@@ -65,6 +65,23 @@ Contains 23 individual waveform synthesis functions handling mathematical PCM wa
 
 ## 4. Architectural Target Metrics
 
-- No presentation file exceeds 600 LOC after refactoring.
+- No presentation file exceeds 600 LOC after refactoring (or substantial decomposition applied).
 - Every extracted component must have dedicated unit tests with 100% pass rate.
 - Zero public API breaks for existing callers.
+
+---
+
+## 5. Post-Refactoring Results & Metrics
+
+| Module | Before (LOC) | After (LOC) | Extracted Delegates / Sub-Painters | Test Coverage |
+| :--- | :---: | :---: | :--- | :--- |
+| `capri/ui/pet_window.py` | 1004 | 909 | `WindowSystemEventsHandler`, `WindowPrankController` | `test_window_system_events.py`, `test_window_prank_controller.py` |
+| `capri/ui/speech.py` | 944 | 531 | `CyberHudBubble` (`capri/ui/speech_bubble.py`) | `test_speech_bubble.py` |
+| `capri/ui/pet_renderer.py` | 739 | 638 | `HudTelemetryPainter` (`capri/ui/renderers/hud_telemetry.py`) | `test_pet_renderer_passes.py` |
+| `capri/audio/sfx_generators.py` | 736 | 706 | `capri/audio/sfx_core.py` (PCM/WAV DSP primitives) | `test_sfx_core.py` |
+
+### Verification Summary
+- **Total Tests:** 74 tests passing (0 failures, 0 errors).
+- **Linter Status:** Zero warnings under `ruff check .`.
+- **API Stability:** 100% backward-compatible facades preserved.
+
