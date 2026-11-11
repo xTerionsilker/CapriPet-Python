@@ -33,7 +33,7 @@ def pick_palette_color() -> QColor:
     return random.choices(PALETTE_COLORS, weights=PALETTE_WEIGHTS, k=1)[0]
 
 
-def snap_pixel(val: float | int, step: int = PIXEL_SIZE) -> int:
+def snap_pixel(val: float, step: int = PIXEL_SIZE) -> int:
     """Выравнивает координату по пиксельной сетке."""
     return int(round(val / step)) * step
 

@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from PySide6.QtCore import QCoreApplication
 
 from capri.core.process_classifier import (
     DEFAULT_CATEGORY_PHRASES,
-    DEFAULT_PROCESS_CATEGORIES,
     ProcessClassifier,
 )
-from capri.core.settings import CapriConfig, TelemetryConfig
+from capri.core.settings import CapriConfig
 
 
 class TestProcessClassifier(unittest.TestCase):
@@ -117,11 +116,11 @@ class TestProcessWatcher(unittest.TestCase):
         self.assertEqual(len(emitted_events), 1, "Игровой режим должен блокировать любые реплики")
 
     def test_orchestrator_game_mode_property_compatibility(self) -> None:
-        from capri.integrations.game_mode import GameModeDetector
         from capri.controllers.orchestrator import PetOrchestrator
+        from capri.integrations.game_mode import GameModeDetector
 
         # Проверка, что GameModeDetector.is_game_active является property
-        self.assertTrue(isinstance(getattr(GameModeDetector, "is_game_active"), property))
+        self.assertTrue(isinstance(GameModeDetector.is_game_active, property))
 
         # Создаем мок окна с детектором
         mock_window = MagicMock()

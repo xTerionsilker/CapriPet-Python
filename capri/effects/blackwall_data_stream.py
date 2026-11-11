@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import math
 import random
 from dataclasses import dataclass
 
 from PySide6.QtCore import QPointF, QRect
-from PySide6.QtGui import QColor, QFont, QPainter, QPen, QRadialGradient
+from PySide6.QtGui import QFont, QPainter, QPen, QRadialGradient
 
 from ..ui.theme import get_hud_font
 from .transition_base import (

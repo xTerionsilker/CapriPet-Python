@@ -9,7 +9,6 @@ from PySide6.QtCore import QPoint
 from PySide6.QtGui import QGuiApplication, QScreen
 from PySide6.QtMultimedia import QAudioDevice
 
-from ..audio.recognizer import preload_model_async
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
     set_config_value,

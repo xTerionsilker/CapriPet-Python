@@ -7,7 +7,7 @@ import random
 from dataclasses import dataclass
 
 from PySide6.QtCore import QPointF, QRect, Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QPolygonF
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPolygonF
 
 from ..ui.theme import get_hud_font
 from .transition_base import (
@@ -15,10 +15,7 @@ from .transition_base import (
     COLOR_CRIMSON,
     COLOR_ELECTRIC_BLUE,
     COLOR_OBSIDIAN,
-    COLOR_VIOLET,
     COLOR_WHITE,
-    PIXEL_SIZE,
-    snap_pixel,
     with_alpha,
 )
 

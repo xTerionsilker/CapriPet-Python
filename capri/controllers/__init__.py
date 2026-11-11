@@ -7,6 +7,6 @@ from .orchestrator import PetOrchestrator
 __all__ = [
     "ActionBridge",
     "InactivityManager",
-    "PresenceReminder",
     "PetOrchestrator",
+    "PresenceReminder",
 ]

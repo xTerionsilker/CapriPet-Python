@@ -44,11 +44,9 @@ from .intro_breach_helpers import (
 from .transition_base import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
-    COLOR_ELECTRIC_BLUE,
     COLOR_OBSIDIAN,
     COLOR_VIOLET,
     COLOR_WHITE,
-    snap_pixel,
     with_alpha,
 )
 from .transition_painters import CyberShockwaveRing

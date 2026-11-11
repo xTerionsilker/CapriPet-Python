@@ -42,7 +42,6 @@ from ..effects.session_animations import SessionAnimationOverlay
 from ..effects.transition import TransitionOverlay
 from ..integrations.data_shredder import (
     _is_critical_path,
-    analyze_paths,
     generate_shred_dialogue,
     shred_paths,
 )
@@ -51,7 +50,6 @@ from ..integrations.system_power_hook import SystemEventHook
 from .console_hud import CyberConsoleHud
 from .context_menu import TrayManager
 from .game_overlay import SilentPresenceGlyph
-from .volume_hud import CyberVolumeHud
 from .pet_renderer import PetRenderer, PetRenderState
 from .pet_window_actions import PetWindowActionDelegate
 from .speech import (
@@ -65,6 +63,7 @@ from .speech import (
 from .speech_sfx import get_speech_sfx
 from .sprite_manager import SpriteManager
 from .teleport_controller import TeleportController
+from .volume_hud import CyberVolumeHud
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 ASSETS = ROOT / "assets"

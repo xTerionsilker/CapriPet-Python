@@ -47,27 +47,27 @@ from .transition_painters import (
 
 __all__ = [
     "BAYER_4X4",
-    "BlackwallBreachTransitionOverlay",
     "COLOR_ACID_GREEN",
     "COLOR_CRIMSON",
     "COLOR_ELECTRIC_BLUE",
     "COLOR_OBSIDIAN",
     "COLOR_VIOLET",
     "COLOR_WHITE",
+    "DURATION_ERRATIC_MS",
+    "DURATION_IN_MS",
+    "DURATION_OUT_MS",
+    "DURATION_POINT_MS",
+    "PALETTE_COLORS",
+    "PALETTE_WEIGHTS",
+    "PIXEL_SIZE",
+    "BlackwallBreachTransitionOverlay",
     "CyberHoloReticle",
     "CyberKiroshiReticle",
     "CyberPixelBolt",
     "CyberPixelSpark",
     "CyberShockwaveRing",
     "CyberTrailFragment",
-    "DURATION_ERRATIC_MS",
-    "DURATION_IN_MS",
-    "DURATION_OUT_MS",
-    "DURATION_POINT_MS",
     "DissolveTransitionOverlay",
-    "PALETTE_COLORS",
-    "PALETTE_WEIGHTS",
-    "PIXEL_SIZE",
     "ScreenTransitionOverlay",
     "ShardTransitionOverlay",
     "TeleportTransitionOverlay",
@@ -243,7 +243,7 @@ def evaluate_vortex(
 class CyberTrailFragment:
     """Фрагмент пиксельного шлейфа за перемещающимся объектом."""
 
-    __slots__ = ("x", "y", "w", "h", "color", "life", "max_life")
+    __slots__ = ("color", "h", "life", "max_life", "w", "x", "y")
 
     def __init__(
         self,
@@ -366,16 +366,16 @@ class CyberPixelSpark:
     """Пиксельная искра для эффектов разрядов и динамических переходов."""
 
     __slots__ = (
-        "x",
-        "y",
-        "vx",
-        "vy",
         "color",
-        "size",
+        "flicker_phase",
+        "kind",
         "life",
         "max_life",
-        "kind",
-        "flicker_phase",
+        "size",
+        "vx",
+        "vy",
+        "x",
+        "y",
     )
 
     def __init__(

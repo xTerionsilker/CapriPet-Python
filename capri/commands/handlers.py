@@ -15,7 +15,7 @@ from ..integrations.system_control import (
 from .base import BaseCommand, CommandContext
 
 
-def format_duration(seconds: int | float | None) -> str:
+def format_duration(seconds: float | None) -> str:
     if seconds is None:
         return "неизвестно"
     total = max(0, int(seconds))

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import logging
-from PySide6.QtCore import QPoint, QPropertyAnimation, QRect, QRectF, Qt, QTimer
+
+from PySide6.QtCore import QPropertyAnimation, QRect, QRectF, Qt, QTimer
 from PySide6.QtGui import (
     QColor,
     QGuiApplication,
@@ -14,14 +15,10 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QGraphicsOpacityEffect, QWidget
 
 from .theme import (
-    ACID_GREEN,
     CHAMFER_HUD,
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
-    COLOR_OBSIDIAN,
     COLOR_WHITE,
-    NEON_CRIMSON,
-    OBSIDIAN_BLACK,
     get_hud_font,
     get_terminal_font,
 )

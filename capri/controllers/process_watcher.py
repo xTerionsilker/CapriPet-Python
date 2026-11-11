@@ -7,11 +7,11 @@
 from __future__ import annotations
 
 import ctypes
-from ctypes import wintypes
 import logging
 import os
 import time
-from typing import Callable
+from collections.abc import Callable
+from ctypes import wintypes
 
 import psutil
 from PySide6.QtCore import QObject, QTimer, Signal

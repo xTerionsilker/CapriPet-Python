@@ -9,9 +9,9 @@ import logging
 import os
 import shutil
 import stat
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 logger = logging.getLogger(__name__)
 

@@ -20,10 +20,10 @@ from .recognizer import (
 from .voice import SileroVAD, VoiceInput
 
 __all__ = [
-    "VoiceInput",
-    "SileroVAD",
     "ModelStatus",
     "RecognitionError",
+    "SileroVAD",
+    "VoiceInput",
     "VoskSpeechService",
     "check_available",
     "create_recognizer",

@@ -9,15 +9,15 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QEvent, QPoint, QRect, Qt
+from PySide6.QtCore import QEvent, QPoint, Qt
 from PySide6.QtGui import (
     QColor,
     QGuiApplication,
     QKeyEvent,
     QMouseEvent,
-    QPaintEvent,
     QPainter,
     QPainterPath,
+    QPaintEvent,
     QPen,
 )
 from PySide6.QtWidgets import (
@@ -31,7 +31,6 @@ from PySide6.QtWidgets import (
 from .speech_sfx import get_speech_sfx
 from .theme import (
     ACID_GREEN,
-    CSS_CYBER_TERMINAL,
     FONT_FAMILY,
     NEON_CRIMSON,
     OBSIDIAN_BLACK,

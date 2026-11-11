@@ -48,7 +48,7 @@ SHERB_NOPROGRESSUI = 0x00000002
 SHERB_NOSOUND = 0x00000004
 
 
-def format_bytes(bytes_count: int | float) -> str:
+def format_bytes(bytes_count: float) -> str:
     """Форматирует байты в удобную читаемую строку."""
     b = float(max(0, bytes_count))
     if b < 1024:

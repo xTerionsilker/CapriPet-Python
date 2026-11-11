@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+
 import comtypes
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 class SystemVolumeService:
     """Сервис управления общей мастер-громкостью Windows Core Audio."""
 
-    _instance: Optional[SystemVolumeService] = None
+    _instance: SystemVolumeService | None = None
 
     def __init__(self) -> None:
-        self._endpoint: Optional[IAudioEndpointVolume] = None
+        self._endpoint: IAudioEndpointVolume | None = None
 
     @classmethod
     def get_instance(cls) -> SystemVolumeService:
@@ -29,7 +29,7 @@ class SystemVolumeService:
             cls._instance = cls()
         return cls._instance
 
-    def _ensure_endpoint(self) -> Optional[IAudioEndpointVolume]:
+    def _ensure_endpoint(self) -> IAudioEndpointVolume | None:
         """Инициализировать или вернуть кэшированный аудио-эндпоинт с поддержкой COM."""
         try:
             comtypes.CoInitialize()

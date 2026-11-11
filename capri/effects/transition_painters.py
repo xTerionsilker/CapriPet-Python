@@ -417,7 +417,7 @@ class CyberKiroshiReticle:
             painter.drawArc(
                 arc_rect,
                 int((start + math.degrees(rotation)) * 16),
-                int(38 * 16),
+                38 * 16,
             )
 
         if label:
@@ -628,4 +628,4 @@ def draw_glitch_text(
     painter.setPen(with_alpha(color, 245))
     painter.drawText(x, y, text)
     painter.restore()
-from capri.ui.theme import get_hud_font  # noqa: E402
+from capri.ui.theme import get_hud_font
