@@ -10,6 +10,7 @@ from ..effects.session_animations import SESSION_ACTION_LEAD_MS
 from ..integrations import (
     app_launcher,
     process_manager,
+    registry_scanner,
     spotify,
     system_cleaner,
     web_search,
@@ -181,6 +182,31 @@ class ActionBridge(QObject):
                 msg = f"Очистка завершена: удалено {res.files_deleted} объектов, освобождено {freed_str}."
         except Exception:  # noqa: BLE001
             msg = "Произошла ошибка при очистке системы."
+        self.speech_requested.emit(msg)
+
+    def scan_registry(self) -> str:
+        threading.Thread(
+            target=self._scan_registry_worker,
+            name="capri-registry-scan",
+            daemon=True,
+        ).start()
+        return "Погружаюсь в дебри реестра: вынюхиваю мертвые ветки и битые хвосты софта…"
+
+    def _scan_registry_worker(self) -> None:
+        try:
+            report = registry_scanner.perform_registry_scan(open_report=True)
+            if not report.issues:
+                msg = (
+                    f"Прошерстила {report.total_scanned} записей реестра: всё чисто, "
+                    "ни единого заброшенного ключа!"
+                )
+            else:
+                msg = (
+                    f"Анализ реестра завершён: откопала {len(report.issues)} аномалий! "
+                    "Текстовый отчёт уже открыт."
+                )
+        except Exception:  # noqa: BLE001
+            msg = "Не удалось завершить аудит реестра — возникла системная ошибка."
         self.speech_requested.emit(msg)
 
     def _check_updates_worker(self) -> None:
