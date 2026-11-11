@@ -10,6 +10,7 @@ from PySide6.QtCore import QObject, QRect
 
 from .glitch import GlitchBurstOverlay, GlitchManager
 from .intro_breach_overlay import IntroBreachOverlay
+from .melting_screen import MeltingScreenOverlay
 from .model_init_animation import ModelInitOverlay
 from .session_animations import (
     SessionAnimationOverlay,
@@ -33,6 +34,7 @@ class EffectsCoordinator(QObject):
         self._session_overlay: SessionAnimationOverlay | None = None
         self._burst_overlay: GlitchBurstOverlay | None = None
         self._intro_breach_overlay: IntroBreachOverlay | None = None
+        self._melting_overlay: MeltingScreenOverlay | None = None
 
     @property
     def glitches(self) -> GlitchManager:
@@ -153,9 +155,45 @@ class EffectsCoordinator(QObject):
     def _clear_intro_breach_overlay(self) -> None:
         self._intro_breach_overlay = None
 
+    def play_melting_screen(
+        self,
+        duration_ms: int = 1400,
+        on_finished: Callable[[], None] | None = None,
+    ) -> MeltingScreenOverlay | None:
+        if getattr(self._window, "is_closing", False):
+            return None
+
+        if self._melting_overlay is not None:
+            with contextlib.suppress(Exception):
+                self._melting_overlay.close()
+                self._melting_overlay.deleteLater()
+            self._melting_overlay = None
+
+        target_screen = self._window.screen() if hasattr(self._window, "screen") else None
+        overlay = MeltingScreenOverlay(
+            screen=target_screen,
+            duration_ms=duration_ms,
+        )
+        self._melting_overlay = overlay
+
+        def _cleanup() -> None:
+            if self._melting_overlay is overlay:
+                self._melting_overlay = None
+            if on_finished is not None:
+                on_finished()
+
+        overlay.finished.connect(_cleanup)
+        overlay.start()
+        return overlay
+
     def stop_all(self) -> None:
 
         self._glitches.stop()
+        if self._melting_overlay is not None:
+            with contextlib.suppress(Exception):
+                self._melting_overlay.close()
+                self._melting_overlay.deleteLater()
+            self._melting_overlay = None
         if self._burst_overlay is not None:
             with contextlib.suppress(Exception):
                 self._burst_overlay.close()

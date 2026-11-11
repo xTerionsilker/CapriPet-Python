@@ -5,7 +5,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from PySide6.QtCore import QCoreApplication
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
 
 
 class TestEngramPrankCoordinator(unittest.TestCase):
@@ -13,10 +14,10 @@ class TestEngramPrankCoordinator(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        if QCoreApplication.instance() is None:
-            cls._app = QCoreApplication([])
+        if QApplication.instance() is None:
+            cls._app = QApplication([])
         else:
-            cls._app = QCoreApplication.instance()
+            cls._app = QApplication.instance()
 
     def test_engram_prank_cooldown_and_roll(self) -> None:
         from capri.effects.engram_prank_coordinator import EngramPrankCoordinator
@@ -92,6 +93,17 @@ class TestEngramPrankCoordinator(unittest.TestCase):
         self.assertNotIn("dodge", candidates)
         self.assertIn("melt", candidates)
         self.assertIn("relic_dump", candidates)
+
+    def test_melting_screen_overlay_flags(self) -> None:
+        from capri.effects.melting_screen import MeltingScreenOverlay
+
+        overlay = MeltingScreenOverlay(screen=None, duration_ms=500)
+        flags = overlay.windowFlags()
+        self.assertTrue(bool(flags & Qt.WindowType.WindowTransparentForInput))
+        self.assertTrue(bool(flags & Qt.WindowType.FramelessWindowHint))
+        self.assertTrue(bool(flags & Qt.WindowType.WindowStaysOnTopHint))
+        overlay.close()
+        overlay.deleteLater()
 
 
 if __name__ == "__main__":

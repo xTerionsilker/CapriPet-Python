@@ -16,6 +16,7 @@ from .glitch import (
     paint_tears,
 )
 from .intro_breach_overlay import IntroBreachOverlay
+from .melting_screen import MeltingScreenOverlay
 from .model_init_animation import ModelInitOverlay
 from .session_animations import (
     CryostasisSceneOverlay,
@@ -37,6 +38,7 @@ __all__ = [
     "GlitchManager",
     "IntroBreachOverlay",
     "LockdownSceneOverlay",
+    "MeltingScreenOverlay",
     "ModelInitOverlay",
     "RebootCycleOverlay",
     "SessionAnimationOverlay",
