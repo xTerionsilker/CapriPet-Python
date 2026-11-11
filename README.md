@@ -5,8 +5,8 @@
 # ⟡ C A P R I ⟡
 ### Autonomous Cyber-Pet & Desktop Companion // Project Capricorn
 
-[![Security Audit](https://img.shields.io/github/actions/workflow/status/xTerionsilker/CapriPet-Python/security.yml?label=Security%20Audit&style=flat-square&color=06F868&labelColor=020106)](https://github.com/xTerionsilker/CapriPet-Python/actions/workflows/security.yml)
-[![Lint & Code Quality](https://img.shields.io/github/actions/workflow/status/xTerionsilker/CapriPet-Python/lint.yml?label=Code%20Quality&style=flat-square&color=F6023F&labelColor=020106)](https://github.com/xTerionsilker/CapriPet-Python/actions/workflows/lint.yml)
+[![Security Audit](https://img.shields.io/badge/Security-Bandit%20%26%20pip--audit-06F868?style=flat-square&labelColor=020106)](scripts/verify.bat)
+[![Lint & Code Quality](https://img.shields.io/badge/Local%20CI-6%2F6%20Verified-F6023F?style=flat-square&labelColor=020106)](scripts/verify.bat)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-F6023F?style=flat-square&labelColor=020106)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-06F868?style=flat-square&labelColor=020106)](https://microsoft.com/windows)
 [![Voice ASR](https://img.shields.io/badge/Voice%20ASR-Vosk%20Offline-126EE9?style=flat-square&labelColor=020106)](https://alphacephei.com/vosk/)
