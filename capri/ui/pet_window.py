@@ -62,6 +62,7 @@ from .speech_sfx import get_speech_sfx
 from .sprite_manager import SpriteManager
 from .teleport_controller import TeleportController
 from .volume_hud import CyberVolumeHud
+from .window_system_events import WindowSystemEventsHandler
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 ASSETS = ROOT / "assets"
@@ -229,11 +230,12 @@ class CapriWindow(QWidget):
             inactivity_ms = ACTIVITY_TIMEOUT_OPTIONS_MS[0]
         self._activity_timeout_seconds = inactivity_ms // 1000
 
+        self._system_events = WindowSystemEventsHandler(self)
         self._power_hook = SystemEventHook(
-            on_suspend=self._on_system_suspend,
-            on_shutdown=self._on_system_shutdown,
-            on_lock=self._on_session_lock,
-            on_unlock=self._on_session_unlock,
+            on_suspend=self._system_events.handle_system_suspend,
+            on_shutdown=self._system_events.handle_system_shutdown,
+            on_lock=self._system_events.handle_session_lock,
+            on_unlock=self._system_events.handle_session_unlock,
         )
 
         self._orchestrator.start()
@@ -863,40 +865,19 @@ class CapriWindow(QWidget):
             self._exit_overlay.finished.connect(self._finalize_quit)
 
     def _on_system_suspend(self) -> None:
-        self._fast_terminate()
+        self._system_events.handle_system_suspend()
 
     def _on_system_shutdown(self) -> None:
-        self._fast_terminate()
+        self._system_events.handle_system_shutdown()
 
     def _on_session_lock(self) -> None:
-        if self._closing:
-            return
-        self._orchestrator.pause()
-        self._glitch_timer.stop()
+        self._system_events.handle_session_lock()
 
     def _on_session_unlock(self) -> None:
-        if self._closing:
-            return
-        self._glitch_timer.start()
-        self._orchestrator.resume()
-        self.trigger_pose_transition()
+        self._system_events.handle_session_unlock()
 
     def _fast_terminate(self) -> None:
-        if self._closing:
-            return
-        self._closing = True
-        with contextlib.suppress(Exception):
-            pos = self.pos()
-            set_config_value(
-                "window.position", {"x": pos.x(), "y": pos.y()}
-            )
-            set_config_value(
-                "window.overlay_position", {"x": pos.x(), "y": pos.y()}
-            )
-        self._orchestrator.stop()
-        self._effects.stop_all()
-        self._glitch_timer.stop()
-        self._finalize_quit()
+        self._system_events.fast_terminate()
 
     def _on_game_mode_changed(self, active: bool) -> None:
         self._is_stealth_mode = active
