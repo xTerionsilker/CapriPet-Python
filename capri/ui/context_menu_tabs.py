@@ -5,10 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtMultimedia import QMediaDevices
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -24,6 +26,7 @@ from ..core.settings import (
     get_config_value,
     set_config_value,
 )
+from .reminder_dialog import ReminderRangeDialog
 from .theme import (
     ACID_GREEN,
     CSS_CYBER_UI,
@@ -170,15 +173,20 @@ class CoreTabPage(QWidget):
         self.btn_summon.clicked.connect(self._on_summon)
         act_layout.addWidget(self.btn_summon, 0, 0)
 
-        self.btn_teleport = QPushButton("[AIM] Телепорт / Прицел", self)
+        self.btn_deck = QPushButton("[DECK] Кибердэка", self)
+        self.btn_deck.setStyleSheet(_BTN_STYLE)
+        self.btn_deck.clicked.connect(self._on_deck)
+        act_layout.addWidget(self.btn_deck, 0, 1)
+
+        self.btn_teleport = QPushButton("[AIM] Прицел / Телепорт", self)
         self.btn_teleport.setStyleSheet(_BTN_STYLE)
         self.btn_teleport.clicked.connect(self._on_teleport)
-        act_layout.addWidget(self.btn_teleport, 0, 1)
+        act_layout.addWidget(self.btn_teleport, 1, 0)
 
         self.btn_reset_pos = QPushButton("[POS] Сброс позиции", self)
         self.btn_reset_pos.setStyleSheet(_BTN_STYLE)
         self.btn_reset_pos.clicked.connect(self._on_reset_pos)
-        act_layout.addWidget(self.btn_reset_pos, 1, 0, 1, 2)
+        act_layout.addWidget(self.btn_reset_pos, 1, 1)
         layout.addWidget(grp_actions)
 
         grp_toggles = QGroupBox("[NEURAL_OVERRIDES]", self)
@@ -201,8 +209,14 @@ class CoreTabPage(QWidget):
         tog_layout.addWidget(self.chk_glitches)
         layout.addWidget(grp_toggles)
         layout.addStretch()
+
     def _on_summon(self) -> None:
         fn = getattr(self.pet_window, "activate_command_mode", None)
+        if callable(fn):
+            fn()
+
+    def _on_deck(self) -> None:
+        fn = getattr(self.pet_window, "open_console", None)
         if callable(fn):
             fn()
 
@@ -248,22 +262,28 @@ class AudioTabPage(QWidget):
         vol_layout = QVBoxLayout(grp_vol)
 
         cur_vol = int(get_config_value("audio.volume", 50))
+        cur_vol = max(25, min(100, round(cur_vol / 25) * 25))
         self.lbl_vol = QLabel(f"ГРОМКОСТЬ: {cur_vol}%", self)
         self.lbl_vol.setStyleSheet(_LABEL_STYLE)
         vol_layout.addWidget(self.lbl_vol)
 
         self.slider_vol = QSlider(Qt.Orientation.Horizontal, self)
-        self.slider_vol.setRange(0, 100)
+        self.slider_vol.setRange(25, 100)
+        self.slider_vol.setSingleStep(25)
+        self.slider_vol.setPageStep(25)
+        self.slider_vol.setTickInterval(25)
         self.slider_vol.setValue(cur_vol)
         self.slider_vol.valueChanged.connect(self._on_slider_changed)
         vol_layout.addWidget(self.slider_vol)
 
         presets_layout = QHBoxLayout()
+        self._preset_buttons: dict[int, QPushButton] = {}
         for p in (25, 50, 75, 100):
             btn = QPushButton(f"{p}%", self)
-            btn.setStyleSheet(_BTN_STYLE)
+            btn.setStyleSheet(_BTN_ACCENT_STYLE if p == cur_vol else _BTN_STYLE)
             btn.clicked.connect(lambda _, val=p: self._set_volume(val))
             presets_layout.addWidget(btn)
+            self._preset_buttons[p] = btn
         vol_layout.addLayout(presets_layout)
         layout.addWidget(grp_vol)
 
@@ -286,34 +306,71 @@ class AudioTabPage(QWidget):
         )
         self.chk_fx.toggled.connect(self._on_toggle_fx_sound)
         sfx_layout.addWidget(self.chk_fx)
+
+        self.chk_vol_hud = QCheckBox("Экранный оверлей (Volume HUD)", self)
+        self.chk_vol_hud.setStyleSheet(_CHECKBOX_STYLE)
+        self.chk_vol_hud.setChecked(
+            get_config_value("audio.volume_hud_enabled", True)
+        )
+        self.chk_vol_hud.toggled.connect(self._on_toggle_volume_hud)
+        sfx_layout.addWidget(self.chk_vol_hud)
         layout.addWidget(grp_sfx)
+
         grp_mic = QGroupBox("[AUDIO_INPUT_DEVICE]", self)
         grp_mic.setStyleSheet(_GROUP_STYLE)
         mic_layout = QVBoxLayout(grp_mic)
 
         self.combo_mic = QComboBox(self)
         self.combo_mic.setStyleSheet(_COMBO_STYLE)
-        self.combo_mic.addItem("Системный по умолчанию", None)
+        default_mic = QMediaDevices.defaultAudioInput()
+        def_desc = default_mic.description() if not default_mic.isNull() else "Системный"
+        self.combo_mic.addItem(f"По умолчанию ({def_desc})", None)
+        active_idx = 0
+        cfg_mic = get_config_value("audio.designated_microphone", None)
         try:
-            for dev in QMediaDevices.audioInputs():
+            for idx, dev in enumerate(QMediaDevices.audioInputs(), start=1):
                 self.combo_mic.addItem(dev.description(), dev)
+                if cfg_mic and dev.description() == cfg_mic:
+                    active_idx = idx
         except Exception:
             pass
+        self.combo_mic.setCurrentIndex(active_idx)
         self.combo_mic.currentIndexChanged.connect(self._on_mic_changed)
         mic_layout.addWidget(self.combo_mic)
         layout.addWidget(grp_mic)
         layout.addStretch()
 
-    def _on_slider_changed(self, val: int) -> None:
-        self.lbl_vol.setText(f"ГРОМКОСТЬ: {val}%")
+    def _on_slider_changed(self, raw_val: int) -> None:
+        val = round(raw_val / 25) * 25
+        val = max(25, min(100, val))
+        if self.slider_vol.value() != val:
+            self.slider_vol.blockSignals(True)
+            self.slider_vol.setValue(val)
+            self.slider_vol.blockSignals(False)
         self._set_volume(val)
 
     def _set_volume(self, val: int) -> None:
+        val = round(val / 25) * 25
+        val = max(25, min(100, val))
+        self.lbl_vol.setText(f"ГРОМКОСТЬ: {val}%")
+        if self.slider_vol.value() != val:
+            self.slider_vol.blockSignals(True)
+            self.slider_vol.setValue(val)
+            self.slider_vol.blockSignals(False)
+
+        for p, btn in getattr(self, "_preset_buttons", {}).items():
+            btn.setStyleSheet(_BTN_ACCENT_STYLE if p == val else _BTN_STYLE)
+
         actions = getattr(self.pet_window, "actions", None)
-        if actions and hasattr(actions, "set_volume"):
-            actions.set_volume(val)
+        if actions and hasattr(actions, "set_master_volume"):
+            actions.set_master_volume(val)
+        elif hasattr(self.pet_window, "set_master_volume"):
+            self.pet_window.set_master_volume(val)
         else:
             set_config_value("audio.volume", val)
+
+    def _on_toggle_volume_hud(self, checked: bool) -> None:
+        set_config_value("audio.volume_hud_enabled", checked)
 
     def _on_toggle_speech_sound(self, checked: bool) -> None:
         actions = getattr(self.pet_window, "actions", None)
@@ -352,11 +409,13 @@ class VisualTabPage(QWidget):
         scale_layout = QHBoxLayout(grp_scale)
 
         cur_scale = int(get_config_value("appearance.scale", 100))
+        self._scale_buttons: dict[int, QPushButton] = {}
         for s in (50, 75, 100, 125, 150):
             btn = QPushButton(f"{s}%", self)
             btn.setStyleSheet(_BTN_ACCENT_STYLE if s == cur_scale else _BTN_STYLE)
             btn.clicked.connect(lambda _, val=s: self._on_scale_selected(val))
             scale_layout.addWidget(btn)
+            self._scale_buttons[s] = btn
         layout.addWidget(grp_scale)
 
         grp_glitch = QGroupBox("[GLITCH_INTENSITY]", self)
@@ -365,6 +424,7 @@ class VisualTabPage(QWidget):
 
         cur_intensity = str(get_config_value("effects.glitch_intensity", "weak"))
         options = (("weak", "Низкая"), ("medium", "Средняя"), ("strong", "Макс"))
+        self._glitch_buttons: dict[str, QPushButton] = {}
         for k, title in options:
             btn = QPushButton(f"[{title}]", self)
             btn.setStyleSheet(
@@ -372,7 +432,27 @@ class VisualTabPage(QWidget):
             )
             btn.clicked.connect(lambda _, key=k: self._on_glitch_selected(key))
             glitch_layout.addWidget(btn)
+            self._glitch_buttons[k] = btn
         layout.addWidget(grp_glitch)
+
+        grp_screen = QGroupBox("[TARGET_DISPLAY]", self)
+        grp_screen.setStyleSheet(_GROUP_STYLE)
+        scr_layout = QVBoxLayout(grp_screen)
+        self.combo_screen = QComboBox(self)
+        self.combo_screen.setStyleSheet(_COMBO_STYLE)
+        primary_scr = QGuiApplication.primaryScreen()
+        cur_scr_name = get_config_value("screen.designated_screen", None)
+        active_scr_idx = 0
+        for idx, scr in enumerate(QGuiApplication.screens()):
+            geo = scr.geometry()
+            extra = " [основной]" if primary_scr and scr.name() == primary_scr.name() else ""
+            self.combo_screen.addItem(f"{scr.name()} ({geo.width()}x{geo.height()}){extra}", scr)
+            if cur_scr_name and scr.name() == cur_scr_name:
+                active_scr_idx = idx
+        self.combo_screen.setCurrentIndex(active_scr_idx)
+        self.combo_screen.currentIndexChanged.connect(self._on_screen_changed)
+        scr_layout.addWidget(self.combo_screen)
+        layout.addWidget(grp_screen)
 
         grp_misc = QGroupBox("[PROJECTION_CONTROL]", self)
         grp_misc.setStyleSheet(_GROUP_STYLE)
@@ -387,6 +467,8 @@ class VisualTabPage(QWidget):
         layout.addWidget(grp_misc)
         layout.addStretch()
     def _on_scale_selected(self, val: int) -> None:
+        for s, btn in getattr(self, "_scale_buttons", {}).items():
+            btn.setStyleSheet(_BTN_ACCENT_STYLE if s == val else _BTN_STYLE)
         fn = getattr(self.pet_window, "set_sprite_scale", None)
         if callable(fn):
             fn(val)
@@ -394,11 +476,22 @@ class VisualTabPage(QWidget):
             set_config_value("appearance.scale", val)
 
     def _on_glitch_selected(self, key: str) -> None:
+        for k, btn in getattr(self, "_glitch_buttons", {}).items():
+            btn.setStyleSheet(_BTN_ACCENT_STYLE if k == key else _BTN_STYLE)
         fn = getattr(self.pet_window, "set_glitch_intensity", None)
         if callable(fn):
             fn(key)
         else:
             set_config_value("effects.glitch_intensity", key)
+
+    def _on_screen_changed(self, index: int) -> None:
+        scr = self.combo_screen.itemData(index)
+        if scr is not None:
+            actions = getattr(self.pet_window, "actions", None)
+            if actions and hasattr(actions, "set_designated_screen"):
+                actions.set_designated_screen(scr)
+            elif hasattr(self.pet_window, "set_designated_screen"):
+                self.pet_window.set_designated_screen(scr)
 
     def _on_replay_breach(self) -> None:
         effects = getattr(self.pet_window, "_effects_coordinator", None)
@@ -425,6 +518,7 @@ class SystemTabPage(QWidget):
         stb_layout = QHBoxLayout(grp_standby)
 
         cur_timeout = int(get_config_value("behavior.inactivity_timeout_ms", 5000))
+        self._timeout_buttons: dict[int, QPushButton] = {}
         for ms in ACTIVITY_TIMEOUT_OPTIONS_MS:
             sec = ms // 1000
             btn = QPushButton(f"{sec} сек", self)
@@ -433,18 +527,38 @@ class SystemTabPage(QWidget):
             )
             btn.clicked.connect(lambda _, val=sec: self._on_timeout_selected(val))
             stb_layout.addWidget(btn)
+            self._timeout_buttons[sec] = btn
         layout.addWidget(grp_standby)
+
         grp_beh = QGroupBox("[AUTONOMOUS_DAEMONS]", self)
         grp_beh.setStyleSheet(_GROUP_STYLE)
         beh_layout = QVBoxLayout(grp_beh)
 
-        self.chk_reminders = QCheckBox("Автономные реплики и напоминания", self)
+        self.chk_reminders = QCheckBox("Автономные реплики (вкл/выкл)", self)
         self.chk_reminders.setStyleSheet(_CHECKBOX_STYLE)
         self.chk_reminders.setChecked(
             get_config_value("behavior.reminders_enabled", True)
         )
         self.chk_reminders.toggled.connect(self._on_toggle_reminders)
         beh_layout.addWidget(self.chk_reminders)
+
+        freq_layout = QHBoxLayout()
+        freq_presets = (
+            ("Часто", 60_000, 300_000),
+            ("Обычно", 600_000, 3_600_000),
+            ("Редко", 1_800_000, 7_200_000),
+        )
+        for label, mn, mx in freq_presets:
+            btn = QPushButton(label, self)
+            btn.setStyleSheet(_BTN_STYLE)
+            btn.clicked.connect(lambda _, m1=mn, m2=mx: self._set_reminder_range(m1, m2))
+            freq_layout.addWidget(btn)
+
+        self.btn_custom_range = QPushButton("Своя частота...", self)
+        self.btn_custom_range.setStyleSheet(_BTN_STYLE)
+        self.btn_custom_range.clicked.connect(self._on_custom_reminder_range)
+        freq_layout.addWidget(self.btn_custom_range)
+        beh_layout.addLayout(freq_layout)
 
         self.chk_game = QCheckBox("Игровой режим (Stealth Game Suppression)", self)
         self.chk_game.setStyleSheet(_CHECKBOX_STYLE)
@@ -476,11 +590,32 @@ class SystemTabPage(QWidget):
         self.btn_halt.clicked.connect(self._on_halt)
         layout.addWidget(self.btn_halt)
     def _on_timeout_selected(self, sec: int) -> None:
+        for s, btn in getattr(self, "_timeout_buttons", {}).items():
+            btn.setStyleSheet(_BTN_ACCENT_STYLE if s == sec else _BTN_STYLE)
         fn = getattr(self.pet_window, "set_activity_timeout", None)
         if callable(fn):
             fn(sec)
         else:
             set_config_value("behavior.inactivity_timeout_ms", sec * 1000)
+
+    def _set_reminder_range(self, min_ms: int, max_ms: int) -> None:
+        actions = getattr(self.pet_window, "actions", None)
+        if actions and hasattr(actions, "set_reminder_interval_range"):
+            actions.set_reminder_interval_range(min_ms, max_ms)
+        elif hasattr(self.pet_window, "set_reminder_interval_range"):
+            self.pet_window.set_reminder_interval_range(min_ms, max_ms)
+        else:
+            set_config_value("behavior.reminder_min_interval_ms", min_ms)
+            set_config_value("behavior.reminder_max_interval_ms", max_ms)
+
+    def _on_custom_reminder_range(self) -> None:
+        curr_min_m = int(get_config_value("behavior.reminder_min_interval_ms", 600_000)) // 60_000
+        curr_max_m = int(get_config_value("behavior.reminder_max_interval_ms", 3_600_000)) // 60_000
+        dialog = ReminderRangeDialog(curr_min_m, curr_max_m, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_min_ms = dialog.spin_from.value() * 60_000
+            new_max_ms = dialog.spin_to.value() * 60_000
+            self._set_reminder_range(new_min_ms, new_max_ms)
 
     def _on_toggle_reminders(self, checked: bool) -> None:
         actions = getattr(self.pet_window, "actions", None)
