@@ -107,6 +107,7 @@ capri/
 tests/                          # Модульные и интеграционные тесты (unittest)
 ├── test_architecture_metrics.py # Архитектурные метрики целостности документации и лимитов
 ├── test_commands_modular.py    # Тесты модульных команд и фасада handlers
+├── test_config_storage.py      # Тесты расположения и изоляции конфигурационных файлов
 ├── test_context_menu_integration.py # Интеграционные тесты вызова 16:9 кибер-меню из окна питомца и трея
 ├── test_context_menu_tabs.py   # Модульные тесты страниц параметров кибер-меню
 ├── test_context_menu_window.py # Тесты геометрии 16:9 и колесика мыши CyberContextMenuWindow

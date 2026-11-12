@@ -32,7 +32,7 @@ flowchart TB
         InputFlow["input_flow.py<br/>(Конвейер сессий и подтверждений)"]
         Morphology["morphology.py<br/>(Стемминг, нормализация числительных)"]
         Classifier["process_classifier.py<br/>(Классификатор ПО и реплики)"]
-        Settings["settings.py<br/>(Pydantic v2 .capri/config.json)"]
+        Settings["settings.py<br/>(Pydantic v2 user_config_dir/config.json)"]
 
         WakeWord --> InputFlow
         Morphology -.-> InputFlow
