@@ -17,10 +17,11 @@ from pathlib import Path
 
 import psutil
 import spotipy
-from platformdirs import user_config_dir
 from requests import RequestException
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import SpotifyClientCredentials
+
+from capri.core.settings import get_config_dir
 
 logger = logging.getLogger(__name__)
 
@@ -118,22 +119,7 @@ def load_credentials() -> tuple[str, str] | None:
 
 
 def config_path() -> Path:
-    project_root = Path(__file__).resolve().parent.parent.parent
-    local_spotify = project_root / ".capri" / "spotify.json"
-    if local_spotify.is_file():
-        return local_spotify
-
-    system_spotify = Path(user_config_dir("capri")) / "spotify.json"
-    if system_spotify.is_file():
-        return system_spotify
-
-    local_dir = project_root / ".capri"
-    try:
-        local_dir.mkdir(parents=True, exist_ok=True)
-        return local_spotify
-    except OSError:
-        system_spotify.parent.mkdir(parents=True, exist_ok=True)
-        return system_spotify
+    return get_config_dir() / "spotify.json"
 
 
 def _first_track(payload: dict) -> tuple[str, str, str] | None:

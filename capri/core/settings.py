@@ -246,12 +246,7 @@ VoskConfig = AudioConfig
 AppConfig = CapriConfig
 
 
-def _get_project_root() -> Path:
-    """Возвращает корень проекта CapriPet."""
-    return Path(__file__).resolve().parent.parent.parent
-
-
-def _resolve_config_dir() -> Path:
+def get_config_dir() -> Path:
     """Возвращает базовую директорию для хранения конфигурации с безопасным fallback."""
     env_dir = os.environ.get("CAPRI_CONFIG_DIR")
     if env_dir:
@@ -266,16 +261,6 @@ def _resolve_config_dir() -> Path:
                 e,
             )
 
-    local_dir = _get_project_root() / ".capri"
-    try:
-        local_dir.mkdir(parents=True, exist_ok=True)
-        test_file = local_dir / ".write_test"
-        test_file.touch()
-        test_file.unlink()
-        return local_dir
-    except OSError:
-        pass
-
     home_dir = Path(user_config_dir("capri"))
     try:
         home_dir.mkdir(parents=True, exist_ok=True)
@@ -289,9 +274,13 @@ def _resolve_config_dir() -> Path:
     return Path(tempfile.gettempdir())
 
 
+def _resolve_config_dir() -> Path:
+    return get_config_dir()
+
+
 def _get_default_config_path() -> Path:
     """Определяет путь к файлу конфигурации."""
-    config_dir = _resolve_config_dir()
+    config_dir = get_config_dir()
     temp_dir = Path(tempfile.gettempdir())
     if config_dir == temp_dir:
         return temp_dir / "capri_config.json"
