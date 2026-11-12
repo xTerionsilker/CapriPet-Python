@@ -739,6 +739,13 @@ class CapriWindow(QWidget):
             self._tray_icon.hide()
         if hasattr(self, "_power_hook") and self._power_hook is not None:
             self._power_hook.unregister_session_notification()
+        if (
+            hasattr(self, "_context_menu_dialog")
+            and self._context_menu_dialog is not None
+        ):
+            with contextlib.suppress(Exception):
+                self._context_menu_dialog.close(immediate=True)
+            self._context_menu_dialog = None
         close_all_speech()
         self.hide()
         app = QApplication.instance()
@@ -763,6 +770,13 @@ class CapriWindow(QWidget):
         event.ignore()
         if hasattr(self, "_console_hud") and self._console_hud is not None:
             self._console_hud.hide()
+        if (
+            hasattr(self, "_context_menu_dialog")
+            and self._context_menu_dialog is not None
+        ):
+            with contextlib.suppress(Exception):
+                self._context_menu_dialog.close(immediate=True)
+            self._context_menu_dialog = None
         self._orchestrator.stop()
         self._effects.stop_all()
         self._glitch_timer.stop()

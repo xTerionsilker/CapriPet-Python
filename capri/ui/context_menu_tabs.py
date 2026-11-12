@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import Qt
@@ -745,6 +746,16 @@ class SystemTabPage(QWidget):
         set_config_value("behavior.file_shredder_enabled", checked)
 
     def _on_halt(self) -> None:
+        win = self.window()
+        if isinstance(win, QDialog):
+            with contextlib.suppress(Exception):
+                if hasattr(win, "close"):
+                    try:
+                        win.close(immediate=True)  # type: ignore[call-arg]
+                    except TypeError:
+                        win.close()
+                elif hasattr(win, "reject"):
+                    win.reject()
         fn = getattr(self.pet_window, "close", None)
         if callable(fn):
             fn()

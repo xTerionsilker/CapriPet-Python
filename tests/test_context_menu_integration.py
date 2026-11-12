@@ -40,6 +40,23 @@ class TestContextMenuIntegration(unittest.TestCase):
             tray._on_tray_activated(QSystemTrayIcon.ActivationReason.Context)
             mock_open.assert_called_once()
 
+    def test_pet_window_close_cleans_up_context_menu_dialog(self) -> None:
+        from capri.ui.pet_window import CapriWindow
+
+        window = CapriWindow()
+        mock_dialog = MagicMock()
+        window._context_menu_dialog = mock_dialog
+
+        # Trigger closeEvent
+        from PySide6.QtGui import QCloseEvent
+
+        event = QCloseEvent()
+        window.closeEvent(event)
+        mock_dialog.close.assert_called_with(immediate=True)
+        self.assertIsNone(window._context_menu_dialog)
+        window._finalize_quit()
+        window.deleteLater()
+
 
 if __name__ == "__main__":
     unittest.main()
