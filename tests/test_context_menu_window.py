@@ -59,6 +59,36 @@ class TestContextMenuWindow(unittest.TestCase):
         win.keyPressEvent(esc_event)
         self.assertFalse(win.isVisible())
 
+    def test_datamosh_animations(self) -> None:
+        win = CyberContextMenuWindow(self.mock_window)
+        self.assertTrue(hasattr(win, "_overlay"))
+        self.assertIsNotNone(win._overlay)
+
+        # Start opening animation
+        win._start_open_animation()
+        self.assertEqual(win.anim_phase, "opening")
+        self.assertAlmostEqual(win.windowOpacity(), 0.2, delta=0.05)
+
+        # Advance opening animation to end
+        win._anim_start_time -= win._anim_duration + 0.05
+        win._on_anim_tick()
+        self.assertEqual(win.anim_phase, "none")
+        self.assertAlmostEqual(win.windowOpacity(), 1.0, delta=0.01)
+
+        # Start closing animation
+        win._start_close_animation()
+        self.assertEqual(win.anim_phase, "closing")
+
+        # Advance closing animation to end
+        win._anim_start_time -= win._anim_duration + 0.05
+        win._on_anim_tick()
+        self.assertEqual(win.anim_phase, "closed")
+
+        # Test immediate close / reject exits properly
+        win2 = CyberContextMenuWindow(self.mock_window)
+        self.assertTrue(win2.close(immediate=True))
+        self.assertEqual(win2.anim_phase, "closed")
+
 
 if __name__ == "__main__":
     unittest.main()

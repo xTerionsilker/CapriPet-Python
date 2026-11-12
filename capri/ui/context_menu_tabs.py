@@ -542,7 +542,7 @@ class VisualTabPage(QWidget):
     def _on_replay_breach(self) -> None:
         top = self.window()
         if isinstance(top, QDialog):
-            top.close()
+            top.reject()
 
         actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "trigger_intro_breach"):

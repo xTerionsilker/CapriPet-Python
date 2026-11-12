@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import random
+import time
 from typing import TYPE_CHECKING, Any
 
-from PySide6.QtCore import QEvent, QPoint, QRect, Qt, Signal
+from PySide6.QtCore import QEvent, QPoint, QRect, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor,
     QGuiApplication,
@@ -36,6 +38,7 @@ from .theme import (
     CSS_CYBER_UI,
     ELECTRIC_BLUE,
     NEON_CRIMSON,
+    NEON_VIOLET,
     OBSIDIAN_BLACK,
     PURE_WHITE,
 )
@@ -156,6 +159,80 @@ class CyberTabBar(QWidget):
         event.accept()
 
 
+class DatamoshOverlay(QWidget):
+    """Кинетический оверлей эффекта Blackwall Datamosh при открытии/закрытии."""
+
+    def __init__(self, parent: CyberContextMenuWindow) -> None:
+        super().__init__(parent)
+        self._hub = parent
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+
+    def paintEvent(self, event: Any) -> None:
+        phase = self._hub.anim_phase
+        if phase not in ("opening", "closing"):
+            return
+
+        prog = self._hub.anim_progress
+        w = self.width()
+        h = self.height()
+        if w <= 0 or h <= 0:
+            return
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+
+        intensity = (1.0 - prog) if phase == "opening" else prog
+        frame_idx = int(prog * 15)
+        rng = random.Random(frame_idx * 31 + (7 if phase == "opening" else 13))
+
+        # 1. Горизонтальные датамош-блоки с хроматическим сдвигом
+        for _ in range(rng.randint(4, 8)):
+            sy = rng.randint(0, max(1, h - 25))
+            sh = rng.randint(8, 28)
+            ox = rng.choice([-1, 1]) * rng.randint(10, int(45 * intensity + 12))
+            painter.fillRect(
+                QRect(max(0, ox), sy, w, sh),
+                QColor(2, 1, 6, int(160 * intensity)),
+            )
+            col_crimson = QColor(NEON_CRIMSON)
+            col_crimson.setAlpha(int(220 * intensity))
+            painter.fillRect(
+                QRect(max(0, ox - 3), sy, rng.randint(2, 4), sh),
+                col_crimson,
+            )
+            col_violet = QColor(NEON_VIOLET)
+            col_violet.setAlpha(int(200 * intensity))
+            painter.fillRect(
+                QRect(min(w - 3, ox + w - 2), sy, rng.randint(2, 4), sh),
+                col_violet,
+            )
+
+        # 2. Неоновые линии телеметрии
+        for _ in range(rng.randint(3, 6)):
+            ly = rng.randint(4, h - 4)
+            lx = rng.randint(0, max(1, w - 120))
+            lw = rng.randint(30, 160)
+            col = rng.choice([QColor(6, 248, 104), QColor(18, 110, 233)])
+            col.setAlpha(int(200 * intensity))
+            painter.fillRect(QRect(lx, ly, lw, 2), col)
+
+        # 3. Белая вспышка в ядре
+        flash = max(0.0, 1.0 - prog * 2.5) if phase == "opening" else max(0.0, (prog - 0.6) * 2.5)
+        if flash > 0.05:
+            cy = h // 2 + rng.randint(-12, 12)
+            painter.fillRect(QRect(0, cy, w, 2), QColor(249, 249, 249, int(255 * flash)))
+
+        # 4. Сканирующие полосы CRT
+        scan_a = int(35 * intensity)
+        if scan_a > 0:
+            painter.setPen(QPen(QColor(246, 2, 63, scan_a), 1))
+            for y in range(0, h, 3):
+                painter.drawLine(0, y, w, y)
+
+        painter.end()
+
+
 class CyberContextMenuWindow(QDialog):
     """16:9 центрированное киберпанк-окно управления питомцем."""
 
@@ -174,8 +251,18 @@ class CyberContextMenuWindow(QDialog):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
 
+        self._anim_phase: str = "none"
+        self._anim_progress: float = 0.0
+        self._anim_duration: float = 0.16
+        self._anim_start_time: float = 0.0
+        self._anim_timer = QTimer(self)
+        self._anim_timer.setInterval(16)
+        self._anim_timer.timeout.connect(self._on_anim_tick)
+
         self._init_geometry()
         self._init_ui()
+        self._overlay = DatamoshOverlay(self)
+        self._overlay.setGeometry(self.rect())
 
     def _init_geometry(self) -> None:
         screen = QGuiApplication.primaryScreen()
@@ -297,19 +384,108 @@ class CyberContextMenuWindow(QDialog):
         if event.type() == QEvent.Type.ActivationChange and not self.isActiveWindow():
             self.close()
         super().changeEvent(event)
+    @property
+    def anim_phase(self) -> str:
+        return self._anim_phase
+
+    @property
+    def anim_progress(self) -> float:
+        return self._anim_progress
+
+    def resizeEvent(self, event: Any) -> None:
+        super().resizeEvent(event)
+        if hasattr(self, "_overlay") and self._overlay is not None:
+            self._overlay.setGeometry(self.rect())
+            self._overlay.raise_()
+
     def showEvent(self, event: Any) -> None:
         super().showEvent(event)
+        if hasattr(self, "_overlay") and self._overlay is not None:
+            self._overlay.setGeometry(self.rect())
+            self._overlay.raise_()
+        self._start_open_animation()
+
+    def close(self, immediate: bool = False) -> bool:
+        if immediate or not self.isVisible() or self._anim_phase in ("closing", "closed"):
+            self._anim_phase = "closed"
+            self._anim_timer.stop()
+            super().reject()
+            return True
+        self._start_close_animation()
+        return False
+
+    def reject(self) -> None:
+        if self._anim_phase == "closed" or not self.isVisible():
+            self._anim_timer.stop()
+            super().reject()
+            return
+        if self._anim_phase != "closing":
+            self._start_close_animation()
+
+    def accept(self) -> None:
+        if self._anim_phase == "closed" or not self.isVisible():
+            self._anim_timer.stop()
+            super().accept()
+            return
+        if self._anim_phase != "closing":
+            self._start_close_animation()
+
+    def closeEvent(self, event: Any) -> None:
+        if self._anim_phase == "closed" or not self.isVisible():
+            self._anim_timer.stop()
+            super().reject()
+            super().closeEvent(event)
+            return
+
+        if self._anim_phase == "closing":
+            event.ignore()
+            return
+
+        event.ignore()
+        self._start_close_animation()
+
+    def _start_open_animation(self) -> None:
+        self._anim_phase = "opening"
+        self._anim_progress = 0.0
+        self._anim_start_time = time.monotonic()
+        self.setWindowOpacity(0.2)
         try:
             get_speech_sfx().play_swoosh()
         except Exception:
             pass
+        self._anim_timer.start()
 
-    def closeEvent(self, event: Any) -> None:
+    def _start_close_animation(self) -> None:
+        self._anim_phase = "closing"
+        self._anim_progress = 0.0
+        self._anim_start_time = time.monotonic()
         try:
             get_speech_sfx().play_close()
         except Exception:
             pass
-        super().closeEvent(event)
+        self._anim_timer.start()
+
+    def _on_anim_tick(self) -> None:
+        elapsed = time.monotonic() - self._anim_start_time
+        prog = min(1.0, elapsed / self._anim_duration) if self._anim_duration > 0 else 1.0
+        self._anim_progress = prog
+
+        if self._anim_phase == "opening":
+            self.setWindowOpacity(min(1.0, 0.2 + 0.8 * prog))
+            self._overlay.update()
+            if prog >= 1.0:
+                self._anim_phase = "none"
+                self._anim_timer.stop()
+                self.setWindowOpacity(1.0)
+                self._overlay.update()
+
+        elif self._anim_phase == "closing":
+            self.setWindowOpacity(max(0.0, 1.0 - prog))
+            self._overlay.update()
+            if prog >= 1.0:
+                self._anim_phase = "closed"
+                self._anim_timer.stop()
+                super().reject()
 
 
 __all__ = [
