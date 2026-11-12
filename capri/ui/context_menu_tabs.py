@@ -173,7 +173,7 @@ class CoreTabPage(QWidget):
         self.btn_summon.clicked.connect(self._on_summon)
         act_layout.addWidget(self.btn_summon, 0, 0)
 
-        self.btn_deck = QPushButton("[DECK] Кибердэка", self)
+        self.btn_deck = QPushButton("[DECK] Кибердэка (ввод команд)", self)
         self.btn_deck.setStyleSheet(_BTN_STYLE)
         self.btn_deck.clicked.connect(self._on_deck)
         act_layout.addWidget(self.btn_deck, 0, 1)
@@ -194,17 +194,39 @@ class CoreTabPage(QWidget):
         tog_layout = QVBoxLayout(grp_toggles)
         tog_layout.setSpacing(8)
 
-        self.chk_voice = QCheckBox("Голосовой интерфейс (ASR / VAD)", self)
+        self.chk_discord = QCheckBox("[DISCORD] Discord Rich Presence", self)
+        self.chk_discord.setStyleSheet(_CHECKBOX_STYLE)
+        orchestrator = getattr(self.pet_window, "_orchestrator", None)
+        rpc_enabled = (
+            getattr(orchestrator, "_discord_enabled", True)
+            if orchestrator
+            else get_config_value("discord.enabled", True)
+        )
+        self.chk_discord.setChecked(rpc_enabled)
+        self.chk_discord.toggled.connect(self._on_toggle_discord)
+        tog_layout.addWidget(self.chk_discord)
+
+        self.chk_voice = QCheckBox("[VOICE] Голосовой ввод", self)
         self.chk_voice.setStyleSheet(_CHECKBOX_STYLE)
-        self.chk_voice.setChecked(get_config_value("audio.voice_enabled", True))
+        voice_listening = False
+        if hasattr(self.pet_window, "voice_coordinator"):
+            voice_listening = getattr(self.pet_window.voice_coordinator, "is_listening", False)
+        elif hasattr(self.pet_window, "voice"):
+            voice_listening = getattr(self.pet_window.voice, "is_listening", False)
+        else:
+            voice_listening = get_config_value("audio.voice_enabled", True)
+        self.chk_voice.setChecked(voice_listening)
         self.chk_voice.toggled.connect(self._on_toggle_voice)
         tog_layout.addWidget(self.chk_voice)
 
-        self.chk_glitches = QCheckBox("Экранные глитчи (Blackwall ICE)", self)
+        self.chk_glitches = QCheckBox("[GLITCH] Экранные глитчи", self)
         self.chk_glitches.setStyleSheet(_CHECKBOX_STYLE)
-        self.chk_glitches.setChecked(
-            get_config_value("effects.glitches_enabled", True)
-        )
+        glitches_enabled = getattr(self.pet_window, "glitches_enabled", False)
+        if not glitches_enabled and hasattr(self.pet_window, "glitches"):
+            glitches_enabled = getattr(self.pet_window.glitches, "is_enabled", False)
+        elif not glitches_enabled:
+            glitches_enabled = get_config_value("effects.glitches_enabled", True)
+        self.chk_glitches.setChecked(glitches_enabled)
         self.chk_glitches.toggled.connect(self._on_toggle_glitches)
         tog_layout.addWidget(self.chk_glitches)
         layout.addWidget(grp_toggles)
@@ -230,17 +252,32 @@ class CoreTabPage(QWidget):
         if callable(fn):
             fn()
 
+    def _on_toggle_discord(self, checked: bool) -> None:
+        actions = getattr(self.pet_window, "actions", None)
+        if actions and hasattr(actions, "set_discord_enabled"):
+            actions.set_discord_enabled(checked)
+        elif hasattr(self.pet_window, "set_discord_enabled"):
+            self.pet_window.set_discord_enabled(checked)
+        else:
+            set_config_value("discord.enabled", checked)
+
     def _on_toggle_voice(self, checked: bool) -> None:
         actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "toggle_voice"):
             actions.toggle_voice()
+        elif hasattr(self.pet_window, "toggle_voice"):
+            self.pet_window.toggle_voice()
         else:
             set_config_value("audio.voice_enabled", checked)
 
     def _on_toggle_glitches(self, checked: bool) -> None:
-        fn = getattr(self.pet_window, "_toggle_glitches", None)
-        if callable(fn):
-            fn()
+        actions = getattr(self.pet_window, "actions", None)
+        if actions and hasattr(actions, "toggle_glitches"):
+            actions.toggle_glitches()
+        elif hasattr(self.pet_window, "_toggle_glitches"):
+            self.pet_window._toggle_glitches()
+        elif hasattr(self.pet_window, "process_input"):
+            self.pet_window.process_input("глитч")
         else:
             set_config_value("effects.glitches_enabled", checked)
 
@@ -257,7 +294,45 @@ class AudioTabPage(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        grp_vol = QGroupBox("[MASTER_VOLUME]", self)
+        grp_sfx = QGroupBox("[AUDIO.FX] Звуковые эффекты", self)
+        grp_sfx.setStyleSheet(_GROUP_STYLE)
+        sfx_layout = QVBoxLayout(grp_sfx)
+
+        self.chk_speech = QCheckBox("[SYNTH] Синтез речи (SFX)", self)
+        self.chk_speech.setStyleSheet(_CHECKBOX_STYLE)
+        self.chk_speech.setChecked(
+            get_config_value("audio.speech_sound_enabled", True)
+        )
+        self.chk_speech.toggled.connect(self._on_toggle_speech_sound)
+        sfx_layout.addWidget(self.chk_speech)
+
+        self.chk_fx = QCheckBox("[UI] UI эффекты", self)
+        self.chk_fx.setStyleSheet(_CHECKBOX_STYLE)
+        self.chk_fx.setChecked(
+            get_config_value("audio.effects_sound_enabled", True)
+        )
+        self.chk_fx.toggled.connect(self._on_toggle_fx_sound)
+        sfx_layout.addWidget(self.chk_fx)
+
+        self.chk_vol_hud = QCheckBox("Экранный оверлей (Volume HUD)", self)
+        self.chk_vol_hud.setStyleSheet(_CHECKBOX_STYLE)
+        self.chk_vol_hud.setChecked(
+            get_config_value("audio.volume_hud_enabled", True)
+        )
+        self.chk_vol_hud.toggled.connect(self._on_toggle_volume_hud)
+        sfx_layout.addWidget(self.chk_vol_hud)
+        layout.addWidget(grp_sfx)
+
+        self.chk_vol_hud = QCheckBox("Экранный оверлей (Volume HUD)", self)
+        self.chk_vol_hud.setStyleSheet(_CHECKBOX_STYLE)
+        self.chk_vol_hud.setChecked(
+            get_config_value("audio.volume_hud_enabled", True)
+        )
+        self.chk_vol_hud.toggled.connect(self._on_toggle_volume_hud)
+        sfx_layout.addWidget(self.chk_vol_hud)
+        layout.addWidget(grp_sfx)
+
+        grp_vol = QGroupBox("[VOL] Громкость SFX", self)
         grp_vol.setStyleSheet(_GROUP_STYLE)
         vol_layout = QVBoxLayout(grp_vol)
 
@@ -287,36 +362,7 @@ class AudioTabPage(QWidget):
         vol_layout.addLayout(presets_layout)
         layout.addWidget(grp_vol)
 
-        grp_sfx = QGroupBox("[AUDIO_CHANNELS]", self)
-        grp_sfx.setStyleSheet(_GROUP_STYLE)
-        sfx_layout = QVBoxLayout(grp_sfx)
-
-        self.chk_speech = QCheckBox("Звуки диалогов и речи", self)
-        self.chk_speech.setStyleSheet(_CHECKBOX_STYLE)
-        self.chk_speech.setChecked(
-            get_config_value("audio.speech_sound_enabled", True)
-        )
-        self.chk_speech.toggled.connect(self._on_toggle_speech_sound)
-        sfx_layout.addWidget(self.chk_speech)
-
-        self.chk_fx = QCheckBox("Звуки эффектов и молний", self)
-        self.chk_fx.setStyleSheet(_CHECKBOX_STYLE)
-        self.chk_fx.setChecked(
-            get_config_value("audio.effects_sound_enabled", True)
-        )
-        self.chk_fx.toggled.connect(self._on_toggle_fx_sound)
-        sfx_layout.addWidget(self.chk_fx)
-
-        self.chk_vol_hud = QCheckBox("Экранный оверлей (Volume HUD)", self)
-        self.chk_vol_hud.setStyleSheet(_CHECKBOX_STYLE)
-        self.chk_vol_hud.setChecked(
-            get_config_value("audio.volume_hud_enabled", True)
-        )
-        self.chk_vol_hud.toggled.connect(self._on_toggle_volume_hud)
-        sfx_layout.addWidget(self.chk_vol_hud)
-        layout.addWidget(grp_sfx)
-
-        grp_mic = QGroupBox("[AUDIO_INPUT_DEVICE]", self)
+        grp_mic = QGroupBox("[AUDIO.IN] Входной микрофон", self)
         grp_mic.setStyleSheet(_GROUP_STYLE)
         mic_layout = QVBoxLayout(grp_mic)
 
@@ -404,7 +450,7 @@ class VisualTabPage(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        grp_scale = QGroupBox("[SPRITE_SCALE]", self)
+        grp_scale = QGroupBox("[SCALE] Масштаб проекции", self)
         grp_scale.setStyleSheet(_GROUP_STYLE)
         scale_layout = QHBoxLayout(grp_scale)
 
@@ -418,12 +464,12 @@ class VisualTabPage(QWidget):
             self._scale_buttons[s] = btn
         layout.addWidget(grp_scale)
 
-        grp_glitch = QGroupBox("[GLITCH_INTENSITY]", self)
+        grp_glitch = QGroupBox("[FX.RATE] Интенсивность глитчей", self)
         grp_glitch.setStyleSheet(_GROUP_STYLE)
         glitch_layout = QHBoxLayout(grp_glitch)
 
         cur_intensity = str(get_config_value("effects.glitch_intensity", "weak"))
-        options = (("weak", "Низкая"), ("medium", "Средняя"), ("strong", "Макс"))
+        options = (("weak", "Низкая"), ("medium", "Средняя"), ("strong", "Максимальная"))
         self._glitch_buttons: dict[str, QPushButton] = {}
         for k, title in options:
             btn = QPushButton(f"[{title}]", self)
@@ -435,7 +481,7 @@ class VisualTabPage(QWidget):
             self._glitch_buttons[k] = btn
         layout.addWidget(grp_glitch)
 
-        grp_screen = QGroupBox("[TARGET_DISPLAY]", self)
+        grp_screen = QGroupBox("[DISP] Монитор", self)
         grp_screen.setStyleSheet(_GROUP_STYLE)
         scr_layout = QVBoxLayout(grp_screen)
         self.combo_screen = QComboBox(self)
@@ -459,7 +505,7 @@ class VisualTabPage(QWidget):
         misc_layout = QVBoxLayout(grp_misc)
 
         self.btn_breach = QPushButton(
-            "[BREACH] Повторить пробой экрана (Intro)", self
+            "[FX] Blackwall Breach Intro", self
         )
         self.btn_breach.setStyleSheet(_BTN_STYLE)
         self.btn_breach.clicked.connect(self._on_replay_breach)
@@ -506,6 +552,7 @@ class SystemTabPage(QWidget):
     def __init__(self, window: Any, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.pet_window = window
+        self._freq_buttons: dict[str, QPushButton] = {}
         self._init_ui()
 
     def _init_ui(self) -> None:
@@ -513,7 +560,7 @@ class SystemTabPage(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        grp_standby = QGroupBox("[STANDBY_TIMER]", self)
+        grp_standby = QGroupBox("[STANDBY] Таймаут ухода в сон", self)
         grp_standby.setStyleSheet(_GROUP_STYLE)
         stb_layout = QHBoxLayout(grp_standby)
 
@@ -530,11 +577,11 @@ class SystemTabPage(QWidget):
             self._timeout_buttons[sec] = btn
         layout.addWidget(grp_standby)
 
-        grp_beh = QGroupBox("[AUTONOMOUS_DAEMONS]", self)
+        grp_beh = QGroupBox("[AUTONOMY] Автономные реплики", self)
         grp_beh.setStyleSheet(_GROUP_STYLE)
         beh_layout = QVBoxLayout(grp_beh)
 
-        self.chk_reminders = QCheckBox("Автономные реплики (вкл/выкл)", self)
+        self.chk_reminders = QCheckBox("Включить реплики", self)
         self.chk_reminders.setStyleSheet(_CHECKBOX_STYLE)
         self.chk_reminders.setChecked(
             get_config_value("behavior.reminders_enabled", True)
@@ -542,25 +589,56 @@ class SystemTabPage(QWidget):
         self.chk_reminders.toggled.connect(self._on_toggle_reminders)
         beh_layout.addWidget(self.chk_reminders)
 
+        lbl_freq = QLabel("Частота напоминаний:", self)
+        lbl_freq.setStyleSheet(_LABEL_STYLE)
+        beh_layout.addWidget(lbl_freq)
+
         freq_layout = QHBoxLayout()
+        curr_min_ms = int(get_config_value("behavior.reminder_min_interval_ms", 600_000))
+        curr_max_ms = int(get_config_value("behavior.reminder_max_interval_ms", 3_600_000))
+        actions = getattr(self.pet_window, "actions", None)
+        raw_range = getattr(actions, "reminder_interval_range", None)
+        if isinstance(raw_range, (tuple, list)) and len(raw_range) == 2:
+            curr_min_ms, curr_max_ms = int(raw_range[0]), int(raw_range[1])
+        else:
+            win_range = getattr(self.pet_window, "reminder_interval_range", None)
+            if isinstance(win_range, (tuple, list)) and len(win_range) == 2:
+                curr_min_ms, curr_max_ms = int(win_range[0]), int(win_range[1])
+
         freq_presets = (
-            ("Часто", 60_000, 300_000),
-            ("Обычно", 600_000, 3_600_000),
-            ("Редко", 1_800_000, 7_200_000),
+            ("Часто (1 – 5 мин)", 60_000, 300_000),
+            ("Обычно (10 – 60 мин)", 600_000, 3_600_000),
+            ("Редко (30 – 120 мин)", 1_800_000, 7_200_000),
         )
+        is_preset_matched = False
         for label, mn, mx in freq_presets:
             btn = QPushButton(label, self)
-            btn.setStyleSheet(_BTN_STYLE)
-            btn.clicked.connect(lambda _, m1=mn, m2=mx: self._set_reminder_range(m1, m2))
+            matched = abs(curr_min_ms - mn) < 1000 and abs(curr_max_ms - mx) < 1000
+            if matched:
+                is_preset_matched = True
+            btn.setStyleSheet(_BTN_ACCENT_STYLE if matched else _BTN_STYLE)
+            btn.clicked.connect(lambda _, m1=mn, m2=mx, b=btn: self._on_freq_preset_clicked(m1, m2, b))
             freq_layout.addWidget(btn)
+            self._freq_buttons[label] = btn
 
-        self.btn_custom_range = QPushButton("Своя частота...", self)
-        self.btn_custom_range.setStyleSheet(_BTN_STYLE)
+        curr_min_m = max(1, round(curr_min_ms / 60_000))
+        curr_max_m = max(curr_min_m, round(curr_max_ms / 60_000))
+        custom_label = (
+            f"Своя частота ({curr_min_m} – {curr_max_m} мин)..."
+            if not is_preset_matched
+            else "Своя частота..."
+        )
+        self.btn_custom_range = QPushButton(custom_label, self)
+        self.btn_custom_range.setStyleSheet(
+            _BTN_ACCENT_STYLE if not is_preset_matched else _BTN_STYLE
+        )
         self.btn_custom_range.clicked.connect(self._on_custom_reminder_range)
         freq_layout.addWidget(self.btn_custom_range)
+        self._freq_buttons["custom"] = self.btn_custom_range
+
         beh_layout.addLayout(freq_layout)
 
-        self.chk_game = QCheckBox("Игровой режим (Stealth Game Suppression)", self)
+        self.chk_game = QCheckBox("[GAME] Игровой режим (тишина)", self)
         self.chk_game.setStyleSheet(_CHECKBOX_STYLE)
         self.chk_game.setChecked(
             get_config_value("game_mode.suppression_enabled", True)
@@ -568,7 +646,7 @@ class SystemTabPage(QWidget):
         self.chk_game.toggled.connect(self._on_toggle_game_mode)
         beh_layout.addWidget(self.chk_game)
 
-        self.chk_discord = QCheckBox("Интеграция с Discord RPC", self)
+        self.chk_discord = QCheckBox("[DISCORD] Discord Rich Presence", self)
         self.chk_discord.setStyleSheet(_CHECKBOX_STYLE)
         self.chk_discord.setChecked(get_config_value("discord.enabled", True))
         self.chk_discord.toggled.connect(self._on_toggle_discord)
@@ -585,7 +663,7 @@ class SystemTabPage(QWidget):
 
         layout.addStretch()
 
-        self.btn_halt = QPushButton("[SYS.HALT] АВАРИЙНОЕ ЗАВЕРШЕНИЕ РАБОТЫ", self)
+        self.btn_halt = QPushButton("[SYS.HALT] Завершить работу", self)
         self.btn_halt.setStyleSheet(_HALT_BTN_STYLE)
         self.btn_halt.clicked.connect(self._on_halt)
         layout.addWidget(self.btn_halt)
@@ -608,14 +686,27 @@ class SystemTabPage(QWidget):
             set_config_value("behavior.reminder_min_interval_ms", min_ms)
             set_config_value("behavior.reminder_max_interval_ms", max_ms)
 
+    def _on_freq_preset_clicked(self, min_ms: int, max_ms: int, clicked_btn: QPushButton) -> None:
+        self._set_reminder_range(min_ms, max_ms)
+        for btn in self._freq_buttons.values():
+            btn.setStyleSheet(_BTN_STYLE)
+        clicked_btn.setStyleSheet(_BTN_ACCENT_STYLE)
+        self.btn_custom_range.setText("Своя частота...")
+
     def _on_custom_reminder_range(self) -> None:
         curr_min_m = int(get_config_value("behavior.reminder_min_interval_ms", 600_000)) // 60_000
         curr_max_m = int(get_config_value("behavior.reminder_max_interval_ms", 3_600_000)) // 60_000
         dialog = ReminderRangeDialog(curr_min_m, curr_max_m, self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            new_min_ms = dialog.spin_from.value() * 60_000
-            new_max_ms = dialog.spin_to.value() * 60_000
+            new_min_m = dialog.spin_from.value()
+            new_max_m = max(new_min_m, dialog.spin_to.value())
+            new_min_ms = new_min_m * 60_000
+            new_max_ms = new_max_m * 60_000
             self._set_reminder_range(new_min_ms, new_max_ms)
+            for btn in self._freq_buttons.values():
+                btn.setStyleSheet(_BTN_STYLE)
+            self.btn_custom_range.setText(f"Своя частота ({new_min_m} – {new_max_m} мин)...")
+            self.btn_custom_range.setStyleSheet(_BTN_ACCENT_STYLE)
 
     def _on_toggle_reminders(self, checked: bool) -> None:
         actions = getattr(self.pet_window, "actions", None)

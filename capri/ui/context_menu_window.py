@@ -211,7 +211,7 @@ class CyberContextMenuWindow(QDialog):
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 0)
 
-        lbl_title = QLabel("CAPRI//CONTROL_HUB [REV.46]", self)
+        lbl_title = QLabel("[ONLINE] CAPRI//NEURAL_LINK", self)
         lbl_title.setStyleSheet(_HEADER_STYLE)
         header_layout.addWidget(lbl_title)
 
