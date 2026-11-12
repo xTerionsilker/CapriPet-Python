@@ -81,6 +81,9 @@ class TestContextMenuTabs(unittest.TestCase):
         self.assertEqual(len(page._scale_buttons), 5)
         self.assertEqual(len(page._glitch_buttons), 3)
 
+        page.btn_breach.click()
+        self.mock_actions.trigger_intro_breach.assert_called()
+
     def test_system_tab_page_creation(self) -> None:
         page = SystemTabPage(self.mock_window)
         self.assertIsNotNone(page)

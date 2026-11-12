@@ -262,6 +262,9 @@ class PetWindowActionDelegate:
         self._window._orchestrator.voice_coordinator.wake_if_needed()
         self._window._orchestrator.voice_coordinator.arm()
 
+    def trigger_intro_breach(self) -> None:
+        self._window.trigger_intro_breach()
+
     def set_game_suppression_enabled(self, enabled: bool) -> None:
         set_config_value("game_mode.suppression_enabled", enabled)
         self._window._game_detector.set_enabled(enabled)

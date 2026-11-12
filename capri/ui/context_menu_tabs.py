@@ -540,10 +540,22 @@ class VisualTabPage(QWidget):
                 self.pet_window.set_designated_screen(scr)
 
     def _on_replay_breach(self) -> None:
-        effects = getattr(self.pet_window, "_effects_coordinator", None)
-        if effects and hasattr(effects, "play_intro_breach"):
+        top = self.window()
+        if isinstance(top, QDialog):
+            top.close()
+
+        actions = getattr(self.pet_window, "actions", None)
+        if actions and hasattr(actions, "trigger_intro_breach"):
+            actions.trigger_intro_breach()
+        elif hasattr(self.pet_window, "trigger_intro_breach"):
+            self.pet_window.trigger_intro_breach()
+        elif hasattr(self.pet_window, "_effects") and hasattr(
+            self.pet_window._effects, "play_intro_breach"
+        ):
             self.pet_window.hide()
-            effects.play_intro_breach(self.pet_window.reveal_on_startup)
+            self.pet_window._effects.play_intro_breach(
+                getattr(self.pet_window, "_reveal_on_startup", None)
+            )
 
 
 class SystemTabPage(QWidget):
