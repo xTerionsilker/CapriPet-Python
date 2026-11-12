@@ -8,7 +8,9 @@ from .context_menu import (
     TrayManager,
     build_pet_context_menu,
     build_tray_context_menu,
+    show_context_menu_hub,
 )
+from .context_menu_window import CyberContextMenuWindow
 from .pet_renderer import (
     PetRenderer,
     PetRenderState,
@@ -52,6 +54,7 @@ __all__ = [
     "CapriWindow",
     "ContextMenuBuilder",
     "CyberConsoleHud",
+    "CyberContextMenuWindow",
     "CyberMenu",
     "CyberVoiceHud",
     "CyberVolumeHud",
@@ -63,6 +66,7 @@ __all__ = [
     "TrayManager",
     "build_pet_context_menu",
     "build_tray_context_menu",
+    "show_context_menu_hub",
     "free_bands",
     "get_font",
     "get_hud_font",
