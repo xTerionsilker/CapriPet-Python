@@ -130,9 +130,9 @@ assets/                         # Графика, шрифты и позы
 └── var/                        # Спрайты поз питомца (idle, other, thinking)
 docs/                           # Инженерная документация и спецификации
 ├── architecture.md             # C4-архитектура, Sequence-диаграммы и модель безопасности
+├── character_design.md         # Канон лора, характер речи, манеры и дизайн-система Studio Trigger
 ├── config_spec.md              # Спецификация Pydantic-схемы конфигурации и полей
-├── project_structure.md        # Каноническое дерево кодовой базы и описание модулей
-└── superpowers/plans/          # Архив планов реализации изменений Superpowers
+└── project_structure.md        # Каноническое дерево кодовой базы и описание модулей
 models/                         # Папка моделей (Vosk, Silero VAD onnx)
 pyproject.toml                  # Конфигурация инструментов Ruff, Bandit и метаданных проекта
 requirements.txt                # Зависимости проекта
