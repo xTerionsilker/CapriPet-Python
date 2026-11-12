@@ -152,7 +152,7 @@ class CoreTabPage(QWidget):
 
     def __init__(self, window: Any, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.window = window
+        self.pet_window = window
         self._init_ui()
 
     def _init_ui(self) -> None:
@@ -202,29 +202,29 @@ class CoreTabPage(QWidget):
         layout.addWidget(grp_toggles)
         layout.addStretch()
     def _on_summon(self) -> None:
-        fn = getattr(self.window, "activate_command_mode", None)
+        fn = getattr(self.pet_window, "activate_command_mode", None)
         if callable(fn):
             fn()
 
     def _on_teleport(self) -> None:
-        fn = getattr(self.window, "activate_teleport", None)
+        fn = getattr(self.pet_window, "activate_teleport", None)
         if callable(fn):
             fn()
 
     def _on_reset_pos(self) -> None:
-        fn = getattr(self.window, "_reset_position", None)
+        fn = getattr(self.pet_window, "_reset_position", None)
         if callable(fn):
             fn()
 
     def _on_toggle_voice(self, checked: bool) -> None:
-        actions = getattr(self.window, "actions", None)
+        actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "toggle_voice"):
             actions.toggle_voice()
         else:
             set_config_value("audio.voice_enabled", checked)
 
     def _on_toggle_glitches(self, checked: bool) -> None:
-        fn = getattr(self.window, "_toggle_glitches", None)
+        fn = getattr(self.pet_window, "_toggle_glitches", None)
         if callable(fn):
             fn()
         else:
@@ -236,7 +236,7 @@ class AudioTabPage(QWidget):
 
     def __init__(self, window: Any, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.window = window
+        self.pet_window = window
         self._init_ui()
     def _init_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -309,21 +309,21 @@ class AudioTabPage(QWidget):
         self._set_volume(val)
 
     def _set_volume(self, val: int) -> None:
-        actions = getattr(self.window, "actions", None)
+        actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_volume"):
             actions.set_volume(val)
         else:
             set_config_value("audio.volume", val)
 
     def _on_toggle_speech_sound(self, checked: bool) -> None:
-        actions = getattr(self.window, "actions", None)
+        actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_speech_sound_enabled"):
             actions.set_speech_sound_enabled(checked)
         else:
             set_config_value("audio.speech_sound_enabled", checked)
 
     def _on_toggle_fx_sound(self, checked: bool) -> None:
-        actions = getattr(self.window, "actions", None)
+        actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_effects_sound_enabled"):
             actions.set_effects_sound_enabled(checked)
         else:
@@ -331,7 +331,7 @@ class AudioTabPage(QWidget):
 
     def _on_mic_changed(self, index: int) -> None:
         dev = self.combo_mic.itemData(index)
-        actions = getattr(self.window, "actions", None)
+        actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_designated_microphone"):
             actions.set_designated_microphone(dev)
 class VisualTabPage(QWidget):
@@ -339,7 +339,7 @@ class VisualTabPage(QWidget):
 
     def __init__(self, window: Any, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.window = window
+        self.pet_window = window
         self._init_ui()
 
     def _init_ui(self) -> None:
@@ -387,24 +387,24 @@ class VisualTabPage(QWidget):
         layout.addWidget(grp_misc)
         layout.addStretch()
     def _on_scale_selected(self, val: int) -> None:
-        fn = getattr(self.window, "set_sprite_scale", None)
+        fn = getattr(self.pet_window, "set_sprite_scale", None)
         if callable(fn):
             fn(val)
         else:
             set_config_value("appearance.scale", val)
 
     def _on_glitch_selected(self, key: str) -> None:
-        fn = getattr(self.window, "set_glitch_intensity", None)
+        fn = getattr(self.pet_window, "set_glitch_intensity", None)
         if callable(fn):
             fn(key)
         else:
             set_config_value("effects.glitch_intensity", key)
 
     def _on_replay_breach(self) -> None:
-        effects = getattr(self.window, "_effects_coordinator", None)
+        effects = getattr(self.pet_window, "_effects_coordinator", None)
         if effects and hasattr(effects, "play_intro_breach"):
-            self.window.hide()
-            effects.play_intro_breach(self.window.reveal_on_startup)
+            self.pet_window.hide()
+            effects.play_intro_breach(self.pet_window.reveal_on_startup)
 
 
 class SystemTabPage(QWidget):
@@ -412,7 +412,7 @@ class SystemTabPage(QWidget):
 
     def __init__(self, window: Any, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.window = window
+        self.pet_window = window
         self._init_ui()
 
     def _init_ui(self) -> None:
@@ -476,28 +476,28 @@ class SystemTabPage(QWidget):
         self.btn_halt.clicked.connect(self._on_halt)
         layout.addWidget(self.btn_halt)
     def _on_timeout_selected(self, sec: int) -> None:
-        fn = getattr(self.window, "set_activity_timeout", None)
+        fn = getattr(self.pet_window, "set_activity_timeout", None)
         if callable(fn):
             fn(sec)
         else:
             set_config_value("behavior.inactivity_timeout_ms", sec * 1000)
 
     def _on_toggle_reminders(self, checked: bool) -> None:
-        actions = getattr(self.window, "actions", None)
+        actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_reminders_enabled"):
             actions.set_reminders_enabled(checked)
         else:
             set_config_value("behavior.reminders_enabled", checked)
 
     def _on_toggle_game_mode(self, checked: bool) -> None:
-        actions = getattr(self.window, "actions", None)
+        actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_game_suppression_enabled"):
             actions.set_game_suppression_enabled(checked)
         else:
             set_config_value("game_mode.suppression_enabled", checked)
 
     def _on_toggle_discord(self, checked: bool) -> None:
-        actions = getattr(self.window, "actions", None)
+        actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_discord_enabled"):
             actions.set_discord_enabled(checked)
         else:
@@ -507,7 +507,7 @@ class SystemTabPage(QWidget):
         set_config_value("behavior.file_shredder_enabled", checked)
 
     def _on_halt(self) -> None:
-        fn = getattr(self.window, "close", None)
+        fn = getattr(self.pet_window, "close", None)
         if callable(fn):
             fn()
 

@@ -140,7 +140,7 @@ class CyberTabBar(QWidget):
                 _TAB_BTN_ACTIVE if i == index else _TAB_BTN_DEFAULT
             )
         try:
-            get_speech_sfx().play_button_click()
+            get_speech_sfx().play_relay_snap()
         except Exception:
             pass
         self.current_changed.emit(index)
@@ -154,6 +154,8 @@ class CyberTabBar(QWidget):
             next_idx = (self._current_index - 1) % len(self._titles)
             self.set_current_index(next_idx)
         event.accept()
+
+
 class CyberContextMenuWindow(QDialog):
     """16:9 центрированное киберпанк-окно управления питомцем."""
 
@@ -162,7 +164,7 @@ class CyberContextMenuWindow(QDialog):
 
     def __init__(self, window: Any, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.window = window
+        self.pet_window = window
 
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
@@ -229,10 +231,10 @@ class CyberContextMenuWindow(QDialog):
 
         # Stacked pages
         self.stack = QStackedWidget(self)
-        self.page_core = CoreTabPage(self.window, self)
-        self.page_audio = AudioTabPage(self.window, self)
-        self.page_visual = VisualTabPage(self.window, self)
-        self.page_system = SystemTabPage(self.window, self)
+        self.page_core = CoreTabPage(self.pet_window, self)
+        self.page_audio = AudioTabPage(self.pet_window, self)
+        self.page_visual = VisualTabPage(self.pet_window, self)
+        self.page_system = SystemTabPage(self.pet_window, self)
 
         self.stack.addWidget(self.page_core)
         self.stack.addWidget(self.page_audio)
@@ -298,13 +300,13 @@ class CyberContextMenuWindow(QDialog):
     def showEvent(self, event: Any) -> None:
         super().showEvent(event)
         try:
-            get_speech_sfx().play_open_menu()
+            get_speech_sfx().play_swoosh()
         except Exception:
             pass
 
     def closeEvent(self, event: Any) -> None:
         try:
-            get_speech_sfx().play_close_menu()
+            get_speech_sfx().play_close()
         except Exception:
             pass
         super().closeEvent(event)
