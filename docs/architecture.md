@@ -64,7 +64,7 @@ flowchart TB
         direction TB
         PetWindow["ui/pet_window.py (с делегатами actions, shredder_drop, window_prank, window_system_events)<br/>(Главное окно питомца, View, Actions и обработчики событий)"]
         PetRenderer["ui/pet_renderer.py & ui/renderers/hud_telemetry.py<br/>(Рендерер спрайтов, глитч-ауры Blackwall, сканлайнов и HUD телеметрии)"]
-        ContextMenu["ui/context_menu.py, tray_manager.py, reminder_dialog.py<br/>(Кибер-меню, трей и настройки)"]
+        ContextMenu["ui/context_menu.py, context_menu_window.py, context_menu_tabs.py, tray_manager.py, reminder_dialog.py<br/>(16:9 Cyber Hub меню, трей и настройки)"]
         ConsoleHUD["ui/console_hud.py<br/>(CyberConsoleHud прямой ввод команд)"]
         VoiceCoord["ui/voice_coordinator.py<br/>(Координатор ASR & HUD)"]
         VoiceHUD["ui/voice_hud.py<br/>(Cyberpunk Voice HUD над taskbar)"]

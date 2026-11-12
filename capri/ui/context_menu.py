@@ -515,6 +515,20 @@ class ContextMenuBuilder:
                 )
 
 
+def show_context_menu_hub(window: Any) -> Any:
+    from .context_menu_window import CyberContextMenuWindow
+
+    dialog = getattr(window, "_context_menu_dialog", None)
+    if (
+        not isinstance(dialog, CyberContextMenuWindow)
+        or not dialog.isVisible()
+    ):
+        dialog = CyberContextMenuWindow(window)
+        window._context_menu_dialog = dialog
+        dialog.exec()
+    return dialog
+
+
 def build_pet_context_menu(
     window: Any, _pos: QPoint | None = None
 ) -> QMenu:
@@ -527,8 +541,6 @@ def build_tray_context_menu(window: Any) -> QMenu:
     return builder.build(for_tray=True)
 
 
-
-
 __all__ = [
     "CyberMenu",
     "ContextMenuBuilder",
@@ -536,4 +548,5 @@ __all__ = [
     "TrayManager",
     "build_pet_context_menu",
     "build_tray_context_menu",
+    "show_context_menu_hub",
 ]

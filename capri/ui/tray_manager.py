@@ -51,17 +51,26 @@ class TrayManager:
         if isinstance(app, (QApplication, QGuiApplication)):
             app.setWindowIcon(icon)
 
-        self._tray_icon = QSystemTrayIcon(icon, self._window)
+        from PySide6.QtCore import QObject
+
+        parent_obj = self._window if isinstance(self._window, QObject) else None
+        self._tray_icon = QSystemTrayIcon(icon, parent_obj)
         self._tray_icon.setToolTip("CapriPet")
 
-        if self._tray_menu is None:
-            from .context_menu import build_tray_context_menu
-
-            self._tray_menu = build_tray_context_menu(self._window)
-
-        self._tray_icon.setContextMenu(self._tray_menu)
         self._tray_icon.activated.connect(self._on_tray_activated)
         self._tray_icon.show()
+
+    def _open_hub(self) -> None:
+        from .context_menu_window import CyberContextMenuWindow
+
+        win = getattr(self._window, "_context_menu_dialog", None)
+        if (
+            not isinstance(win, CyberContextMenuWindow)
+            or not win.isVisible()
+        ):
+            win = CyberContextMenuWindow(self._window)
+            self._window._context_menu_dialog = win
+            win.exec()
 
     def _on_tray_activated(
         self, reason: QSystemTrayIcon.ActivationReason
@@ -71,3 +80,5 @@ class TrayManager:
             QSystemTrayIcon.ActivationReason.DoubleClick,
         ):
             self._window.activate_command_mode()
+        elif reason == QSystemTrayIcon.ActivationReason.Context:
+            self._open_hub()

@@ -13,7 +13,6 @@ from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
     set_config_value,
 )
-from .context_menu import build_pet_context_menu
 from .speech import has_active_speech
 from .speech_sfx import get_speech_sfx
 
@@ -231,8 +230,16 @@ class PetWindowActionDelegate:
     def show_context_menu(self, pos: QPoint) -> None:
         self._window._orchestrator.inactivity.set_paused(True)
         try:
-            menu = build_pet_context_menu(self._window, pos)
-            menu.exec(pos)
+            from .context_menu_window import CyberContextMenuWindow
+
+            dialog = getattr(self._window, "_context_menu_dialog", None)
+            if (
+                not isinstance(dialog, CyberContextMenuWindow)
+                or not dialog.isVisible()
+            ):
+                dialog = CyberContextMenuWindow(self._window)
+                self._window._context_menu_dialog = dialog
+                dialog.exec()
         finally:
             self._window._orchestrator.inactivity.set_paused(False)
 
@@ -254,6 +261,9 @@ class PetWindowActionDelegate:
 
         self._window._orchestrator.voice_coordinator.wake_if_needed()
         self._window._orchestrator.voice_coordinator.arm()
+
+    def trigger_intro_breach(self) -> None:
+        self._window.trigger_intro_breach()
 
     def set_game_suppression_enabled(self, enabled: bool) -> None:
         set_config_value("game_mode.suppression_enabled", enabled)
