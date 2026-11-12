@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from PySide6.QtCore import QCoreApplication
 
@@ -91,6 +91,7 @@ class TestProcessWatcher(unittest.TestCase):
 
         is_game = False
         watcher = ProcessWatcher(is_game_active=lambda: is_game)
+        watcher._enabled = True
         # Уменьшаем кулдауны для быстрого тестирования
         watcher._global_cooldown_sec = 0.5
         watcher._category_cooldown_sec = 1.0
@@ -135,6 +136,20 @@ class TestProcessWatcher(unittest.TestCase):
         mock_detector.is_game_active = False
         orch_is_game = PetOrchestrator._is_game_active(MagicMock(_window=mock_window))
         self.assertFalse(orch_is_game)
+
+    def test_orchestrator_process_monitoring_toggle(self) -> None:
+        from capri.controllers.orchestrator import PetOrchestrator
+
+        mock_orch = MagicMock(spec=PetOrchestrator)
+        mock_orch.process_watcher = MagicMock()
+        mock_orch.process_watcher._enabled = True
+
+        self.assertTrue(PetOrchestrator.process_monitoring_enabled.fget(mock_orch))
+
+        with patch("capri.controllers.orchestrator.set_config_value") as mock_set:
+            PetOrchestrator.set_process_monitoring_enabled(mock_orch, False)
+            mock_orch.process_watcher.set_enabled.assert_called_with(False)
+            mock_set.assert_called_with("telemetry.process_monitoring_enabled", False)
 
 
 if __name__ == "__main__":
