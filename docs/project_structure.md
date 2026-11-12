@@ -81,6 +81,8 @@ capri/
     ├── __init__.py
     ├── console_hud.py          # Cyber HUD терминал прямого ввода команд с кнопкой TERMINATE
     ├── context_menu.py         # Контекстное меню, стиль Cyberpunk и меню-билдер
+    ├── context_menu_tabs.py    # Модульные страницы вкладок параметров и переключателей
+    ├── context_menu_window.py  # 16:9 центрированное киберпанк-окно управления и скроллируемая таб-панель
     ├── game_overlay.py         # Компактный клиновидный HUD-индикатор режима тишины (Stealth)
     ├── pet_renderer.py         # Рендерер спрайта, сканлайны, аура и кинетические экшен-линии
     ├── pet_window.py           # Окно питомца Qt (View-слой, геометрия и события)
@@ -105,6 +107,9 @@ capri/
 tests/                          # Модульные и интеграционные тесты (unittest)
 ├── test_architecture_metrics.py # Архитектурные метрики целостности документации и лимитов
 ├── test_commands_modular.py    # Тесты модульных команд и фасада handlers
+├── test_context_menu_integration.py # Интеграционные тесты вызова 16:9 кибер-меню из окна питомца и трея
+├── test_context_menu_tabs.py   # Модульные тесты страниц параметров кибер-меню
+├── test_context_menu_window.py # Тесты геометрии 16:9 и колесика мыши CyberContextMenuWindow
 ├── test_download_models.py     # Тесты загрузчика и валидатора моделей ASR/VAD
 ├── test_engram_pranks.py       # Тесты пасхалок энграммы, уклонения от курсора, тающего экрана и кулдаунов
 ├── test_game_mode.py           # Тесты детектора игрового режима и фильтрации развёрнутых окон

@@ -191,6 +191,7 @@ class CapriWindow(QWidget):
             pet_window=self,
         )
         self._tray = TrayManager(self)
+        self._context_menu_dialog: Any | None = None
         self._drop_handler = ShredderDropHandler(self)
         self._silent_glyph = SilentPresenceGlyph()
         self._volume_hud: CyberVolumeHud | None = None
