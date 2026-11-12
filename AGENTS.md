@@ -4,34 +4,7 @@ This document provides strict operational, architectural, and design constraints
 
 ---
 
-## 1. Superpowers Skills & Autonomous Workflow
-
-CapriPet utilizes the **Superpowers** skill framework for disciplined, reproducible software engineering. Whenever a task matches an available skill, agents **must invoke and follow the skill before acting**.
-
-### Core Invocation Protocol
-- **Skill-First Discipline:** Check for applicable skills before writing code, proposing solutions, or asking clarifying questions. If a skill applies to the task, invoking it is mandatory.
-- **Process Skills Precedence:** Process skills (`brainstorming`, `systematic-debugging`) take priority over implementation skills (`writing-plans`, `test-driven-development`).
-- **Antigravity Tool Mapping:**
-  - **Subagents:** Use `invoke_subagent` (`TypeName: "self"` for full execution or `"research"` for read-only exploration).
-  - **Task Tracking:** Maintain task artifacts (`write_file` / `edit_file` with `ArtifactMetadata`) as the living checklist (`- [ ]` / `- [x]`). Do not misuse `manage_task` (which is reserved for OS background processes).
-
-### Essential Skills Matrix
-| Trigger / Workflow Phase | Mandatory Skill | Scope & Primary Objectives |
-| :--- | :--- | :--- |
-| **New features / Architecture** | `brainstorming` | Explore requirements, design trade-offs, and visual/lore impact before planning. |
-| **Multi-step implementation** | `writing-plans` | Formulate granular plans with explicit file paths, tasks, and verification steps. |
-| **Plan execution (inline)** | `executing-plans` | Execute plans sequentially with task artifact checklist updates. |
-| **Plan execution (subagents)**| `subagent-driven-development` | Dispatch focused subagents per independent work item. |
-| **Feature / Bugfix coding** | `test-driven-development` | Red-Green-Refactor: failing test first, minimal implementation, clean refactor. |
-| **Bug or unexpected behavior** | `systematic-debugging` | Trace root causes and test hypotheses before touching code. |
-| **Verification & completion** | `verification-before-completion` | Run deterministic verification (`ruff check .`, `compileall`, full test suite) before claiming completion. |
-| **Code reviews & feedback** | `requesting-code-review` / `receiving-code-review` | Pre-merge verification and objective technical review of feedback. |
-| **Branch & task completion** | `finishing-a-development-branch` | Clean integration, commit hygiene, and branch disposition. |
-| **Workspace isolation** | `using-git-worktrees` | Maintain isolated workspace state when developing parallel features. |
-
----
-
-## 2. Environment & Execution
+## 1. Environment & Execution
 
 - **Target Platform:** Windows 10 / 11 (DWM-native, Multi-DPI, Win32 APIs).
 - **Python Interpreter:** Always use the local virtual environment: `.\.venv\Scripts\python.exe`.
@@ -48,7 +21,7 @@ CapriPet utilizes the **Superpowers** skill framework for disciplined, reproduci
 
 ---
 
-## 3. Architecture & Subsystems
+## 2. Architecture & Subsystems
 
 Capri is built around a decoupled Qt/PySide6 architecture with strict layer isolation:
 
@@ -81,7 +54,7 @@ Capri is built around a decoupled Qt/PySide6 architecture with strict layer isol
 
 ---
 
-## 4. Character Identity, Lore & Persona
+## 3. Character Identity, Lore & Persona
 
 ### Who Capri Truly Is
 - **Origin & Nature:** **Capricorn (Каприкорн / Capri)** is an experimental digital personality construct / bio-weapon engram created by Arasaka under secret *Project Capricorn* using **Soulkiller (Душегуб)** technology. She is not an ordinary utility AI, but a fusion of multiple digitized human psyches merged into a single hyper-potent entity.
@@ -102,7 +75,7 @@ Capri is built around a decoupled Qt/PySide6 architecture with strict layer isol
 
 ---
 
-## 5. Cyberpunk Design System & Character Palette
+## 4. Cyberpunk Design System & Character Palette
 
 Capri's UI reflects corrupted military-corpo technology and Blackwall breach phenomena fused with **Studio Trigger-style kinetic hyperactivity**: cut 45° chamfered corners, micro-grid indicators, CRT scanlines, datamosh displacement, harsh electric discharge, and dynamic high-contrast duotone framing (Neon Crimson/Pink & Acid Green).
 
@@ -126,15 +99,15 @@ Any UI, HUD, particle, lightning arc, glitch, or dialog **must** strictly use th
 
 ---
 
-## 6. Code Quality & Standards
+## 5. Code Quality & Standards
 
 1. **Typing & Docs:** Strict static type annotations on all signatures (`def handle(query: str) -> CommandResult:`). PEP 257 docstrings for public classes/facades. Concise inline comments for complex Win32 APIs, kinematics, or non-obvious algorithms.
 2. **Anti-Legacy:** No backward-compatibility shims, adapter wrappers, or deprecated aliases. Update callers directly. Rely on established packages (`pydantic`, `psutil`, `rapidfuzz`, `httpx`, `pywin32`).
-3. **Mandatory Verification:** 100% test pass rate, zero linter warnings, clean `mypy` and `compileall` before completing tasks or opening PRs (verification commands specified in Section 2).
+3. **Mandatory Verification:** 100% test pass rate, zero linter warnings, clean `mypy` and `compileall` before completing tasks or opening PRs (verification commands specified in Section 1).
 
 ---
 
-## 7. Documentation Synchronization (`docs/`)
+## 6. Documentation Synchronization (`docs/`)
 
 Whenever codebase structure, configuration schemas, or subsystems change, update the documentation in the same changeset:
 - **`docs/project_structure.md`:** Maintain the canonical ASCII codebase tree and single-line responsibility descriptions.
@@ -144,7 +117,7 @@ Whenever codebase structure, configuration schemas, or subsystems change, update
 
 ---
 
-## 8. Git Commit Conventions
+## 7. Git Commit Conventions
 
 Strict adherence to **Conventional Commits**: `<type>(<scope>): <short description>`
 
@@ -154,7 +127,7 @@ Strict adherence to **Conventional Commits**: `<type>(<scope>): <short descripti
 
 ---
 
-## 9. GitHub Issues & Release Notes Conventions
+## 8. GitHub Issues & Release Notes Conventions
 
 When authoring GitHub issues or milestone notes for new features, bug fixes, or enhancements, strictly adhere to the project's canonical technical style:
 
