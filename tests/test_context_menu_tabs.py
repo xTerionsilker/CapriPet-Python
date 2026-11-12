@@ -102,6 +102,16 @@ class TestContextMenuTabs(unittest.TestCase):
         page.btn_halt.click()
         self.mock_window.close.assert_called()
 
+    def test_system_tab_page_halt_closes_parent_dialog(self) -> None:
+        from PySide6.QtWidgets import QDialog
+
+        parent_dialog = QDialog()
+        parent_dialog.close = MagicMock()
+        page = SystemTabPage(self.mock_window, parent_dialog)
+        page.btn_halt.click()
+        parent_dialog.close.assert_called_with(immediate=True)
+        self.mock_window.close.assert_called()
+
 
 if __name__ == "__main__":
     unittest.main()

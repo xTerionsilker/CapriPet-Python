@@ -6,6 +6,7 @@ class TestArchitectureMetrics(unittest.TestCase):
     def test_canonical_docs_exist(self) -> None:
         canonical_docs = [
             "docs/architecture.md",
+            "docs/character_design.md",
             "docs/config_spec.md",
             "docs/project_structure.md",
         ]
