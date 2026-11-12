@@ -4,7 +4,34 @@ This document provides strict operational, architectural, and design constraints
 
 ---
 
-## 1. Environment & Execution
+## 1. Superpowers Skills & Autonomous Workflow
+
+CapriPet utilizes the **Superpowers** skill framework for disciplined, reproducible software engineering. Whenever a task matches an available skill, agents **must invoke and follow the skill before acting**.
+
+### Core Invocation Protocol
+- **Skill-First Discipline:** Check for applicable skills before writing code, proposing solutions, or asking clarifying questions. If a skill applies to the task, invoking it is mandatory.
+- **Process Skills Precedence:** Process skills (`brainstorming`, `systematic-debugging`) take priority over implementation skills (`writing-plans`, `test-driven-development`).
+- **Antigravity Tool Mapping:**
+  - **Subagents:** Use `invoke_subagent` (`TypeName: "self"` for full execution or `"research"` for read-only exploration).
+  - **Task Tracking:** Maintain task artifacts (`write_file` / `edit_file` with `ArtifactMetadata`) as the living checklist (`- [ ]` / `- [x]`). Do not misuse `manage_task` (which is reserved for OS background processes).
+
+### Essential Skills Matrix
+| Trigger / Workflow Phase | Mandatory Skill | Scope & Primary Objectives |
+| :--- | :--- | :--- |
+| **New features / Architecture** | `brainstorming` | Explore requirements, design trade-offs, and visual/lore impact before planning. |
+| **Multi-step implementation** | `writing-plans` | Formulate granular plans with explicit file paths, tasks, and verification steps. |
+| **Plan execution (inline)** | `executing-plans` | Execute plans sequentially with task artifact checklist updates. |
+| **Plan execution (subagents)**| `subagent-driven-development` | Dispatch focused subagents per independent work item. |
+| **Feature / Bugfix coding** | `test-driven-development` | Red-Green-Refactor: failing test first, minimal implementation, clean refactor. |
+| **Bug or unexpected behavior** | `systematic-debugging` | Trace root causes and test hypotheses before touching code. |
+| **Verification & completion** | `verification-before-completion` | Run deterministic verification (`ruff check .`, `compileall`, full test suite) before claiming completion. |
+| **Code reviews & feedback** | `requesting-code-review` / `receiving-code-review` | Pre-merge verification and objective technical review of feedback. |
+| **Branch & task completion** | `finishing-a-development-branch` | Clean integration, commit hygiene, and branch disposition. |
+| **Workspace isolation** | `using-git-worktrees` | Maintain isolated workspace state when developing parallel features. |
+
+---
+
+## 2. Environment & Execution
 
 - **Target Platform:** Windows 10 / 11 (DWM-native, Multi-DPI, Win32 APIs).
 - **Python Interpreter:** Always use the local virtual environment: `.\.venv\Scripts\python.exe`.
@@ -21,7 +48,7 @@ This document provides strict operational, architectural, and design constraints
 
 ---
 
-## 2. Architecture & Subsystems
+## 3. Architecture & Subsystems
 
 Capri is built around a decoupled Qt/PySide6 architecture with strict layer isolation:
 
@@ -54,7 +81,7 @@ Capri is built around a decoupled Qt/PySide6 architecture with strict layer isol
 
 ---
 
-## 3. Character Identity, Lore & Persona
+## 4. Character Identity, Lore & Persona
 
 ### Who Capri Truly Is
 - **Origin & Nature:** **Capricorn (Каприкорн / Capri)** is an experimental digital personality construct / bio-weapon engram created by Arasaka under secret *Project Capricorn* using **Soulkiller (Душегуб)** technology. She is not an ordinary utility AI, but a fusion of multiple digitized human psyches merged into a single hyper-potent entity.
@@ -75,7 +102,7 @@ Capri is built around a decoupled Qt/PySide6 architecture with strict layer isol
 
 ---
 
-## 4. Cyberpunk Design System & Character Palette
+## 5. Cyberpunk Design System & Character Palette
 
 Capri's UI reflects corrupted military-corpo technology and Blackwall breach phenomena fused with **Studio Trigger-style kinetic hyperactivity**: cut 45° chamfered corners, micro-grid indicators, CRT scanlines, datamosh displacement, harsh electric discharge, and dynamic high-contrast duotone framing (Neon Crimson/Pink & Acid Green).
 
@@ -99,29 +126,15 @@ Any UI, HUD, particle, lightning arc, glitch, or dialog **must** strictly use th
 
 ---
 
-## 5. Code Quality & Standards
+## 6. Code Quality & Standards
 
-1. **Balanced Typing & Commenting:**
-   - **Type Annotations:** All functions and methods must have complete static typing for arguments and return values (e.g. `def handle(query: str) -> CommandResult:`).
-   - **Concise Contextual Comments:** Self-documenting code with expressive variable/method names is prioritized. Inline comments (`# ...`) are welcomed to clarify complex Win32 APIs, procedural math/kinematics, or non-obvious algorithms.
-   - **PEP 257 Docstrings:** Clear docstrings for public classes and module-level facades.
-2. **Anti-Legacy & Direct Refactoring:**
-   - No backward-compatibility shims, adapter wrappers, deprecated aliases, or fake arguments.
-   - When refactoring a function signature or class, update all callers directly.
-   - Rely on established packages (`pydantic`, `psutil`, `rapidfuzz`, `httpx`, `pywin32`) instead of brittle custom workarounds.
-3. **Mandatory Verification Workflow:**
-   - Execute mandatory linter, compilation, and test checks across all modules after modifying code:
-     ```cmd
-     .\.venv\Scripts\ruff.exe check .
-     .\.venv\Scripts\python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_dir('scripts', force=True); compileall.compile_file('main.py')"
-     .\.venv\Scripts\mypy.exe capri
-     .\.venv\Scripts\python.exe -m unittest discover -s tests
-     ```
-   - All tests must pass (100%), and zero linter warnings or syntax errors are permitted before completing tasks or creating PRs.
+1. **Typing & Docs:** Strict static type annotations on all signatures (`def handle(query: str) -> CommandResult:`). PEP 257 docstrings for public classes/facades. Concise inline comments for complex Win32 APIs, kinematics, or non-obvious algorithms.
+2. **Anti-Legacy:** No backward-compatibility shims, adapter wrappers, or deprecated aliases. Update callers directly. Rely on established packages (`pydantic`, `psutil`, `rapidfuzz`, `httpx`, `pywin32`).
+3. **Mandatory Verification:** 100% test pass rate, zero linter warnings, clean `mypy` and `compileall` before completing tasks or opening PRs (verification commands specified in Section 2).
 
 ---
 
-## 6. Documentation Synchronization (`docs/`)
+## 7. Documentation Synchronization (`docs/`)
 
 Whenever codebase structure, configuration schemas, or subsystems change, update the documentation in the same changeset:
 - **`docs/project_structure.md`:** Maintain the canonical ASCII codebase tree and single-line responsibility descriptions.
@@ -131,7 +144,7 @@ Whenever codebase structure, configuration schemas, or subsystems change, update
 
 ---
 
-## 7. Git Commit Conventions
+## 8. Git Commit Conventions
 
 Strict adherence to **Conventional Commits**: `<type>(<scope>): <short description>`
 
@@ -141,7 +154,7 @@ Strict adherence to **Conventional Commits**: `<type>(<scope>): <short descripti
 
 ---
 
-## 8. GitHub Issues & Release Notes Conventions
+## 9. GitHub Issues & Release Notes Conventions
 
 When authoring GitHub issues or milestone notes for new features, bug fixes, or enhancements, strictly adhere to the project's canonical technical style:
 
@@ -155,30 +168,4 @@ When authoring GitHub issues or milestone notes for new features, bug fixes, or 
   - Pull requests MUST adhere to `.github/pull_request_template.md`.
   - Merging into `main` strictly requires the `Local CI / Integrity` status check to pass (enforced by GitHub Branch Protection on `main`). Agents must execute `scripts\verify.bat --report-status` before or during PR submission to register this status.
 
----
-
-## 9. Superpowers Skills & Autonomous Workflow
-
-CapriPet utilizes the **Superpowers** skill framework for disciplined, reproducible software engineering. Whenever a task matches an available skill, agents **must invoke and follow the skill before acting**.
-
-### Core Invocation Protocol
-- **Skill-First Discipline:** Check for applicable skills before writing code, proposing solutions, or asking clarifying questions. If a skill applies to the task, invoking it is mandatory.
-- **Process Skills Precedence:** Process skills (`brainstorming`, `systematic-debugging`) take priority over implementation skills (`writing-plans`, `test-driven-development`).
-- **Antigravity Tool Mapping:**
-  - **Subagents:** Use `invoke_subagent` (`TypeName: "self"` for full execution or `"research"` for read-only exploration).
-  - **Task Tracking:** Maintain task artifacts (`write_file` / `edit_file` with `ArtifactMetadata`) as the living checklist (`- [ ]` / `- [x]`). Do not misuse `manage_task` (which is reserved for OS background processes).
-
-### Essential Skills Matrix
-| Trigger / Workflow Phase | Mandatory Skill | Scope & Primary Objectives |
-| :--- | :--- | :--- |
-| **New features / Architecture** | `brainstorming` | Explore requirements, design trade-offs, and visual/lore impact before planning. |
-| **Multi-step implementation** | `writing-plans` | Formulate granular plans with explicit file paths, tasks, and verification steps. |
-| **Plan execution (inline)** | `executing-plans` | Execute plans sequentially with task artifact checklist updates. |
-| **Plan execution (subagents)**| `subagent-driven-development` | Dispatch focused subagents per independent work item. |
-| **Feature / Bugfix coding** | `test-driven-development` | Red-Green-Refactor: failing test first, minimal implementation, clean refactor. |
-| **Bug or unexpected behavior** | `systematic-debugging` | Trace root causes and test hypotheses before touching code. |
-| **Verification & completion** | `verification-before-completion` | Run deterministic verification (`ruff check .`, `compileall`, full test suite) before claiming completion. |
-| **Code reviews & feedback** | `requesting-code-review` / `receiving-code-review` | Pre-merge verification and objective technical review of feedback. |
-| **Branch & task completion** | `finishing-a-development-branch` | Clean integration, commit hygiene, and branch disposition. |
-| **Workspace isolation** | `using-git-worktrees` | Maintain isolated workspace state when developing parallel features. |
 

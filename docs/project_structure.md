@@ -103,20 +103,36 @@ capri/
     ├── window_prank_controller.py # Контроллер кинематических уворотов и пранк-реакций окна
     └── window_system_events.py # Обработчик системных событий питания, сна и блокировки Windows
 tests/                          # Модульные и интеграционные тесты (unittest)
+├── test_architecture_metrics.py # Архитектурные метрики целостности документации и лимитов
 ├── test_commands_modular.py    # Тесты модульных команд и фасада handlers
 ├── test_download_models.py     # Тесты загрузчика и валидатора моделей ASR/VAD
 ├── test_engram_pranks.py       # Тесты пасхалок энграммы, уклонения от курсора, тающего экрана и кулдаунов
 ├── test_game_mode.py           # Тесты детектора игрового режима и фильтрации развёрнутых окон
 ├── test_imports.py             # Тесты целостности импортов и UI контекстного меню
+├── test_pet_renderer_passes.py # Модульные тесты процедурных пассов рендерера и HUD
 ├── test_process_telemetry.py   # Тесты классификатора и телеметрии процессов
 ├── test_registry_scanner.py    # Тесты безопасного сканера системного реестра
 ├── test_security_hardening.py  # Тесты валидации URL, путей и защиты от инъекций
-└── test_window_lifecycle.py   # Интеграционный Smoke-тест жизненного цикла CapriWindow
-assets/                         # Графика, иконка приложения (capri_icon.png) и позы (var/)
-docs/                           # Инженерная документация и спецификации (architecture.md, config_spec.md, project_structure.md)
+├── test_sfx_core.py            # Модульные тесты математики генерации PCM WAV и аудио-фильтров
+├── test_speech_bubble.py       # Тесты кибер-пузыря речи, перехвата ввода и CRT-анимации
+├── test_window_lifecycle.py   # Интеграционный Smoke-тест жизненного цикла CapriWindow
+├── test_window_prank_controller.py # Тесты кинематических уворотов и пранк-реакций окна
+└── test_window_system_events.py # Тесты обработки системных событий питания и сна Win32
+assets/                         # Графика, шрифты и позы
+├── capri_icon.png              # Главная иконка приложения
+├── menu_arrow.svg              # Векторный шеврон для кибер-меню
+├── fonts/                      # Семейство шрифтов Exo 2 (Bold, Regular, SemiBold)
+└── var/                        # Спрайты поз питомца (idle, other, thinking)
+docs/                           # Инженерная документация и спецификации
+├── architecture.md             # C4-архитектура, Sequence-диаграммы и модель безопасности
+├── config_spec.md              # Спецификация Pydantic-схемы конфигурации и полей
+├── project_structure.md        # Каноническое дерево кодовой базы и описание модулей
+└── superpowers/plans/          # Архив планов реализации изменений Superpowers
 models/                         # Папка моделей (Vosk, Silero VAD onnx)
+pyproject.toml                  # Конфигурация инструментов Ruff, Bandit и метаданных проекта
 requirements.txt                # Зависимости проекта
 mypy.ini                        # Конфигурация статического тайп-чекера Mypy
 AGENTS.md                       # Главная точка входа правил разработки для AI-агентов
+README.md                       # Главная страница проекта и руководство пользователя
 LICENSE                         # Лицензия MIT
 ```
