@@ -16,6 +16,7 @@ capri/
 ├── __init__.py
 ├── audio/                      # Голосовой ввод и распознавание речи
 │   ├── recognizer.py           # Распознавание речи (монопольный Vosk ASR)
+│   ├── sfx_core.py             # Базовые DSP-примитивы и математика генерации 16-bit PCM WAV
 │   ├── sfx_generators.py       # Процедурный синтез аудио-форм волны и PCM DSP (без Qt)
 │   └── voice.py                # Захват аудио с микрофона и VAD (Silero)
 ├── commands/                   # Модульная система команд
@@ -85,8 +86,12 @@ capri/
     ├── pet_window.py           # Окно питомца Qt (View-слой, геометрия и события)
     ├── pet_window_actions.py   # Делегат действий и обработчиков настроек окна питомца
     ├── reminder_dialog.py      # Модальное окно настройки интервалов напоминаний в стиле Cyberpunk
+    ├── renderers/              # Декомпозированные процедурные пассы отрисовки
+    │   ├── __init__.py
+    │   └── hud_telemetry.py    # Отрисовка телеметрии HUD и захвата цели Blackwall
     ├── shredder_drop_handler.py # Делегат Drag & Drop поглощения файлов Blackwall
-    ├── speech.py               # Диалоговые HUD-облачка в дуотоне Studio Trigger с CRT-коллапсом
+    ├── speech.py               # Координатор диалоговых окон речи и фасад реплик
+    ├── speech_bubble.py        # CyberHudBubble виджет со скошенными углами и CRT-анимацией
     ├── speech_sfx.py           # Воспроизведение звуков речи и интерфейса (QSoundEffect)
     ├── sprite_manager.py       # Менеджер загрузки, кэширования и масштабирования поз
     ├── teleport_controller.py  # Контроллер перемещения окна через наведение молнией
@@ -94,7 +99,9 @@ capri/
     ├── tray_manager.py         # Менеджер интеграции с системным треем и областью уведомлений
     ├── voice_coordinator.py    # Координация распознавания речи, триггеров и Voice HUD
     ├── voice_hud.py            # HUD голосового ввода над taskbar с реактивным эквалайзером
-    └── volume_hud.py           # Cyber Audio HUD экранный оверлей регулировки системной громкости
+    ├── volume_hud.py           # Cyber Audio HUD экранный оверлей регулировки системной громкости
+    ├── window_prank_controller.py # Контроллер кинематических уворотов и пранк-реакций окна
+    └── window_system_events.py # Обработчик системных событий питания, сна и блокировки Windows
 tests/                          # Модульные и интеграционные тесты (unittest)
 ├── test_commands_modular.py    # Тесты модульных команд и фасада handlers
 ├── test_download_models.py     # Тесты загрузчика и валидатора моделей ASR/VAD

@@ -14,32 +14,22 @@ import random
 import struct
 import tempfile
 import threading
-import wave
 from pathlib import Path
+
+from .sfx_core import (
+    DEFAULT_SAMPLE_RATE,
+)
+from .sfx_core import (
+    pack_sample as _pack_sample,
+)
+from .sfx_core import (
+    write_wav_16bit as _write_wav_16bit,
+)
 
 logger = logging.getLogger(__name__)
 
 # Master audio parameters (Studio Trigger cyber soundscape)
-DEFAULT_SAMPLE_RATE: int = 44100
 SFX_VERSION: str = "v6_biochip_hijack"  # Bust cache on generator update
-
-
-def _write_wav_16bit(file_path: Path, frames: bytearray, sample_rate: int = DEFAULT_SAMPLE_RATE) -> None:
-    """Записывает 16-bit моно PCM WAV файл с атомарным созданием директории."""
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
-
-
-def _pack_sample(val: float, drive: float = 1.0, master_gain: float = 0.95) -> bytes:
-    """Применяет нелинейную сатурацию tanh и упаковывает в 16-bit int."""
-    saturated = math.tanh(val * drive) * master_gain
-    clamped = max(-1.0, min(1.0, saturated))
-    sample = int(clamped * 32767.0)
-    return struct.pack("<h", max(-32768, min(32767, sample)))
 
 
 def _generate_swoosh_wav(
@@ -199,12 +189,7 @@ def _generate_teleport_drop_wav(
         sample = int(val * 32767)
         frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_lightning_strike_wav(
@@ -254,12 +239,7 @@ def _generate_lightning_strike_wav(
         sample = int(val * 32767)
         frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_lightning_arc_wav(
@@ -282,12 +262,7 @@ def _generate_lightning_arc_wav(
         sample = int(val * 32767)
         frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_lightning_zap_wav(
@@ -309,12 +284,7 @@ def _generate_lightning_zap_wav(
         sample = int(val * 32767)
         frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
 
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(file_path), "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)
-        wf.setframerate(sample_rate)
-        wf.writeframes(frames)
+    _write_wav_16bit(file_path, frames, sample_rate)
 
 
 def _generate_session_lock_wav(
