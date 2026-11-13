@@ -11,18 +11,15 @@ from __future__ import annotations
 import logging
 import math
 import random
-import struct
 import tempfile
 import threading
 from pathlib import Path
 
+import numpy as np
+
 from .sfx_core import (
     DEFAULT_SAMPLE_RATE,
-)
-from .sfx_core import (
-    pack_sample as _pack_sample,
-)
-from .sfx_core import (
+    to_pcm_16bit as _to_pcm_16bit,
     write_wav_16bit as _write_wav_16bit,
 )
 
@@ -57,7 +54,7 @@ def _generate_swoosh_wav(
 
         env = (math.sin(math.pi * p) ** 0.8) if p < 0.3 else ((1.0 - p) ** 1.4)
         val = (whine * 0.45 + click * 0.55) * env
-        frames.extend(_pack_sample(val, drive=1.35, master_gain=0.88))
+        frames.extend(_to_pcm_16bit(val, drive=1.35, master_gain=0.88))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -84,7 +81,7 @@ def _generate_close_wav(
 
         env = (1.0 - p) ** 2.2
         val = (sweep * 0.65 + zap * 0.35) * env
-        frames.extend(_pack_sample(val, drive=1.4, master_gain=0.85))
+        frames.extend(_to_pcm_16bit(val, drive=1.4, master_gain=0.85))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -148,7 +145,7 @@ def _generate_chirp_wav(
             env = (1.0 - p) ** 2.2
 
         val = (carrier * 0.75 + noise * 0.25) * env
-        frames.extend(_pack_sample(val, drive=overdrive, master_gain=gain))
+        frames.extend(_to_pcm_16bit(val, drive=overdrive, master_gain=gain))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -186,8 +183,7 @@ def _generate_teleport_drop_wav(
 
         env = (1.0 - p) ** 1.4
         val = math.tanh(distorted_sub * 0.8 + click + sparkle) * 0.85 * env
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+        frames.extend(_to_pcm_16bit(val, drive=1.0, master_gain=1.0))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -236,8 +232,7 @@ def _generate_lightning_strike_wav(
 
         val = 0.60 * snap + 0.45 * arc + 0.55 * boom
         val = math.tanh(val * 1.25) * 0.75
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+        frames.extend(_to_pcm_16bit(val, drive=1.0, master_gain=1.0))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -259,8 +254,7 @@ def _generate_lightning_arc_wav(
             + (1.6 if rng.random() < 0.06 else 0.0)
         )
         val = math.tanh(buzz * env * 1.1) * 0.65
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+        frames.extend(_to_pcm_16bit(val, drive=1.0, master_gain=1.0))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -281,8 +275,7 @@ def _generate_lightning_zap_wav(
             + 0.4 * rng.uniform(-1.0, 1.0)
         ) * env
         val = math.tanh(val * 1.5) * 0.70
-        sample = int(val * 32767)
-        frames.extend(struct.pack("<h", max(-32768, min(32767, sample))))
+        frames.extend(_to_pcm_16bit(val, drive=1.0, master_gain=1.0))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -328,7 +321,7 @@ def _generate_session_lock_wav(
                 + 0.30 * math.sin(2.0 * math.pi * 2640.0 * t)
             ) * snap_env
 
-        val = _pack_sample(siren + clank + snap, drive=1.35, master_gain=0.92)
+        val = _to_pcm_16bit(siren + clank + snap, drive=1.35, master_gain=0.92)
         frames.extend(val)
 
     _write_wav_16bit(file_path, frames, sample_rate)
@@ -373,7 +366,7 @@ def _generate_session_power_wav(
                 + 0.20 * rng.uniform(-1.0, 1.0) * (1.0 - cp) ** 2.0
             ) * math.sin(math.pi * cp)
 
-        val = _pack_sample(zap + spool + crt_pop, drive=1.40, master_gain=0.94)
+        val = _to_pcm_16bit(zap + spool + crt_pop, drive=1.40, master_gain=0.94)
         frames.extend(val)
 
     _write_wav_16bit(file_path, frames, sample_rate)
@@ -408,7 +401,7 @@ def _generate_session_suspend_wav(
                 pulse += 0.28 * math.sin(2.0 * math.pi * 880.0 * t) * (1.0 - diff * diff)
 
         fade = min(1.0, t / 0.10) * max(0.0, (1.0 - p) ** 1.3)
-        val = _pack_sample((breath * 0.45 + pad * 0.40 + pulse * 0.35) * fade, drive=1.20, master_gain=0.90)
+        val = _to_pcm_16bit((breath * 0.45 + pad * 0.40 + pulse * 0.35) * fade, drive=1.20, master_gain=0.90)
         frames.extend(val)
 
     _write_wav_16bit(file_path, frames, sample_rate)
@@ -445,7 +438,7 @@ def _generate_session_reboot_wav(
                 + 0.40 * rng.uniform(-1.0, 1.0)
             ) * math.sin(math.pi * rp)
 
-        val = _pack_sample(spool + burst + relay, drive=1.45, master_gain=0.92)
+        val = _to_pcm_16bit(spool + burst + relay, drive=1.45, master_gain=0.92)
         frames.extend(val)
 
     _write_wav_16bit(file_path, frames, sample_rate)
@@ -470,7 +463,7 @@ def _generate_target_acquired_wav(
         ping = math.sin(2.0 * math.pi * f1 * t) * 0.65
         harm = math.sin(2.0 * math.pi * (f1 * 2.2) * t) * 0.35
         val = (ping + harm) * env
-        frames.extend(_pack_sample(val, drive=1.5, master_gain=0.85))
+        frames.extend(_to_pcm_16bit(val, drive=1.5, master_gain=0.85))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -496,7 +489,7 @@ def _generate_data_rip_wav(
         bit_quantized = math.floor((tone + noise * 1.2) * 4.0) / 4.0
 
         val = (bit_quantized * 0.7 + tone * 0.3) * env
-        frames.extend(_pack_sample(val, drive=2.6, master_gain=0.92))
+        frames.extend(_to_pcm_16bit(val, drive=2.6, master_gain=0.92))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -515,7 +508,7 @@ def _generate_voice_start_wav(
         part_p = (p / 0.45) if p < 0.45 else ((p - 0.45) / 0.55)
         env = (1.0 - part_p) ** 2.0
         val = math.sin(2.0 * math.pi * freq * t) * env
-        frames.extend(_pack_sample(val, drive=1.4, master_gain=0.82))
+        frames.extend(_to_pcm_16bit(val, drive=1.4, master_gain=0.82))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -536,7 +529,7 @@ def _generate_voice_success_wav(
         env = (1.0 - p) ** 1.3
         sine = math.sin(2.0 * math.pi * freq * t)
         val = (sine + 0.25 * math.sin(2.0 * math.pi * freq * 2.0 * t)) * env
-        frames.extend(_pack_sample(val, drive=1.3, master_gain=0.85))
+        frames.extend(_to_pcm_16bit(val, drive=1.3, master_gain=0.85))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -553,7 +546,7 @@ def _generate_voice_cancel_wav(
         freq = 2200.0 * math.exp(-7.5 * p) + 160.0
         env = (1.0 - p) ** 1.8
         val = math.sin(2.0 * math.pi * freq * t) * env
-        frames.extend(_pack_sample(val, drive=1.5, master_gain=0.80))
+        frames.extend(_to_pcm_16bit(val, drive=1.5, master_gain=0.80))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -576,7 +569,7 @@ def _generate_core_destabilize_wav(
         spark = rng.uniform(-0.4, 0.4) if rng.random() < 0.15 else 0.0
         env = math.sin(math.pi * p) ** 0.8
         val = (coil * (0.8 + 0.2 * fm) + spark) * env
-        frames.extend(_pack_sample(val, drive=2.0, master_gain=0.78))
+        frames.extend(_to_pcm_16bit(val, drive=2.0, master_gain=0.78))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -602,7 +595,7 @@ def _generate_relay_snap_wav(
         spark = rng.uniform(-0.5, 0.5) if p < 0.2 else 0.0
 
         val = (snap + thud + spark) * env
-        frames.extend(_pack_sample(val, drive=1.8, master_gain=0.90))
+        frames.extend(_to_pcm_16bit(val, drive=1.8, master_gain=0.90))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 
@@ -621,7 +614,7 @@ def _generate_intro_breach_wav(
             tick_t = t % 0.18
             tick = math.sin(2.0 * math.pi * 1400.0 * tick_t) * math.exp(-65.0 * tick_t) if tick_t < 0.04 else 0.0
             val = hum + tick * 0.35
-            frames.extend(_pack_sample(val, drive=1.5, master_gain=0.75))
+            frames.extend(_to_pcm_16bit(val, drive=1.5, master_gain=0.75))
         elif t < 1.8:
             t_alarm = t - 1.0
             lfo = math.sin(2.0 * math.pi * 8.0 * t_alarm) * 350.0
@@ -632,14 +625,14 @@ def _generate_intro_breach_wav(
             pulse = 0.5 + 0.5 * math.sin(2.0 * math.pi * 4.0 * t_alarm)
             env = min(1.0, t_alarm / 0.3)
             val = siren * pulse * env + rng.uniform(-0.15, 0.15) * env
-            frames.extend(_pack_sample(val, drive=2.6, master_gain=0.88))
+            frames.extend(_to_pcm_16bit(val, drive=2.6, master_gain=0.88))
         elif t < 2.6:
             t_snap = t - 1.8
             freq = 28.0 + 57.0 * math.exp(-10.0 * t_snap)
             sub = math.sin(2.0 * math.pi * freq * t_snap) * math.exp(-5.0 * t_snap)
             electric = math.sin(2.0 * math.pi * 2400.0 * t_snap) * rng.uniform(-0.6, 0.6) * math.exp(-12.0 * t_snap)
             val = sub * 1.3 + electric * 0.4
-            frames.extend(_pack_sample(val, drive=3.2, master_gain=0.98))
+            frames.extend(_to_pcm_16bit(val, drive=3.2, master_gain=0.98))
         else:
             t_cyber = t - 2.6
             p = min(1.0, t_cyber / 1.9)
@@ -650,7 +643,7 @@ def _generate_intro_breach_wav(
                 + math.sin(2.0 * math.pi * 1318.5 * t_cyber) * 0.20
             ) * env
             val = chord + math.sin(2.0 * math.pi * 42.0 * t_cyber) * 0.15 * env
-            frames.extend(_pack_sample(val, drive=1.4, master_gain=0.80))
+            frames.extend(_to_pcm_16bit(val, drive=1.4, master_gain=0.80))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 

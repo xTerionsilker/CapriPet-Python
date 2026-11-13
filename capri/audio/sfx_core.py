@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-import math
-import struct
 import wave
+from collections.abc import Sequence
 from pathlib import Path
+
+import numpy as np
 
 DEFAULT_SAMPLE_RATE: int = 44100
 
 
 def write_wav_16bit(
     file_path: Path,
-    frames: bytearray,
+    frames: bytes | bytearray,
     sample_rate: int = DEFAULT_SAMPLE_RATE,
 ) -> None:
     """Записывает 16-bit моно PCM WAV файл с атомарным созданием директории."""
@@ -24,9 +25,14 @@ def write_wav_16bit(
         wf.writeframes(frames)
 
 
-def pack_sample(val: float, drive: float = 1.0, master_gain: float = 0.95) -> bytes:
-    """Применяет нелинейную сатурацию tanh и упаковывает в 16-bit int."""
-    saturated = math.tanh(val * drive) * master_gain
-    clamped = max(-1.0, min(1.0, saturated))
-    sample = int(clamped * 32767.0)
-    return struct.pack("<h", max(-32768, min(32767, sample)))
+def to_pcm_16bit(
+    signal: float | Sequence[float] | np.ndarray,
+    drive: float = 1.0,
+    master_gain: float = 0.95,
+) -> bytes:
+    """Применяет нелинейную сатурацию tanh и преобразует массив в 16-bit PCM байты."""
+    arr = np.asarray(signal, dtype=np.float64)
+    saturated = np.tanh(arr * drive) * master_gain
+    clamped = np.clip(saturated, -1.0, 1.0)
+    samples = (clamped * 32767.0).astype(np.int16)
+    return samples.tobytes()
