@@ -40,6 +40,12 @@ from .theme import (
 if TYPE_CHECKING:
     pass
 
+
+def _play_ui_snap() -> None:
+    """Воспроизводит аппаратный щелчок реле при взаимодействии с UI."""
+    with contextlib.suppress(Exception):
+        get_speech_sfx().play_relay_snap()
+
 _LABEL_STYLE = (
     f"color: {PURE_WHITE}; font-family: {CSS_CYBER_UI}; "
     "font-size: 11px; font-weight: bold;"
@@ -235,26 +241,31 @@ class CoreTabPage(QWidget):
         layout.addStretch()
 
     def _on_summon(self) -> None:
+        _play_ui_snap()
         fn = getattr(self.pet_window, "activate_command_mode", None)
         if callable(fn):
             fn()
 
     def _on_deck(self) -> None:
+        _play_ui_snap()
         fn = getattr(self.pet_window, "open_console", None)
         if callable(fn):
             fn()
 
     def _on_teleport(self) -> None:
+        _play_ui_snap()
         fn = getattr(self.pet_window, "activate_teleport", None)
         if callable(fn):
             fn()
 
     def _on_reset_pos(self) -> None:
+        _play_ui_snap()
         fn = getattr(self.pet_window, "_reset_position", None)
         if callable(fn):
             fn()
 
     def _on_toggle_discord(self, checked: bool) -> None:
+        _play_ui_snap()
         actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_discord_enabled"):
             actions.set_discord_enabled(checked)
@@ -264,6 +275,7 @@ class CoreTabPage(QWidget):
             set_config_value("discord.enabled", checked)
 
     def _on_toggle_voice(self, checked: bool) -> None:
+        _play_ui_snap()
         actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "toggle_voice"):
             actions.toggle_voice()
@@ -273,6 +285,7 @@ class CoreTabPage(QWidget):
             set_config_value("audio.voice_enabled", checked)
 
     def _on_toggle_glitches(self, checked: bool) -> None:
+        _play_ui_snap()
         actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "toggle_glitches"):
             actions.toggle_glitches()
@@ -315,15 +328,6 @@ class AudioTabPage(QWidget):
         )
         self.chk_fx.toggled.connect(self._on_toggle_fx_sound)
         sfx_layout.addWidget(self.chk_fx)
-
-        self.chk_vol_hud = QCheckBox("Экранный оверлей (Volume HUD)", self)
-        self.chk_vol_hud.setStyleSheet(_CHECKBOX_STYLE)
-        self.chk_vol_hud.setChecked(
-            get_config_value("audio.volume_hud_enabled", True)
-        )
-        self.chk_vol_hud.toggled.connect(self._on_toggle_volume_hud)
-        sfx_layout.addWidget(self.chk_vol_hud)
-        layout.addWidget(grp_sfx)
 
         self.chk_vol_hud = QCheckBox("Экранный оверлей (Volume HUD)", self)
         self.chk_vol_hud.setStyleSheet(_CHECKBOX_STYLE)
@@ -398,6 +402,7 @@ class AudioTabPage(QWidget):
         self._set_volume(val)
 
     def _set_volume(self, val: int) -> None:
+        _play_ui_snap()
         val = round(val / 25) * 25
         val = max(25, min(100, val))
         self.lbl_vol.setText(f"ГРОМКОСТЬ: {val}%")
@@ -418,9 +423,11 @@ class AudioTabPage(QWidget):
             set_config_value("audio.volume", val)
 
     def _on_toggle_volume_hud(self, checked: bool) -> None:
+        _play_ui_snap()
         set_config_value("audio.volume_hud_enabled", checked)
 
     def _on_toggle_speech_sound(self, checked: bool) -> None:
+        _play_ui_snap()
         actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_speech_sound_enabled"):
             actions.set_speech_sound_enabled(checked)
@@ -428,6 +435,7 @@ class AudioTabPage(QWidget):
             set_config_value("audio.speech_sound_enabled", checked)
 
     def _on_toggle_fx_sound(self, checked: bool) -> None:
+        _play_ui_snap()
         actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_effects_sound_enabled"):
             actions.set_effects_sound_enabled(checked)
@@ -435,6 +443,7 @@ class AudioTabPage(QWidget):
             set_config_value("audio.effects_sound_enabled", checked)
 
     def _on_mic_changed(self, index: int) -> None:
+        _play_ui_snap()
         dev = self.combo_mic.itemData(index)
         actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_designated_microphone"):
@@ -515,6 +524,7 @@ class VisualTabPage(QWidget):
         layout.addWidget(grp_misc)
         layout.addStretch()
     def _on_scale_selected(self, val: int) -> None:
+        _play_ui_snap()
         for s, btn in getattr(self, "_scale_buttons", {}).items():
             btn.setStyleSheet(_BTN_ACCENT_STYLE if s == val else _BTN_STYLE)
         fn = getattr(self.pet_window, "set_sprite_scale", None)
@@ -524,6 +534,7 @@ class VisualTabPage(QWidget):
             set_config_value("appearance.scale", val)
 
     def _on_glitch_selected(self, key: str) -> None:
+        _play_ui_snap()
         for k, btn in getattr(self, "_glitch_buttons", {}).items():
             btn.setStyleSheet(_BTN_ACCENT_STYLE if k == key else _BTN_STYLE)
         fn = getattr(self.pet_window, "set_glitch_intensity", None)
@@ -533,6 +544,7 @@ class VisualTabPage(QWidget):
             set_config_value("effects.glitch_intensity", key)
 
     def _on_screen_changed(self, index: int) -> None:
+        _play_ui_snap()
         scr = self.combo_screen.itemData(index)
         if scr is not None:
             actions = getattr(self.pet_window, "actions", None)
@@ -542,6 +554,7 @@ class VisualTabPage(QWidget):
                 self.pet_window.set_designated_screen(scr)
 
     def _on_replay_breach(self) -> None:
+        _play_ui_snap()
         top = self.window()
         if isinstance(top, QDialog):
             top.reject()
@@ -680,12 +693,6 @@ class SystemTabPage(QWidget):
         )
         beh_layout.addWidget(self.chk_process_monitoring)
 
-        self.chk_discord = QCheckBox("[DISCORD] Discord Rich Presence", self)
-        self.chk_discord.setStyleSheet(_CHECKBOX_STYLE)
-        self.chk_discord.setChecked(get_config_value("discord.enabled", True))
-        self.chk_discord.toggled.connect(self._on_toggle_discord)
-        beh_layout.addWidget(self.chk_discord)
-
         self.chk_shredder = QCheckBox("Протокол уничтожения файлов Blackwall", self)
         self.chk_shredder.setStyleSheet(_CHECKBOX_STYLE)
         self.chk_shredder.setChecked(
@@ -702,6 +709,7 @@ class SystemTabPage(QWidget):
         self.btn_halt.clicked.connect(self._on_halt)
         layout.addWidget(self.btn_halt)
     def _on_timeout_selected(self, sec: int) -> None:
+        _play_ui_snap()
         for s, btn in getattr(self, "_timeout_buttons", {}).items():
             btn.setStyleSheet(_BTN_ACCENT_STYLE if s == sec else _BTN_STYLE)
         fn = getattr(self.pet_window, "set_activity_timeout", None)
@@ -721,6 +729,7 @@ class SystemTabPage(QWidget):
             set_config_value("behavior.reminder_max_interval_ms", max_ms)
 
     def _on_freq_preset_clicked(self, min_ms: int, max_ms: int, clicked_btn: QPushButton) -> None:
+        _play_ui_snap()
         self._set_reminder_range(min_ms, max_ms)
         for btn in self._freq_buttons.values():
             btn.setStyleSheet(_BTN_STYLE)
@@ -728,6 +737,7 @@ class SystemTabPage(QWidget):
         self.btn_custom_range.setText("Своя частота...")
 
     def _on_custom_reminder_range(self) -> None:
+        _play_ui_snap()
         curr_min_m = int(get_config_value("behavior.reminder_min_interval_ms", 600_000)) // 60_000
         curr_max_m = int(get_config_value("behavior.reminder_max_interval_ms", 3_600_000)) // 60_000
         dialog = ReminderRangeDialog(curr_min_m, curr_max_m, self)
@@ -743,6 +753,7 @@ class SystemTabPage(QWidget):
             self.btn_custom_range.setStyleSheet(_BTN_ACCENT_STYLE)
 
     def _on_toggle_reminders(self, checked: bool) -> None:
+        _play_ui_snap()
         actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_reminders_enabled"):
             actions.set_reminders_enabled(checked)
@@ -750,6 +761,7 @@ class SystemTabPage(QWidget):
             set_config_value("behavior.reminders_enabled", checked)
 
     def _on_toggle_game_mode(self, checked: bool) -> None:
+        _play_ui_snap()
         actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_game_suppression_enabled"):
             actions.set_game_suppression_enabled(checked)
@@ -757,7 +769,7 @@ class SystemTabPage(QWidget):
             set_config_value("game_mode.suppression_enabled", checked)
 
     def _on_toggle_process_monitoring(self, checked: bool) -> None:
-        get_speech_sfx().play_relay_snap()
+        _play_ui_snap()
         actions = getattr(self.pet_window, "actions", None)
         if actions and hasattr(actions, "set_process_monitoring_enabled"):
             actions.set_process_monitoring_enabled(checked)
@@ -766,17 +778,12 @@ class SystemTabPage(QWidget):
         else:
             set_config_value("telemetry.process_monitoring_enabled", checked)
 
-    def _on_toggle_discord(self, checked: bool) -> None:
-        actions = getattr(self.pet_window, "actions", None)
-        if actions and hasattr(actions, "set_discord_enabled"):
-            actions.set_discord_enabled(checked)
-        else:
-            set_config_value("discord.enabled", checked)
-
     def _on_toggle_shredder(self, checked: bool) -> None:
+        _play_ui_snap()
         set_config_value("behavior.file_shredder_enabled", checked)
 
     def _on_halt(self) -> None:
+        _play_ui_snap()
         win = self.window()
         if isinstance(win, QDialog):
             with contextlib.suppress(Exception):
