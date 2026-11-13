@@ -7,11 +7,10 @@
 
 from __future__ import annotations
 
-import ctypes
 import shutil
 import subprocess
-from ctypes import wintypes
 
+import win32api
 from PySide6.QtCore import QPoint
 from PySide6.QtGui import QCursor
 
@@ -26,25 +25,19 @@ POWER_ACTIONS: dict[str, tuple[tuple[str, ...], ...]] = {
 }
 
 
-class _POINT(ctypes.Structure):
-    _fields_ = [("x", wintypes.LONG), ("y", wintypes.LONG)]
-
-
 def get_mouse_position() -> QPoint:
     try:
-        pt = _POINT()
-        if ctypes.windll.user32.GetCursorPos(ctypes.byref(pt)):
-            return QPoint(pt.x, pt.y)
-    except (OSError, AttributeError):
-        pass
-    return QCursor.pos()
+        x, y = win32api.GetCursorPos()
+        return QPoint(x, y)
+    except Exception:
+        return QCursor.pos()
 
 
 def move_mouse_to(x: int, y: int, _screen_index: int | None = None) -> bool:
     try:
-        if ctypes.windll.user32.SetCursorPos(int(x), int(y)):
-            return True
-    except (OSError, AttributeError):
+        win32api.SetCursorPos((int(x), int(y)))
+        return True
+    except Exception:
         pass
     try:
         QCursor.setPos(x, y)
@@ -70,9 +63,9 @@ def lock_commands() -> list[list[str]]:
 
 def run_lock(commands: list[list[str]]) -> bool:
     try:
-        if ctypes.windll.user32.LockWorkStation():
-            return True
-    except (OSError, AttributeError):
+        win32api.LockWorkStation()
+        return True
+    except Exception:
         pass
     for command in commands:
         try:

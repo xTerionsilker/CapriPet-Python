@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import ctypes
 import logging
-from ctypes import wintypes
 from typing import Any
 
 import psutil
+import win32api
+import win32con
+import win32gui
+import win32process
 from PySide6.QtCore import QObject, QTimer, Signal
 
 logger = logging.getLogger(__name__)
@@ -25,32 +28,10 @@ QUNS_ACCEPTS_NOTIFICATIONS = 5
 QUNS_QUIET_TIME = 6
 QUNS_APP = 7
 
-WS_POPUP = 0x80000000
-WS_MAXIMIZE = 0x01000000
-WS_CAPTION = 0x00C00000
-GWL_STYLE = -16
-
-
-class _RECT(ctypes.Structure):
-    _fields_ = [
-        ("left", wintypes.LONG),
-        ("top", wintypes.LONG),
-        ("right", wintypes.LONG),
-        ("bottom", wintypes.LONG),
-    ]
-
-
-class _MONITORINFO(ctypes.Structure):
-    _fields_ = [
-        ("cbSize", wintypes.DWORD),
-        ("rcMonitor", _RECT),
-        ("rcWork", _RECT),
-        ("dwFlags", wintypes.DWORD),
-    ]
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.cbSize = ctypes.sizeof(self)
+WS_POPUP = win32con.WS_POPUP
+WS_MAXIMIZE = win32con.WS_MAXIMIZE
+WS_CAPTION = win32con.WS_CAPTION
+GWL_STYLE = win32con.GWL_STYLE
 
 
 def query_user_notification_state() -> int:
@@ -66,63 +47,58 @@ def query_user_notification_state() -> int:
 
 def get_foreground_process_info(hwnd: int) -> tuple[int, str]:
     try:
-        user32 = ctypes.windll.user32
-        pid = ctypes.c_ulong()
-        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-        if pid.value:
-            proc = psutil.Process(pid.value)
-            return pid.value, proc.name().lower()
-    except (psutil.Error, OSError, AttributeError):
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        if pid:
+            proc = psutil.Process(pid)
+            return pid, proc.name().lower()
+    except (psutil.Error, Exception):
         pass
     return 0, ""
 
 
 def is_window_fullscreen_on_screen(hwnd: int) -> bool:
     try:
-        user32 = ctypes.windll.user32
-        if not user32.IsWindow(hwnd) or user32.IsIconic(hwnd):
+        if not win32gui.IsWindow(hwnd) or win32gui.IsIconic(hwnd):
             return False
 
-        desktop_hwnd = user32.GetDesktopWindow()
-        shell_hwnd = user32.GetShellWindow()
-        if hwnd in (desktop_hwnd, shell_hwnd):
+        if hwnd == win32gui.GetDesktopWindow():
             return False
 
-        if user32.IsZoomed(hwnd):
+        try:
+            placement = win32gui.GetWindowPlacement(hwnd)
+            if placement[1] == win32con.SW_SHOWMAXIMIZED:
+                return False
+        except Exception:
+            pass
+
+        style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+        if (style & win32con.WS_MAXIMIZE) != 0 or (style & win32con.WS_CAPTION) == win32con.WS_CAPTION:
             return False
 
-        style = user32.GetWindowLongW(hwnd, GWL_STYLE)
-        if (style & WS_MAXIMIZE) != 0 or (style & WS_CAPTION) == WS_CAPTION:
-            return False
+        rect = win32gui.GetWindowRect(hwnd)
+        left, top, right, bottom = rect
 
-        rect = _RECT()
-        if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-            return False
-
-        h_mon = user32.MonitorFromWindow(hwnd, 2)
+        h_mon = win32api.MonitorFromWindow(hwnd, win32con.MONITOR_DEFAULTTONEAREST)
         if not h_mon:
             return False
 
-        mi = _MONITORINFO()
-        if not user32.GetMonitorInfoW(h_mon, ctypes.byref(mi)):
-            return False
-
-        m_rect = mi.rcMonitor
-        width = rect.right - rect.left
-        height = rect.bottom - rect.top
-        m_width = m_rect.right - m_rect.left
-        m_height = m_rect.bottom - m_rect.top
+        mi = win32api.GetMonitorInfo(h_mon)
+        m_left, m_top, m_right, m_bottom = mi["Monitor"]
+        width = right - left
+        height = bottom - top
+        m_width = m_right - m_left
+        m_height = m_bottom - m_top
 
         is_matching_monitor = (
-            rect.left <= m_rect.left
-            and rect.top <= m_rect.top
-            and rect.right >= m_rect.right
-            and rect.bottom >= m_rect.bottom
+            left <= m_left
+            and top <= m_top
+            and right >= m_right
+            and bottom >= m_bottom
         )
         return (
             is_matching_monitor and width >= m_width and height >= m_height
         )
-    except (OSError, AttributeError):
+    except Exception:
         return False
 
 
@@ -193,38 +169,40 @@ class GameModeDetector(QObject):
         self._blacklist = [b.lower() for b in blacklist]
 
     def _is_game_foreground(self) -> bool:
-        user32 = ctypes.windll.user32
-        hwnd = user32.GetForegroundWindow()
-        if not hwnd:
-            return False
-
-        _, proc_name = get_foreground_process_info(hwnd)
-        if proc_name:
-            if proc_name in self._whitelist:
+        try:
+            hwnd = win32gui.GetForegroundWindow()
+            if not hwnd or not win32gui.IsWindow(hwnd):
                 return False
-            if proc_name in self._blacklist:
+
+            _, proc_name = get_foreground_process_info(hwnd)
+            if proc_name:
+                if proc_name in self._whitelist:
+                    return False
+                if proc_name in self._blacklist:
+                    return True
+
+            # Развёрнутые на весь экран окна обычных приложений (Discord, браузер) не являются играми
+            if win32gui.IsZoomed(hwnd):
+                return False
+
+            style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+            if (style & win32con.WS_MAXIMIZE) != 0:
+                return False
+
+            user_state = query_user_notification_state()
+            if user_state in (
+                QUNS_RUNNING_D3D_FULL_SCREEN,
+                QUNS_PRESENTATION_MODE,
+            ):
                 return True
 
-        # Развёрнутые на весь экран окна обычных приложений (Discord, браузер) не являются играми
-        if user32.IsZoomed(hwnd):
+            if is_window_fullscreen_on_screen(hwnd):
+                if (style & win32con.WS_POPUP) != 0 or user_state == QUNS_BUSY:
+                    return True
+
             return False
-
-        style = user32.GetWindowLongW(hwnd, GWL_STYLE)
-        if (style & WS_MAXIMIZE) != 0:
+        except Exception:
             return False
-
-        user_state = query_user_notification_state()
-        if user_state in (
-            QUNS_RUNNING_D3D_FULL_SCREEN,
-            QUNS_PRESENTATION_MODE,
-        ):
-            return True
-
-        if is_window_fullscreen_on_screen(hwnd):
-            if (style & WS_POPUP) != 0 or user_state == QUNS_BUSY:
-                return True
-
-        return False
 
     def _check_state(self) -> None:
         if not self._enabled:

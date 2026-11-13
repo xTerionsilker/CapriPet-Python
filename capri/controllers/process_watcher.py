@@ -6,28 +6,21 @@
 
 from __future__ import annotations
 
-import ctypes
 import logging
 import os
 import time
 from collections.abc import Callable
-from ctypes import wintypes
 from typing import Any
 
 import psutil
+import win32gui
+import win32process
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ..core.process_classifier import ProcessClassifier
 from ..core.settings import get_config_value
 
 logger = logging.getLogger(__name__)
-
-# Инициализация Win32 User32
-user32: Any
-try:
-    user32 = ctypes.windll.user32
-except AttributeError:
-    user32 = None
 
 
 class ProcessWatcher(QObject):
@@ -85,8 +78,7 @@ class ProcessWatcher(QObject):
         """Запускает сенсорные таймеры мониторинга."""
         if not self._enabled:
             return
-        if user32:
-            self._foreground_timer.start()
+        self._foreground_timer.start()
         self._background_timer.start()
         logger.info("ProcessWatcher: запущен гибридный сенсорный конвейер.")
 
@@ -105,23 +97,20 @@ class ProcessWatcher(QObject):
 
     def _get_foreground_process_name(self) -> str | None:
         """Извлекает имя исполняемого файла активного окна через Win32 API."""
-        if not user32:
-            return None
-        hwnd = user32.GetForegroundWindow()
-        if not hwnd or not user32.IsWindow(hwnd):
-            return None
-        if user32.IsIconic(hwnd):
-            return None
-
-        pid = wintypes.DWORD()
-        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-        if not pid.value or pid.value == self._own_pid:
-            return None
-
         try:
-            proc = psutil.Process(pid.value)
+            hwnd = win32gui.GetForegroundWindow()
+            if not hwnd or not win32gui.IsWindow(hwnd):
+                return None
+            if win32gui.IsIconic(hwnd):
+                return None
+
+            _, pid = win32process.GetWindowThreadProcessId(hwnd)
+            if not pid or pid == self._own_pid:
+                return None
+
+            proc = psutil.Process(pid)
             return proc.name().lower()
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, Exception):
             return None
 
     def _poll_foreground_window(self) -> None:

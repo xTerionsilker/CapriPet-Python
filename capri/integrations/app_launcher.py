@@ -47,6 +47,42 @@ BLOCKED_SCRIPT_EXTENSIONS: tuple[str, ...] = (
     ".pif",
 )
 
+BLOCKED_INTERPRETERS: frozenset[str] = frozenset(
+    {
+        "cmd.exe",
+        "powershell.exe",
+        "pwsh.exe",
+        "cscript.exe",
+        "wscript.exe",
+        "mshta.exe",
+        "rundll32.exe",
+        "regsvr32.exe",
+    }
+)
+
+
+def resolve_shortcut(lnk_path: str) -> tuple[str, str] | None:
+    """Извлекает целевой путь и аргументы из ярлыка .lnk с проверкой безопасности."""
+    try:
+        import win32com.client
+
+        shell = win32com.client.Dispatch("WScript.Shell")
+        shortcut = shell.CreateShortcut(str(lnk_path))
+        target = str(shortcut.TargetPath).strip()
+        args = str(shortcut.Arguments).strip()
+        if not target or target.startswith(("\\\\", "//")):
+            return None
+        target_name = os.path.basename(target).lower()
+        if target_name in BLOCKED_INTERPRETERS:
+            return None
+        ext = os.path.splitext(target)[1].lower()
+        if ext in BLOCKED_SCRIPT_EXTENSIONS or ext != ".exe":
+            return None
+        return target, args
+    except Exception as exc:
+        logger.debug("Не удалось разобрать ярлык %s: %s", lnk_path, exc)
+        return None
+
 
 def translit_ru_to_en(text: str) -> str:
     t = text.lower().replace("кс", "x")
@@ -91,14 +127,19 @@ def _scan_windows_applications() -> list[dict[str, Any]]:
         for root, _, files in os.walk(sdir):
             for f in files:
                 if f.lower().endswith(".lnk"):
-                    name = os.path.splitext(f)[0]
-                    if name.lower() not in apps:
-                        apps[name.lower()] = {
-                            "name": name,
-                            "exec": os.path.join(root, f),
-                            "comment": "",
-                            "path": os.path.join(root, f),
-                        }
+                    full_lnk = os.path.join(root, f)
+                    res = resolve_shortcut(full_lnk)
+                    if res is not None:
+                        target_path, _ = res
+                        if os.path.isfile(target_path):
+                            name = os.path.splitext(f)[0]
+                            if name.lower() not in apps:
+                                apps[name.lower()] = {
+                                    "name": name,
+                                    "exec": full_lnk,
+                                    "comment": "",
+                                    "path": target_path,
+                                }
 
     if winreg is not None:
         for hkey in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
@@ -261,6 +302,20 @@ def is_safe_executable_path(path_str: str) -> bool:
     if not os.path.isfile(clean_path):
         logger.warning("Исполняемый файл не найден: %s", clean_path)
         return False
+
+    if ext == ".lnk":
+        resolved = resolve_shortcut(clean_path)
+        if resolved is None:
+            return False
+        target_path, _ = resolved
+        target_name = os.path.basename(target_path).lower()
+        if target_name in BLOCKED_INTERPRETERS:
+            logger.warning(
+                "Заблокирован запуск системного интерпретатора через ярлык: %s",
+                target_path,
+            )
+            return False
+        return is_safe_executable_path(target_path)
 
     return True
 

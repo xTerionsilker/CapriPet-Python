@@ -159,6 +159,16 @@ class TestAppLauncherSecurity(unittest.TestCase):
         for app in malicious_apps:
             self.assertFalse(launch_application(app))
 
+    def test_blocks_malicious_shortcut(self) -> None:
+        with patch("capri.integrations.app_launcher.resolve_shortcut") as mock_resolve:
+            mock_resolve.return_value = (r"C:\Windows\System32\cmd.exe", "")
+            with tempfile.NamedTemporaryFile(suffix=".lnk", delete=False) as f:
+                lnk_path = f.name
+            try:
+                self.assertFalse(is_safe_executable_path(lnk_path))
+            finally:
+                os.remove(lnk_path)
+
 
 class TestWebSearchSecurity(unittest.TestCase):
     """Тестирование вайтлистинга URL схем и защиты от кастомных системных протоколов."""

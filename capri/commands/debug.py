@@ -2,22 +2,22 @@
 
 from __future__ import annotations
 
+import humanize
+
 from ..integrations import web_search
 from .base import BaseCommand, CommandContext
 
 
 def format_duration(seconds: float | None) -> str:
-    """Форматирует длительность в секундах в человекочитаемый вид."""
+    """Форматирует длительность в секундах в человекочитаемый вид через humanize."""
     if seconds is None:
         return "неизвестно"
     total = max(0, int(seconds))
-    hours, remainder = divmod(total, 3600)
-    minutes, secs = divmod(remainder, 60)
-    if hours:
-        return f"{hours} ч {minutes:02d} мин"
-    if minutes:
-        return f"{minutes} мин {secs:02d} с"
-    return f"{secs} с"
+    try:
+        humanize.i18n.activate("ru_RU")
+        return humanize.precisedelta(total)
+    except Exception:
+        return f"{total} с"
 
 
 def _describe_vosk(info: dict[str, object]) -> str:
