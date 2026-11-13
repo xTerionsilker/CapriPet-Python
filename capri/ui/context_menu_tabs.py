@@ -28,6 +28,7 @@ from ..core.settings import (
     set_config_value,
 )
 from .reminder_dialog import ReminderRangeDialog
+from .speech_sfx import get_speech_sfx
 from .theme import (
     ACID_GREEN,
     CSS_CYBER_UI,
@@ -659,6 +660,26 @@ class SystemTabPage(QWidget):
         self.chk_game.toggled.connect(self._on_toggle_game_mode)
         beh_layout.addWidget(self.chk_game)
 
+        self.chk_process_monitoring = QCheckBox(
+            "[CONTEXT] Реакция на активные окна", self
+        )
+        self.chk_process_monitoring.setStyleSheet(_CHECKBOX_STYLE)
+        actions = getattr(self.pet_window, "actions", None)
+        monitoring_enabled = (
+            getattr(actions, "process_monitoring_enabled", None)
+            if actions is not None
+            else None
+        )
+        if monitoring_enabled is None:
+            monitoring_enabled = get_config_value(
+                "telemetry.process_monitoring_enabled", True
+            )
+        self.chk_process_monitoring.setChecked(bool(monitoring_enabled))
+        self.chk_process_monitoring.toggled.connect(
+            self._on_toggle_process_monitoring
+        )
+        beh_layout.addWidget(self.chk_process_monitoring)
+
         self.chk_discord = QCheckBox("[DISCORD] Discord Rich Presence", self)
         self.chk_discord.setStyleSheet(_CHECKBOX_STYLE)
         self.chk_discord.setChecked(get_config_value("discord.enabled", True))
@@ -734,6 +755,16 @@ class SystemTabPage(QWidget):
             actions.set_game_suppression_enabled(checked)
         else:
             set_config_value("game_mode.suppression_enabled", checked)
+
+    def _on_toggle_process_monitoring(self, checked: bool) -> None:
+        get_speech_sfx().play_relay_snap()
+        actions = getattr(self.pet_window, "actions", None)
+        if actions and hasattr(actions, "set_process_monitoring_enabled"):
+            actions.set_process_monitoring_enabled(checked)
+        elif hasattr(self.pet_window, "set_process_monitoring_enabled"):
+            self.pet_window.set_process_monitoring_enabled(checked)
+        else:
+            set_config_value("telemetry.process_monitoring_enabled", checked)
 
     def _on_toggle_discord(self, checked: bool) -> None:
         actions = getattr(self.pet_window, "actions", None)

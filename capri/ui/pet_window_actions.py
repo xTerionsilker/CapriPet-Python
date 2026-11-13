@@ -11,6 +11,7 @@ from PySide6.QtMultimedia import QAudioDevice
 
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
+    get_config_value,
     set_config_value,
 )
 from .speech import has_active_speech
@@ -95,6 +96,13 @@ class PetWindowActionDelegate:
     @property
     def game_suppression_enabled(self) -> bool:
         return self._window._game_detector.suppression_enabled
+
+    @property
+    def process_monitoring_enabled(self) -> bool:
+        orchestrator = getattr(self._window, "_orchestrator", None)
+        if orchestrator and hasattr(orchestrator, "process_monitoring_enabled"):
+            return bool(orchestrator.process_monitoring_enabled)
+        return bool(get_config_value("telemetry.process_monitoring_enabled", True))
 
     def get_designated_screen(self) -> QScreen | None:
         if self._window._designated_screen_name:
@@ -268,3 +276,10 @@ class PetWindowActionDelegate:
     def set_game_suppression_enabled(self, enabled: bool) -> None:
         set_config_value("game_mode.suppression_enabled", enabled)
         self._window._game_detector.set_enabled(enabled)
+
+    def set_process_monitoring_enabled(self, enabled: bool) -> None:
+        orchestrator = getattr(self._window, "_orchestrator", None)
+        if orchestrator and hasattr(orchestrator, "set_process_monitoring_enabled"):
+            orchestrator.set_process_monitoring_enabled(enabled)
+        else:
+            set_config_value("telemetry.process_monitoring_enabled", enabled)

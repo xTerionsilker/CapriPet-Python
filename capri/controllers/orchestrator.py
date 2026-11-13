@@ -283,6 +283,19 @@ class PetOrchestrator(QObject):
         else:
             self.discord_rpc.stop()
 
+    @property
+    def process_monitoring_enabled(self) -> bool:
+        """Статус работы контекстной телеметрии и мониторинга окон."""
+        if hasattr(self, "process_watcher") and self.process_watcher is not None:
+            return bool(self.process_watcher._enabled)
+        return bool(get_config_value("telemetry.process_monitoring_enabled", True))
+
+    def set_process_monitoring_enabled(self, enabled: bool) -> None:
+        """Включает или выключает сенсорный конвейер отслеживания активных окон."""
+        set_config_value("telemetry.process_monitoring_enabled", enabled)
+        if hasattr(self, "process_watcher") and self.process_watcher is not None:
+            self.process_watcher.set_enabled(enabled)
+
     def _sync_discord_status(self) -> None:
         last_cmd = self._last_command[:30] + (
             "…" if len(self._last_command) > 30 else ""

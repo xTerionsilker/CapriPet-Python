@@ -89,9 +89,14 @@ class TestContextMenuTabs(unittest.TestCase):
         self.assertIsNotNone(page)
         self.assertTrue(hasattr(page, "chk_reminders"))
         self.assertTrue(hasattr(page, "chk_game"))
+        self.assertTrue(hasattr(page, "chk_process_monitoring"))
         self.assertTrue(hasattr(page, "chk_discord"))
         self.assertTrue(hasattr(page, "chk_shredder"))
         self.assertEqual(len(page._timeout_buttons), 3)
+
+        # Toggle process monitoring
+        page.chk_process_monitoring.setChecked(False)
+        self.mock_actions.set_process_monitoring_enabled.assert_called_with(False)
 
         # Click a frequency preset
         preset_key = "Часто (1 – 5 мин)"
