@@ -7,16 +7,19 @@
 
 from __future__ import annotations
 
-import ctypes
 import json
 import logging
 import os
 import urllib.parse
 import webbrowser
 from pathlib import Path
+from typing import Any
 
 import psutil
 import spotipy
+import win32con
+import win32gui
+import win32process
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import SpotifyClientCredentials
 
@@ -156,50 +159,35 @@ def _find_spotify_windows(pids: set[int]) -> list[int]:
     if not pids:
         return []
 
-    user32 = ctypes.windll.user32
     hwnds: list[int] = []
 
-    def enum_cb(hwnd: int, _extra: int) -> bool:
-        pid = ctypes.c_ulong()
-        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-        if pid.value in pids:
-            class_buf = ctypes.create_unicode_buffer(256)
-            user32.GetClassNameW(hwnd, class_buf, 256)
-            if class_buf.value in (
+    def enum_cb(hwnd: int, _extra: Any) -> bool:
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        if pid in pids:
+            cls_name = win32gui.GetClassName(hwnd)
+            if cls_name in (
                 "Chrome_WidgetWin_0",
                 "Chrome_WidgetWin_1",
             ):
                 hwnds.append(hwnd)
         return True
 
-    cb = ctypes.WINFUNCTYPE(
-        ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p
-    )(enum_cb)
-    user32.EnumWindows(cb, 0)
+    win32gui.EnumWindows(enum_cb, None)
     return hwnds
 
 
 def _get_spotify_title(pids: set[int]) -> str:
-    user32 = ctypes.windll.user32
     titles: list[str] = []
 
-    def enum_cb(hwnd: int, _extra: int) -> bool:
-        pid = ctypes.c_ulong()
-        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-        if pid.value in pids:
-            length = user32.GetWindowTextLengthW(hwnd)
-            if length > 0:
-                buff = ctypes.create_unicode_buffer(length + 1)
-                user32.GetWindowTextW(hwnd, buff, length + 1)
-                text = buff.value.strip()
-                if text:
-                    titles.append(text)
+    def enum_cb(hwnd: int, _extra: Any) -> bool:
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        if pid in pids:
+            text = win32gui.GetWindowText(hwnd).strip()
+            if text:
+                titles.append(text)
         return True
 
-    cb = ctypes.WINFUNCTYPE(
-        ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p
-    )(enum_cb)
-    user32.EnumWindows(cb, 0)
+    win32gui.EnumWindows(enum_cb, None)
 
     for t in titles:
         if t.lower() not in _PAUSED_TITLES and (" — " in t or " - " in t):
@@ -219,17 +207,18 @@ def _send_spotify_command(cmd: int) -> bool:
     if not hwnds:
         return False
 
-    user32 = ctypes.windll.user32
     lparam = cmd << 16
     success = False
     for hwnd in hwnds:
         try:
-            result = ctypes.c_size_t()
-            if user32.SendMessageTimeoutW(
-                hwnd, 0x0319, 0, lparam, 2, 150, ctypes.byref(result)
-            ) or user32.PostMessageW(hwnd, 0x0319, 0, lparam):
+            res, _ = win32gui.SendMessageTimeout(
+                hwnd, 0x0319, 0, lparam, win32con.SMTO_ABORTIFHUNG, 150
+            )
+            if res:
                 success = True
-        except (OSError, AttributeError):
+            elif win32gui.PostMessage(hwnd, 0x0319, 0, lparam):
+                success = True
+        except Exception:
             continue
     return success
 

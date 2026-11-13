@@ -8,51 +8,33 @@
 from __future__ import annotations
 
 import contextlib
-import ctypes
 import logging
 import random
 from collections.abc import Callable
-from ctypes import wintypes
 
+import win32con
+import win32gui
 from PySide6.QtCore import QObject, QRect, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
 
 logger = logging.getLogger(__name__)
 
 
-class _RECT(ctypes.Structure):
-    _fields_ = [
-        ("left", wintypes.LONG),
-        ("top", wintypes.LONG),
-        ("right", wintypes.LONG),
-        ("bottom", wintypes.LONG),
-    ]
-
-
-SWP_NOZORDER = 0x0004
-SWP_NOSIZE = 0x0001
-SWP_NOACTIVATE = 0x0010
-DWMWA_EXTENDED_FRAME_BOUNDS = 9
-
-
 def get_foreground_hwnd() -> int | None:
     """Возвращает валидный HWND активного пользовательского окна (исключая рабочий стол и трей)."""
     try:
-        user32 = ctypes.windll.user32
-        hwnd = user32.GetForegroundWindow()
-        if not hwnd or not user32.IsWindow(hwnd):
+        hwnd = win32gui.GetForegroundWindow()
+        if not hwnd or not win32gui.IsWindow(hwnd):
             return None
-        if user32.IsIconic(hwnd):
+        if win32gui.IsIconic(hwnd):
             return None
 
-        # Игнорируем рабочий стол и системный трей
-        desktop_hwnd = user32.GetDesktopWindow()
-        shell_hwnd = user32.GetShellWindow()
-        if hwnd in (desktop_hwnd, shell_hwnd):
+        # Игнорируем рабочий стол
+        if hwnd == win32gui.GetDesktopWindow():
             return None
 
         return int(hwnd)
-    except (OSError, AttributeError) as e:
+    except Exception as e:
         logger.debug("get_foreground_hwnd failed: %s", e)
         return None
 
@@ -66,20 +48,14 @@ def shake_window_hwnd(
 ) -> QTimer | None:
     """Трясет внешнее окно Windows по его HWND через SetWindowPos, восстанавливая исходную позицию."""
     try:
-        user32 = ctypes.windll.user32
-        if not user32.IsWindow(hwnd):
+        if not win32gui.IsWindow(hwnd):
             if on_finished:
                 on_finished()
             return None
 
-        rect = wintypes.RECT()
-        if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-            if on_finished:
-                on_finished()
-            return None
-
-        orig_x, orig_y = rect.left, rect.top
-        flags = SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE
+        left, top, _right, _bottom = win32gui.GetWindowRect(hwnd)
+        orig_x, orig_y = left, top
+        flags = win32con.SWP_NOZORDER | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE
 
         interval_ms = 25
         total_steps = max(1, duration_ms // interval_ms)
@@ -91,11 +67,11 @@ def shake_window_hwnd(
         def _tick() -> None:
             nonlocal step
             step += 1
-            if step >= total_steps or not user32.IsWindow(hwnd):
+            if step >= total_steps or not win32gui.IsWindow(hwnd):
                 timer.stop()
                 timer.deleteLater()
                 with contextlib.suppress(Exception):
-                    user32.SetWindowPos(
+                    win32gui.SetWindowPos(
                         hwnd, 0, orig_x, orig_y, 0, 0, flags
                     )
                 if on_finished:
@@ -105,14 +81,14 @@ def shake_window_hwnd(
             dx = random.randint(-intensity, intensity)
             dy = random.randint(-intensity, intensity)
             with contextlib.suppress(Exception):
-                user32.SetWindowPos(
+                win32gui.SetWindowPos(
                     hwnd, 0, orig_x + dx, orig_y + dy, 0, 0, flags
                 )
 
         timer.timeout.connect(_tick)
         timer.start()
         return timer
-    except (OSError, AttributeError, RuntimeError) as e:
+    except Exception as e:
         logger.debug("shake_window_hwnd failed: %s", e)
         if on_finished:
             on_finished()
@@ -139,37 +115,15 @@ def get_active_screen_rect() -> QRect:
 
 def _get_windows_active_window_rect() -> QRect | None:
     try:
-        user32 = ctypes.windll.user32
-        hwnd = user32.GetForegroundWindow()
-        if not hwnd:
+        hwnd = win32gui.GetForegroundWindow()
+        if not hwnd or not win32gui.IsWindow(hwnd) or win32gui.IsIconic(hwnd):
             return None
 
-        if user32.IsIconic(hwnd):
-            return None
-
-        rect = _RECT()
-
-        try:
-            dwmapi = ctypes.windll.dwmapi
-            res = dwmapi.DwmGetWindowAttribute(
-                hwnd,
-                DWMWA_EXTENDED_FRAME_BOUNDS,
-                ctypes.byref(rect),
-                ctypes.sizeof(rect),
-            )
-            if res == 0:
-                w = rect.right - rect.left
-                h = rect.bottom - rect.top
-                if w > 50 and h > 50:
-                    return QRect(rect.left, rect.top, w, h)
-        except (OSError, AttributeError):
-            pass
-
-        if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-            w = rect.right - rect.left
-            h = rect.bottom - rect.top
-            if w > 50 and h > 50:
-                return QRect(rect.left, rect.top, w, h)
-    except (OSError, AttributeError) as e:
+        left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+        w = right - left
+        h = bottom - top
+        if w > 50 and h > 50:
+            return QRect(left, top, w, h)
+    except Exception as e:
         logger.debug("Windows get_foreground_window failed: %s", e)
     return None
