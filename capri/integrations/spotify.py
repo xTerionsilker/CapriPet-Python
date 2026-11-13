@@ -17,7 +17,6 @@ from pathlib import Path
 
 import psutil
 import spotipy
-from requests import RequestException
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import SpotifyClientCredentials
 
@@ -74,7 +73,7 @@ def find_track(query: str) -> tuple[str, str, str] | None:
         if status in (401, 403):
             raise SpotifyError("ключи Spotify не приняты") from error
         raise SpotifyError(f"Spotify ответил {status}") from error
-    except RequestException as error:
+    except Exception as error:
         raise SpotifyError("нет связи с Spotify") from error
 
     return _first_track(payload)
