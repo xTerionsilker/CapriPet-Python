@@ -7,20 +7,22 @@ This document provides strict operational, architectural, and design constraints
 ## 1. Environment & Execution
 
 - **Target Platform:** Windows 10 / 11 (DWM-native, Multi-DPI, Win32 APIs).
-- **Python Interpreter:** Always use the local virtual environment: `.\.venv\Scripts\python.exe`.
+- **Terminal & Shell:** Always use **Git Bash** (`"C:\Program Files\Git\bin\bash.exe"` / `bash`) for running commands, CLI operations, and scripts.
+- **Python Interpreter:** Always use the local virtual environment: `.\.venv\Scripts\python.exe` (or `./.venv/Scripts/python.exe` in Git Bash).
 - **Run Application:** `.\.venv\Scripts\python.exe main.py` or `capriWin.bat`.
 - **Syntax, Linter & Integrity Verification:**
   - Primary local verification suite: `scripts\verify.bat` (runs Ruff, Compileall, Mypy, Unittests, Bandit SAST, pip-audit).
   - Branch protection status registration: `scripts\verify.bat --report-status`.
   - Individual tools when isolating failures:
-    ```cmd
-    .\.venv\Scripts\ruff.exe check .
-    .\.venv\Scripts\python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_dir('scripts', force=True); compileall.compile_file('main.py')"
-    .\.venv\Scripts\mypy.exe capri
-    .\.venv\Scripts\python.exe -m unittest discover -s tests
+    ```bash
+    ./.venv/Scripts/ruff.exe check .
+    ./.venv/Scripts/python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_dir('scripts', force=True); compileall.compile_file('main.py')"
+    ./.venv/Scripts/mypy.exe capri
+    ./.venv/Scripts/python.exe -m unittest discover -s tests
     ```
 - **Tool Operation Constraints:**
-  - Operate on at most **70 lines per tool call** during file creation, reading, and editing to maintain deterministic execution and prevent serialization latencies.
+  - **Reading (`read_file`):** Operate on at most **200 lines per tool call**.
+  - **Creation & Editing (`write_file`, `edit_file`):** Operate on at most **70 lines per tool call** to maintain deterministic execution and prevent serialization latencies.
 
 ---
 
