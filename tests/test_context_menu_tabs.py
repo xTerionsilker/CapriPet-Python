@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QCheckBox
 
 from capri.ui.context_menu_tabs import (
     AudioTabPage,
@@ -90,7 +90,7 @@ class TestContextMenuTabs(unittest.TestCase):
         self.assertTrue(hasattr(page, "chk_reminders"))
         self.assertTrue(hasattr(page, "chk_game"))
         self.assertTrue(hasattr(page, "chk_process_monitoring"))
-        self.assertTrue(hasattr(page, "chk_discord"))
+        self.assertFalse(hasattr(page, "chk_discord"))
         self.assertTrue(hasattr(page, "chk_shredder"))
         self.assertEqual(len(page._timeout_buttons), 3)
 
@@ -116,6 +116,48 @@ class TestContextMenuTabs(unittest.TestCase):
         page.btn_halt.click()
         parent_dialog.close.assert_called_with(immediate=True)
         self.mock_window.close.assert_called()
+
+
+    def test_audio_tab_page_no_duplicate_volume_hud(self) -> None:
+        page = AudioTabPage(self.mock_window)
+        vol_hud_checkboxes = [
+            cb for cb in page.findChildren(QCheckBox) if "Volume HUD" in cb.text()
+        ]
+        self.assertEqual(len(vol_hud_checkboxes), 1)
+
+    @patch("capri.ui.context_menu_tabs.get_speech_sfx")
+    def test_ui_sound_effects_triggered(self, mock_get_sfx: MagicMock) -> None:
+        mock_sfx = MagicMock()
+        mock_get_sfx.return_value = mock_sfx
+
+        core_page = CoreTabPage(self.mock_window)
+        mock_sfx.play_relay_snap.reset_mock()
+        core_page.btn_summon.click()
+        mock_sfx.play_relay_snap.assert_called()
+
+        core_page.btn_deck.click()
+        mock_sfx.play_relay_snap.assert_called()
+
+        core_page.btn_teleport.click()
+        mock_sfx.play_relay_snap.assert_called()
+
+        core_page.btn_reset_pos.click()
+        mock_sfx.play_relay_snap.assert_called()
+
+        audio_page = AudioTabPage(self.mock_window)
+        mock_sfx.play_relay_snap.reset_mock()
+        audio_page._preset_buttons[50].click()
+        mock_sfx.play_relay_snap.assert_called()
+
+        visual_page = VisualTabPage(self.mock_window)
+        mock_sfx.play_relay_snap.reset_mock()
+        visual_page._scale_buttons[100].click()
+        mock_sfx.play_relay_snap.assert_called()
+
+        system_page = SystemTabPage(self.mock_window)
+        mock_sfx.play_relay_snap.reset_mock()
+        system_page._timeout_buttons[5].click()
+        mock_sfx.play_relay_snap.assert_called()
 
 
 if __name__ == "__main__":
