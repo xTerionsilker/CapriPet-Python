@@ -8,14 +8,16 @@
 from __future__ import annotations
 
 import contextlib
-import ctypes
+import logging
 import os
 import tempfile
-from ctypes import wintypes
 from pathlib import Path
 from typing import Any, NamedTuple
 
 import humanize
+from win32com.shell import shell, shellcon
+
+logger = logging.getLogger(__name__)
 
 
 class CleanResult(NamedTuple):
@@ -34,23 +36,6 @@ class CleanResult(NamedTuple):
     recycle_bin_cleared: bool
 
 
-class _SHQUERYRBINFO(ctypes.Structure):
-    _fields_ = [
-        ("cbSize", wintypes.DWORD),
-        ("i64Size", ctypes.c_int64),
-        ("i64NumItems", ctypes.c_int64),
-    ]
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.cbSize = ctypes.sizeof(self)
-
-
-SHERB_NOCONFIRMATION = 0x00000001
-SHERB_NOPROGRESSUI = 0x00000002
-SHERB_NOSOUND = 0x00000004
-
-
 def format_bytes(bytes_count: float) -> str:
     """Форматирует байты в удобную читаемую строку с помощью humanize."""
     return humanize.naturalsize(max(0.0, float(bytes_count)), binary=True)
@@ -63,27 +48,22 @@ def clear_recycle_bin() -> tuple[bool, int, int]:
         (успех, количество_элементов, байт_освобождено)
     """
     try:
-        info = _SHQUERYRBINFO()
-        hr = ctypes.windll.shell32.SHQueryRecycleBinW(
-            None, ctypes.byref(info)
-        )
-        if hr != 0:
-            return False, 0, 0
-
-        num_items = int(info.i64NumItems)
-        bytes_size = int(info.i64Size)
-
+        size, count = shell.SHQueryRecycleBin(None)
+        num_items = int(count)
+        bytes_size = max(0, int(size))
         if num_items <= 0:
             return True, 0, 0
 
-        flags = SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND
-        res = ctypes.windll.shell32.SHEmptyRecycleBinW(None, None, flags)
-        # S_OK = 0
-        if res == 0:
-            return True, num_items, max(0, bytes_size)
-    except (OSError, AttributeError):
-        pass
-    return False, 0, 0
+        flags = (
+            shellcon.SHERB_NOCONFIRMATION
+            | shellcon.SHERB_NOPROGRESSUI
+            | shellcon.SHERB_NOSOUND
+        )
+        shell.SHEmptyRecycleBin(None, None, flags)
+        return True, num_items, bytes_size
+    except Exception as exc:
+        logger.debug("Ошибка при очистке корзины через Shell API: %s", exc)
+        return False, 0, 0
 
 
 def _is_strictly_within(
