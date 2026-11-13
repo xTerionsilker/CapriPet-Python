@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from .input_flow import InputFlow
 from .morphology import (
-    NUM_WORDS,
     normalize_spoken_numbers,
     stem_russian_word,
     stem_text,
@@ -54,7 +53,6 @@ __all__ = [
     "DEFAULT_CONFIG",
     "GLITCH_INTENSITY_OPTIONS",
     "MAX_TYPO_DISTANCE",
-    "NUM_WORDS",
     "VOICE_COMMAND_WINDOW_MS",
     "VOICE_FOLLOWUP_WINDOW_MS",
     "VOICE_LISTENING_STATUS",
