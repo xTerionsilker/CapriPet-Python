@@ -15,6 +15,8 @@ from ctypes import wintypes
 from pathlib import Path
 from typing import Any, NamedTuple
 
+import humanize
+
 
 class CleanResult(NamedTuple):
     """Результат выполнения операции системной очистки.
@@ -50,15 +52,8 @@ SHERB_NOSOUND = 0x00000004
 
 
 def format_bytes(bytes_count: float) -> str:
-    """Форматирует байты в удобную читаемую строку."""
-    b = float(max(0, bytes_count))
-    if b < 1024:
-        return f"{int(b)} Б"
-    for unit in ("КБ", "МБ", "ГБ", "ТБ"):
-        b /= 1024.0
-        if b < 1024.0:
-            return f"{b:.1f} {unit}"
-    return f"{b:.1f} ПБ"
+    """Форматирует байты в удобную читаемую строку с помощью humanize."""
+    return humanize.naturalsize(max(0.0, float(bytes_count)), binary=True)
 
 
 def clear_recycle_bin() -> tuple[bool, int, int]:
