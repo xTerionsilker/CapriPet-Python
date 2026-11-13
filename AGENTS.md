@@ -7,6 +7,7 @@ This document provides strict operational, architectural, and design constraints
 ## 1. Environment & Execution
 
 - **Target Platform:** Windows 10 / 11 (DWM-native, Multi-DPI, Win32 APIs).
+- **Connection & Session:** Remote session via **SSH**; always account for SSH environment and non-interactive shell specifics.
 - **Terminal & Shell:** Always use **Git Bash** (`"C:\Program Files\Git\bin\bash.exe"` / `bash`) for running commands, CLI operations, and scripts.
 - **Python Interpreter:** Always use the local virtual environment: `.\.venv\Scripts\python.exe` (or `./.venv/Scripts/python.exe` in Git Bash).
 - **Run Application:** `.\.venv\Scripts\python.exe main.py` or `capriWin.bat`.
