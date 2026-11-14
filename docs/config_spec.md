@@ -85,7 +85,8 @@
     "reminders_enabled": true,
     "reminder_min_interval_ms": 600000,
     "reminder_max_interval_ms": 3600000,
-    "file_shredder_enabled": true
+    "file_shredder_enabled": true,
+    "dialogue_style": "arasaka_engram"
   },
   "game_mode": {
     "suppression_enabled": true,
@@ -150,6 +151,7 @@
 | `behavior.reminder_min_interval_ms` | `int` | `600000` | Минимальный интервал периодических напоминаний (10 минут) |
 | `behavior.reminder_max_interval_ms` | `int` | `3600000` | Максимальный интервал периодических напоминаний (60 минут) |
 | `behavior.file_shredder_enabled` | `bool` | `true` | Разрешение drag-and-drop уничтожения файлов протоколом Blackwall |
+| `behavior.dialogue_style` | `str` | `"arasaka_engram"` | Идентификатор активного пресета диалогов (`"arasaka_engram"`, `"partner_duo"`) |
 | `game_mode.suppression_enabled` | `bool` | `true` | Подавление всплывающего HUD и реплик при запуске полноэкранных игр |
 | `game_mode.cooldown_seconds` | `float` | `3.0` | Задержка перед выходом из игрового режима при сворачивании игры |
 | `game_mode.whitelist` | `list[str]` | `[]` | Белый список исполняемых файлов процессов |
@@ -213,6 +215,7 @@
 - **Выбор микрофона:** обновление `audio.designated_microphone`.
 - **Тумблер глитчей:** обновление `effects.glitches_enabled` и `effects.glitch_intensity`.
 - **Тумблер голоса:** обновление `audio.voice_enabled`.
+- **Смена стиля общения:** обновление `behavior.dialogue_style`.
 - **Смена позы и масштаба:** обновление `appearance.pose`, `appearance.scale`.
 
 ### 5.2. Сохранение позиции окна

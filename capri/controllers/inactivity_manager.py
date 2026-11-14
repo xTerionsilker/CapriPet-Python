@@ -10,6 +10,7 @@ from PySide6.QtCore import QObject, QRect, QTimer
 from PySide6.QtGui import QGuiApplication, QScreen
 from PySide6.QtWidgets import QWidget
 
+from ..core.dialogue_manager import get_dialogue_manager
 from ..effects.transition import TransitionOverlay
 from ..integrations.system_control import (
     get_mouse_position,
@@ -515,10 +516,11 @@ class PresenceReminder(QObject):
 
     def next_phrase(self) -> str:
         """Возвращает следующую фразу напоминания."""
+        phrases = get_dialogue_manager().get_reminder_phrases() or REMINDER_PHRASES
         candidates = [
-            p for p in REMINDER_PHRASES if p != self._last_phrase
+            p for p in phrases if p != self._last_phrase
         ]
-        phrase = random.choice(candidates or list(REMINDER_PHRASES))
+        phrase = random.choice(candidates or list(phrases))
         self._last_phrase = phrase
         return phrase
 
