@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from PySide6.QtCore import QPoint, QRect, QSize
+from PySide6.QtWidgets import QApplication
 
 from capri.ui.window_prank_controller import (
     WindowPrankController,
@@ -12,6 +13,13 @@ from capri.ui.window_prank_controller import (
 
 
 class TestWindowPrankController(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        if QApplication.instance() is None:
+            cls._app = QApplication([])
+        else:
+            cls._app = QApplication.instance()
+
     def setUp(self) -> None:
         self.mock_window = MagicMock()
         self.mock_window.pos.return_value = QPoint(500, 500)
@@ -51,3 +59,54 @@ class TestWindowPrankController(unittest.TestCase):
         # При векторе от курсора (520->500) смещение по X влево: dx ~ -hop_dist (~280)
         dist = ((new_pos.x() - curr_pos.x()) ** 2 + (new_pos.y() - curr_pos.y()) ** 2) ** 0.5
         self.assertGreaterEqual(dist, 200.0)
+
+    def test_execute_cursor_dodge_triggers_glitch_orb_teleport(self) -> None:
+        self.mock_window.isHidden.return_value = False
+        self.mock_window.width.return_value = 128
+        self.mock_window.height.return_value = 128
+        self.controller.dodge_hops_remaining = 2
+
+        self.controller.execute_cursor_dodge(QPoint(520, 500))
+        self.assertEqual(self.controller.dodge_hops_remaining, 1)
+
+        self.mock_window.teleport_controller.teleport_to_point.assert_called_once()
+        _, kwargs = self.mock_window.teleport_controller.teleport_to_point.call_args
+        self.assertEqual(kwargs.get("mode"), "dodge")
+        on_finish = kwargs.get("on_finished_callback")
+        self.assertTrue(callable(on_finish))
+        on_finish()
+        self.mock_window.speak.assert_called_once()
+
+    def test_execute_cursor_dodge_fallback_without_teleport_ctrl(self) -> None:
+        self.mock_window.teleport_controller = None
+        self.mock_window.width.return_value = 128
+        self.mock_window.height.return_value = 128
+        self.controller.dodge_hops_remaining = 1
+
+        self.controller.execute_cursor_dodge(QPoint(520, 500))
+        self.assertEqual(self.controller.dodge_hops_remaining, 0)
+        self.mock_window.move.assert_called_once()
+        self.mock_window.speak.assert_called_once()
+
+    def test_transition_overlay_dodge_trajectory_direction(self) -> None:
+        from capri.effects.transition import TransitionOverlay
+
+        screen_rect = QRect(0, 0, 1920, 1080)
+        start_center = QPoint(300, 300)
+        target_rect = QRect(700, 700, 128, 128)
+
+        overlay = TransitionOverlay(
+            screen_rect=screen_rect,
+            window_rect=target_rect,
+            mode="dodge",
+            target=None,
+            target_point=start_center,
+        )
+
+        # Траектория должна идти от исходной позиции к целевой точке уклонения
+        self.assertEqual(overlay._p0, start_center)
+        self.assertEqual(overlay._p2, target_rect.center())
+        self.assertEqual(overlay._kinematic_style, "dash")
+        self.assertEqual(overlay._duration_ms, 260)
+        overlay.close()
+        overlay.deleteLater()

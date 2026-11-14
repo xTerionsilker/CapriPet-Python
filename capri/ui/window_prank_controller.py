@@ -139,15 +139,32 @@ class WindowPrankController:
             self._window.size(),
             hop_dist=random.randint(240, 360),
         )
-        self._window.move(new_pos)
-        get_speech_sfx().play_lightning_strike()
+        target_center = QPoint(
+            new_pos.x() + self._window.width() // 2,
+            new_pos.y() + self._window.height() // 2,
+        )
         phrase = random.choice(DODGE_TEASE_PHRASES)
-        self._window.speak(phrase)
+
+        def on_dodge_finished() -> None:
+            self._window.speak(phrase)
+
+        teleport_ctrl = getattr(self._window, "teleport_controller", None)
+        if teleport_ctrl is not None:
+            teleport_ctrl.teleport_to_point(
+                target_center,
+                mode="dodge",
+                on_finished_callback=on_dodge_finished,
+            )
+        else:
+            self._window.move(new_pos)
+            get_speech_sfx().play_lightning_strike()
+            self._window.speak(phrase)
 
     def handle_enter_event(self, event: QEnterEvent) -> bool:
         """Проверяет условия и выполняет уворот при наведении мыши. Возвращает True если уворот был выполнен."""
         if (
             self._dodge_hops_remaining > 0
+            and not self._window.isHidden()
             and not getattr(self._window._drop_handler, "is_dragging", False)
             and not getattr(self._window, "_target_acquired", False)
         ):

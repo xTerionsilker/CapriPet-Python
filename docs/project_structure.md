@@ -7,6 +7,7 @@ main.py                         # Главная точка входа прил�
 capriWin.bat                    # Фасад-оркестратор быстрого запуска для Windows
 version.txt                     # Текущая версия приложения
 scripts/                        # Модульные скрипты подготовки и запуска
+├── benchmark_startup.py        # Комплексный бенчмаркинг времени запуска (headless ядро и полное GUI окно)
 ├── download_models.py          # Загрузка и проверка моделей Silero VAD и Vosk ASR
 ├── install_deps.bat            # Проверка и установка зависимостей из requirements.txt
 ├── run_app.bat                 # Запуск приложения (фоновый режим / консоль через --console)
