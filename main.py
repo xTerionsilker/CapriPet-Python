@@ -12,7 +12,7 @@ from capri import CapriWindow
 from capri.audio.recognizer import preload_model_async
 from capri.core.settings import get_config_value, init_user_agent_async
 from capri.ui.speech_sfx import preload_sfx_cache_async
-from capri.ui.theme import init_fonts
+from capri.ui.theme import get_font, init_fonts
 
 
 def main() -> int:
@@ -26,6 +26,7 @@ def main() -> int:
     app.setApplicationName("Capri")
     app.setQuitOnLastWindowClosed(False)
     init_fonts()
+    app.setFont(get_font(12))
     window = CapriWindow()
     window.show()
     return app.exec()

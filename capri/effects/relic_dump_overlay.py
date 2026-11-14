@@ -9,8 +9,10 @@ from __future__ import annotations
 import time
 
 from PySide6.QtCore import QPoint, QRect, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPaintEvent, QPen, QPolygon
+from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPaintEvent, QPen, QPolygon
 from PySide6.QtWidgets import QWidget
+
+from capri.ui.theme import get_hud_font, get_terminal_font
 
 COLOR_CRIMSON = QColor("#F6023F")
 COLOR_OBSIDIAN = QColor("#020106")
@@ -156,15 +158,13 @@ class RelicDumpOverlay(QWidget):
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawPolygon(header_poly)
 
-        font = QFont("JetBrains Mono", 8)
-        font.setStyleHint(QFont.StyleHint.Monospace)
-        font.setBold(True)
+        font = get_hud_font(8, bold=True)
         painter.setFont(font)
         painter.setPen(COLOR_WHITE)
         painter.drawText(header_rect, Qt.AlignmentFlag.AlignCenter, "// RELIC BIOCHIP EXCEPTION //")
 
         # Текст лога дампа памяти
-        painter.setFont(QFont("JetBrains Mono", 7))
+        painter.setFont(get_terminal_font(7))
         text_y = 44
         line_height = 18
 

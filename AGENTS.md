@@ -62,7 +62,7 @@ All UI, HUDs, overlays, particles, glitches, and dialogues **must** strictly use
 | **Neon Violet** | `#9E1FDE` | 1% | Chromatic aberration, biochip instability, deep energy displacement, exotic glitch artifacts |
 
 > **Mandatory Visual Constraints:**
-> - Sharp 45° chamfered geometry, pixel-grid snapping, and technical monospace fonts (`"Press Start 2P"`, `"JetBrains Mono"`, `"Terminus"`, `monospace`). No soft rounded corners (`border-radius`) or pastel palettes.
+> - Sharp 45° chamfered geometry, pixel-grid snapping, and exclusive Exo 2 typography from `assets/fonts/` (`"Exo 2"`, sans-serif). No soft rounded corners (`border-radius`) or pastel palettes.
 > - High-frequency coil whine, audio clipping, and static snaps over generic bells or standard beeps.
 
 ---

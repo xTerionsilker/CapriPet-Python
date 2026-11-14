@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
 from .speech_sfx import get_speech_sfx
 from .theme import (
     ACID_GREEN,
-    FONT_FAMILY,
+    CSS_CYBER_TERMINAL,
     NEON_CRIMSON,
     OBSIDIAN_BLACK,
     PURE_WHITE,
@@ -102,7 +102,7 @@ class CyberConsoleHud(QWidget):
                 color: {PURE_WHITE};
                 border: 1px solid {ACID_GREEN};
                 padding: 4px 8px;
-                font-family: "{FONT_FAMILY}", monospace;
+                font-family: {CSS_CYBER_TERMINAL};
                 selection-background-color: {NEON_CRIMSON};
                 selection-color: {PURE_WHITE};
             }}
@@ -125,7 +125,7 @@ class CyberConsoleHud(QWidget):
                 color: {NEON_CRIMSON};
                 border: 1px solid {NEON_CRIMSON};
                 padding: 4px 10px;
-                font-family: "{FONT_FAMILY}", monospace;
+                font-family: {CSS_CYBER_TERMINAL};
                 font-weight: bold;
                 letter-spacing: 1px;
             }}
