@@ -19,7 +19,6 @@ from ..ui.speech_sfx import get_speech_sfx
 from .transition_fx import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
-    COLOR_WHITE,
     DURATION_DODGE_MS,
     DURATION_ERRATIC_MS,
     DURATION_IN_MS,
@@ -29,7 +28,6 @@ from .transition_fx import (
     CyberPixelBolt,
     CyberPixelSpark,
     CyberTrailFragment,
-    draw_glitch_text,
     draw_hazard_frame,
     draw_scan_sweep,
     draw_scanlines,
@@ -43,7 +41,6 @@ from .transition_fx import (
     pick_palette_color,
     random_offscreen_point,
     snap_pixel,
-    with_alpha,
 )
 from .transition_modes import TransitionModesMixin
 
@@ -549,76 +546,17 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
                 painter, full, intensity=max(0.0, 1.0 - p / 0.72)
             )
             draw_scan_sweep(painter, full, p * 1.35, COLOR_CRIMSON)
-            draw_glitch_text(
-                painter,
-                28,
-                36,
-                "RELIC // SIGNAL DEGRADED",
-                COLOR_CRIMSON,
-                11,
-            )
-            draw_glitch_text(
-                painter, 28, 52, "OPTICS OFFLINE", COLOR_WHITE, 9
-            )
         elif self._mode in ("in", "erratic_in", "dodge"):
             intensity = 0.18 + 0.45 * max(0.0, 1.0 - abs(p - 0.3) / 0.3)
             draw_screen_glitch_bars(painter, full, p, intensity)
             draw_scan_sweep(
                 painter, full, (p * 1.25) % 1.0, COLOR_ACID_GREEN
             )
-            hud_title = (
-                "CYBER DASH // DODGE"
-                if self._mode == "dodge"
-                else (
-                    "KIROSHI OPTICS // BOOT"
-                    if self._mode == "in"
-                    else "ROGUE SIGNAL // ANOMALY"
-                )
-            )
-            draw_glitch_text(
-                painter,
-                28,
-                36,
-                hud_title,
-                COLOR_ACID_GREEN,
-                10,
-            )
-            draw_glitch_text(
-                painter,
-                28,
-                52,
-                "CAPRI LINK ESTABLISHED"
-                if p > 0.45
-                else "UPLINK HANDSHAKE...",
-                COLOR_WHITE,
-                9,
-            )
         else:
             draw_screen_glitch_bars(painter, full, p, 0.35 + 0.35 * p)
             draw_scan_sweep(
                 painter, full, (p * 1.1) % 1.0, COLOR_ACID_GREEN
             )
-            draw_glitch_text(
-                painter,
-                28,
-                36,
-                "BREACH PROTOCOL // TRACE",
-                COLOR_ACID_GREEN,
-                10,
-            )
-            draw_glitch_text(
-                painter, 28, 52, "CURSOR LOCK 100%", COLOR_WHITE, 9
-            )
-
-        marker = with_alpha(COLOR_WHITE, 150)
-        for x, y in (
-            (full.left() + 12, full.top() + 12),
-            (full.right() - 30, full.top() + 12),
-            (full.left() + 12, full.bottom() - 30),
-            (full.right() - 30, full.bottom() - 30),
-        ):
-            painter.fillRect(x, y, 18, 1, marker)
-            painter.fillRect(x, y, 1, 18, marker)
 
     def _panel_rect(
         self,
