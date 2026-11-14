@@ -155,7 +155,7 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
                 ry = snap_pixel(random.randint(40, screen_h))
                 self._erratic_waypoints.append(QPoint(rx, ry))
             self._erratic_waypoints.append(p2)
-        elif mode in ("in", "stealth_exit"):
+        elif mode in ("in", "stealth_exit", "dodge"):
             p0 = (
                 self._offscreen_point
                 if target_point is None

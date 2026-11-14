@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from PySide6.QtCore import QPoint, QRect, QSize
+from PySide6.QtWidgets import QApplication
 
 from capri.ui.window_prank_controller import (
     WindowPrankController,
@@ -12,6 +13,13 @@ from capri.ui.window_prank_controller import (
 
 
 class TestWindowPrankController(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        if QApplication.instance() is None:
+            cls._app = QApplication([])
+        else:
+            cls._app = QApplication.instance()
+
     def setUp(self) -> None:
         self.mock_window = MagicMock()
         self.mock_window.pos.return_value = QPoint(500, 500)
@@ -79,3 +87,26 @@ class TestWindowPrankController(unittest.TestCase):
         self.assertEqual(self.controller.dodge_hops_remaining, 0)
         self.mock_window.move.assert_called_once()
         self.mock_window.speak.assert_called_once()
+
+    def test_transition_overlay_dodge_trajectory_direction(self) -> None:
+        from capri.effects.transition import TransitionOverlay
+
+        screen_rect = QRect(0, 0, 1920, 1080)
+        start_center = QPoint(300, 300)
+        target_rect = QRect(700, 700, 128, 128)
+
+        overlay = TransitionOverlay(
+            screen_rect=screen_rect,
+            window_rect=target_rect,
+            mode="dodge",
+            target=None,
+            target_point=start_center,
+        )
+
+        # Траектория должна идти от исходной позиции к целевой точке уклонения
+        self.assertEqual(overlay._p0, start_center)
+        self.assertEqual(overlay._p2, target_rect.center())
+        self.assertEqual(overlay._kinematic_style, "dash")
+        self.assertEqual(overlay._duration_ms, 260)
+        overlay.close()
+        overlay.deleteLater()
