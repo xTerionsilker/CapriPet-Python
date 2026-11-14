@@ -12,8 +12,8 @@ This document provides strict operational, architectural, and design constraints
 - **Python Interpreter:** Always use the local virtual environment: `.\.venv\Scripts\python.exe` (or `./.venv/Scripts/python.exe` in Git Bash).
 - **Run Application:** `.\.venv\Scripts\python.exe main.py` or `capriWin.bat`.
 - **Syntax, Linter & Integrity Verification:**
-  - Primary local verification suite: `scripts\verify.bat` (runs Ruff, Compileall, Mypy, Unittests, Bandit SAST, pip-audit).
-  - Branch protection status registration: `scripts\verify.bat --report-status`.
+  - Always execute batch verification scripts via **cmd**: `cmd.exe /c "scripts\verify.bat"` (runs Ruff, Compileall, Mypy, Unittests, Bandit SAST, pip-audit). Never execute `.bat` verification scripts directly in Git Bash to prevent subshell hanging and quote-escaping issues.
+  - Branch protection status registration: `cmd.exe /c "scripts\verify.bat --report-status"`.
   - Individual tools when isolating failures:
     ```bash
     ./.venv/Scripts/ruff.exe check .
@@ -109,6 +109,6 @@ When authoring GitHub issues or milestone notes for new features, bug fixes, or 
   4. `## Verification & Tests`: Markdown checkbox list (`- [x]`) documenting static compilation (`compileall`), runtime Qt/audio validations, event-loop behavior, and edge-case testing.
 - **PR Merge Gate & Template:**
   - Pull requests MUST adhere to `.github/pull_request_template.md`.
-  - Merging into `main` strictly requires the `Local CI / Integrity` status check to pass (enforced by GitHub Branch Protection on `main`). Agents must execute `scripts\verify.bat --report-status` before or during PR submission to register this status.
+  - Merging into `main` strictly requires the `Local CI / Integrity` status check to pass (enforced by GitHub Branch Protection on `main`). Agents must execute `cmd.exe /c "scripts\verify.bat --report-status"` before or during PR submission to register this status.
 
 
