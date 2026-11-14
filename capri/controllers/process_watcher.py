@@ -10,7 +10,6 @@ import logging
 import os
 import time
 from collections.abc import Callable
-from typing import Any
 
 import psutil
 import win32gui

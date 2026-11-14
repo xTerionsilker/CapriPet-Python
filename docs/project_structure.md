@@ -11,7 +11,8 @@ scripts/                        # Модульные скрипты подгот
 ├── install_deps.bat            # Проверка и установка зависимостей из requirements.txt
 ├── run_app.bat                 # Запуск приложения (фоновый режим / консоль через --console)
 ├── setup_env.bat               # Проверка системного Python и создание виртуального окружения .venv
-└── verify.bat                  # Комплексная локальная верификация (Ruff, Compile, Mypy, Tests) и установка Git pre-push хука
+├── verify.bat                  # Комплексная локальная верификация (Ruff, Compile, Mypy, Tests, Bandit, Audit) под Windows CMD
+└── verify.sh                   # Комплексная локальная верификация (Ruff, Compile, Mypy, Tests, Bandit, Audit) под Git Bash
 capri/
 ├── __init__.py
 ├── audio/                      # Голосовой ввод и распознавание речи
@@ -113,6 +114,7 @@ tests/                          # Модульные и интеграционн
 ├── test_context_menu_window.py # Тесты геометрии 16:9 и колесика мыши CyberContextMenuWindow
 ├── test_download_models.py     # Тесты загрузчика и валидатора моделей ASR/VAD
 ├── test_engram_pranks.py       # Тесты пасхалок энграммы, уклонения от курсора, тающего экрана и кулдаунов
+├── test_exo_font_usage.py       # Тесты эксклюзивной загрузки и применения шрифта Exo 2
 ├── test_game_mode.py           # Тесты детектора игрового режима и фильтрации развёрнутых окон
 ├── test_imports.py             # Тесты целостности импортов и UI контекстного меню
 ├── test_pet_renderer_passes.py # Модульные тесты процедурных пассов рендерера и HUD

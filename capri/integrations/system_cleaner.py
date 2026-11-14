@@ -12,7 +12,7 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import NamedTuple
 
 import humanize
 from win32com.shell import shell, shellcon

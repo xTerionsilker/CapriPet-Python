@@ -64,13 +64,13 @@ REM 1. Ruff Lint Check
 echo [STEP 1/6] Running Ruff linter...
 if exist ".venv\Scripts\ruff.exe" (
     ".venv\Scripts\ruff.exe" check .
-    if errorlevel 1 (
-        echo [FAIL] Ruff linter found issues.
-        set "FAILED_STAGE=Ruff Linter"
-        goto on_fail
-    )
 ) else (
-    echo [WARNING] Ruff not found in virtual environment. Skipping lint check.
+    ".venv\Scripts\python.exe" -m ruff check .
+)
+if errorlevel 1 (
+    echo [FAIL] Ruff linter found issues or tool is missing.
+    set "FAILED_STAGE=Ruff Linter"
+    goto on_fail
 )
 echo [OK] Ruff lint checks passed.
 
@@ -88,13 +88,13 @@ REM 3. Mypy Static Type Analysis
 echo [STEP 3/6] Running Mypy static type analysis...
 if exist ".venv\Scripts\mypy.exe" (
     ".venv\Scripts\mypy.exe" capri
-    if errorlevel 1 (
-        echo [FAIL] Mypy static type analysis failed.
-        set "FAILED_STAGE=Mypy Type Check"
-        goto on_fail
-    )
 ) else (
-    echo [WARNING] Mypy not found in virtual environment. Skipping type analysis.
+    ".venv\Scripts\python.exe" -m mypy capri
+)
+if errorlevel 1 (
+    echo [FAIL] Mypy static type analysis failed or tool is missing.
+    set "FAILED_STAGE=Mypy Type Check"
+    goto on_fail
 )
 echo [OK] Mypy type analysis passed.
 
@@ -113,13 +113,13 @@ REM 5. Bandit SAST Security Scan
 echo [STEP 5/6] Running Bandit SAST security scanner...
 if exist ".venv\Scripts\bandit.exe" (
     ".venv\Scripts\bandit.exe" -r capri/ -ll
-    if errorlevel 1 (
-        echo [FAIL] Bandit security scanner identified potential vulnerabilities.
-        set "FAILED_STAGE=Bandit SAST Scanner"
-        goto on_fail
-    )
 ) else (
-    echo [WARNING] Bandit not found in virtual environment. Skipping SAST audit.
+    ".venv\Scripts\python.exe" -m bandit -r capri/ -ll
+)
+if errorlevel 1 (
+    echo [FAIL] Bandit security scanner identified vulnerabilities or tool is missing.
+    set "FAILED_STAGE=Bandit SAST Scanner"
+    goto on_fail
 )
 echo [OK] Bandit security audit passed ^(0 high/medium issues^).
 
@@ -129,13 +129,13 @@ if "!SKIP_AUDIT!"=="1" (
     goto after_audit
 )
 echo [STEP 6/6] Running pip-audit dependency vulnerability scanner...
-if not exist ".venv\Scripts\pip-audit.exe" (
-    echo [WARNING] pip-audit not found in virtual environment. Skipping dependency audit.
-    goto after_audit
+if exist ".venv\Scripts\pip-audit.exe" (
+    call ".venv\Scripts\pip-audit.exe"
+) else (
+    ".venv\Scripts\python.exe" -m pip_audit
 )
-call ".venv\Scripts\pip-audit.exe"
 if errorlevel 1 (
-    echo [FAIL] pip-audit detected vulnerable dependencies.
+    echo [FAIL] pip-audit detected vulnerable dependencies or tool is missing.
     set "FAILED_STAGE=pip-audit Vulnerability Scanner"
     goto on_fail
 )

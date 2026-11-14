@@ -8,18 +8,23 @@ This document provides strict operational, architectural, and design constraints
 
 - **Target Platform:** Windows 10 / 11 (DWM-native, Multi-DPI, Win32 APIs).
 - **Connection & Session:** Remote session via **SSH**; always account for SSH environment and non-interactive shell specifics.
-- **Terminal & Shell:** Always use **Git Bash** (`"C:\Program Files\Git\bin\bash.exe"` / `bash`) for running commands, CLI operations, and scripts.
+- **Terminal & Shell:** Git Bash (`"C:\Program Files\Git\bin\bash.exe"` / `bash`) for unix-like CLI and scripts; native Windows CMD / PowerShell for batch execution.
 - **Python Interpreter:** Always use the local virtual environment: `.\.venv\Scripts\python.exe` (or `./.venv/Scripts/python.exe` in Git Bash).
 - **Run Application:** `.\.venv\Scripts\python.exe main.py` or `capriWin.bat`.
 - **Syntax, Linter & Integrity Verification:**
-  - Always execute batch verification scripts via **cmd**: `cmd.exe /c "scripts\verify.bat"` (runs Ruff, Compileall, Mypy, Unittests, Bandit SAST, pip-audit). Never execute `.bat` verification scripts directly in Git Bash to prevent subshell hanging and quote-escaping issues.
-  - Branch protection status registration: `cmd.exe /c "scripts\verify.bat --report-status"`.
+  - Execute full local verification (all 6 stages are strictly mandatory, zero skipped stages permitted):
+    - Via **CMD**: `cmd.exe /c "scripts\verify.bat"` (or `cmd.exe /c "scripts\verify.bat --report-status"`)
+    - Via **Git Bash**: `bash scripts/verify.sh` (or `bash scripts/verify.sh --report-status`)
+  - Mandatory 6-stage pipeline: Ruff Lint (`ruff check .`), Compileall bytecode (`compileall`), Mypy static typing (`mypy capri`), Unittests (`unittest discover`), Bandit SAST (`bandit -r capri/ -ll`), and pip-audit (`pip_audit`).
+  - Branch protection status registration: `cmd.exe /c "scripts\verify.bat --report-status"` or `bash scripts/verify.sh --report-status`.
   - Individual tools when isolating failures:
     ```bash
-    ./.venv/Scripts/ruff.exe check .
+    ./.venv/Scripts/python.exe -m ruff check .
     ./.venv/Scripts/python.exe -c "import compileall; compileall.compile_dir('capri', force=True); compileall.compile_dir('scripts', force=True); compileall.compile_file('main.py')"
-    ./.venv/Scripts/mypy.exe capri
+    ./.venv/Scripts/python.exe -m mypy capri
     ./.venv/Scripts/python.exe -m unittest discover -s tests
+    ./.venv/Scripts/python.exe -m bandit -r capri/ -ll
+    ./.venv/Scripts/python.exe -m pip_audit
     ```
 - **Tool Operation Constraints:**
   - **Reading (`read_file`):** Operate on at most **200 lines per tool call**.
@@ -62,7 +67,7 @@ All UI, HUDs, overlays, particles, glitches, and dialogues **must** strictly use
 | **Neon Violet** | `#9E1FDE` | 1% | Chromatic aberration, biochip instability, deep energy displacement, exotic glitch artifacts |
 
 > **Mandatory Visual Constraints:**
-> - Sharp 45° chamfered geometry, pixel-grid snapping, and technical monospace fonts (`"Press Start 2P"`, `"JetBrains Mono"`, `"Terminus"`, `monospace`). No soft rounded corners (`border-radius`) or pastel palettes.
+> - Sharp 45° chamfered geometry, pixel-grid snapping, and exclusive Exo 2 typography from `assets/fonts/` (`"Exo 2"`, sans-serif). No soft rounded corners (`border-radius`) or pastel palettes.
 > - High-frequency coil whine, audio clipping, and static snaps over generic bells or standard beeps.
 
 ---
