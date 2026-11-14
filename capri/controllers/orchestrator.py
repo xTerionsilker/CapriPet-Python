@@ -19,6 +19,7 @@ from ..controllers.inactivity_manager import (
     PresenceReminder,
 )
 from ..controllers.process_watcher import ProcessWatcher
+from ..core.dialogue_manager import get_dialogue_manager
 from ..core.input_flow import (
     AFFIRMATIVE_WORDS,
     InputFlow,
@@ -476,19 +477,22 @@ class PetOrchestrator(QObject):
     ) -> None:
         if self._window.is_closing:
             return
+        dm = get_dialogue_manager()
         if not apps:
-            self._window.speak("Отказ! В твоих каталогах нет ничего похожего. Ты точно не опечатался?")
+            self._window.speak(dm.get_command_phrase("app_not_found"))
             return
 
         def _on_choice(text: str) -> str:
             choice = _parse_selected_number(text, max_number=len(apps))
             if choice is None:
-                return "Не разобрала номер. Отменяю запуск!"
+                return dm.get_command_phrase("app_invalid_choice")
             selected = apps[choice - 1]
             success = launch_application(selected)
             if success:
-                return f"Врубаю на полную #{choice}: {selected['name']}!"
-            return f"Чёрт, эта софтина ({selected['name']}) не хочет стартовать! Разбирайся сам."
+                return dm.get_command_phrase(
+                    "app_start", choice=choice, name=selected["name"]
+                )
+            return dm.get_command_phrase("app_fail", name=selected["name"])
 
         lines = [
             f"{i}. {a['name'][:32]}…"
@@ -496,7 +500,9 @@ class PetOrchestrator(QObject):
             else f"{i}. {a['name']}"
             for i, a in enumerate(apps, 1)
         ]
-        prompt = "\n".join(lines) + f"\nКакую софтину запускаем? Назови номер (1–{len(apps)})!"
+        prompt = "\n".join(lines) + dm.get_command_phrase(
+            "app_prompt", count=len(apps)
+        )
         self.flow.expect_reply(_on_choice, timeout_ms=25_000)
         self._window.speak(prompt, hold_ms=25_000)
 
@@ -505,22 +511,25 @@ class PetOrchestrator(QObject):
     ) -> None:
         if self._window.is_closing:
             return
+        dm = get_dialogue_manager()
         if not procs:
-            self._window.speak("Ни одного такого процесса в памяти нет. Кого глушить-то собрался, призраков?")
+            self._window.speak(dm.get_command_phrase("proc_not_found"))
             return
 
         def _on_choice(text: str) -> str:
             choice = _parse_selected_number(text, max_number=len(procs))
             if choice is None:
-                return "Не разобрала номер. Отбой охоты на процессы!"
+                return dm.get_command_phrase("proc_invalid_choice")
             selected = procs[choice - 1]
             success, count = kill_process_group(selected)
             name = selected["name"]
             if success:
                 if count > 1:
-                    return f"Выкосила пачку из {count} процессов «{name}»! В стеке чисто."
-                return f"«{name}» ликвидирован! Ледоруб сработал чисто, память свободна."
-            return f"Чёрт, не вышло прибить {name}. Он засел намертво!"
+                    return dm.get_command_phrase(
+                        "proc_killed_many", count=count, name=name
+                    )
+                return dm.get_command_phrase("proc_killed_one", name=name)
+            return dm.get_command_phrase("proc_fail", name=name)
 
         lines = []
         for i, p in enumerate(procs, 1):
@@ -531,7 +540,9 @@ class PetOrchestrator(QObject):
             display = f"{display[:32]}…" if len(display) > 32 else display
             lines.append(f"{i}. {display}")
 
-        prompt = "\n".join(lines) + f"\nКто тут лишний жрёт память? Назови номер цели (1–{len(procs)})!"
+        prompt = "\n".join(lines) + dm.get_command_phrase(
+            "proc_prompt", count=len(procs)
+        )
         self.flow.expect_reply(_on_choice, timeout_ms=25_000)
         self._window.speak(prompt, hold_ms=25_000)
 
@@ -541,17 +552,17 @@ class PetOrchestrator(QObject):
         if self._window.is_closing:
             return
         if status == "update_available":
+            dm = get_dialogue_manager()
 
             def _on_confirm(text: str) -> str:
                 words = answer_words(text)
                 if words & AFFIRMATIVE_WORDS:
                     self.actions.open_update_page()
-                    return "Открываю страницу на GitHub. Качаем апгрейд!"
-                return "Ладно, сидим на старой версии."
+                    return dm.get_command_phrase("update_start")
+                return dm.get_command_phrase("update_cancel")
 
-            prompt = (
-                f"Опа, создатели выкатили для меня апгрейд! ({local_ver} -> {remote_ver}). "
-                "Лезем на GitHub за свежим кодом? (да / нет)"
+            prompt = dm.get_command_phrase(
+                "update_prompt", local_ver=local_ver, remote_ver=remote_ver
             )
             self.flow.expect_reply(_on_confirm, timeout_ms=20_000)
             self._window.speak(prompt, hold_ms=20_000)

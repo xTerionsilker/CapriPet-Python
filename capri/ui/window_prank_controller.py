@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import QPoint, QRect, QSize, QTimer
 from PySide6.QtGui import QEnterEvent, QGuiApplication
 
+from ..core.dialogue_manager import get_dialogue_manager
 from .speech_sfx import get_speech_sfx
 
 if TYPE_CHECKING:
@@ -111,16 +112,15 @@ class WindowPrankController:
         if variant == "terminal":
             self._window._effects.play_relic_dump_terminal(self._window.geometry())
         else:
-            self._window.speak(
-                ">> [RELIC_FAULT: 0xDEADBEEF] SECTOR_CORRUPT // SOULKILLER_V4_INTEGRITY_FAIL"
-            )
+            dm = get_dialogue_manager()
+            fault_phrase = dm.get_prank_phrase("relic_fault")
+            recover_phrase = dm.get_prank_phrase("relic_recover")
+            self._window.speak(fault_phrase)
             get_speech_sfx().play_core_destabilize()
             QTimer.singleShot(
                 1500,
                 self._window,
-                lambda: self._window.speak(
-                    "Кхм... опять шина памяти барахлит. Не обращай внимания, хост."
-                ),
+                lambda: self._window.speak(recover_phrase),
             )
 
     def execute_cursor_dodge(self, cursor_pos: QPoint) -> None:
@@ -143,7 +143,8 @@ class WindowPrankController:
             new_pos.x() + self._window.width() // 2,
             new_pos.y() + self._window.height() // 2,
         )
-        phrase = random.choice(DODGE_TEASE_PHRASES)
+        phrases = get_dialogue_manager().get_dodge_phrases() or DODGE_TEASE_PHRASES
+        phrase = random.choice(phrases)
 
         def on_dodge_finished() -> None:
             self._window.speak(phrase)

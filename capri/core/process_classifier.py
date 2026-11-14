@@ -5,6 +5,8 @@ from __future__ import annotations
 import random
 from typing import Final
 
+from .dialogue_manager import get_dialogue_manager
+
 # Категории процессов по умолчанию
 DEFAULT_PROCESS_CATEGORIES: Final[dict[str, tuple[str, ...]]] = {
     "dev": (
@@ -137,7 +139,10 @@ class ProcessClassifier:
         pool: list[str] = []
         if custom_phrases and category in custom_phrases:
             pool.extend(custom_phrases[category])
-        if category in DEFAULT_CATEGORY_PHRASES:
+        style_phrases = get_dialogue_manager().get_process_reactions(category)
+        if style_phrases:
+            pool.extend(style_phrases)
+        elif category in DEFAULT_CATEGORY_PHRASES:
             pool.extend(DEFAULT_CATEGORY_PHRASES[category])
 
         if not pool:

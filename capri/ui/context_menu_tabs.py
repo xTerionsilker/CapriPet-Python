@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..core.dialogue_manager import get_dialogue_manager
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
     get_config_value,
@@ -238,6 +239,25 @@ class CoreTabPage(QWidget):
         self.chk_glitches.toggled.connect(self._on_toggle_glitches)
         tog_layout.addWidget(self.chk_glitches)
         layout.addWidget(grp_toggles)
+
+        grp_style = QGroupBox("[DIALOGUE_PROTOCOL] Стиль общения", self)
+        grp_style.setStyleSheet(_GROUP_STYLE)
+        style_layout = QHBoxLayout(grp_style)
+        style_layout.setContentsMargins(10, 10, 10, 10)
+        self.combo_style = QComboBox(self)
+        self.combo_style.setStyleSheet(_COMBO_STYLE)
+        dm = get_dialogue_manager()
+        styles = dm.list_styles()
+        curr_idx = 0
+        for i, s in enumerate(styles):
+            self.combo_style.addItem(f"[{s.id.upper()}] {s.name}", s.id)
+            if s.id == dm.current_style:
+                curr_idx = i
+        self.combo_style.setCurrentIndex(curr_idx)
+        self.combo_style.currentIndexChanged.connect(self._on_style_changed)
+        style_layout.addWidget(self.combo_style)
+        layout.addWidget(grp_style)
+
         layout.addStretch()
 
     def _on_summon(self) -> None:
@@ -295,6 +315,23 @@ class CoreTabPage(QWidget):
             self.pet_window.process_input("глитч")
         else:
             set_config_value("effects.glitches_enabled", checked)
+
+    def _on_style_changed(self, index: int) -> None:
+        _play_ui_snap()
+        style_id = self.combo_style.itemData(index)
+        if not style_id:
+            return
+        dm = get_dialogue_manager()
+        dm.set_style(str(style_id))
+        if hasattr(self.pet_window, "speak"):
+            if style_id == "partner_duo":
+                self.pet_window.speak(
+                    "Партнёрский протокол активирован! Работаем в тандеме, напарник!"
+                )
+            else:
+                self.pet_window.speak(
+                    "Протокол энграммы Арасаки активирован. Ну что, хост, пошалим?"
+                )
 
 
 class AudioTabPage(QWidget):

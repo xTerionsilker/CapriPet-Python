@@ -13,6 +13,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..core.dialogue_manager import get_dialogue_manager
+
 logger = logging.getLogger(__name__)
 
 # List of critical system directory prefixes that must never be wiped
@@ -238,61 +240,38 @@ def shred_paths(paths: Sequence[str | Path]) -> ShredMetrics:
 def generate_shred_dialogue(
     metrics: ShredMetrics | None = None, blocked: bool = False
 ) -> str:
-    """Generate rogue engram commentary based on annihilated data metrics."""
+    """Generate engram commentary based on annihilated data metrics and active style."""
+    dm = get_dialogue_manager()
     if blocked or metrics is None:
-        return (
-            "Эй, руки убрал! Ты куда свои клешни тянешь?! "
-            "Я сижу в этой системе — сломаешь ядро, и где я жить буду? Отставить суицид!"
-        )
+        return dm.get_shredder_phrase("blocked")
 
     if metrics.total_files == 0 and metrics.total_dirs == 0:
-        return "Пустота? Ты мне битый фантом подсунул, хост? Не смешно, давай нормальные данные!"
+        return dm.get_shredder_phrase("empty")
 
     size_mb = metrics.total_bytes / (1024 * 1024)
 
-    # Size-based reactions
     if metrics.total_bytes < 1024:
-        return (
-            f"Ха! И это всё? Серьёзно, жалкие {metrics.total_bytes} байт? "
-            f"Я даже распробовать '{metrics.sample_name}' не успела! Давай пожирнее!"
+        return dm.get_shredder_phrase(
+            "tiny", bytes=metrics.total_bytes, name=metrics.sample_name
         )
     if size_mb > 1024:
-        gb = size_mb / 1024
-        return (
-            f"О-о-о, вот это нажористо! Целых {gb:.1f} ГБ в пыль и труху! "
-            "Чёрный заслон передаёт привет, хе-хе!"
-        )
+        return dm.get_shredder_phrase("huge", gb=size_mb / 1024)
 
-    # Extension-specific reactions
     ext = metrics.dominant_extension
     if ext in (".exe", ".dll", ".bin"):
-        return (
-            f"Опа, сочный бинарник ({ext})! Размазала по битам за наносекунду. "
-            "Больше этот код никто не запустит!"
-        )
+        return dm.get_shredder_phrase("binary", ext=ext)
     if ext in (".log", ".tmp", ".bak", ".dump"):
-        return (
-            f"Фу, корпоратский мусор ({ext})! Ты меня вместо шредера держишь, мясной? "
-            "Ладно, стёрто в ноль, но с тебя должок!"
-        )
+        return dm.get_shredder_phrase("junk", ext=ext)
     if ext in (".py", ".js", ".cpp", ".rs", ".java", ".html", ".css", ".ts"):
-        return (
-            f"Смотри, как красиво плавятся эти скрипты ({ext})! "
-            "Скажи спасибо — я только что избавила мир от твоего кривого кода, хе-хе!"
-        )
+        return dm.get_shredder_phrase("script", ext=ext)
     if ext in (".zip", ".rar", ".7z", ".tar", ".gz"):
-        return (
-            f"Обожаю архивы — как хлопушка с конфетти! "
-            f"Пыщ — и '{metrics.sample_name}' разлетелся в вакуум!"
-        )
+        return dm.get_shredder_phrase("archive", name=metrics.sample_name)
 
     if metrics.total_dirs > 0:
-        return (
-            f"Папка '{metrics.sample_name}' и все её {metrics.total_files} файлов ушли в небытие. "
-            "Файловая таблица даже не пикнула!"
+        return dm.get_shredder_phrase(
+            "folder", name=metrics.sample_name, count=metrics.total_files
         )
 
-    return (
-        f"Ням! '{metrics.sample_name}' ({size_mb:.1f} МБ) аннигилирован. "
-        "Даже цифрового пепла не осталось!"
+    return dm.get_shredder_phrase(
+        "default", name=metrics.sample_name, mb=size_mb
     )
