@@ -20,6 +20,7 @@ from .transition_fx import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
     COLOR_WHITE,
+    DURATION_DODGE_MS,
     DURATION_ERRATIC_MS,
     DURATION_IN_MS,
     DURATION_OUT_MS,
@@ -86,6 +87,8 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
             self._duration_ms = DURATION_ERRATIC_MS
         elif mode == "stealth_exit":
             self._duration_ms = DURATION_IN_MS + 80
+        elif mode == "dodge":
+            self._duration_ms = DURATION_DODGE_MS
         else:
             self._duration_ms = DURATION_IN_MS
 
@@ -175,9 +178,12 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
         nx = -dy / dist
         ny = dx / dist
 
-        self._kinematic_style = random.choice(
-            ("bezier", "bezier", "manhattan", "vortex", "dash")
-        )
+        if self._mode == "dodge":
+            self._kinematic_style = "dash"
+        else:
+            self._kinematic_style = random.choice(
+                ("bezier", "bezier", "manhattan", "vortex", "dash")
+            )
         max_curve = min(360, max(80, int(dist * 0.45)))
         sign = random.choice((-1, 1))
         curve_offset = sign * random.randint(30, max_curve)
@@ -198,7 +204,9 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
         )
 
         duration_factor = 1.0
-        if self._kinematic_style == "dash":
+        if self._mode == "dodge":
+            duration_factor = 1.0
+        elif self._kinematic_style == "dash":
             duration_factor = random.uniform(0.68, 0.82)
         elif self._kinematic_style == "vortex":
             duration_factor = random.uniform(1.10, 1.30)
@@ -270,6 +278,7 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
         peak_threshold = {
             "out": 0.35,
             "in": 0.65,
+            "dodge": 0.65,
             "erratic_in": 0.72,
             "lightning_to_point": 0.62,
             "stealth_enter": 0.85,
@@ -279,7 +288,7 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
             self._peak_called = True
             with contextlib.suppress(Exception):
                 sfx = get_speech_sfx()
-                if self._mode in ("in", "erratic_in"):
+                if self._mode in ("in", "erratic_in", "dodge"):
                     sfx.play_lightning_strike()
                 elif self._mode == "lightning_to_point":
                     sfx.play_lightning_zap()
@@ -319,11 +328,12 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
                     current_center = wr.center()
             elif self._mode in (
                 "in",
+                "dodge",
                 "out",
                 "stealth_enter",
                 "stealth_exit",
             ):
-                if self._mode == "in":
+                if self._mode in ("in", "dodge"):
                     flight_t = min(1.0, p / 0.65)
                     jitter_factor = 1.0 - flight_t
                 elif self._mode == "stealth_enter":
@@ -412,7 +422,7 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
 
         is_flying = (
             (
-                self._mode in ("in", "erratic_in")
+                self._mode in ("in", "erratic_in", "dodge")
                 and p < (0.75 if self._mode == "erratic_in" else 0.70)
             )
             or (self._mode == "out" and p >= 0.30)
@@ -550,19 +560,26 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
             draw_glitch_text(
                 painter, 28, 52, "OPTICS OFFLINE", COLOR_WHITE, 9
             )
-        elif self._mode in ("in", "erratic_in"):
+        elif self._mode in ("in", "erratic_in", "dodge"):
             intensity = 0.18 + 0.45 * max(0.0, 1.0 - abs(p - 0.3) / 0.3)
             draw_screen_glitch_bars(painter, full, p, intensity)
             draw_scan_sweep(
                 painter, full, (p * 1.25) % 1.0, COLOR_ACID_GREEN
             )
+            hud_title = (
+                "CYBER DASH // DODGE"
+                if self._mode == "dodge"
+                else (
+                    "KIROSHI OPTICS // BOOT"
+                    if self._mode == "in"
+                    else "ROGUE SIGNAL // ANOMALY"
+                )
+            )
             draw_glitch_text(
                 painter,
                 28,
                 36,
-                "KIROSHI OPTICS // BOOT"
-                if self._mode == "in"
-                else "ROGUE SIGNAL // ANOMALY",
+                hud_title,
                 COLOR_ACID_GREEN,
                 10,
             )

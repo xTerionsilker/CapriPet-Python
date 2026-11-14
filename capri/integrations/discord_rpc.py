@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import threading
 import time
 from collections.abc import Callable
 from typing import Any
@@ -46,6 +47,8 @@ class DiscordRpcManager(QObject):
         self._track_provider: Callable[[], str] | None = track_provider
         self._rpc: Any = None
         self._connected: bool = False
+        self._connecting: bool = False
+        self._lock = threading.Lock()
         self._start_time: int = int(time.time())
         self._current_state: str = "ASR: Vosk | IDLE"
         self._current_details: str = "Команда: нет"
@@ -66,12 +69,33 @@ class DiscordRpcManager(QObject):
         return self._connected
 
     def start(self) -> None:
-        self.connect_rpc()
+        self.connect_rpc_async()
         self._poll_timer.start()
 
     def stop(self) -> None:
         self._poll_timer.stop()
         self.close_rpc()
+
+    def connect_rpc_async(self) -> None:
+        """Асинхронно подключается к Discord без блокировки основного UI потока."""
+        if self._connected or self._connecting or Presence is None:
+            return
+        threading.Thread(
+            target=self._connect_rpc_worker,
+            daemon=True,
+            name="DiscordRpcConnectWorker",
+        ).start()
+
+    def _connect_rpc_worker(self) -> None:
+        with self._lock:
+            if self._connected or self._connecting:
+                return
+            self._connecting = True
+        try:
+            self.connect_rpc()
+        finally:
+            with self._lock:
+                self._connecting = False
 
     def connect_rpc(self) -> bool:
         if self._connected:
@@ -123,7 +147,7 @@ class DiscordRpcManager(QObject):
 
     def _sync_presence(self) -> None:
         if not self._connected:
-            self.connect_rpc()
+            self.connect_rpc_async()
         else:
             self._push_presence()
 

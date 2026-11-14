@@ -51,3 +51,31 @@ class TestWindowPrankController(unittest.TestCase):
         # При векторе от курсора (520->500) смещение по X влево: dx ~ -hop_dist (~280)
         dist = ((new_pos.x() - curr_pos.x()) ** 2 + (new_pos.y() - curr_pos.y()) ** 2) ** 0.5
         self.assertGreaterEqual(dist, 200.0)
+
+    def test_execute_cursor_dodge_triggers_glitch_orb_teleport(self) -> None:
+        self.mock_window.isHidden.return_value = False
+        self.mock_window.width.return_value = 128
+        self.mock_window.height.return_value = 128
+        self.controller.dodge_hops_remaining = 2
+
+        self.controller.execute_cursor_dodge(QPoint(520, 500))
+        self.assertEqual(self.controller.dodge_hops_remaining, 1)
+
+        self.mock_window.teleport_controller.teleport_to_point.assert_called_once()
+        _, kwargs = self.mock_window.teleport_controller.teleport_to_point.call_args
+        self.assertEqual(kwargs.get("mode"), "dodge")
+        on_finish = kwargs.get("on_finished_callback")
+        self.assertTrue(callable(on_finish))
+        on_finish()
+        self.mock_window.speak.assert_called_once()
+
+    def test_execute_cursor_dodge_fallback_without_teleport_ctrl(self) -> None:
+        self.mock_window.teleport_controller = None
+        self.mock_window.width.return_value = 128
+        self.mock_window.height.return_value = 128
+        self.controller.dodge_hops_remaining = 1
+
+        self.controller.execute_cursor_dodge(QPoint(520, 500))
+        self.assertEqual(self.controller.dodge_hops_remaining, 0)
+        self.mock_window.move.assert_called_once()
+        self.mock_window.speak.assert_called_once()

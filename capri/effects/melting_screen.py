@@ -17,11 +17,21 @@ from PySide6.QtWidgets import QWidget
 if TYPE_CHECKING:
     from PySide6.QtGui import QScreen
 
-# Цветовая палитра Capri
+# Цветовая палитра Capri (строго 6 цветов Studio Trigger)
 COLOR_CRIMSON = QColor("#F6023F")
 COLOR_ACID_GREEN = QColor("#06F868")
 COLOR_VIOLET = QColor("#9E1FDE")
 COLOR_OBSIDIAN = QColor("#020106")
+COLOR_WHITE = QColor("#F9F9F9")
+COLOR_ELECTRIC_BLUE = QColor("#126EE9")
+
+PALETTE_TINT_COLORS: tuple[QColor, ...] = (
+    COLOR_CRIMSON,
+    COLOR_ACID_GREEN,
+    COLOR_ELECTRIC_BLUE,
+    COLOR_VIOLET,
+    COLOR_WHITE,
+)
 
 
 class MeltingScreenOverlay(QWidget):
@@ -37,7 +47,7 @@ class MeltingScreenOverlay(QWidget):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self._duration_ms = duration_ms
+        self._max_timeout_ms = max(4000, duration_ms)
         self._strip_width = max(2, strip_width)
         self._start_time: float = 0.0
 
@@ -69,15 +79,26 @@ class MeltingScreenOverlay(QWidget):
         width = self.width()
         num_strips = max(1, (width + self._strip_width - 1) // self._strip_width)
 
-        # Параметры колонок: (скорость, задержка старта, текущее смещение)
-        self._strip_speeds: list[float] = [random.uniform(180.0, 480.0) for _ in range(num_strips)]
-        self._strip_delays: list[float] = [random.uniform(0.0, 0.25) for _ in range(num_strips)]
+        # Параметры колонок: (скорость, задержка старта, текущее смещение, цвет палитры)
+        self._strip_speeds: list[float] = [random.uniform(260.0, 560.0) for _ in range(num_strips)]
+        self._strip_delays: list[float] = [random.uniform(0.0, 0.22) for _ in range(num_strips)]
         self._strip_offsets: list[float] = [0.0] * num_strips
+        self._strip_colors: list[QColor] = [random.choice(PALETTE_TINT_COLORS) for _ in range(num_strips)]
 
         # Таймер анимации
         self._anim_timer = QTimer(self)
         self._anim_timer.setInterval(20)  # ~50 FPS
         self._anim_timer.timeout.connect(self._on_tick)
+
+    @property
+    def strip_colors(self) -> list[QColor]:
+        """Список цветов палитры персонажа, назначенных столбцам."""
+        return self._strip_colors
+
+    @property
+    def strip_offsets(self) -> list[float]:
+        """Текущие вертикальные смещения столбцов."""
+        return self._strip_offsets
 
     def start(self) -> None:
         """Запускает отображение оверлея и таймер анимации."""
@@ -86,12 +107,10 @@ class MeltingScreenOverlay(QWidget):
         self._anim_timer.start()
 
     def _on_tick(self) -> None:
+        if self._start_time == 0.0:
+            self._start_time = time.monotonic()
         elapsed = time.monotonic() - self._start_time
         elapsed_ms = elapsed * 1000.0
-
-        if elapsed_ms >= self._duration_ms:
-            self._cleanup_and_finish()
-            return
 
         # Обновление смещений полос
         for i in range(len(self._strip_offsets)):
@@ -100,6 +119,13 @@ class MeltingScreenOverlay(QWidget):
                 dt = elapsed - delay
                 # Квадратичное ускорение гравитации стекания
                 self._strip_offsets[i] = self._strip_speeds[i] * (dt**1.4)
+
+        h = float(self.height())
+        # Эффект завершается только когда все столбцы полностью стекли за нижний край
+        all_descended = all(offset >= h for offset in self._strip_offsets)
+        if all_descended or elapsed_ms >= self._max_timeout_ms:
+            self._cleanup_and_finish()
+            return
 
         self.update()
 
@@ -120,9 +146,6 @@ class MeltingScreenOverlay(QWidget):
         h = self.height()
         strip_w = self._strip_width
 
-        crimson_pen = QPen(COLOR_CRIMSON, 1)
-        green_pen = QPen(COLOR_ACID_GREEN, 1)
-
         for i, offset in enumerate(self._strip_offsets):
             x = i * strip_w
             if x >= w:
@@ -135,13 +158,19 @@ class MeltingScreenOverlay(QWidget):
             target_rect = QRect(x, dy, actual_w, h)
             painter.drawPixmap(target_rect, self._pixmap, src_rect)
 
+            # Случайный сдвиг по цвету (полупрозрачный тинт палитры персонажа)
+            tint = QColor(self._strip_colors[i])
+            tint.setAlpha(40)
+            painter.fillRect(target_rect, tint)
+
             # Если полоса уже потекла, рисуем неоновый глитч-срез
             if dy > 0:
-                # Верхняя полоса разрыва (Blackwall bleed)
-                painter.setPen(crimson_pen if i % 2 == 0 else green_pen)
+                # Верхняя полоса разрыва (Blackwall bleed) в цвет столбца
+                painter.setPen(QPen(self._strip_colors[i], 1))
                 painter.drawLine(x, dy, x + actual_w, dy)
 
                 # Периодические микро-капли
-                if i % 5 == 0:
-                    painter.setPen(QPen(COLOR_VIOLET, 2))
+                if i % 4 == 0:
+                    dot_color = COLOR_WHITE if (i // 4) % 2 == 0 else COLOR_VIOLET
+                    painter.setPen(QPen(dot_color, 2))
                     painter.drawPoint(QPoint(x + actual_w // 2, dy + 2))

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -95,7 +96,11 @@ class TestEngramPrankCoordinator(unittest.TestCase):
         self.assertIn("relic_dump", candidates)
 
     def test_melting_screen_overlay_flags(self) -> None:
-        from capri.effects.melting_screen import COLOR_OBSIDIAN, MeltingScreenOverlay
+        from capri.effects.melting_screen import (
+            COLOR_OBSIDIAN,
+            PALETTE_TINT_COLORS,
+            MeltingScreenOverlay,
+        )
 
         self.assertEqual(COLOR_OBSIDIAN.name().lower(), "#020106")
         overlay = MeltingScreenOverlay(screen=None, duration_ms=500)
@@ -103,6 +108,26 @@ class TestEngramPrankCoordinator(unittest.TestCase):
         self.assertTrue(bool(flags & Qt.WindowType.WindowTransparentForInput))
         self.assertTrue(bool(flags & Qt.WindowType.FramelessWindowHint))
         self.assertTrue(bool(flags & Qt.WindowType.WindowStaysOnTopHint))
+
+        # Проверка назначения палитры персонажа каждому столбцу
+        self.assertGreater(len(overlay.strip_colors), 0)
+        for c in overlay.strip_colors:
+            self.assertIn(c, PALETTE_TINT_COLORS)
+
+        # Проверка условия окончания только при полном стекании вниз
+        finished_mock = MagicMock()
+        overlay.finished.connect(finished_mock)
+
+        # Если анимация только началась (столбцы еще не стекли):
+        overlay._start_time = time.monotonic() - 0.05
+        overlay._on_tick()
+        finished_mock.assert_not_called()
+
+        # Когда прошло достаточно времени и все столбцы стекли вниз (offset >= h):
+        overlay._start_time = time.monotonic() - 5.0
+        overlay._on_tick()
+        finished_mock.assert_called_once()
+
         overlay.close()
         overlay.deleteLater()
 
