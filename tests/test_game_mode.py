@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import win32con
 from PySide6.QtWidgets import QApplication

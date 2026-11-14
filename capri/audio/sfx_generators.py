@@ -15,11 +15,13 @@ import tempfile
 import threading
 from pathlib import Path
 
-import numpy as np
-
 from .sfx_core import (
     DEFAULT_SAMPLE_RATE,
+)
+from .sfx_core import (
     to_pcm_16bit as _to_pcm_16bit,
+)
+from .sfx_core import (
     write_wav_16bit as _write_wav_16bit,
 )
 

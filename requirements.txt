@@ -18,3 +18,7 @@ python-dateutil==4.0.0
 pypresence==4.6.2
 pycaw==20260927
 pywin32==312
+ruff>=0.17.0
+mypy>=2.4.0
+bandit>=1.9.0
+pip-audit>=2.10.0

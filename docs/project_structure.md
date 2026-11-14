@@ -11,7 +11,8 @@ scripts/                        # Модульные скрипты подгот
 ├── install_deps.bat            # Проверка и установка зависимостей из requirements.txt
 ├── run_app.bat                 # Запуск приложения (фоновый режим / консоль через --console)
 ├── setup_env.bat               # Проверка системного Python и создание виртуального окружения .venv
-└── verify.bat                  # Комплексная локальная верификация (Ruff, Compile, Mypy, Tests) и установка Git pre-push хука
+├── verify.bat                  # Комплексная локальная верификация (Ruff, Compile, Mypy, Tests, Bandit, Audit) под Windows CMD
+└── verify.sh                   # Комплексная локальная верификация (Ruff, Compile, Mypy, Tests, Bandit, Audit) под Git Bash
 capri/
 ├── __init__.py
 ├── audio/                      # Голосовой ввод и распознавание речи
