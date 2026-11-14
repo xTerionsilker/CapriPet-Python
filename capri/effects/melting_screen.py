@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 COLOR_CRIMSON = QColor("#F6023F")
 COLOR_ACID_GREEN = QColor("#06F868")
 COLOR_VIOLET = QColor("#9E1FDE")
+COLOR_OBSIDIAN = QColor("#020106")
 
 
 class MeltingScreenOverlay(QWidget):
@@ -113,6 +114,7 @@ class MeltingScreenOverlay(QWidget):
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        painter.fillRect(self.rect(), COLOR_OBSIDIAN)
 
         w = self.width()
         h = self.height()

@@ -28,7 +28,7 @@ def compute_dodge_position(
     cursor_pos: QPoint,
     screen_rect: QRect,
     window_size: QSize,
-    hop_dist: int = 100,
+    hop_dist: int = 280,
 ) -> QPoint:
     """Вычисляет новую позицию окна при уклонении от курсора мыши."""
     center_x = curr_pos.x() + window_size.width() // 2
@@ -137,7 +137,7 @@ class WindowPrankController:
             cursor_pos,
             screen_rect,
             self._window.size(),
-            hop_dist=random.randint(80, 120),
+            hop_dist=random.randint(240, 360),
         )
         self._window.move(new_pos)
         get_speech_sfx().play_lightning_strike()

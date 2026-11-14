@@ -95,8 +95,9 @@ class TestEngramPrankCoordinator(unittest.TestCase):
         self.assertIn("relic_dump", candidates)
 
     def test_melting_screen_overlay_flags(self) -> None:
-        from capri.effects.melting_screen import MeltingScreenOverlay
+        from capri.effects.melting_screen import COLOR_OBSIDIAN, MeltingScreenOverlay
 
+        self.assertEqual(COLOR_OBSIDIAN.name().lower(), "#020106")
         overlay = MeltingScreenOverlay(screen=None, duration_ms=500)
         flags = overlay.windowFlags()
         self.assertTrue(bool(flags & Qt.WindowType.WindowTransparentForInput))
