@@ -8,7 +8,7 @@ import random
 from collections.abc import Callable
 
 from PySide6.QtCore import QElapsedTimer, QRect, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QPen
+from PySide6.QtGui import QFont, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from capri.ui.theme import get_hud_font
@@ -28,6 +28,7 @@ from .transition_fx import (
     COLOR_WHITE,
     PIXEL_SIZE,
     snap_pixel,
+    with_alpha,
 )
 
 _STATUS_POLL_MS = 120
@@ -37,12 +38,6 @@ _FAILED_HOLD_MS = 1800
 
 def _font(size: int) -> QFont:
     return get_hud_font(size, bold=True)
-
-
-def _with_alpha(color: QColor, alpha: int) -> QColor:
-    result = QColor(color)
-    result.setAlpha(max(0, min(255, int(alpha))))
-    return result
 
 
 class ModelInitOverlay(QWidget):
@@ -199,7 +194,7 @@ class ModelInitOverlay(QWidget):
 
         appear = min(1.0, elapsed / 320.0)
         painter.fillRect(
-            self.rect(), _with_alpha(COLOR_OBSIDIAN, int(170 * appear))
+            self.rect(), with_alpha(COLOR_OBSIDIAN, int(170 * appear))
         )
 
         self._paint_scanlines(painter, appear)
@@ -224,7 +219,7 @@ class ModelInitOverlay(QWidget):
 
     def _paint_scanlines(self, painter: QPainter, appear: float) -> None:
         alpha = int(48 * appear)
-        painter.setPen(QPen(_with_alpha(COLOR_OBSIDIAN, alpha), 2))
+        painter.setPen(QPen(with_alpha(COLOR_OBSIDIAN, alpha), 2))
         for y in range(0, self.height(), PIXEL_SIZE):
             painter.drawLine(0, y, self.width(), y)
 
@@ -257,7 +252,7 @@ class ModelInitOverlay(QWidget):
                 y,
                 width,
                 height,
-                _with_alpha(color, int(rng.randint(45, 150) * appear)),
+                with_alpha(color, int(rng.randint(45, 150) * appear)),
             )
 
     def _paint_panel(
@@ -273,11 +268,11 @@ class ModelInitOverlay(QWidget):
         accent = COLOR_ACID_GREEN if online else COLOR_CRIMSON
         base_alpha = int(238 * appear)
 
-        painter.fillRect(panel, _with_alpha(COLOR_OBSIDIAN, base_alpha))
+        painter.fillRect(panel, with_alpha(COLOR_OBSIDIAN, base_alpha))
 
         painter.save()
         painter.setClipRect(panel)
-        painter.setPen(QPen(_with_alpha(COLOR_CRIMSON, 20), 1))
+        painter.setPen(QPen(with_alpha(COLOR_CRIMSON, 20), 1))
         for y in range(panel.top() + 2, panel.bottom(), 3):
             painter.drawLine(panel.left() + 2, y, panel.right() - 2, y)
 
@@ -288,7 +283,7 @@ class ModelInitOverlay(QWidget):
                 panel.top() + sweep,
                 panel.width() - 2,
                 PIXEL_SIZE,
-                _with_alpha(COLOR_ACID_GREEN, 36),
+                with_alpha(COLOR_ACID_GREEN, 36),
             )
 
         if self._elapsed <= self._glitch_until:
@@ -304,26 +299,26 @@ class ModelInitOverlay(QWidget):
                     gy,
                     panel.width(),
                     gh,
-                    _with_alpha(
+                    with_alpha(
                         rng.choice((COLOR_CRIMSON, COLOR_ELECTRIC_BLUE)),
                         rng.randint(40, 120),
                     ),
                 )
         painter.restore()
 
-        painter.setPen(QPen(_with_alpha(accent, base_alpha), 2))
+        painter.setPen(QPen(with_alpha(accent, base_alpha), 2))
         painter.drawRect(panel.adjusted(1, 1, -1, -1))
         painter.setPen(
-            QPen(_with_alpha(COLOR_WHITE, int(120 * appear)), 1)
+            QPen(with_alpha(COLOR_WHITE, int(120 * appear)), 1)
         )
         painter.drawRect(panel.adjusted(5, 5, -5, -5))
 
         cut = 16
         painter.fillRect(
             QRect(panel.right() - cut + 1, panel.top(), cut, cut),
-            _with_alpha(COLOR_OBSIDIAN, base_alpha),
+            with_alpha(COLOR_OBSIDIAN, base_alpha),
         )
-        painter.setPen(QPen(_with_alpha(accent, base_alpha), 2))
+        painter.setPen(QPen(with_alpha(accent, base_alpha), 2))
         painter.drawLine(
             panel.right() - cut,
             panel.top() + 1,
@@ -335,13 +330,13 @@ class ModelInitOverlay(QWidget):
             panel.left() + 18, panel.top() + 14, panel.width() - 36, 18
         )
         painter.setFont(_font(9))
-        painter.setPen(_with_alpha(COLOR_ACID_GREEN, int(230 * appear)))
+        painter.setPen(with_alpha(COLOR_ACID_GREEN, int(230 * appear)))
         painter.drawText(
             header,
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
             "CAPRI//NEURAL_INTERFACE",
         )
-        painter.setPen(_with_alpha(COLOR_WHITE, int(180 * appear)))
+        painter.setPen(with_alpha(COLOR_WHITE, int(180 * appear)))
         painter.drawText(
             header,
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
@@ -349,7 +344,7 @@ class ModelInitOverlay(QWidget):
         )
         line_y = panel.top() + 38
         painter.setPen(
-            QPen(_with_alpha(COLOR_CRIMSON, int(210 * appear)), 1)
+            QPen(with_alpha(COLOR_CRIMSON, int(210 * appear)), 1)
         )
         painter.drawLine(
             panel.left() + 18, line_y, panel.right() - 18, line_y
@@ -368,14 +363,14 @@ class ModelInitOverlay(QWidget):
         if self._elapsed <= self._glitch_until:
             painter.setFont(_font(15))
             painter.setPen(
-                _with_alpha(COLOR_ELECTRIC_BLUE, int(100 * appear))
+                with_alpha(COLOR_ELECTRIC_BLUE, int(100 * appear))
             )
             painter.drawText(
                 title.translated(rng.choice((-6, -3, 3, 6)), 0),
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                 title_text,
             )
-            painter.setPen(_with_alpha(COLOR_CRIMSON, int(120 * appear)))
+            painter.setPen(with_alpha(COLOR_CRIMSON, int(120 * appear)))
             painter.drawText(
                 title.translated(rng.choice((-4, 4)), 0),
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
@@ -383,7 +378,7 @@ class ModelInitOverlay(QWidget):
             )
 
         painter.setFont(_font(15))
-        painter.setPen(_with_alpha(COLOR_WHITE, int(245 * appear)))
+        painter.setPen(with_alpha(COLOR_WHITE, int(245 * appear)))
         painter.drawText(
             title,
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
@@ -394,7 +389,7 @@ class ModelInitOverlay(QWidget):
             panel.left() + 18, panel.top() + 88, panel.width() - 36, 18
         )
         painter.setFont(_font(8))
-        painter.setPen(_with_alpha(COLOR_CRIMSON, int(220 * appear)))
+        painter.setPen(with_alpha(COLOR_CRIMSON, int(220 * appear)))
         subtitle_text = (
             "RUSSIAN ACOUSTIC MODEL // READY"
             if online
@@ -413,7 +408,7 @@ class ModelInitOverlay(QWidget):
         )
         painter.setFont(_font(9))
         painter.setPen(
-            _with_alpha(
+            with_alpha(
                 COLOR_ACID_GREEN if not failed else COLOR_CRIMSON,
                 int(230 * appear),
             )
@@ -428,7 +423,7 @@ class ModelInitOverlay(QWidget):
             panel.left() + 18, panel.top() + 146, panel.width() - 36, 20
         )
         painter.setPen(
-            QPen(_with_alpha(COLOR_VIOLET, int(190 * appear)), 1)
+            QPen(with_alpha(COLOR_VIOLET, int(190 * appear)), 1)
         )
         painter.drawRect(progress_bar)
         segments = 40
@@ -443,25 +438,25 @@ class ModelInitOverlay(QWidget):
             if index < filled:
                 painter.fillRect(
                     seg,
-                    _with_alpha(
+                    with_alpha(
                         COLOR_ACID_GREEN if not failed else COLOR_CRIMSON,
                         int(220 * appear),
                     ),
                 )
             elif index == filled and not online and not failed:
                 painter.fillRect(
-                    seg, _with_alpha(COLOR_WHITE, int(230 * appear))
+                    seg, with_alpha(COLOR_WHITE, int(230 * appear))
                 )
             else:
                 painter.fillRect(
-                    seg, _with_alpha(COLOR_VIOLET, int(60 * appear))
+                    seg, with_alpha(COLOR_VIOLET, int(60 * appear))
                 )
 
         percent = QRect(
             panel.left() + 18, panel.top() + 172, panel.width() - 36, 18
         )
         painter.setFont(_font(10))
-        painter.setPen(_with_alpha(COLOR_WHITE, int(230 * appear)))
+        painter.setPen(with_alpha(COLOR_WHITE, int(230 * appear)))
         painter.drawText(
             percent,
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
@@ -471,7 +466,7 @@ class ModelInitOverlay(QWidget):
             "ONLINE" if online else "FAILED" if failed else "LOADING"
         )
         state_color = COLOR_ACID_GREEN if online else COLOR_CRIMSON
-        painter.setPen(_with_alpha(state_color, int(235 * appear)))
+        painter.setPen(with_alpha(state_color, int(235 * appear)))
         painter.drawText(
             percent,
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
@@ -501,13 +496,13 @@ class ModelInitOverlay(QWidget):
                 telemetry.width(),
                 13,
             )
-            painter.setPen(_with_alpha(COLOR_CRIMSON, int(190 * appear)))
+            painter.setPen(with_alpha(COLOR_CRIMSON, int(190 * appear)))
             painter.drawText(
                 row_rect,
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                 key,
             )
-            painter.setPen(_with_alpha(COLOR_WHITE, int(200 * appear)))
+            painter.setPen(with_alpha(COLOR_WHITE, int(200 * appear)))
             painter.drawText(
                 row_rect,
                 Qt.AlignmentFlag.AlignRight
@@ -516,7 +511,7 @@ class ModelInitOverlay(QWidget):
             )
 
         painter.setPen(
-            QPen(_with_alpha(COLOR_ACID_GREEN, int(220 * appear)), 2)
+            QPen(with_alpha(COLOR_ACID_GREEN, int(220 * appear)), 2)
         )
         painter.drawLine(
             panel.left() + 8,
@@ -531,7 +526,7 @@ class ModelInitOverlay(QWidget):
             panel.bottom() - 8,
         )
         painter.setPen(
-            QPen(_with_alpha(COLOR_CRIMSON, int(220 * appear)), 2)
+            QPen(with_alpha(COLOR_CRIMSON, int(220 * appear)), 2)
         )
         painter.drawLine(
             panel.right() - 8,

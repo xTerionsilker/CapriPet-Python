@@ -21,6 +21,7 @@ from .transition_base import (
     PIXEL_SIZE,
     pick_palette_color,
     snap_pixel,
+    with_alpha,
 )
 from .transition_painters import (
     CyberHoloReticle,
@@ -45,13 +46,6 @@ def _font(size: int) -> QFont:
     return get_hud_font(size, bold=True)
 
 
-def _with_alpha(color: QColor, alpha: int) -> QColor:
-    result = QColor(color)
-    result.setAlpha(max(0, min(255, int(alpha))))
-    return result
-
-
-
 class SessionAnimEffectsMixin:
     """Миксин эффектов отрисовки глитчей, сканирования и таргета."""
 
@@ -59,7 +53,7 @@ class SessionAnimEffectsMixin:
         self, painter: QPainter, accent: QColor, p: float
     ) -> None:
         alpha = int(38 + 28 * math.sin(p * math.pi * 6.0))
-        painter.setPen(QPen(_with_alpha(COLOR_OBSIDIAN, alpha), 2))
+        painter.setPen(QPen(with_alpha(COLOR_OBSIDIAN, alpha), 2))
         for y in range(0, self.height(), PIXEL_SIZE):
             painter.drawLine(0, y, self.width(), y)
 
@@ -69,14 +63,14 @@ class SessionAnimEffectsMixin:
             sweep_y,
             self.width(),
             PIXEL_SIZE * 2,
-            _with_alpha(accent, 95),
+            with_alpha(accent, 95),
         )
         painter.fillRect(
             0,
             sweep_y - PIXEL_SIZE * 2,
             self.width(),
             PIXEL_SIZE * 2,
-            _with_alpha(COLOR_WHITE, 28),
+            with_alpha(COLOR_WHITE, 28),
         )
 
         if self._is_glitch_burst(p):
@@ -100,7 +94,7 @@ class SessionAnimEffectsMixin:
                     roll_y,
                     self.width(),
                     roll_h,
-                    _with_alpha(
+                    with_alpha(
                         COLOR_OBSIDIAN,
                         random.randint(80, min(245, int(90 + 80 * power))),
                     ),
@@ -110,7 +104,7 @@ class SessionAnimEffectsMixin:
                     roll_y + roll_h,
                     self.width(),
                     PIXEL_SIZE,
-                    _with_alpha(
+                    with_alpha(
                         COLOR_ACID_GREEN,
                         random.randint(40, min(240, int(70 + 75 * power))),
                     ),
@@ -156,7 +150,7 @@ class SessionAnimEffectsMixin:
                 y,
                 tear_w,
                 tear_h,
-                _with_alpha(
+                with_alpha(
                     color, rng.randint(55, min(255, int(85 + 90 * power)))
                 ),
             )
@@ -182,7 +176,7 @@ class SessionAnimEffectsMixin:
                     y,
                     w,
                     band_h,
-                    _with_alpha(
+                    with_alpha(
                         COLOR_CRIMSON, min(230, int(45 + 55 * power))
                     ),
                 )
@@ -191,7 +185,7 @@ class SessionAnimEffectsMixin:
                     y + PIXEL_SIZE,
                     w,
                     band_h,
-                    _with_alpha(
+                    with_alpha(
                         COLOR_ACID_GREEN, min(220, int(35 + 45 * power))
                     ),
                 )
@@ -242,7 +236,7 @@ class SessionAnimEffectsMixin:
                 )
                 painter.fillRect(
                     QRect(dx, dy, src.width(), src.height()),
-                    _with_alpha(
+                    with_alpha(
                         rng.choice(
                             (
                                 COLOR_CRIMSON,
@@ -273,7 +267,7 @@ class SessionAnimEffectsMixin:
                 ny,
                 size,
                 size,
-                _with_alpha(
+                with_alpha(
                     pick_palette_color(),
                     rng.randint(70, min(255, int(150 + 65 * power))),
                 ),
@@ -286,14 +280,14 @@ class SessionAnimEffectsMixin:
             ty = snap_pixel(rng.randint(30, max(31, h - 30)))
             shift = rng.choice((PIXEL_SIZE, PIXEL_SIZE * 2))
             painter.setPen(
-                _with_alpha(COLOR_CRIMSON, rng.randint(150, 240))
+                with_alpha(COLOR_CRIMSON, rng.randint(150, 240))
             )
             painter.drawText(tx - shift, ty, phrase)
             painter.setPen(
-                _with_alpha(COLOR_ACID_GREEN, rng.randint(120, 210))
+                with_alpha(COLOR_ACID_GREEN, rng.randint(120, 210))
             )
             painter.drawText(tx + shift, ty, phrase)
-            painter.setPen(_with_alpha(COLOR_WHITE, rng.randint(180, 255)))
+            painter.setPen(with_alpha(COLOR_WHITE, rng.randint(180, 255)))
             painter.drawText(tx, ty, phrase)
 
         if burst:
@@ -306,14 +300,14 @@ class SessionAnimEffectsMixin:
                 edge_y,
                 rng.choice((PIXEL_SIZE * 2, PIXEL_SIZE * 4)),
                 edge_h,
-                _with_alpha(accent, rng.randint(100, 220)),
+                with_alpha(accent, rng.randint(100, 220)),
             )
             painter.fillRect(
                 w - PIXEL_SIZE * 3,
                 edge_y,
                 PIXEL_SIZE * 3,
                 edge_h,
-                _with_alpha(counter, rng.randint(90, 190)),
+                with_alpha(counter, rng.randint(90, 190)),
             )
             if rng.random() < 0.55:
                 cut_y = snap_pixel(
@@ -324,7 +318,7 @@ class SessionAnimEffectsMixin:
                     cut_y,
                     w,
                     rng.choice((PIXEL_SIZE * 2, PIXEL_SIZE * 4)),
-                    _with_alpha(COLOR_OBSIDIAN, rng.randint(150, 245)),
+                    with_alpha(COLOR_OBSIDIAN, rng.randint(150, 245)),
                 )
 
     def _paint_screen_takeover(
@@ -371,21 +365,21 @@ class SessionAnimEffectsMixin:
                     y,
                     min(cell, w - x),
                     min(cell, h - y),
-                    _with_alpha(color, alpha),
+                    with_alpha(color, alpha),
                 )
 
         if coverage >= 0.985:
             shift = PIXEL_SIZE * 3
             painter.fillRect(
                 self.rect().translated(-shift, 0),
-                _with_alpha(COLOR_CRIMSON, 150),
+                with_alpha(COLOR_CRIMSON, 150),
             )
             painter.fillRect(
                 self.rect().translated(shift, 0),
-                _with_alpha(COLOR_ACID_GREEN, 130),
+                with_alpha(COLOR_ACID_GREEN, 130),
             )
             painter.setFont(_font(18))
-            painter.setPen(_with_alpha(COLOR_WHITE, 230))
+            painter.setPen(with_alpha(COLOR_WHITE, 230))
             painter.drawText(
                 self.rect(),
                 Qt.AlignmentFlag.AlignCenter,
@@ -444,7 +438,7 @@ class SessionAnimEffectsMixin:
         if self._target_pixmap is None or self._target_pixmap.isNull():
             painter.fillRect(
                 wr,
-                _with_alpha(accent, int(35 + 30 * math.sin(p * math.pi))),
+                with_alpha(accent, int(35 + 30 * math.sin(p * math.pi))),
             )
             return
 
@@ -516,7 +510,7 @@ class SessionAnimEffectsMixin:
                 painter.setOpacity(1.0)
                 painter.fillRect(
                     dst.translated(ghost_shift, 0),
-                    _with_alpha(
+                    with_alpha(
                         COLOR_CRIMSON
                         if ghost_shift < 0
                         else COLOR_ACID_GREEN,
@@ -525,7 +519,7 @@ class SessionAnimEffectsMixin:
                 )
 
         if self._action == "suspend":
-            tint = _with_alpha(accent, int(75 * intensity))
+            tint = with_alpha(accent, int(75 * intensity))
             painter.fillRect(wr, tint)
         elif self._action == "power_off":
             collapse = max(0.0, (p - 0.50) / 0.50)
@@ -536,10 +530,10 @@ class SessionAnimEffectsMixin:
                 w,
                 line_h,
             )
-            painter.fillRect(line_rect, _with_alpha(COLOR_OBSIDIAN, 235))
+            painter.fillRect(line_rect, with_alpha(COLOR_OBSIDIAN, 235))
             painter.fillRect(
                 line_rect.adjusted(0, line_h // 2 - PIXEL_SIZE, 0, 0),
-                _with_alpha(counter, 220),
+                with_alpha(counter, 220),
             )
         elif self._action == "lock":
             bar_y = wr.top() + snap_pixel((p * 1.3 % 1.0) * h)
@@ -548,7 +542,7 @@ class SessionAnimEffectsMixin:
                 bar_y,
                 w,
                 PIXEL_SIZE * 2,
-                _with_alpha(counter, 160),
+                with_alpha(counter, 160),
             )
 
     def _paint_rotation_ring(
@@ -567,11 +561,11 @@ class SessionAnimEffectsMixin:
             radius * 2,
             radius * 2,
         )
-        painter.setPen(QPen(_with_alpha(accent, 220), PIXEL_SIZE * 2))
+        painter.setPen(QPen(with_alpha(accent, 220), PIXEL_SIZE * 2))
         start = int(p * 360 * 3)
         for i in range(8):
             painter.drawArc(rect, (start + i * 45) * 16, 22 * 16)
-        painter.setPen(QPen(_with_alpha(counter, 180), PIXEL_SIZE))
+        painter.setPen(QPen(with_alpha(counter, 180), PIXEL_SIZE))
         inner = rect.adjusted(18, 18, -18, -18)
         for i in range(4):
             painter.drawArc(inner, (-start + i * 90) * 16, 38 * 16)
@@ -591,16 +585,16 @@ class SessionAnimEffectsMixin:
             radius * 2,
             radius * 2,
         )
-        painter.setPen(QPen(_with_alpha(accent, 170), PIXEL_SIZE))
+        painter.setPen(QPen(with_alpha(accent, 170), PIXEL_SIZE))
         painter.drawEllipse(rect)
         wave_radius = radius + int(14 * math.sin(p * math.tau * 2.0))
-        painter.setPen(QPen(_with_alpha(COLOR_VIOLET, 120), PIXEL_SIZE))
+        painter.setPen(QPen(with_alpha(COLOR_VIOLET, 120), PIXEL_SIZE))
         painter.drawEllipse(rect.adjusted(-8, -8, 8, 8))
         CyberShockwaveRing.draw(
             painter,
             center,
             max(PIXEL_SIZE * 2, wave_radius),
-            _with_alpha(accent, 55),
+            with_alpha(accent, 55),
         )
 
     def _paint_flash(
@@ -622,14 +616,14 @@ class SessionAnimEffectsMixin:
         alpha = int(150 * intensity)
         painter.fillRect(
             wr.translated(-shift, 0),
-            _with_alpha(COLOR_CRIMSON, alpha),
+            with_alpha(COLOR_CRIMSON, alpha),
         )
         painter.fillRect(
             wr.translated(shift, 0),
-            _with_alpha(COLOR_ACID_GREEN, alpha),
+            with_alpha(COLOR_ACID_GREEN, alpha),
         )
         painter.fillRect(
-            wr, _with_alpha(COLOR_WHITE, int(190 * intensity))
+            wr, with_alpha(COLOR_WHITE, int(190 * intensity))
         )
 
         center = wr.center()
@@ -641,13 +635,13 @@ class SessionAnimEffectsMixin:
                 painter,
                 center,
                 radius,
-                _with_alpha(accent, int(190 * intensity)),
+                with_alpha(accent, int(190 * intensity)),
             )
             CyberShockwaveRing.draw(
                 painter,
                 center,
                 max(0, radius - PIXEL_SIZE * 8),
-                _with_alpha(counter, int(130 * intensity)),
+                with_alpha(counter, int(130 * intensity)),
             )
 
         step = PIXEL_SIZE * 2
@@ -670,7 +664,7 @@ class SessionAnimEffectsMixin:
                         y,
                         step,
                         step,
-                        _with_alpha(accent, int(120 * intensity)),
+                        with_alpha(accent, int(120 * intensity)),
                     )
 
     def _paint_lockdown_lasers(
@@ -691,13 +685,13 @@ class SessionAnimEffectsMixin:
         curtain_h = snap_pixel(int((h // 2) * min(1.0, p * 1.15)))
 
         # Затворы оцепления
-        painter.fillRect(0, 0, curtain_w, h, _with_alpha(COLOR_OBSIDIAN, 230))
-        painter.fillRect(w - curtain_w, 0, curtain_w, h, _with_alpha(COLOR_OBSIDIAN, 230))
-        painter.fillRect(0, 0, w, curtain_h, _with_alpha(COLOR_OBSIDIAN, 230))
-        painter.fillRect(0, h - curtain_h, w, curtain_h, _with_alpha(COLOR_OBSIDIAN, 230))
+        painter.fillRect(0, 0, curtain_w, h, with_alpha(COLOR_OBSIDIAN, 230))
+        painter.fillRect(w - curtain_w, 0, curtain_w, h, with_alpha(COLOR_OBSIDIAN, 230))
+        painter.fillRect(0, 0, w, curtain_h, with_alpha(COLOR_OBSIDIAN, 230))
+        painter.fillRect(0, h - curtain_h, w, curtain_h, with_alpha(COLOR_OBSIDIAN, 230))
 
         # 2. Неоновые лазерные кромки барьеров
-        laser_pen = QPen(_with_alpha(accent, 240), PIXEL_SIZE * 2)
+        laser_pen = QPen(with_alpha(accent, 240), PIXEL_SIZE * 2)
         painter.setPen(laser_pen)
         painter.drawLine(curtain_w, 0, curtain_w, h)
         painter.drawLine(w - curtain_w, 0, w - curtain_w, h)
@@ -706,7 +700,7 @@ class SessionAnimEffectsMixin:
 
         # 3. Диагональные хазард-полосы на затворах (Blackwall Hazard)
         step = PIXEL_SIZE * 8
-        hazard_pen = QPen(_with_alpha(accent, 90), PIXEL_SIZE * 2)
+        hazard_pen = QPen(with_alpha(accent, 90), PIXEL_SIZE * 2)
         painter.setPen(hazard_pen)
         if curtain_w > step:
             for x in range(0, curtain_w + h, step):
@@ -720,20 +714,20 @@ class SessionAnimEffectsMixin:
             stamp_w, stamp_h = min(w - 40, 520), 120
             stamp_rect = QRect((w - stamp_w) // 2, (h - stamp_h) // 2, stamp_w, stamp_h)
 
-            painter.fillRect(stamp_rect, _with_alpha(COLOR_OBSIDIAN, int(245 * stamp_p)))
-            painter.setPen(QPen(_with_alpha(accent, int(255 * stamp_p)), PIXEL_SIZE * 2))
+            painter.fillRect(stamp_rect, with_alpha(COLOR_OBSIDIAN, int(245 * stamp_p)))
+            painter.setPen(QPen(with_alpha(accent, int(255 * stamp_p)), PIXEL_SIZE * 2))
             painter.drawRect(stamp_rect)
             painter.drawRect(stamp_rect.adjusted(6, 6, -6, -6))
 
             painter.setFont(_font(16))
-            painter.setPen(_with_alpha(COLOR_WHITE, int(250 * stamp_p)))
+            painter.setPen(with_alpha(COLOR_WHITE, int(250 * stamp_p)))
             painter.drawText(
                 stamp_rect.adjusted(0, 16, 0, -48),
                 Qt.AlignmentFlag.AlignCenter,
                 "LOCKDOWN // PROTOCOL ACTIVE",
             )
             painter.setFont(_font(9))
-            painter.setPen(_with_alpha(counter, int(220 * stamp_p)))
+            painter.setPen(with_alpha(counter, int(220 * stamp_p)))
             painter.drawText(
                 stamp_rect.adjusted(0, 62, 0, -18),
                 Qt.AlignmentFlag.AlignCenter,
@@ -758,7 +752,7 @@ class SessionAnimEffectsMixin:
         # Фаза 3: 0.75 - 1.00: Схлопывание по горизонтали в центральную точку и угасание
         if p < 0.35:
             flash = (1.0 - p / 0.35) ** 2.0
-            painter.fillRect(rect, _with_alpha(COLOR_WHITE, int(180 * flash)))
+            painter.fillRect(rect, with_alpha(COLOR_WHITE, int(180 * flash)))
             return
 
         cx, cy = w // 2, h // 2
@@ -769,27 +763,27 @@ class SessionAnimEffectsMixin:
             beam_rect = QRect(0, cy - cur_h // 2, w, cur_h)
 
             # Черный фон сверху и снизу схлопывающегося луча
-            painter.fillRect(0, 0, w, beam_rect.top(), _with_alpha(COLOR_OBSIDIAN, 255))
-            painter.fillRect(0, beam_rect.bottom(), w, h - beam_rect.bottom(), _with_alpha(COLOR_OBSIDIAN, 255))
+            painter.fillRect(0, 0, w, beam_rect.top(), with_alpha(COLOR_OBSIDIAN, 255))
+            painter.fillRect(0, beam_rect.bottom(), w, h - beam_rect.bottom(), with_alpha(COLOR_OBSIDIAN, 255))
 
             # Сверхъяркое ядро луча
             core_h = max(2, cur_h // 3)
-            painter.fillRect(beam_rect, _with_alpha(accent, 220))
-            painter.fillRect(0, cy - core_h // 2, w, core_h, _with_alpha(COLOR_WHITE, 250))
+            painter.fillRect(beam_rect, with_alpha(accent, 220))
+            painter.fillRect(0, cy - core_h // 2, w, core_h, with_alpha(COLOR_WHITE, 250))
         else:
             collapse_x = (p - 0.75) / 0.25
             cur_w = max(PIXEL_SIZE * 2, snap_pixel(int(w * (1.0 - collapse_x**2.0))))
             cur_h = max(2, snap_pixel(int(PIXEL_SIZE * 4 * (1.0 - collapse_x))))
             beam_rect = QRect(cx - cur_w // 2, cy - cur_h // 2, cur_w, cur_h)
 
-            painter.fillRect(rect, _with_alpha(COLOR_OBSIDIAN, 255))
-            painter.fillRect(beam_rect, _with_alpha(counter, 230))
-            painter.fillRect(beam_rect.adjusted(2, 0, -2, 0), _with_alpha(COLOR_WHITE, 255))
+            painter.fillRect(rect, with_alpha(COLOR_OBSIDIAN, 255))
+            painter.fillRect(beam_rect, with_alpha(counter, 230))
+            painter.fillRect(beam_rect.adjusted(2, 0, -2, 0), with_alpha(COLOR_WHITE, 255))
 
             # Точка затухания
             dot_radius = max(1, int(6 * (1.0 - collapse_x)))
             dot_rect = QRect(cx - dot_radius, cy - dot_radius, dot_radius * 2, dot_radius * 2)
-            painter.fillRect(dot_rect, _with_alpha(COLOR_WHITE, int(255 * (1.0 - collapse_x))))
+            painter.fillRect(dot_rect, with_alpha(COLOR_WHITE, int(255 * (1.0 - collapse_x))))
 
     def _paint_reboot_rings(
         self,
@@ -819,14 +813,14 @@ class SessionAnimEffectsMixin:
             ring_rect = QRect(cx - r, cy - r, r * 2, r * 2)
             angle_start = int((p * 360 * speed + idx * 60) % 360)
 
-            painter.setPen(QPen(_with_alpha(col, 220), PIXEL_SIZE * 2))
+            painter.setPen(QPen(with_alpha(col, 220), PIXEL_SIZE * 2))
             for i in range(4):
                 painter.drawArc(ring_rect, (angle_start + i * 90) * 16, span * 16)
 
         # Телеметрия частоты шины по центру
         freq_mhz = int(1200 + 3800 * (p**2.0))
         painter.setFont(_font(14))
-        painter.setPen(_with_alpha(COLOR_WHITE, 240))
+        painter.setPen(with_alpha(COLOR_WHITE, 240))
         center_text = f"SPOOL: {freq_mhz} MHz"
         painter.drawText(
             QRect(cx - 180, cy - 20, 360, 40),
@@ -836,7 +830,7 @@ class SessionAnimEffectsMixin:
 
         # Acid Green импульсные молнии при перезапуске на p > 0.60
         if p >= 0.55:
-            bolt_pen = QPen(_with_alpha(COLOR_ACID_GREEN, 230), PIXEL_SIZE * 2)
+            bolt_pen = QPen(with_alpha(COLOR_ACID_GREEN, 230), PIXEL_SIZE * 2)
             painter.setPen(bolt_pen)
             rng = random.Random(int(p * 100) + self._frame)
             for _ in range(3):
@@ -859,12 +853,12 @@ class SessionAnimEffectsMixin:
 
         # 1. Охлаждающая градиентная вуаль (Neon Crimson -> Violet -> Electric Blue)
         cooling_alpha = int(160 * min(1.0, p * 1.3))
-        painter.fillRect(rect, _with_alpha(COLOR_VIOLET, cooling_alpha // 2))
-        painter.fillRect(rect, _with_alpha(COLOR_ELECTRIC_BLUE, cooling_alpha // 3))
+        painter.fillRect(rect, with_alpha(COLOR_VIOLET, cooling_alpha // 2))
+        painter.fillRect(rect, with_alpha(COLOR_ELECTRIC_BLUE, cooling_alpha // 3))
 
         # 2. Кардиограмма / пульс биочипа по центру экрана
         cy = h // 2
-        painter.setPen(QPen(_with_alpha(counter, 220), PIXEL_SIZE * 2))
+        painter.setPen(QPen(with_alpha(counter, 220), PIXEL_SIZE * 2))
 
         # Плавное угасание амплитуды (синаптическое охлаждение)
         amp = max(2.0, (1.0 - p**1.2) * (h // 6))
@@ -886,7 +880,7 @@ class SessionAnimEffectsMixin:
         if p >= 0.30:
             stasis_p = min(1.0, (p - 0.30) / 0.30)
             painter.setFont(_font(13))
-            painter.setPen(_with_alpha(COLOR_WHITE, int(230 * stasis_p)))
+            painter.setPen(with_alpha(COLOR_WHITE, int(230 * stasis_p)))
             painter.drawText(
                 QRect(0, cy + 60, w, 40),
                 Qt.AlignmentFlag.AlignCenter,
