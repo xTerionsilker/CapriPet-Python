@@ -123,7 +123,7 @@ class CyberVolumeHud(QWidget):
         painter.strokePath(bg_path, pen)
 
         self._draw_header(painter, rect)
-        self._draw_progress_bar(painter, rect, border_color)
+        self._draw_progress_bar(painter, rect)
         painter.end()
 
     def _draw_header(self, painter: QPainter, rect: QRectF) -> None:
@@ -146,7 +146,7 @@ class CyberVolumeHud(QWidget):
             right_text,
         )
 
-    def _draw_progress_bar(self, painter: QPainter, rect: QRectF, active_color: QColor) -> None:
+    def _draw_progress_bar(self, painter: QPainter, rect: QRectF) -> None:
         """Отрисовка сегментированной шкалы громкости."""
         bar_x = rect.left() + 14
         bar_y = rect.top() + 28

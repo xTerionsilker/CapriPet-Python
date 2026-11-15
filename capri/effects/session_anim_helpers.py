@@ -843,7 +843,7 @@ class SessionAnimEffectsMixin:
         painter: QPainter,
         rect: QRect,
         p: float,
-        accent: QColor,
+        _accent: QColor,
         counter: QColor,
     ) -> None:
         """Криостазис: охлаждение палитры, затухающие синусоиды импульсов жизни биочипа."""
