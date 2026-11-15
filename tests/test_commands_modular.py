@@ -32,6 +32,8 @@ from scripts.bake_sfx import (
     DEFAULT_SAMPLE_RATE,
     _generate_chirp_wav,
     _generate_swoosh_wav,
+    _to_pcm_16bit,
+    _write_wav_16bit,
 )
 
 
@@ -78,6 +80,23 @@ class TestCommandsModular(unittest.TestCase):
         self.assertTrue((SFX_DIR / "cyber_swoosh.wav").exists())
         self.assertTrue((SFX_DIR / "retro_chirp.wav").exists())
         self.assertGreaterEqual(len(list(SFX_DIR.glob("*.wav"))), 20)
+
+    def test_pcm_16bit_clamping_and_saturation(self) -> None:
+        import numpy as np
+
+        packed_zero = _to_pcm_16bit(0.0)
+        self.assertEqual(len(packed_zero), 2)
+        packed_pos = _to_pcm_16bit(5.0)
+        self.assertEqual(len(packed_pos), 2)
+        packed_array = _to_pcm_16bit(np.zeros(100))
+        self.assertEqual(len(packed_array), 200)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            wav_path = Path(tmp_dir) / "test.wav"
+            frames = _to_pcm_16bit(np.zeros(100))
+            _write_wav_16bit(wav_path, frames, sample_rate=DEFAULT_SAMPLE_RATE)
+            self.assertTrue(wav_path.exists())
+            self.assertGreater(wav_path.stat().st_size, 44)
 
     def test_session_svg_icons_valid(self) -> None:
         from capri.effects.session_animations import _ICONS_DIR, _get_action_renderer
