@@ -29,6 +29,13 @@ This document provides strict operational, architectural, and design constraints
 - **Tool Operation Constraints:**
   - **Reading (`read_file`):** Operate on at most **200 lines per tool call**.
   - **Creation & Editing (`write_file`, `edit_file`):** Operate on at most **70 lines per tool call** to maintain deterministic execution and prevent serialization latencies.
+- **Codebase Exploration & Architecture Analysis (Graphify MCP):**
+  - Always prefer the connected **Graphify MCP** (`repository: xTerionsilker/CapriPet-Python`) for cross-file architecture navigation, caller/callee tracing, and blast-radius analysis instead of brute-force file crawling.
+  - Core MCP workflows:
+    - `graphify_impact` / `graphify_callers`: Check blast radius before refactoring shared interfaces or core classes.
+    - `query_graph` / `graphify_find`: Locate subsystems, entry points, and domain concepts.
+    - `graphify_trace`: Trace execution/data paths across layers.
+  - Do NOT run local `/graphify` build pipelines unless the user explicitly requests generating offline HTML visualizations or local graph exports.
 
 ---
 
