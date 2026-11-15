@@ -15,6 +15,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QGraphicsOpacityEffect, QWidget
 
+from .draw_utils import make_chamfer_path
 from .theme import (
     CHAMFER_HUD,
     COLOR_ACID_GREEN,
@@ -104,18 +105,7 @@ class CyberVolumeHud(QWidget):
 
     def _create_chamfered_path(self, rect: QRectF, c: float) -> QPainterPath:
         """Полигон со скошенными под 45 градусов углами в стиле Studio Trigger."""
-        path = QPainterPath()
-        left, top, right, bottom = rect.left(), rect.top(), rect.right(), rect.bottom()
-        path.moveTo(left + c, top)
-        path.lineTo(right - c, top)
-        path.lineTo(right, top + c)
-        path.lineTo(right, bottom - c)
-        path.lineTo(right - c, bottom)
-        path.lineTo(left + c, bottom)
-        path.lineTo(left, bottom - c)
-        path.lineTo(left, top + c)
-        path.closeSubpath()
-        return path
+        return make_chamfer_path(rect, c)
 
     def paintEvent(self, event) -> None:
         """Отрисовка кибернетического интерфейса шкалы звука."""

@@ -15,6 +15,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QWidget
 
+from .draw_utils import draw_scanlines
 from .theme import (
     ACID_GREEN,
     ELECTRIC_BLUE,
@@ -318,10 +319,13 @@ class CyberHudBubble(QWidget):
         scanline_alpha = (
             int(random.randint(15, 45) * intensity) if is_glitch else 14
         )
-        scanline_pen = QPen(QColor(246, 2, 63, max(8, scanline_alpha)), 1)
-        painter.setPen(scanline_pen)
-        for y in range(0, bh, 3):
-            painter.drawLine(shake_x - 10, y, bw + shake_x + 10, y)
+        draw_scanlines(
+            painter,
+            QRect(shake_x - 10, 0, bw + 20, bh),
+            spacing=3,
+            alpha=max(8, scanline_alpha),
+            color="#F6023F",
+        )
 
         if phase in ("opening", "closing") or is_glitch:
             sweep_y = int(bh * ((time.monotonic() * 2.5) % 1.0))

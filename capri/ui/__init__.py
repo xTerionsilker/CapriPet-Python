@@ -11,6 +11,15 @@ from .context_menu import (
     show_context_menu_hub,
 )
 from .context_menu_window import CyberContextMenuWindow
+from .draw_utils import (
+    PIXEL_SIZE,
+    draw_scanlines,
+    make_chamfer_path,
+    make_chamfer_polygon,
+    snap_pixel,
+    snap_point,
+    with_alpha,
+)
 from .pet_renderer import (
     PetRenderer,
     PetRenderState,
@@ -81,4 +90,11 @@ __all__ = [
     "pick_side_position",
     "random_free_point",
     "show_text",
+    "PIXEL_SIZE",
+    "draw_scanlines",
+    "make_chamfer_path",
+    "make_chamfer_polygon",
+    "snap_pixel",
+    "snap_point",
+    "with_alpha",
 ]

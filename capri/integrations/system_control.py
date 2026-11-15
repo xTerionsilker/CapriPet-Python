@@ -115,3 +115,16 @@ def run_power(commands: list[list[str]]) -> bool:
         if result.returncode == 0:
             return True
     return False
+
+
+def is_reduced_motion_enabled() -> bool:
+    """Проверяет системную настройку упрощения анимаций Windows."""
+    try:
+        val = ctypes.c_bool()
+        if ctypes.windll.user32.SystemParametersInfoW(
+            0x1042, 0, ctypes.byref(val), 0
+        ):
+            return not val.value
+    except (OSError, AttributeError):
+        pass
+    return False

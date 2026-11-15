@@ -2,52 +2,25 @@
 
 from __future__ import annotations
 
-import random
-
-from PySide6.QtCore import QPoint
-from PySide6.QtGui import QColor
-
-PIXEL_SIZE = 4
-
-COLOR_CRIMSON = QColor("#F6023F")
-COLOR_OBSIDIAN = QColor("#020106")
-COLOR_ACID_GREEN = QColor("#06F868")
-COLOR_WHITE = QColor("#F9F9F9")
-COLOR_ELECTRIC_BLUE = QColor("#126EE9")
-COLOR_VIOLET = QColor("#9E1FDE")
-
-PALETTE_COLORS = (
-    COLOR_CRIMSON,
-    COLOR_OBSIDIAN,
+from ..ui.draw_utils import (
+    PIXEL_SIZE,
+    snap_pixel,
+    snap_point,
+    with_alpha,
+)
+from ..ui.theme import (
     COLOR_ACID_GREEN,
-    COLOR_WHITE,
+    COLOR_CRIMSON,
     COLOR_ELECTRIC_BLUE,
-    COLOR_VIOLET,
+    COLOR_NEON_VIOLET,
+    COLOR_OBSIDIAN,
+    COLOR_WHITE,
+    PALETTE_COLORS,
+    PALETTE_WEIGHTS,
+    pick_palette_color,
 )
 
-PALETTE_WEIGHTS = (45.0, 35.0, 16.0, 2.0, 1.5, 0.5)
-
-
-def pick_palette_color() -> QColor:
-    """Выбирает случайный цвет палитры с учетом киберпанк-весов."""
-    return random.choices(PALETTE_COLORS, weights=PALETTE_WEIGHTS, k=1)[0]
-
-
-def snap_pixel(val: float, step: int = PIXEL_SIZE) -> int:
-    """Выравнивает координату по пиксельной сетке."""
-    return round(val / step) * step
-
-
-def snap_point(pt: QPoint, step: int = PIXEL_SIZE) -> QPoint:
-    """Выравнивает точку по пиксельной сетке."""
-    return QPoint(snap_pixel(pt.x(), step), snap_pixel(pt.y(), step))
-
-
-def with_alpha(color: QColor, alpha: int) -> QColor:
-    """Возвращает копию цвета с установленной альфа-прозрачностью (0..255)."""
-    c = QColor(color)
-    c.setAlpha(max(0, min(255, int(alpha))))
-    return c
+COLOR_VIOLET = COLOR_NEON_VIOLET
 
 DURATION_OUT_MS = 840
 DURATION_IN_MS = 1000
@@ -61,3 +34,25 @@ BAYER_4X4 = (
     (3, 11, 1, 9),
     (15, 7, 13, 5),
 )
+
+__all__ = [
+    "BAYER_4X4",
+    "COLOR_ACID_GREEN",
+    "COLOR_CRIMSON",
+    "COLOR_ELECTRIC_BLUE",
+    "COLOR_OBSIDIAN",
+    "COLOR_VIOLET",
+    "COLOR_WHITE",
+    "DURATION_DODGE_MS",
+    "DURATION_ERRATIC_MS",
+    "DURATION_IN_MS",
+    "DURATION_OUT_MS",
+    "DURATION_POINT_MS",
+    "PALETTE_COLORS",
+    "PALETTE_WEIGHTS",
+    "PIXEL_SIZE",
+    "pick_palette_color",
+    "snap_pixel",
+    "snap_point",
+    "with_alpha",
+]

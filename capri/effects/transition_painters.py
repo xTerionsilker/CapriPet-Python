@@ -8,6 +8,7 @@ import random
 from PySide6.QtCore import QPoint, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPen, QPolygon
 
+from ..ui.draw_utils import make_chamfer_polygon
 from ..ui.theme import get_hud_font
 from .transition_base import (
     COLOR_ACID_GREEN,
@@ -64,20 +65,7 @@ class CyberShockwaveRing:
 def chamfer_points(rect: QRect, cut: int) -> QPolygon:
     """Вычисляет многоугольник со скошенными под 45 градусов углами."""
     cut = max(2, min(cut, min(rect.width(), rect.height()) // 3))
-    left_x, right_x = rect.left(), rect.right()
-    top_y, bottom_y = rect.top(), rect.bottom()
-    return QPolygon(
-        [
-            QPoint(left_x + cut, top_y),
-            QPoint(right_x - cut, top_y),
-            QPoint(right_x, top_y + cut),
-            QPoint(right_x, bottom_y - cut),
-            QPoint(right_x - cut, bottom_y),
-            QPoint(left_x + cut, bottom_y),
-            QPoint(left_x, bottom_y - cut),
-            QPoint(left_x, top_y + cut),
-        ]
-    )
+    return make_chamfer_polygon(rect, cut)
 
 
 def draw_scanlines(

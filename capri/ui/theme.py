@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import random
 from pathlib import Path
 
 from PySide6.QtGui import QColor, QFont, QFontDatabase
@@ -95,6 +96,21 @@ COLOR_ACID_GREEN = QColor(ACID_GREEN)
 COLOR_WHITE = QColor(PURE_WHITE)
 COLOR_ELECTRIC_BLUE = QColor(ELECTRIC_BLUE)
 COLOR_NEON_VIOLET = QColor(NEON_VIOLET)
+
+PALETTE_COLORS = (
+    COLOR_CRIMSON,
+    COLOR_OBSIDIAN,
+    COLOR_ACID_GREEN,
+    COLOR_WHITE,
+    COLOR_ELECTRIC_BLUE,
+    COLOR_NEON_VIOLET,
+)
+PALETTE_WEIGHTS = (45.0, 35.0, 16.0, 2.0, 1.5, 0.5)
+
+
+def pick_palette_color() -> QColor:
+    """Выбирает случайный цвет палитры с учетом киберпанк-весов."""
+    return random.choices(PALETTE_COLORS, weights=PALETTE_WEIGHTS, k=1)[0]
 
 _MENU_ARROW = (
     Path(__file__).resolve().parents[2] / "assets" / "menu_arrow.svg"

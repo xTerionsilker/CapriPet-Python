@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QColor, QPainter, QPen
 
-from ...effects.transition_fx import (
+from ..draw_utils import snap_pixel
+from ..theme import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
     COLOR_OBSIDIAN,
-    snap_pixel,
+    get_hud_font,
 )
-from ..theme import get_hud_font
 
 if TYPE_CHECKING:
     from ..pet_renderer import PetRenderState

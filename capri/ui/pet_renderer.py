@@ -12,18 +12,16 @@ from dataclasses import dataclass
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
 
-from capri.ui.theme import get_hud_font
-
-from ..effects.transition_fx import (
+from .draw_utils import PIXEL_SIZE, snap_pixel
+from .renderers.hud_telemetry import HudTelemetryPainter
+from .theme import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
     COLOR_OBSIDIAN,
     COLOR_WHITE,
-    PIXEL_SIZE,
+    get_hud_font,
     pick_palette_color,
-    snap_pixel,
 )
-from .renderers.hud_telemetry import HudTelemetryPainter
 
 
 @dataclass

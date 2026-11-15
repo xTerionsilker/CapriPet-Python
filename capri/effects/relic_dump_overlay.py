@@ -12,13 +12,17 @@ from PySide6.QtCore import QPoint, QRect, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPaintEvent, QPen, QPolygon
 from PySide6.QtWidgets import QWidget
 
-from capri.ui.theme import get_hud_font, get_terminal_font
-
-COLOR_CRIMSON = QColor("#F6023F")
-COLOR_OBSIDIAN = QColor("#020106")
-COLOR_ACID_GREEN = QColor("#06F868")
-COLOR_WHITE = QColor("#F9F9F9")
-COLOR_VIOLET = QColor("#9E1FDE")
+from capri.ui.theme import (
+    COLOR_ACID_GREEN,
+    COLOR_CRIMSON,
+    COLOR_OBSIDIAN,
+    COLOR_WHITE,
+    get_hud_font,
+    get_terminal_font,
+)
+from capri.ui.theme import (
+    COLOR_NEON_VIOLET as COLOR_VIOLET,
+)
 
 DUMP_LINES: tuple[str, ...] = (
     ">> [ARASAKA_RELIC_SEC_FAULT]",
