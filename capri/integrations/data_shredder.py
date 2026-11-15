@@ -5,6 +5,7 @@ Handles rogue AI data annihilation and recursive unrecoverable file/folder delet
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import shutil
@@ -171,10 +172,8 @@ def analyze_paths(paths: Sequence[str | Path]) -> tuple[list[Path], ShredMetrics
 
         if p.is_file() or p.is_symlink():
             total_files += 1
-            try:
+            with contextlib.suppress(OSError):
                 total_bytes += p.stat().st_size
-            except OSError:
-                pass
             ext = p.suffix.lower()
             if ext:
                 ext_counts[ext] = ext_counts.get(ext, 0) + 1
@@ -221,10 +220,8 @@ def shred_paths(paths: Sequence[str | Path]) -> ShredMetrics:
             if target.is_dir() and not target.is_symlink():
                 shutil.rmtree(target, onerror=_remove_readonly)
             else:
-                try:
+                with contextlib.suppress(OSError):
                     os.chmod(target, stat.S_IWRITE)
-                except OSError:
-                    pass
                 target.unlink(missing_ok=True)
         except OSError as e:
             logger.error("Failed to shred target %s: %s", target, e)

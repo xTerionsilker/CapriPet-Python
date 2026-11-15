@@ -195,9 +195,10 @@ class GameModeDetector(QObject):
             ):
                 return True
 
-            if is_window_fullscreen_on_screen(hwnd):
-                if (style & win32con.WS_POPUP) != 0 or user_state == QUNS_BUSY:
-                    return True
+            if is_window_fullscreen_on_screen(hwnd) and (
+                (style & win32con.WS_POPUP) != 0 or user_state == QUNS_BUSY
+            ):
+                return True
 
             return False
         except Exception:
