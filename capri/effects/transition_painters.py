@@ -62,12 +62,6 @@ class CyberShockwaveRing:
             painter.drawLine(p1, p2)
 
 
-def chamfer_points(rect: QRect, cut: int) -> QPolygon:
-    """Вычисляет многоугольник со скошенными под 45 градусов углами."""
-    cut = max(2, min(cut, min(rect.width(), rect.height()) // 3))
-    return make_chamfer_polygon(rect, cut)
-
-
 def draw_scanlines(
     painter: QPainter,
     rect: QRect,
@@ -450,7 +444,8 @@ def draw_quickhack_panel(
     progress = max(0.0, min(1.0, progress))
 
     painter.save()
-    panel = chamfer_points(rect, 7)
+    cut = max(2, min(7, min(rect.width(), rect.height()) // 3))
+    panel = make_chamfer_polygon(rect, cut)
     painter.setPen(QPen(with_alpha(COLOR_OBSIDIAN, 240), 2))
     painter.setBrush(with_alpha(COLOR_OBSIDIAN, 205))
     painter.drawPolygon(panel)
