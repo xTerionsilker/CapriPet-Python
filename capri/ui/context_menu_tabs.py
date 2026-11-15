@@ -198,48 +198,6 @@ class CoreTabPage(QWidget):
         act_layout.addWidget(self.btn_reset_pos, 1, 1)
         layout.addWidget(grp_actions)
 
-        grp_toggles = QGroupBox("[NEURAL_OVERRIDES]", self)
-        grp_toggles.setStyleSheet(_GROUP_STYLE)
-        tog_layout = QVBoxLayout(grp_toggles)
-        tog_layout.setSpacing(8)
-
-        self.chk_discord = QCheckBox("[DISCORD] Discord Rich Presence", self)
-        self.chk_discord.setStyleSheet(_CHECKBOX_STYLE)
-        orchestrator = getattr(self.pet_window, "_orchestrator", None)
-        rpc_enabled = (
-            getattr(orchestrator, "_discord_enabled", True)
-            if orchestrator
-            else get_config_value("discord.enabled", True)
-        )
-        self.chk_discord.setChecked(rpc_enabled)
-        self.chk_discord.toggled.connect(self._on_toggle_discord)
-        tog_layout.addWidget(self.chk_discord)
-
-        self.chk_voice = QCheckBox("[VOICE] Голосовой ввод", self)
-        self.chk_voice.setStyleSheet(_CHECKBOX_STYLE)
-        voice_listening = False
-        if hasattr(self.pet_window, "voice_coordinator"):
-            voice_listening = getattr(self.pet_window.voice_coordinator, "is_listening", False)
-        elif hasattr(self.pet_window, "voice"):
-            voice_listening = getattr(self.pet_window.voice, "is_listening", False)
-        else:
-            voice_listening = get_config_value("audio.voice_enabled", True)
-        self.chk_voice.setChecked(voice_listening)
-        self.chk_voice.toggled.connect(self._on_toggle_voice)
-        tog_layout.addWidget(self.chk_voice)
-
-        self.chk_glitches = QCheckBox("[GLITCH] Экранные глитчи", self)
-        self.chk_glitches.setStyleSheet(_CHECKBOX_STYLE)
-        glitches_enabled = getattr(self.pet_window, "glitches_enabled", False)
-        if not glitches_enabled and hasattr(self.pet_window, "glitches"):
-            glitches_enabled = getattr(self.pet_window.glitches, "is_enabled", False)
-        elif not glitches_enabled:
-            glitches_enabled = get_config_value("effects.glitches_enabled", True)
-        self.chk_glitches.setChecked(glitches_enabled)
-        self.chk_glitches.toggled.connect(self._on_toggle_glitches)
-        tog_layout.addWidget(self.chk_glitches)
-        layout.addWidget(grp_toggles)
-
         grp_style = QGroupBox("[DIALOGUE_PROTOCOL] Стиль общения", self)
         grp_style.setStyleSheet(_GROUP_STYLE)
         style_layout = QHBoxLayout(grp_style)
@@ -284,38 +242,6 @@ class CoreTabPage(QWidget):
         if callable(fn):
             fn()
 
-    def _on_toggle_discord(self, checked: bool) -> None:
-        _play_ui_snap()
-        actions = getattr(self.pet_window, "actions", None)
-        if actions and hasattr(actions, "set_discord_enabled"):
-            actions.set_discord_enabled(checked)
-        elif hasattr(self.pet_window, "set_discord_enabled"):
-            self.pet_window.set_discord_enabled(checked)
-        else:
-            set_config_value("discord.enabled", checked)
-
-    def _on_toggle_voice(self, checked: bool) -> None:
-        _play_ui_snap()
-        actions = getattr(self.pet_window, "actions", None)
-        if actions and hasattr(actions, "toggle_voice"):
-            actions.toggle_voice()
-        elif hasattr(self.pet_window, "toggle_voice"):
-            self.pet_window.toggle_voice()
-        else:
-            set_config_value("audio.voice_enabled", checked)
-
-    def _on_toggle_glitches(self, checked: bool) -> None:
-        _play_ui_snap()
-        actions = getattr(self.pet_window, "actions", None)
-        if actions and hasattr(actions, "toggle_glitches"):
-            actions.toggle_glitches()
-        elif hasattr(self.pet_window, "_toggle_glitches"):
-            self.pet_window._toggle_glitches()
-        elif hasattr(self.pet_window, "process_input"):
-            self.pet_window.process_input("глитч")
-        else:
-            set_config_value("effects.glitches_enabled", checked)
-
     def _on_style_changed(self, index: int) -> None:
         _play_ui_snap()
         style_id = self.combo_style.itemData(index)
@@ -345,6 +271,43 @@ class AudioTabPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
+
+        grp_voice = QGroupBox("[VOICE.IN] Голосовой ввод и микрофон", self)
+        grp_voice.setStyleSheet(_GROUP_STYLE)
+        voice_layout = QVBoxLayout(grp_voice)
+        voice_layout.setSpacing(8)
+
+        self.chk_voice = QCheckBox("[VOICE] Голосовой ввод", self)
+        self.chk_voice.setStyleSheet(_CHECKBOX_STYLE)
+        voice_listening = False
+        if hasattr(self.pet_window, "voice_coordinator"):
+            voice_listening = getattr(self.pet_window.voice_coordinator, "is_listening", False)
+        elif hasattr(self.pet_window, "voice"):
+            voice_listening = getattr(self.pet_window.voice, "is_listening", False)
+        else:
+            voice_listening = get_config_value("audio.voice_enabled", True)
+        self.chk_voice.setChecked(voice_listening)
+        self.chk_voice.toggled.connect(self._on_toggle_voice)
+        voice_layout.addWidget(self.chk_voice)
+
+        self.combo_mic = QComboBox(self)
+        self.combo_mic.setStyleSheet(_COMBO_STYLE)
+        default_mic = QMediaDevices.defaultAudioInput()
+        def_desc = default_mic.description() if not default_mic.isNull() else "Системный"
+        self.combo_mic.addItem(f"По умолчанию ({def_desc})", None)
+        active_idx = 0
+        cfg_mic = get_config_value("audio.designated_microphone", None)
+        try:
+            for idx, dev in enumerate(QMediaDevices.audioInputs(), start=1):
+                self.combo_mic.addItem(dev.description(), dev)
+                if cfg_mic and dev.description() == cfg_mic:
+                    active_idx = idx
+        except Exception:
+            pass
+        self.combo_mic.setCurrentIndex(active_idx)
+        self.combo_mic.currentIndexChanged.connect(self._on_mic_changed)
+        voice_layout.addWidget(self.combo_mic)
+        layout.addWidget(grp_voice)
 
         grp_sfx = QGroupBox("[AUDIO.FX] Звуковые эффекты", self)
         grp_sfx.setStyleSheet(_GROUP_STYLE)
@@ -404,29 +367,6 @@ class AudioTabPage(QWidget):
             self._preset_buttons[p] = btn
         vol_layout.addLayout(presets_layout)
         layout.addWidget(grp_vol)
-
-        grp_mic = QGroupBox("[AUDIO.IN] Входной микрофон", self)
-        grp_mic.setStyleSheet(_GROUP_STYLE)
-        mic_layout = QVBoxLayout(grp_mic)
-
-        self.combo_mic = QComboBox(self)
-        self.combo_mic.setStyleSheet(_COMBO_STYLE)
-        default_mic = QMediaDevices.defaultAudioInput()
-        def_desc = default_mic.description() if not default_mic.isNull() else "Системный"
-        self.combo_mic.addItem(f"По умолчанию ({def_desc})", None)
-        active_idx = 0
-        cfg_mic = get_config_value("audio.designated_microphone", None)
-        try:
-            for idx, dev in enumerate(QMediaDevices.audioInputs(), start=1):
-                self.combo_mic.addItem(dev.description(), dev)
-                if cfg_mic and dev.description() == cfg_mic:
-                    active_idx = idx
-        except Exception:
-            pass
-        self.combo_mic.setCurrentIndex(active_idx)
-        self.combo_mic.currentIndexChanged.connect(self._on_mic_changed)
-        mic_layout.addWidget(self.combo_mic)
-        layout.addWidget(grp_mic)
         layout.addStretch()
 
     def _on_slider_changed(self, raw_val: int) -> None:
@@ -479,6 +419,16 @@ class AudioTabPage(QWidget):
         else:
             set_config_value("audio.effects_sound_enabled", checked)
 
+    def _on_toggle_voice(self, checked: bool) -> None:
+        _play_ui_snap()
+        actions = getattr(self.pet_window, "actions", None)
+        if actions and hasattr(actions, "toggle_voice"):
+            actions.toggle_voice()
+        elif hasattr(self.pet_window, "toggle_voice"):
+            self.pet_window.toggle_voice()
+        else:
+            set_config_value("audio.voice_enabled", checked)
+
     def _on_mic_changed(self, index: int) -> None:
         _play_ui_snap()
         dev = self.combo_mic.itemData(index)
@@ -512,10 +462,23 @@ class VisualTabPage(QWidget):
             self._scale_buttons[s] = btn
         layout.addWidget(grp_scale)
 
-        grp_glitch = QGroupBox("[FX.RATE] Интенсивность глитчей", self)
+        grp_glitch = QGroupBox("[GLITCH.FX] Экранные глитчи", self)
         grp_glitch.setStyleSheet(_GROUP_STYLE)
-        glitch_layout = QHBoxLayout(grp_glitch)
+        glitch_layout = QVBoxLayout(grp_glitch)
+        glitch_layout.setSpacing(8)
 
+        self.chk_glitches = QCheckBox("[GLITCH] Экранные глитчи", self)
+        self.chk_glitches.setStyleSheet(_CHECKBOX_STYLE)
+        glitches_enabled = getattr(self.pet_window, "glitches_enabled", False)
+        if not glitches_enabled and hasattr(self.pet_window, "glitches"):
+            glitches_enabled = getattr(self.pet_window.glitches, "is_enabled", False)
+        elif not glitches_enabled:
+            glitches_enabled = get_config_value("effects.glitches_enabled", True)
+        self.chk_glitches.setChecked(glitches_enabled)
+        self.chk_glitches.toggled.connect(self._on_toggle_glitches)
+        glitch_layout.addWidget(self.chk_glitches)
+
+        int_layout = QHBoxLayout()
         cur_intensity = str(get_config_value("effects.glitch_intensity", "weak"))
         options = (("weak", "Низкая"), ("medium", "Средняя"), ("strong", "Максимальная"))
         self._glitch_buttons: dict[str, QPushButton] = {}
@@ -525,8 +488,9 @@ class VisualTabPage(QWidget):
                 _BTN_ACCENT_STYLE if k == cur_intensity else _BTN_STYLE
             )
             btn.clicked.connect(lambda _, key=k: self._on_glitch_selected(key))
-            glitch_layout.addWidget(btn)
+            int_layout.addWidget(btn)
             self._glitch_buttons[k] = btn
+        glitch_layout.addLayout(int_layout)
         layout.addWidget(grp_glitch)
 
         grp_screen = QGroupBox("[DISP] Монитор", self)
@@ -569,6 +533,18 @@ class VisualTabPage(QWidget):
             fn(val)
         else:
             set_config_value("appearance.scale", val)
+
+    def _on_toggle_glitches(self, checked: bool) -> None:
+        _play_ui_snap()
+        actions = getattr(self.pet_window, "actions", None)
+        if actions and hasattr(actions, "toggle_glitches"):
+            actions.toggle_glitches()
+        elif hasattr(self.pet_window, "_toggle_glitches"):
+            self.pet_window._toggle_glitches()
+        elif hasattr(self.pet_window, "process_input"):
+            self.pet_window.process_input("глитч")
+        else:
+            set_config_value("effects.glitches_enabled", checked)
 
     def _on_glitch_selected(self, key: str) -> None:
         _play_ui_snap()
@@ -701,6 +677,12 @@ class SystemTabPage(QWidget):
         self._freq_buttons["custom"] = self.btn_custom_range
 
         beh_layout.addLayout(freq_layout)
+        layout.addWidget(grp_beh)
+
+        grp_protocols = QGroupBox("[PROTOCOLS] Протоколы и интеграции", self)
+        grp_protocols.setStyleSheet(_GROUP_STYLE)
+        prot_layout = QVBoxLayout(grp_protocols)
+        prot_layout.setSpacing(8)
 
         self.chk_game = QCheckBox("[GAME] Игровой режим (тишина)", self)
         self.chk_game.setStyleSheet(_CHECKBOX_STYLE)
@@ -708,7 +690,7 @@ class SystemTabPage(QWidget):
             get_config_value("game_mode.suppression_enabled", True)
         )
         self.chk_game.toggled.connect(self._on_toggle_game_mode)
-        beh_layout.addWidget(self.chk_game)
+        prot_layout.addWidget(self.chk_game)
 
         self.chk_process_monitoring = QCheckBox(
             "[CONTEXT] Реакция на активные окна", self
@@ -728,7 +710,7 @@ class SystemTabPage(QWidget):
         self.chk_process_monitoring.toggled.connect(
             self._on_toggle_process_monitoring
         )
-        beh_layout.addWidget(self.chk_process_monitoring)
+        prot_layout.addWidget(self.chk_process_monitoring)
 
         self.chk_shredder = QCheckBox("Протокол уничтожения файлов Blackwall", self)
         self.chk_shredder.setStyleSheet(_CHECKBOX_STYLE)
@@ -736,8 +718,20 @@ class SystemTabPage(QWidget):
             get_config_value("behavior.file_shredder_enabled", True)
         )
         self.chk_shredder.toggled.connect(self._on_toggle_shredder)
-        beh_layout.addWidget(self.chk_shredder)
-        layout.addWidget(grp_beh)
+        prot_layout.addWidget(self.chk_shredder)
+
+        self.chk_discord = QCheckBox("[DISCORD] Discord Rich Presence", self)
+        self.chk_discord.setStyleSheet(_CHECKBOX_STYLE)
+        orchestrator = getattr(self.pet_window, "_orchestrator", None)
+        rpc_enabled = (
+            getattr(orchestrator, "_discord_enabled", True)
+            if orchestrator
+            else get_config_value("discord.enabled", True)
+        )
+        self.chk_discord.setChecked(rpc_enabled)
+        self.chk_discord.toggled.connect(self._on_toggle_discord)
+        prot_layout.addWidget(self.chk_discord)
+        layout.addWidget(grp_protocols)
 
         layout.addStretch()
 
@@ -818,6 +812,16 @@ class SystemTabPage(QWidget):
     def _on_toggle_shredder(self, checked: bool) -> None:
         _play_ui_snap()
         set_config_value("behavior.file_shredder_enabled", checked)
+
+    def _on_toggle_discord(self, checked: bool) -> None:
+        _play_ui_snap()
+        actions = getattr(self.pet_window, "actions", None)
+        if actions and hasattr(actions, "set_discord_enabled"):
+            actions.set_discord_enabled(checked)
+        elif hasattr(self.pet_window, "set_discord_enabled"):
+            self.pet_window.set_discord_enabled(checked)
+        else:
+            set_config_value("discord.enabled", checked)
 
     def _on_halt(self) -> None:
         _play_ui_snap()

@@ -11,6 +11,7 @@ from PySide6.QtGui import (
     QColor,
     QGuiApplication,
     QKeyEvent,
+    QMouseEvent,
     QPainter,
     QPainterPath,
     QPen,
@@ -258,6 +259,7 @@ class CyberContextMenuWindow(QDialog):
         self._anim_timer = QTimer(self)
         self._anim_timer.setInterval(16)
         self._anim_timer.timeout.connect(self._on_anim_tick)
+        self._drag_start_pos: QPoint | None = None
 
         self._init_geometry()
         self._init_ui()
@@ -300,6 +302,7 @@ class CyberContextMenuWindow(QDialog):
 
         lbl_title = QLabel("[ONLINE] CAPRI//NEURAL_LINK", self)
         lbl_title.setStyleSheet(_HEADER_STYLE)
+        lbl_title.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         header_layout.addWidget(lbl_title)
 
         header_layout.addStretch()
@@ -384,6 +387,30 @@ class CyberContextMenuWindow(QDialog):
         if event.type() == QEvent.Type.ActivationChange and not self.isActiveWindow():
             self.close()
         super().changeEvent(event)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_start_pos = (
+                event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            )
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if (
+            self._drag_start_pos is not None
+            and event.buttons() & Qt.MouseButton.LeftButton
+        ):
+            self.move(event.globalPosition().toPoint() - self._drag_start_pos)
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        self._drag_start_pos = None
+        super().mouseReleaseEvent(event)
+
     @property
     def anim_phase(self) -> str:
         return self._anim_phase

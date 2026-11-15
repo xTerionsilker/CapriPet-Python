@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
-from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QKeyEvent, QWheelEvent
+from PySide6.QtCore import QPoint, QPointF, Qt
+from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QApplication
 
 from capri.ui.context_menu_window import (
@@ -88,6 +88,47 @@ class TestContextMenuWindow(unittest.TestCase):
         win2 = CyberContextMenuWindow(self.mock_window)
         self.assertTrue(win2.close(immediate=True))
         self.assertEqual(win2.anim_phase, "closed")
+
+    def test_window_dragging(self) -> None:
+        win = CyberContextMenuWindow(self.mock_window)
+        win.move(100, 100)
+        self.assertIsNone(win._drag_start_pos)
+
+        # Press Left Mouse Button at global (150, 120), local (50, 20)
+        press_event = QMouseEvent(
+            QMouseEvent.Type.MouseButtonPress,
+            QPointF(50, 20),
+            QPointF(150, 120),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        win.mousePressEvent(press_event)
+        self.assertIsNotNone(win._drag_start_pos)
+
+        # Move to global (250, 220)
+        move_event = QMouseEvent(
+            QMouseEvent.Type.MouseMove,
+            QPointF(150, 120),
+            QPointF(250, 220),
+            Qt.MouseButton.NoButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        win.mouseMoveEvent(move_event)
+        self.assertEqual(win.pos(), QPoint(200, 200))
+
+        # Release Left Mouse Button
+        release_event = QMouseEvent(
+            QMouseEvent.Type.MouseButtonRelease,
+            QPointF(150, 120),
+            QPointF(250, 220),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        win.mouseReleaseEvent(release_event)
+        self.assertIsNone(win._drag_start_pos)
 
 
 if __name__ == "__main__":
