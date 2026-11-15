@@ -12,7 +12,7 @@ from ..audio.sfx_player import get_speech_sfx
 from ..core.dialogue_manager import get_dialogue_manager
 
 if TYPE_CHECKING:
-    from ..effects.engram_prank_coordinator import EngramPrankCoordinator
+    from ..controllers.engram_prank_coordinator import EngramPrankCoordinator
     from .pet_window import CapriWindow
 
 DODGE_TEASE_PHRASES: tuple[str, ...] = (

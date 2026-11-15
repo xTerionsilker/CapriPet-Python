@@ -49,6 +49,8 @@ flowchart TB
         Inactivity["inactivity_manager.py<br/>(Таймер неактивности + PresenceReminder)"]
         Watcher["process_watcher.py<br/>(Гибридный ProcessWatcher)"]
         ActionBridge["action_bridge.py<br/>(Асинхронный мост потоков)"]
+        VoiceCoord["voice_coordinator.py<br/>(Координатор ASR & сессий)"]
+        PrankCoord["engram_prank_coordinator.py<br/>(Координатор пасхалок энграммы)"]
     end
 
     %% Команды и интеграции
@@ -69,19 +71,19 @@ flowchart TB
         PetRenderer["ui/pet_renderer.py & ui/renderers/hud_telemetry.py<br/>(Рендерер спрайтов, глитч-ауры Blackwall, сканлайнов и HUD телеметрии)"]
         ContextMenu["ui/context_menu.py, context_menu_window.py, context_menu_tabs.py, tray_manager.py, reminder_dialog.py<br/>(16:9 Cyber Hub меню, трей и настройки)"]
         ConsoleHUD["ui/console_hud.py<br/>(CyberConsoleHud прямой ввод команд)"]
-        VoiceCoord["ui/voice_coordinator.py<br/>(Координатор ASR & HUD)"]
         VoiceHUD["ui/voice_hud.py<br/>(Cyberpunk Voice HUD над taskbar)"]
         VolumeHUD["ui/volume_hud.py<br/>(CyberVolumeHud экранный OSD)"]
         SpeechHUD["ui/speech.py<br/>(CyberHudBubble виджет речи)"]
         WindowLayout["ui/window_layout.py<br/>(Алгоритмы геометрии и размещения окон)"]
         GameOverlay["ui/game_overlay.py<br/>(SilentPresenceGlyph оверлей)"]
-        Effects["effects/ (effects_coordinator, engram_prank_coordinator, melting_screen, relic_dump_overlay)<br/>(CRT-глитчи, молнии, переходы, пасхалки энграммы)"]
+        Effects["effects/ (effects_coordinator, melting_screen, relic_dump_overlay)<br/>(CRT-глитчи, молнии, переходы)"]
 
         PetWindow --> PetRenderer
         PetWindow --> ContextMenu
         PetWindow --> ConsoleHUD
         PetWindow --> VolumeHUD
         VoiceCoord --> VoiceHUD
+        PetWindow --> Effects
     end
 
     %% Связи между уровнями

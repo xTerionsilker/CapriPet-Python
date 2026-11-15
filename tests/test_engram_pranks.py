@@ -21,7 +21,7 @@ class TestEngramPrankCoordinator(unittest.TestCase):
             cls._app = QApplication.instance()
 
     def test_engram_prank_cooldown_and_roll(self) -> None:
-        from capri.effects.engram_prank_coordinator import EngramPrankCoordinator
+        from capri.controllers.engram_prank_coordinator import EngramPrankCoordinator
 
         coord = EngramPrankCoordinator(parent=None)
         self.assertTrue(coord.can_trigger_prank())
@@ -36,7 +36,7 @@ class TestEngramPrankCoordinator(unittest.TestCase):
         self.assertTrue(coord.can_trigger_prank())
 
     def test_safety_gates_suppression(self) -> None:
-        from capri.effects.engram_prank_coordinator import EngramPrankCoordinator
+        from capri.controllers.engram_prank_coordinator import EngramPrankCoordinator
 
         coord = EngramPrankCoordinator(parent=None)
 
@@ -59,7 +59,7 @@ class TestEngramPrankCoordinator(unittest.TestCase):
         self.assertTrue(coord.can_trigger_prank())
 
     def test_two_stage_probability_and_anti_repeat(self) -> None:
-        from capri.effects.engram_prank_coordinator import EngramPrankCoordinator
+        from capri.controllers.engram_prank_coordinator import EngramPrankCoordinator
 
         coord = EngramPrankCoordinator(parent=None)
         mock_dodge = MagicMock()

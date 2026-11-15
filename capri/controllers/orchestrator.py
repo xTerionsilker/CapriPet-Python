@@ -46,8 +46,8 @@ from ..integrations.window_tracker import (
     get_foreground_hwnd,
     shake_window_hwnd,
 )
-from ..ui.voice_coordinator import VoiceCoordinator
 from ..ui.window_layout import pick_adjacent_position
+from .voice_coordinator import VoiceCoordinator
 
 
 class PetOrchestrator(QObject):
