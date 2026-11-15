@@ -17,13 +17,16 @@ from PySide6.QtWidgets import QWidget
 if TYPE_CHECKING:
     from PySide6.QtGui import QScreen
 
-# Цветовая палитра Capri (строго 6 цветов Studio Trigger)
-COLOR_CRIMSON = QColor("#F6023F")
-COLOR_ACID_GREEN = QColor("#06F868")
-COLOR_VIOLET = QColor("#9E1FDE")
-COLOR_OBSIDIAN = QColor("#020106")
-COLOR_WHITE = QColor("#F9F9F9")
-COLOR_ELECTRIC_BLUE = QColor("#126EE9")
+from ..ui.theme import (
+    COLOR_ACID_GREEN,
+    COLOR_CRIMSON,
+    COLOR_ELECTRIC_BLUE,
+    COLOR_OBSIDIAN,
+    COLOR_WHITE,
+)
+from ..ui.theme import (
+    COLOR_NEON_VIOLET as COLOR_VIOLET,
+)
 
 PALETTE_TINT_COLORS: tuple[QColor, ...] = (
     COLOR_CRIMSON,

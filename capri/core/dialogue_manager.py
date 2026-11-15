@@ -211,6 +211,42 @@ class DialogueManager:
         except Exception:
             return raw_str
 
+    def generate_shred_dialogue(
+        self, metrics: Any = None, blocked: bool = False
+    ) -> str:
+        """Генерирует реплику энграммы по метрикам уничтоженных файлов."""
+        if blocked or metrics is None:
+            return self.get_shredder_phrase("blocked")
+
+        total_files = getattr(metrics, "total_files", 0)
+        total_dirs = getattr(metrics, "total_dirs", 0)
+        total_bytes = getattr(metrics, "total_bytes", 0)
+        sample_name = getattr(metrics, "sample_name", "")
+        ext = getattr(metrics, "dominant_extension", "")
+
+        if total_files == 0 and total_dirs == 0:
+            return self.get_shredder_phrase("empty")
+
+        size_mb = total_bytes / (1024 * 1024)
+        if total_bytes < 1024:
+            return self.get_shredder_phrase("tiny", bytes=total_bytes, name=sample_name)
+        if size_mb > 1024:
+            return self.get_shredder_phrase("huge", gb=size_mb / 1024)
+
+        if ext in (".exe", ".dll", ".bin"):
+            return self.get_shredder_phrase("binary", ext=ext)
+        if ext in (".log", ".tmp", ".bak", ".dump"):
+            return self.get_shredder_phrase("junk", ext=ext)
+        if ext in (".py", ".js", ".cpp", ".rs", ".java", ".html", ".css", ".ts"):
+            return self.get_shredder_phrase("script", ext=ext)
+        if ext in (".zip", ".rar", ".7z", ".tar", ".gz"):
+            return self.get_shredder_phrase("archive", name=sample_name)
+
+        if total_dirs > 0:
+            return self.get_shredder_phrase("folder", name=sample_name, count=total_files)
+
+        return self.get_shredder_phrase("default", name=sample_name, mb=size_mb)
+
     def get_command_phrase(self, key: str, default: str = "", **kwargs: Any) -> str:
         """Возвращает реплику команды из раздела commands с подстановкой параметров."""
         raw = self.active_preset.commands.get(key)
@@ -221,6 +257,8 @@ class DialogueManager:
             return raw_str.format(**kwargs) if kwargs else raw_str
         except Exception:
             return raw_str
+
+
 
 
 _dialogue_manager_instance: DialogueManager | None = None

@@ -9,13 +9,13 @@ from PySide6.QtCore import QPoint
 from PySide6.QtGui import QGuiApplication, QScreen
 from PySide6.QtMultimedia import QAudioDevice
 
+from ..audio.sfx_player import get_speech_sfx
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
     get_config_value,
     set_config_value,
 )
 from .speech import has_active_speech
-from .speech_sfx import get_speech_sfx
 
 if TYPE_CHECKING:
     from ..effects.effects_coordinator import EffectsCoordinator

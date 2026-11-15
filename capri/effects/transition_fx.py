@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ctypes
 import math
 import random
 
@@ -10,6 +9,7 @@ from PySide6.QtCore import QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
+from ..integrations.system_control import is_reduced_motion_enabled
 from .transition_base import (
     BAYER_4X4,
     COLOR_ACID_GREEN,
@@ -352,16 +352,7 @@ def draw_glitch_mass(
     )
 
 
-def is_reduced_motion_enabled() -> bool:
-    try:
-        val = ctypes.c_bool()
-        if ctypes.windll.user32.SystemParametersInfoW(
-            0x1042, 0, ctypes.byref(val), 0
-        ):
-            return not val.value
-    except (OSError, AttributeError):
-        pass
-    return False
+
 
 
 class CyberPixelSpark:

@@ -9,14 +9,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QEvent, QObject, QPoint, Qt
+from PySide6.QtCore import QEvent, QObject, QPoint, QRectF, Qt
 from PySide6.QtGui import (
     QColor,
     QGuiApplication,
     QKeyEvent,
     QMouseEvent,
     QPainter,
-    QPainterPath,
     QPaintEvent,
     QPen,
 )
@@ -28,7 +27,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .speech_sfx import get_speech_sfx
+from ..audio.sfx_player import get_speech_sfx
+from .draw_utils import draw_scanlines, make_chamfer_path
 from .theme import (
     ACID_GREEN,
     CSS_CYBER_TERMINAL,
@@ -277,28 +277,14 @@ class CyberConsoleHud(QWidget):
 
         w = self.width()
         h = self.height()
-        cut = _CORNER_CUT
-
-        # Контур со срезанным правым верхним и левым нижним углами
-        path = QPainterPath()
-        path.moveTo(cut, 0)
-        path.lineTo(w - cut, 0)
-        path.lineTo(w, cut)
-        path.lineTo(w, h - cut)
-        path.lineTo(w - cut, h)
-        path.lineTo(cut, h)
-        path.lineTo(0, h - cut)
-        path.lineTo(0, cut)
-        path.closeSubpath()
+        cut = float(_CORNER_CUT)
+        path = make_chamfer_path(QRectF(0, 0, w, h), cut)
 
         # Фон — Obsidian Black
         painter.fillPath(path, QColor(OBSIDIAN_BLACK))
 
         # Сканлайны
-        scan_pen = QPen(QColor(18, 110, 233, 18), 1)  # Electric Blue subtle
-        painter.setPen(scan_pen)
-        for y in range(4, h - 4, 3):
-            painter.drawLine(6, y, w - 6, y)
+        draw_scanlines(painter, QRectF(6, 4, w - 12, h - 8), spacing=3, alpha=18, color="#126EE9")
 
         # Рамка — Neon Crimson с акцентами Acid Green
         border_pen = QPen(QColor(NEON_CRIMSON), 1.5)

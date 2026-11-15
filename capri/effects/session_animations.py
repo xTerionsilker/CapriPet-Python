@@ -17,7 +17,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QWidget
 
-from ..ui.speech_sfx import get_speech_sfx
+from ..audio.sfx_player import get_speech_sfx
 from .session_anim_helpers import (
     _GLITCH_GLYPHS,
     _GLITCH_PHRASES,

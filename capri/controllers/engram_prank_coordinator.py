@@ -25,18 +25,9 @@ class EngramPrankCoordinator(QObject):
         self._is_prank_active: bool = False
 
         # Защитные колбэки (Safety Gates)
-        self._check_game_active: Callable[[], bool] = self._default_game_check
+        self._check_game_active: Callable[[], bool] = lambda: False
         self._check_shredding: Callable[[], bool] = lambda: False
         self._check_recording: Callable[[], bool] = lambda: False
-
-    @staticmethod
-    def _default_game_check() -> bool:
-        try:
-            from ..integrations.game_mode import GameModeDetector
-
-            return bool(GameModeDetector().is_game_active)
-        except Exception:
-            return False
 
     @property
     def last_prank(self) -> str | None:
@@ -67,7 +58,6 @@ class EngramPrankCoordinator(QObject):
 
     def clear_cooldown(self) -> None:
         self._cooldown_until = 0.0
-
     def can_trigger_prank(self) -> bool:
         """Проверяет все условия готовности к запуску розыгрыша."""
         if self._is_prank_active:

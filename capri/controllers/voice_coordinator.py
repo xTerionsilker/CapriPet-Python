@@ -15,6 +15,7 @@ from PySide6.QtCore import QObject, QTimer
 from PySide6.QtMultimedia import QAudioDevice
 
 from ..audio.recognizer import preload_model_async
+from ..audio.sfx_player import get_speech_sfx
 from ..audio.voice import VoiceInput
 from ..core.settings import get_config_value, set_config_value
 from ..core.wake_word import (
@@ -22,11 +23,10 @@ from ..core.wake_word import (
     VOICE_FOLLOWUP_WINDOW_MS,
     command_after_trigger,
 )
-from .speech_sfx import get_speech_sfx
-from .voice_hud import CyberVoiceHud
+from ..ui.voice_hud import CyberVoiceHud
 
 if TYPE_CHECKING:
-    from .pet_window import CapriWindow
+    from ..ui.pet_window import CapriWindow
 
 WAKE_LINES = (
     "Что?",
@@ -67,7 +67,6 @@ class VoiceCoordinator(QObject):
         self._voice_window_timer.timeout.connect(
             self._on_voice_window_expired
         )
-
     @property
     def voice(self) -> VoiceInput:
         return self._voice
@@ -133,7 +132,6 @@ class VoiceCoordinator(QObject):
 
     def arm(self) -> None:
         self._arm()
-
     def _arm(self) -> None:
         self._voice_armed_until = (
             time.monotonic() + VOICE_COMMAND_WINDOW_MS / 1000
@@ -167,7 +165,6 @@ class VoiceCoordinator(QObject):
             self._hud.hide_hud(delay_ms=300)
 
     def _on_partial_voice_text(self, partial_text: str) -> None:
-
         if not partial_text:
             return
         if self.is_armed or self._window.input_flow.awaiting_reply:

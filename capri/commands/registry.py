@@ -6,21 +6,16 @@ from rapidfuzz import process
 from rapidfuzz.distance import DamerauLevenshtein
 
 from ..core.morphology import normalize_spoken_numbers, stem_text
-from ..core.wake_word import MAX_TYPO_DISTANCE, keyword_score, similarity
+from ..core.text_utils import (
+    MAX_TYPO_DISTANCE,
+    keyword_score,
+    similarity,
+    switch_layout,
+)
 from .base import BaseCommand, CommandContext
 
 ARGUMENT_PUNCTUATION = ' \t,.:;–-!?()[]{}«»…"'
 MAX_COMMAND_INPUT_LENGTH = 500
-
-_EN_KEYS = "qwertyuiop[]asdfghjkl;'zxcvbnm,./`"
-_RU_KEYS = "йцукенгшщзхъфывапролджэячсмитьбю.ё"
-_LAYOUT_TRANSLATION = str.maketrans(
-    _EN_KEYS + _RU_KEYS, _RU_KEYS + _EN_KEYS
-)
-
-
-def switch_layout(text: str) -> str:
-    return text.translate(_LAYOUT_TRANSLATION)
 
 
 

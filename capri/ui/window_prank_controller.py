@@ -8,11 +8,11 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import QPoint, QRect, QSize, QTimer
 from PySide6.QtGui import QEnterEvent, QGuiApplication
 
+from ..audio.sfx_player import get_speech_sfx
 from ..core.dialogue_manager import get_dialogue_manager
-from .speech_sfx import get_speech_sfx
 
 if TYPE_CHECKING:
-    from ..effects.engram_prank_coordinator import EngramPrankCoordinator
+    from ..controllers.engram_prank_coordinator import EngramPrankCoordinator
     from .pet_window import CapriWindow
 
 DODGE_TEASE_PHRASES: tuple[str, ...] = (

@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QWidget
 
 from capri.ui.theme import get_hud_font
 
-from ..ui.speech_sfx import get_speech_sfx
+from ..audio.sfx_player import get_speech_sfx
 from .transition_fx import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,

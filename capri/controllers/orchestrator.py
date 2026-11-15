@@ -11,6 +11,7 @@ from PySide6.QtCore import QObject, QPoint
 from PySide6.QtGui import QGuiApplication
 
 from ..audio.recognizer import get_model_info
+from ..audio.sfx_player import get_speech_sfx
 from ..commands import CommandContext, register_default_commands
 from ..commands.registry import CommandRegistry
 from ..controllers.action_bridge import ActionBridge
@@ -45,9 +46,8 @@ from ..integrations.window_tracker import (
     get_foreground_hwnd,
     shake_window_hwnd,
 )
-from ..ui.pet_renderer import pick_adjacent_position
-from ..ui.speech_sfx import get_speech_sfx
-from ..ui.voice_coordinator import VoiceCoordinator
+from ..ui.window_layout import pick_adjacent_position
+from .voice_coordinator import VoiceCoordinator
 
 
 class PetOrchestrator(QObject):

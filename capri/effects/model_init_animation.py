@@ -18,7 +18,7 @@ from ..audio.recognizer import (
     is_model_ready,
     model_load_failed,
 )
-from ..ui.speech_sfx import get_speech_sfx
+from ..audio.sfx_player import get_speech_sfx
 from .transition_fx import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,

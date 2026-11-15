@@ -12,12 +12,11 @@ import time
 from collections.abc import Callable
 
 import psutil
-import win32gui
-import win32process
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ..core.process_classifier import ProcessClassifier
 from ..core.settings import get_config_value
+from ..integrations.window_tracker import get_foreground_process_id
 
 logger = logging.getLogger(__name__)
 
@@ -95,15 +94,9 @@ class ProcessWatcher(QObject):
             self.stop()
 
     def _get_foreground_process_name(self) -> str | None:
-        """Извлекает имя исполняемого файла активного окна через Win32 API."""
+        """Извлекает имя исполняемого файла активного окна."""
         try:
-            hwnd = win32gui.GetForegroundWindow()
-            if not hwnd or not win32gui.IsWindow(hwnd):
-                return None
-            if win32gui.IsIconic(hwnd):
-                return None
-
-            _, pid = win32process.GetWindowThreadProcessId(hwnd)
+            pid = get_foreground_process_id()
             if not pid or pid == self._own_pid:
                 return None
 

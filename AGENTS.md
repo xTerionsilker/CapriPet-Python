@@ -41,6 +41,26 @@ Do not duplicate architecture descriptions in this guide. Always refer to canoni
 - **`docs/project_structure.md`:** Canonical ASCII codebase tree with file-by-file single-line responsibility descriptions.
 - **`docs/config_spec.md`:** Pydantic settings schemas, persistence rules, and config hierarchy.
 
+### Strict Layer Isolation & Directional Flow
+Dependencies MUST strictly flow top-down. Reverse imports are prohibited:
+1. **Presentation (`ui/`, `effects/`):**
+   - `effects/` MUST NEVER import from `ui/` (audio belongs in `capri.audio.sfx_player`, geometry in `draw_utils`).
+2. **Controllers (`controllers/`):** Orchestrate UI, core, audio, and integrations.
+   - All coordinators, session state machines, and prank managers (`VoiceCoordinator`, `EngramPrankCoordinator`) belong strictly in `controllers/`.
+3. **Core Engine & Commands (`core/`, `commands/`):** Domain logic and command definitions.
+   - `core/` MUST NEVER depend on `commands/` or `ui/`.
+   - String normalization, layout switching, and fuzzy search belong in `capri.core.text_utils`.
+4. **Integrations (`integrations/`):** Pure OS, Win32, and network adapters.
+   - MUST NOT import `DialogueManager`, format persona dialogue, or return Qt types.
+   - Feature isolation: Separate distinct concerns (e.g. `app_updater.py` vs `web_search.py`).
+5. **Audio (`audio/`):** DSP generators, recognizers, and SFX players.
+   - Central sound playback belongs in `capri.audio.sfx_player`. UI widgets must not implement audio players.
+
+### Placement & Reusability Rules
+- **Drawing Primitives:** All 45° chamfer paths/polygons, CRT scanlines, and pixel quantization MUST use `capri.ui.draw_utils`. Never duplicate ad-hoc geometry loops.
+- **Single Source of Truth for Visuals:** All palette colors and fonts MUST be imported from `capri.ui.theme`. Never redefine color hex codes in effect overlays.
+- **Single-Instance Resources:** Long-lived monitors (`GameModeDetector`, `ProcessWatcher`) must be instantiated once in the orchestrator/window and shared via callbacks. Never instantiate them inside short-lived checks or cooldown triggers.
+
 ---
 
 ## 3. Character Lore, Persona & Design System
@@ -76,7 +96,8 @@ All UI, HUDs, overlays, particles, glitches, and dialogues **must** strictly use
 
 1. **Typing & Docs:** Strict static type annotations on all signatures (`def handle(query: str) -> CommandResult:`). PEP 257 docstrings for public classes/facades. Concise inline comments for complex Win32 APIs, kinematics, or non-obvious algorithms.
 2. **Anti-Legacy:** No backward-compatibility shims, adapter wrappers, or deprecated aliases. Update callers directly. Rely on established packages (`pydantic`, `psutil`, `rapidfuzz`, `httpx`, `pywin32`).
-3. **Mandatory Verification:** 100% test pass rate, zero linter warnings, clean `mypy` and `compileall` before completing tasks or opening PRs (verification commands specified in Section 1).
+3. **Clean Abstractions & No Cross-Feature Spaghetti:** Never import helper functions across unrelated features. Extract shared logic into appropriate domain modules (`core/text_utils.py`, `ui/draw_utils.py`, `ui/window_layout.py`) rather than borrowing from neighbor command handlers, pet renderers, or specific overlays.
+4. **Mandatory Verification:** 100% test pass rate, zero linter warnings, clean `mypy` and `compileall` before completing tasks or opening PRs (verification commands specified in Section 1).
 
 ---
 

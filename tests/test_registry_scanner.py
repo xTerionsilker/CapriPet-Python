@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from capri.commands import create_default_registry
 from capri.commands.base import CommandContext
-from capri.commands.handlers import RegistryCommand
+from capri.commands.system import RegistryCommand
 from capri.integrations.registry_scanner import (
     RegistryIssue,
     ScanReport,

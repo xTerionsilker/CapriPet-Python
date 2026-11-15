@@ -7,13 +7,10 @@ from typing import TYPE_CHECKING, Any
 
 from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDragMoveEvent, QDropEvent
 
+from ..audio.sfx_player import get_speech_sfx
+from ..core.dialogue_manager import get_dialogue_manager
 from ..core.settings import get_config_value
-from ..integrations.data_shredder import (
-    _is_critical_path,
-    generate_shred_dialogue,
-    shred_paths,
-)
-from .speech_sfx import get_speech_sfx
+from ..integrations.data_shredder import is_critical_path, shred_paths
 
 if TYPE_CHECKING:
     from .pet_window import CapriWindow
@@ -73,12 +70,12 @@ class ShredderDropHandler:
             return
 
         # Check for critical paths
-        has_blocked = any(_is_critical_path(p) for p in paths)
+        has_blocked = any(is_critical_path(p) for p in paths)
         if has_blocked:
             get_speech_sfx().play_lightning_strike()
             self._window._consume_ticks = 18
             self._window.update()
-            dialogue = generate_shred_dialogue(None, blocked=True)
+            dialogue = get_dialogue_manager().generate_shred_dialogue(None, blocked=True)
             self._window._speak(dialogue, hold_ms=4500)
             return
 
@@ -91,5 +88,5 @@ class ShredderDropHandler:
 
         # Perform unrecoverable shredding
         metrics = shred_paths(paths)
-        dialogue = generate_shred_dialogue(metrics)
+        dialogue = get_dialogue_manager().generate_shred_dialogue(metrics)
         self._window._speak(dialogue, hold_ms=5000)

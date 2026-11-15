@@ -14,7 +14,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QUrl
 from PySide6.QtMultimedia import QMediaDevices, QSoundEffect
 
-from ..audio.sfx_generators import (
+from .sfx_generators import (
     SFX_VERSION,
     _ensure_wav_cache_sync,
     _generate_session_lock_wav,

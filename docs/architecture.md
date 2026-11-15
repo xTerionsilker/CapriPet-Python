@@ -22,6 +22,7 @@ flowchart TB
         Voice["voice.py<br/>(Захват звука, Silero VAD)"]
         ASR["recognizer.py<br/>(Vosk ASR)"]
         SFXGen["sfx_generators.py<br/>(Процедурный DSP синтез PCM)"]
+        SFXPlayer["sfx_player.py<br/>(Воспроизведение WAV через QSoundEffect)"]
         Voice -->|Фреймы речи| ASR
     end
 
@@ -31,11 +32,13 @@ flowchart TB
         WakeWord["wake_word.py<br/>(Детектор активации «Капри»)"]
         InputFlow["input_flow.py<br/>(Конвейер сессий и подтверждений)"]
         Morphology["morphology.py<br/>(Стемминг, нормализация числительных)"]
+        TextUtils["text_utils.py<br/>(Нормализация, раскладка и метрики)"]
         Classifier["process_classifier.py<br/>(Классификатор ПО и реплики)"]
         Settings["settings.py<br/>(Pydantic v2 user_config_dir/config.json)"]
 
         WakeWord --> InputFlow
         Morphology -.-> InputFlow
+        TextUtils -.-> InputFlow
         Classifier -.-> Settings
     end
 
@@ -46,13 +49,15 @@ flowchart TB
         Inactivity["inactivity_manager.py<br/>(Таймер неактивности + PresenceReminder)"]
         Watcher["process_watcher.py<br/>(Гибридный ProcessWatcher)"]
         ActionBridge["action_bridge.py<br/>(Асинхронный мост потоков)"]
+        VoiceCoord["voice_coordinator.py<br/>(Координатор ASR & сессий)"]
+        PrankCoord["engram_prank_coordinator.py<br/>(Координатор пасхалок энграммы)"]
     end
 
     %% Команды и интеграции
     subgraph CommandsSubsystem["5. Модульная система команд и интеграции"]
         direction TB
         Registry["commands/registry.py<br/>(Реестр и нечёткий поиск)"]
-        Handlers["commands/ (system, volume, media, apps, web, debug)<br/>(Доменные обработчики + handlers.py)"]
+        Handlers["commands/ (system, volume, media, apps, web, debug)<br/>(Доменные обработчики)"]
         Integrations["integrations/<br/>(Spotify, Discord RPC, AppLauncher, SystemControl, SystemVolume, GameMode, Cleaner, DataShredder)"]
 
         Registry --> Handlers
@@ -66,18 +71,19 @@ flowchart TB
         PetRenderer["ui/pet_renderer.py & ui/renderers/hud_telemetry.py<br/>(Рендерер спрайтов, глитч-ауры Blackwall, сканлайнов и HUD телеметрии)"]
         ContextMenu["ui/context_menu.py, context_menu_window.py, context_menu_tabs.py, tray_manager.py, reminder_dialog.py<br/>(16:9 Cyber Hub меню, трей и настройки)"]
         ConsoleHUD["ui/console_hud.py<br/>(CyberConsoleHud прямой ввод команд)"]
-        VoiceCoord["ui/voice_coordinator.py<br/>(Координатор ASR & HUD)"]
         VoiceHUD["ui/voice_hud.py<br/>(Cyberpunk Voice HUD над taskbar)"]
         VolumeHUD["ui/volume_hud.py<br/>(CyberVolumeHud экранный OSD)"]
-        SpeechHUD["ui/speech.py & speech_sfx.py<br/>(CyberHudBubble и плеер SFX)"]
+        SpeechHUD["ui/speech.py<br/>(CyberHudBubble виджет речи)"]
+        WindowLayout["ui/window_layout.py<br/>(Алгоритмы геометрии и размещения окон)"]
         GameOverlay["ui/game_overlay.py<br/>(SilentPresenceGlyph оверлей)"]
-        Effects["effects/ (effects_coordinator, engram_prank_coordinator, melting_screen, relic_dump_overlay)<br/>(CRT-глитчи, молнии, переходы, пасхалки энграммы)"]
+        Effects["effects/ (effects_coordinator, melting_screen, relic_dump_overlay)<br/>(CRT-глитчи, молнии, переходы)"]
 
         PetWindow --> PetRenderer
         PetWindow --> ContextMenu
         PetWindow --> ConsoleHUD
         PetWindow --> VolumeHUD
         VoiceCoord --> VoiceHUD
+        PetWindow --> Effects
     end
 
     %% Связи между уровнями
@@ -130,7 +136,8 @@ sequenceDiagram
     Cmd->>Integ: app_launcher.launch("блокнот")
     Integ-->>Cmd: Успешно / найдено 1 совпадение
     Cmd-->>Orch: CommandResult (текст ответа, эмоция)
-    Orch->>UI: Показ диалогового облачка (speech.py) + звук (speech_sfx.py)
+    Orch->>UI: Показ диалогового облачка (speech.py)
+    Orch->>SFX: Воспроизведение звука речи (sfx_player.py)
     Orch->>UI: Смена эмоции/спрайта питомца
 ```
 

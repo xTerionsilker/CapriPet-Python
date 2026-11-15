@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .draw_utils import draw_scanlines
 from .theme import (
     ACID_GREEN,
     CSS_CYBER_TERMINAL,
@@ -211,10 +212,7 @@ class ReminderRangeDialog(QDialog):
 
         painter.save()
         painter.setClipPath(path)
-        scanline_pen = QPen(QColor(246, 2, 63, 14), 1)
-        painter.setPen(scanline_pen)
-        for y in range(0, bh, 3):
-            painter.drawLine(0, y, bw, y)
+        draw_scanlines(painter, QRect(0, 0, bw, bh), spacing=3, alpha=14, color=NEON_CRIMSON)
         painter.restore()
 
         crimson_pen = QPen(QColor(NEON_CRIMSON), 2)

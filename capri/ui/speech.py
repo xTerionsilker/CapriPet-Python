@@ -33,9 +33,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .pet_renderer import pick_adjacent_position
+from ..audio.sfx_player import get_speech_sfx
 from .speech_bubble import CyberHudBubble
-from .speech_sfx import get_speech_sfx
 from .theme import (
     ACID_GREEN,
     NEON_CRIMSON,
@@ -43,6 +42,7 @@ from .theme import (
     PURE_WHITE,
     get_terminal_font,
 )
+from .window_layout import pick_adjacent_position
 
 __all__ = [
     "CyberHudBubble",

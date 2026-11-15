@@ -39,6 +39,20 @@ def get_foreground_hwnd() -> int | None:
         return None
 
 
+def get_foreground_process_id() -> int | None:
+    """Возвращает PID процесса активного окна переднего плана."""
+    hwnd = get_foreground_hwnd()
+    if hwnd is None:
+        return None
+    try:
+        import win32process
+
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        return int(pid) if pid else None
+    except Exception:
+        return None
+
+
 def shake_window_hwnd(
     hwnd: int,
     duration_ms: int = 700,
