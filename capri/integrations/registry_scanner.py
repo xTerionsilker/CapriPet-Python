@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import datetime
 import os
 import re
@@ -392,10 +393,8 @@ def perform_registry_scan(open_report: bool = True) -> ScanReport:
 
     # Открытие файла через системную ассоциацию
     if open_report:
-        try:
+        with contextlib.suppress(OSError):
             os.startfile(str(report_path))
-        except OSError:
-            pass
 
     return ScanReport(
         issues=all_issues,

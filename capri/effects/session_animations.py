@@ -23,7 +23,6 @@ from .session_anim_helpers import (
     _GLITCH_PHRASES,
     SessionAnimEffectsMixin,
     _font,
-    _with_alpha,
 )
 from .transition_fx import (
     COLOR_ACID_GREEN,
@@ -36,6 +35,7 @@ from .transition_fx import (
     CyberPixelSpark,
     pick_palette_color,
     snap_pixel,
+    with_alpha,
 )
 
 SESSION_ANIMATION_DURATION_MS = 1500
@@ -311,7 +311,7 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
 
         backdrop = 110 + 45 * math.sin(p * math.pi) + 120 * (p**2)
         painter.fillRect(
-            self.rect(), _with_alpha(COLOR_OBSIDIAN, int(backdrop))
+            self.rect(), with_alpha(COLOR_OBSIDIAN, int(backdrop))
         )
 
         self._paint_scanlines(painter, accent, p)
@@ -376,12 +376,12 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
             hud_x + jitter_x, hud_y + jitter_y, hud_width, hud_height
         )
 
-        painter.fillRect(hud, _with_alpha(COLOR_OBSIDIAN, 225))
-        painter.setPen(QPen(_with_alpha(accent, 230), PIXEL_SIZE))
+        painter.fillRect(hud, with_alpha(COLOR_OBSIDIAN, 225))
+        painter.setPen(QPen(with_alpha(accent, 230), PIXEL_SIZE))
         painter.drawRect(hud)
         if burst:
             painter.setPen(
-                QPen(_with_alpha(counter, random.randint(90, 200)), 1)
+                QPen(with_alpha(counter, random.randint(90, 200)), 1)
             )
             painter.drawRect(hud.adjusted(2, 2, -2, -2))
 
@@ -399,19 +399,19 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         title_rect = hud.adjusted(14, 12, -14, -40)
         painter.setFont(_font(12))
         if burst:
-            painter.setPen(_with_alpha(COLOR_CRIMSON, 220))
+            painter.setPen(with_alpha(COLOR_CRIMSON, 220))
             painter.drawText(
                 title_rect.translated(-PIXEL_SIZE, 0),
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                 title,
             )
-            painter.setPen(_with_alpha(COLOR_ACID_GREEN, 200))
+            painter.setPen(with_alpha(COLOR_ACID_GREEN, 200))
             painter.drawText(
                 title_rect.translated(PIXEL_SIZE, 0),
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
                 title,
             )
-        painter.setPen(_with_alpha(COLOR_WHITE, 240))
+        painter.setPen(with_alpha(COLOR_WHITE, 240))
         painter.drawText(
             title_rect,
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
@@ -420,7 +420,7 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
 
         subtitle_rect = hud.adjusted(14, 38, -14, -22)
         painter.setFont(_font(7))
-        painter.setPen(_with_alpha(counter, 220))
+        painter.setPen(with_alpha(counter, 220))
         painter.drawText(
             subtitle_rect,
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
@@ -430,8 +430,8 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         progress_bar = QRect(
             hud.left() + 14, hud.bottom() - 18, hud.width() - 28, 8
         )
-        painter.fillRect(progress_bar, _with_alpha(COLOR_OBSIDIAN, 255))
-        painter.setPen(QPen(_with_alpha(accent, 180), 1))
+        painter.fillRect(progress_bar, with_alpha(COLOR_OBSIDIAN, 255))
+        painter.setPen(QPen(with_alpha(accent, 180), 1))
         painter.drawRect(progress_bar)
         fill_w = snap_pixel(progress_bar.width() * min(1.0, p))
         painter.fillRect(
@@ -439,10 +439,10 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
             progress_bar.top(),
             fill_w,
             progress_bar.height(),
-            _with_alpha(accent, 230),
+            with_alpha(accent, 230),
         )
         painter.fillRect(
-            progress_bar.left(), progress_bar.top(), fill_w, 2, _with_alpha(COLOR_WHITE, 190)
+            progress_bar.left(), progress_bar.top(), fill_w, 2, with_alpha(COLOR_WHITE, 190)
         )
 
         if burst:
@@ -464,14 +464,14 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
                     progress_bar.top(),
                     max(1, chunk_w),
                     progress_bar.height(),
-                    _with_alpha(
+                    with_alpha(
                         pick_palette_color(), random.randint(120, 245)
                     ),
                 )
 
         percent = int(min(1.0, p) * 100)
         painter.setFont(_font(7))
-        painter.setPen(_with_alpha(COLOR_WHITE, 210))
+        painter.setPen(with_alpha(COLOR_WHITE, 210))
         painter.drawText(
             subtitle_rect,
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
@@ -482,12 +482,12 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         if burst:
             tag = self._corrupt_text(tag, 0.16)
         painter.setFont(_font(8))
-        painter.setPen(_with_alpha(counter, 190))
+        painter.setPen(with_alpha(counter, 190))
         painter.drawText(margin + jitter_x, hud.top() - 10, tag)
 
         if burst and random.random() < 0.55:
             painter.setFont(_font(7))
-            painter.setPen(_with_alpha(accent, random.randint(150, 240)))
+            painter.setPen(with_alpha(accent, random.randint(150, 240)))
             painter.drawText(
                 hud.left(),
                 hud.bottom() + 14,
@@ -513,11 +513,11 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         rect = QRect(cx - size // 2, cy - size // 2, size, size)
 
         painter.fillRect(
-            rect.adjusted(-4, -4, 4, 4), _with_alpha(COLOR_OBSIDIAN, 225)
+            rect.adjusted(-4, -4, 4, 4), with_alpha(COLOR_OBSIDIAN, 225)
         )
         pulse = 0.65 + 0.35 * math.sin(p * math.tau * 2.0)
         painter.setPen(
-            QPen(_with_alpha(accent, int(255 * pulse)), PIXEL_SIZE)
+            QPen(with_alpha(accent, int(255 * pulse)), PIXEL_SIZE)
         )
         painter.drawRect(rect)
 
@@ -539,11 +539,11 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
     ) -> None:
         cx = rect.center().x()
         body = QRect(cx - 14, rect.top() + 22, 28, 20)
-        painter.fillRect(body, _with_alpha(accent, 230))
+        painter.fillRect(body, with_alpha(accent, 230))
         painter.fillRect(
-            body.adjusted(4, 4, -4, -4), _with_alpha(COLOR_OBSIDIAN, 240)
+            body.adjusted(4, 4, -4, -4), with_alpha(COLOR_OBSIDIAN, 240)
         )
-        painter.setPen(QPen(_with_alpha(counter, 235), PIXEL_SIZE))
+        painter.setPen(QPen(with_alpha(counter, 235), PIXEL_SIZE))
         shackle = QRect(cx - 10, rect.top() + 10, 20, 22)
         painter.drawArc(shackle, 0, 180 * 16)
         painter.drawLine(
@@ -553,7 +553,7 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
             cx + 10, rect.top() + 21, cx + 10, rect.top() + 24
         )
         painter.fillRect(
-            cx - 2, body.top() + 7, 4, 7, _with_alpha(counter, 230)
+            cx - 2, body.top() + 7, 4, 7, with_alpha(counter, 230)
         )
 
     def _paint_power_icon(
@@ -571,14 +571,14 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
             radius * 2,
             radius * 2,
         )
-        painter.setPen(QPen(_with_alpha(accent, 235), PIXEL_SIZE * 2))
+        painter.setPen(QPen(with_alpha(accent, 235), PIXEL_SIZE * 2))
         painter.drawArc(ring, 110 * 16, 320 * 16)
         painter.fillRect(
             center.x() - 2,
             center.y() - radius - 2,
             4,
             radius + 4,
-            _with_alpha(counter, 240),
+            with_alpha(counter, 240),
         )
 
     def _paint_sleep_icon(
@@ -589,9 +589,9 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         counter: QColor,
         p: float,
     ) -> None:
-        painter.setPen(QPen(_with_alpha(accent, 220), PIXEL_SIZE))
+        painter.setPen(QPen(with_alpha(accent, 220), PIXEL_SIZE))
         painter.drawArc(rect.adjusted(8, 8, -8, -8), 60 * 16, 250 * 16)
-        painter.setPen(QPen(_with_alpha(accent, 230), PIXEL_SIZE))
+        painter.setPen(QPen(with_alpha(accent, 230), PIXEL_SIZE))
         painter.drawLine(
             rect.left() + 26,
             rect.top() + 12,
@@ -615,7 +615,7 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         for i in range(3):
             phase = (p * 1.8 + i * 0.33) % 1.0
             alpha = int(255 * (1.0 - phase))
-            painter.setPen(_with_alpha(counter, alpha))
+            painter.setPen(with_alpha(counter, alpha))
             painter.drawText(
                 rect.right() - 18 + i * 8,
                 rect.top() + 16 - int(phase * 22),
@@ -638,17 +638,17 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
             radius * 2,
             radius * 2,
         )
-        painter.setPen(QPen(_with_alpha(accent, 235), PIXEL_SIZE * 2))
+        painter.setPen(QPen(with_alpha(accent, 235), PIXEL_SIZE * 2))
         painter.drawArc(arc, int(p * 360) * 16, 280 * 16)
         painter.fillRect(
-            arc.right() - 4, arc.top() + 2, 9, 4, _with_alpha(counter, 240)
+            arc.right() - 4, arc.top() + 2, 9, 4, with_alpha(counter, 240)
         )
         painter.fillRect(
             arc.right() + 1,
             arc.top() - 2,
             4,
             12,
-            _with_alpha(counter, 240),
+            with_alpha(counter, 240),
         )
 
 

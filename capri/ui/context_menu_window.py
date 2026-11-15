@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import random
 import time
 from typing import TYPE_CHECKING, Any
@@ -143,10 +144,8 @@ class CyberTabBar(QWidget):
             btn.setStyleSheet(
                 _TAB_BTN_ACTIVE if i == index else _TAB_BTN_DEFAULT
             )
-        try:
+        with contextlib.suppress(Exception):
             get_speech_sfx().play_relay_snap()
-        except Exception:
-            pass
         self.current_changed.emit(index)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
@@ -476,20 +475,16 @@ class CyberContextMenuWindow(QDialog):
         self._anim_progress = 0.0
         self._anim_start_time = time.monotonic()
         self.setWindowOpacity(0.2)
-        try:
+        with contextlib.suppress(Exception):
             get_speech_sfx().play_swoosh()
-        except Exception:
-            pass
         self._anim_timer.start()
 
     def _start_close_animation(self) -> None:
         self._anim_phase = "closing"
         self._anim_progress = 0.0
         self._anim_start_time = time.monotonic()
-        try:
+        with contextlib.suppress(Exception):
             get_speech_sfx().play_close()
-        except Exception:
-            pass
         self._anim_timer.start()
 
     def _on_anim_tick(self) -> None:

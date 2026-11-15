@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import time
 
-from PySide6.QtCore import QPoint, QRect, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPaintEvent, QPen, QPolygon
+from PySide6.QtCore import QRect, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import QWidget
 
+from capri.ui.draw_utils import make_chamfer_polygon
 from capri.ui.theme import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
@@ -132,16 +133,7 @@ class RelicDumpOverlay(QWidget):
 
         # Фон со скошенными 45° углами
         chamfer = 12
-        poly = QPolygon(
-            [
-                QPoint(chamfer, 0),
-                QPoint(w - 1, 0),
-                QPoint(w - 1, h - chamfer),
-                QPoint(w - chamfer, h - 1),
-                QPoint(0, h - 1),
-                QPoint(0, chamfer),
-            ]
-        )
+        poly = make_chamfer_polygon(QRect(0, 0, w, h), chamfer)
 
         painter.setBrush(QColor(COLOR_OBSIDIAN.red(), COLOR_OBSIDIAN.green(), COLOR_OBSIDIAN.blue(), 230))
         painter.setPen(QPen(COLOR_CRIMSON, 1.5))
@@ -149,15 +141,7 @@ class RelicDumpOverlay(QWidget):
 
         # Заголовок Arasaka BIOS
         header_rect = QRect(0, 0, w, 24)
-        header_poly = QPolygon(
-            [
-                QPoint(chamfer, 0),
-                QPoint(w - 1, 0),
-                QPoint(w - 1, 24),
-                QPoint(0, 24),
-                QPoint(0, chamfer),
-            ]
-        )
+        header_poly = make_chamfer_polygon(header_rect, chamfer)
         painter.setBrush(COLOR_CRIMSON)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawPolygon(header_poly)
