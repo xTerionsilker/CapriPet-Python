@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import humanize
 
-from ..integrations import web_search
+from ..integrations import app_updater
 from .base import BaseCommand, CommandContext
 
 
@@ -203,7 +203,7 @@ class UpdateCommand(BaseCommand):
             ctx.action_bridge, "open_update_page"
         ):
             return ctx.action_bridge.open_update_page()
-        return web_search.open_update_page()
+        return app_updater.open_update_page()
 
 
 class ConsoleCommand(BaseCommand):

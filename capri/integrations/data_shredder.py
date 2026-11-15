@@ -66,7 +66,7 @@ class ShredMetrics:
     had_errors: bool
 
 
-def _is_critical_path(path: str | Path) -> bool:
+def is_critical_path(path: str | Path) -> bool:
     """Check if target path is a critical system directory, disk root, UNC or ADS."""
     try:
         raw_str = str(path).strip()
@@ -129,6 +129,9 @@ def _is_critical_path(path: str | Path) -> bool:
         return True
 
     return False
+
+
+_is_critical_path = is_critical_path
 
 
 def _remove_readonly(func, path, exc_info):
@@ -241,37 +244,4 @@ def generate_shred_dialogue(
     metrics: ShredMetrics | None = None, blocked: bool = False
 ) -> str:
     """Generate engram commentary based on annihilated data metrics and active style."""
-    dm = get_dialogue_manager()
-    if blocked or metrics is None:
-        return dm.get_shredder_phrase("blocked")
-
-    if metrics.total_files == 0 and metrics.total_dirs == 0:
-        return dm.get_shredder_phrase("empty")
-
-    size_mb = metrics.total_bytes / (1024 * 1024)
-
-    if metrics.total_bytes < 1024:
-        return dm.get_shredder_phrase(
-            "tiny", bytes=metrics.total_bytes, name=metrics.sample_name
-        )
-    if size_mb > 1024:
-        return dm.get_shredder_phrase("huge", gb=size_mb / 1024)
-
-    ext = metrics.dominant_extension
-    if ext in (".exe", ".dll", ".bin"):
-        return dm.get_shredder_phrase("binary", ext=ext)
-    if ext in (".log", ".tmp", ".bak", ".dump"):
-        return dm.get_shredder_phrase("junk", ext=ext)
-    if ext in (".py", ".js", ".cpp", ".rs", ".java", ".html", ".css", ".ts"):
-        return dm.get_shredder_phrase("script", ext=ext)
-    if ext in (".zip", ".rar", ".7z", ".tar", ".gz"):
-        return dm.get_shredder_phrase("archive", name=metrics.sample_name)
-
-    if metrics.total_dirs > 0:
-        return dm.get_shredder_phrase(
-            "folder", name=metrics.sample_name, count=metrics.total_files
-        )
-
-    return dm.get_shredder_phrase(
-        "default", name=metrics.sample_name, mb=size_mb
-    )
+    return get_dialogue_manager().generate_shred_dialogue(metrics, blocked=blocked)

@@ -70,7 +70,8 @@ capri/
 ├── integrations/               # Внешние интеграции и системные команды
 │   ├── __init__.py
 │   ├── app_launcher.py         # Поиск и запуск установленных приложений Windows
-│   ├── data_shredder.py        # Безвозвратное уничтожение файлов/папок и сарказм-диалоги энграммы
+│   ├── app_updater.py          # Проверка релизов GitHub и переход на страницу обновлений
+│   ├── data_shredder.py        # Безвозвратное уничтожение файлов/папок с защитой системных путей
 │   ├── discord_rpc.py          # Discord Rich Presence (статус, ASR модель, таймер, кнопка)
 │   ├── process_manager.py      # Мониторинг, группировка и завершение процессов
 │   ├── registry_scanner.py     # Безопасный аудит реестра Windows на пустые и битые ветки с генерацией отчета
@@ -80,8 +81,8 @@ capri/
 │   ├── system_power_hook.py    # Win32 хуки событий питания (сон, выключение, сессии)
 │   ├── system_volume.py        # Прямой контроль мастер-громкости Windows (Core Audio API / pycaw)
 │   ├── game_mode.py            # Детекция полноэкранных игр через Win32 API и SHQueryUserNotificationState с фильтрацией Maximized окон
-│   ├── web_search.py           # Поиск в веб-браузере и проверка обновлений
-│   └── window_tracker.py       # Определение геометрии активного окна (Win32 DWM)
+│   ├── web_search.py           # Поиск в веб-браузере и переход по безопасным ссылкам
+│   └── window_tracker.py       # Определение геометрии активного окна и PID (Win32 DWM)
 └── ui/                         # Графический интерфейс на PySide6 (Qt)
     ├── __init__.py
     ├── console_hud.py          # Cyber HUD терминал прямого ввода команд с кнопкой TERMINATE
