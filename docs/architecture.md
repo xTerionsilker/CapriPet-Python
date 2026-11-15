@@ -57,7 +57,7 @@ flowchart TB
     subgraph CommandsSubsystem["5. Модульная система команд и интеграции"]
         direction TB
         Registry["commands/registry.py<br/>(Реестр и нечёткий поиск)"]
-        Handlers["commands/ (system, volume, media, apps, web, debug)<br/>(Доменные обработчики + handlers.py)"]
+        Handlers["commands/ (system, volume, media, apps, web, debug)<br/>(Доменные обработчики)"]
         Integrations["integrations/<br/>(Spotify, Discord RPC, AppLauncher, SystemControl, SystemVolume, GameMode, Cleaner, DataShredder)"]
 
         Registry --> Handlers

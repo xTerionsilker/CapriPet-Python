@@ -2,36 +2,40 @@
 
 from __future__ import annotations
 
+from .apps import KillAppCommand, LaunchAppCommand
 from .base import BaseCommand, CommandContext, CommandResult
-from .handlers import (
-    CleanSystemCommand,
+from .debug import (
     ConsoleCommand,
     DebugCommand,
     GlitchToggleCommand,
-    GoogleSearchCommand,
-    KillAppCommand,
-    LaunchAppCommand,
     LocateMouseCommand,
-    LockScreenCommand,
-    PowerOffCommand,
-    RebootCommand,
-    RegistryCommand,
+    UpdateCommand,
+)
+from .media import (
     SpotifyCurrentTrackCommand,
     SpotifyNextCommand,
     SpotifyPauseCommand,
     SpotifyPlayCommand,
     SpotifyPreviousCommand,
     SpotifyResumeCommand,
+)
+from .registry import CommandRegistry, switch_layout
+from .system import (
+    CleanSystemCommand,
+    LockScreenCommand,
+    PowerOffCommand,
+    RebootCommand,
+    RegistryCommand,
     SuspendCommand,
-    UpdateCommand,
+)
+from .volume import (
     VolumeDownCommand,
     VolumeMuteCommand,
     VolumeSetCommand,
     VolumeUnmuteCommand,
     VolumeUpCommand,
-    YouTubeSearchCommand,
 )
-from .registry import CommandRegistry, switch_layout
+from .web import GoogleSearchCommand, YouTubeSearchCommand
 
 DEFAULT_COMMAND_CLASSES: tuple[type[BaseCommand], ...] = (
     ConsoleCommand,

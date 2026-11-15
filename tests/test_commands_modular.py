@@ -15,15 +15,15 @@ from capri.commands import (
     DEFAULT_COMMAND_CLASSES,
     create_default_registry,
 )
+from capri.commands import (
+    SpotifyPlayCommand as PackageSpotifyPlay,
+)
+from capri.commands import (
+    VolumeUpCommand as PackageVolumeUp,
+)
 from capri.commands.apps import LaunchAppCommand
 from capri.commands.debug import (
     DebugCommand,
-)
-from capri.commands.handlers import (
-    SpotifyPlayCommand as HandlersSpotifyPlay,
-)
-from capri.commands.handlers import (
-    VolumeUpCommand as HandlersVolumeUp,
 )
 from capri.commands.media import SpotifyPlayCommand
 from capri.commands.system import LockScreenCommand
@@ -57,9 +57,9 @@ class TestCommandsModular(unittest.TestCase):
         self.assertEqual(cmd_vol.name, "Громче")
         self.assertEqual(cmd_web.name, "гугл")
 
-    def test_handlers_facade_backward_compatibility(self) -> None:
-        self.assertIs(SpotifyPlayCommand, HandlersSpotifyPlay)
-        self.assertIs(VolumeUpCommand, HandlersVolumeUp)
+    def test_package_level_command_exports(self) -> None:
+        self.assertIs(SpotifyPlayCommand, PackageSpotifyPlay)
+        self.assertIs(VolumeUpCommand, PackageVolumeUp)
 
     def test_audio_dsp_generation_pure_python(self) -> None:
         with tempfile.TemporaryDirectory() as td:
