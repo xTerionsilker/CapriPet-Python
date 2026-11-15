@@ -5,18 +5,15 @@
 # ⟡ C A P R I ⟡
 ### Autonomous Cyber-Pet & Desktop Companion // Project Capricorn
 
+[![Author](https://img.shields.io/badge/Author%2C%20Architect%2C%20Design-xTerionsilker-F6023F?style=flat-square&labelColor=020106)](https://github.com/xTerionsilker)
+[![Co-Author](https://img.shields.io/badge/Code%20%26%20Dev-Gemini%20(Antigravity)-126EE9?style=flat-square&labelColor=020106)](https://deepmind.google/technologies/gemini/)
+<br/>
 [![Security Audit](https://img.shields.io/badge/Security-Bandit%20%26%20pip--audit-06F868?style=flat-square&labelColor=020106)](scripts/verify.bat)
 [![Lint & Code Quality](https://img.shields.io/badge/Local%20CI-6%2F6%20Verified-F6023F?style=flat-square&labelColor=020106)](scripts/verify.bat)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-F6023F?style=flat-square&labelColor=020106)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-06F868?style=flat-square&labelColor=020106)](https://microsoft.com/windows)
 [![Voice ASR](https://img.shields.io/badge/Voice%20ASR-Vosk%20Offline-126EE9?style=flat-square&labelColor=020106)](https://alphacephei.com/vosk/)
 [![License](https://img.shields.io/badge/License-MIT-F9F9F9?style=flat-square&labelColor=020106)](LICENSE)
-
-<p align="center">
-  <b>Авторы и соавторы:</b><br/>
-  <b><a href="https://github.com/xTerionsilker">xTerionsilker</a></b> — автор, архитектор, дизайнер<br/>
-  <b>Google Gemini (Antigravity)</b> — код, программная реализация и тестирование
-</p>
 
 <p align="center">
   <b><a href="#-возможности-и-архитектура">Возможности</a></b> •
