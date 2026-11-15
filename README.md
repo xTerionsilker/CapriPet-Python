@@ -13,6 +13,12 @@
 [![License](https://img.shields.io/badge/License-MIT-F9F9F9?style=flat-square&labelColor=020106)](LICENSE)
 
 <p align="center">
+  <b>Авторы и соавторы:</b><br/>
+  <b><a href="https://github.com/xTerionsilker">xTerionsilker</a></b> — автор, архитектор, дизайнер<br/>
+  <b>Google Gemini</b> — код, программная реализация и тестирование
+</p>
+
+<p align="center">
   <b><a href="#-возможности-и-архитектура">Возможности</a></b> •
   <b><a href="#-быстрый-старт-и-запуск">Быстрый старт</a></b> •
   <b><a href="#-триггерные-слова">Триггеры</a></b> •
