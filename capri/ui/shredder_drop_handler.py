@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, Any
 
 from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDragMoveEvent, QDropEvent
 
+from ..audio.sfx_player import get_speech_sfx
 from ..core.settings import get_config_value
 from ..integrations.data_shredder import (
     _is_critical_path,
     generate_shred_dialogue,
     shred_paths,
 )
-from .speech_sfx import get_speech_sfx
 
 if TYPE_CHECKING:
     from .pet_window import CapriWindow

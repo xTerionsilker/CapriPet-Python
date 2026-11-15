@@ -22,6 +22,7 @@ flowchart TB
         Voice["voice.py<br/>(Захват звука, Silero VAD)"]
         ASR["recognizer.py<br/>(Vosk ASR)"]
         SFXGen["sfx_generators.py<br/>(Процедурный DSP синтез PCM)"]
+        SFXPlayer["sfx_player.py<br/>(Воспроизведение WAV через QSoundEffect)"]
         Voice -->|Фреймы речи| ASR
     end
 
@@ -31,11 +32,13 @@ flowchart TB
         WakeWord["wake_word.py<br/>(Детектор активации «Капри»)"]
         InputFlow["input_flow.py<br/>(Конвейер сессий и подтверждений)"]
         Morphology["morphology.py<br/>(Стемминг, нормализация числительных)"]
+        TextUtils["text_utils.py<br/>(Нормализация, раскладка и метрики)"]
         Classifier["process_classifier.py<br/>(Классификатор ПО и реплики)"]
         Settings["settings.py<br/>(Pydantic v2 user_config_dir/config.json)"]
 
         WakeWord --> InputFlow
         Morphology -.-> InputFlow
+        TextUtils -.-> InputFlow
         Classifier -.-> Settings
     end
 
@@ -69,7 +72,8 @@ flowchart TB
         VoiceCoord["ui/voice_coordinator.py<br/>(Координатор ASR & HUD)"]
         VoiceHUD["ui/voice_hud.py<br/>(Cyberpunk Voice HUD над taskbar)"]
         VolumeHUD["ui/volume_hud.py<br/>(CyberVolumeHud экранный OSD)"]
-        SpeechHUD["ui/speech.py & speech_sfx.py<br/>(CyberHudBubble и плеер SFX)"]
+        SpeechHUD["ui/speech.py<br/>(CyberHudBubble виджет речи)"]
+        WindowLayout["ui/window_layout.py<br/>(Алгоритмы геометрии и размещения окон)"]
         GameOverlay["ui/game_overlay.py<br/>(SilentPresenceGlyph оверлей)"]
         Effects["effects/ (effects_coordinator, engram_prank_coordinator, melting_screen, relic_dump_overlay)<br/>(CRT-глитчи, молнии, переходы, пасхалки энграммы)"]
 
@@ -130,7 +134,8 @@ sequenceDiagram
     Cmd->>Integ: app_launcher.launch("блокнот")
     Integ-->>Cmd: Успешно / найдено 1 совпадение
     Cmd-->>Orch: CommandResult (текст ответа, эмоция)
-    Orch->>UI: Показ диалогового облачка (speech.py) + звук (speech_sfx.py)
+    Orch->>UI: Показ диалогового облачка (speech.py)
+    Orch->>SFX: Воспроизведение звука речи (sfx_player.py)
     Orch->>UI: Смена эмоции/спрайта питомца
 ```
 

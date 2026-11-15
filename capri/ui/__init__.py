@@ -14,12 +14,6 @@ from .context_menu_window import CyberContextMenuWindow
 from .pet_renderer import (
     PetRenderer,
     PetRenderState,
-    free_bands,
-    least_overlap_point,
-    pick_adjacent_position,
-    pick_position,
-    pick_side_position,
-    random_free_point,
 )
 from .pet_window import CapriWindow
 from .shredder_drop_handler import ShredderDropHandler
@@ -41,6 +35,14 @@ from .theme import (
 )
 from .voice_hud import CyberVoiceHud
 from .volume_hud import CyberVolumeHud
+from .window_layout import (
+    free_bands,
+    least_overlap_point,
+    pick_adjacent_position,
+    pick_position,
+    pick_side_position,
+    random_free_point,
+)
 
 __all__ = [
     "APP_STYLE",

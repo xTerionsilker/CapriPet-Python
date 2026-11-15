@@ -31,6 +31,7 @@ from PySide6.QtMultimedia import QMediaDevices
 from PySide6.QtWidgets import QApplication, QWidget
 
 from ..audio.recognizer import get_model_info, is_model_ready
+from ..audio.sfx_player import get_speech_sfx
 from ..controllers.orchestrator import PetOrchestrator
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
@@ -58,7 +59,6 @@ from .speech import (
 from .speech import (
     close_all as close_all_speech,
 )
-from .speech_sfx import get_speech_sfx
 from .sprite_manager import SpriteManager
 from .teleport_controller import TeleportController
 from .volume_hud import CyberVolumeHud

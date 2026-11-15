@@ -11,6 +11,7 @@ from PySide6.QtCore import QPoint, QPointF, QRect, Qt, QTimer
 from PySide6.QtGui import QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
+from ..audio.sfx_player import get_speech_sfx
 from ..effects.transition_fx import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
@@ -24,7 +25,6 @@ from ..effects.transition_fx import (
     snap_pixel,
     with_alpha,
 )
-from ..ui.speech_sfx import get_speech_sfx
 from ..ui.theme import get_hud_font
 
 

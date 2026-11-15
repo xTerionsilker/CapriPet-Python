@@ -18,10 +18,13 @@ try:
 except ImportError:
     winreg = None  # type: ignore[assignment]
 
-import cyrtranslit
 from rapidfuzz import fuzz
 
-from ..commands.registry import switch_layout
+from ..core.text_utils import (
+    phonetic_normalize,
+    switch_layout,
+    translit_ru_to_en,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -84,30 +87,7 @@ def resolve_shortcut(lnk_path: str) -> tuple[str, str] | None:
         return None
 
 
-def translit_ru_to_en(text: str) -> str:
-    t = text.lower().replace("кс", "x")
-    return cyrtranslit.to_latin(t, "ru")
 
-
-def phonetic_normalize(text: str) -> str:
-    s = text.lower()
-    res: list[str] = []
-    for i, ch in enumerate(s):
-        if ch == "c":
-            if i + 1 < len(s) and s[i + 1] in ("e", "i", "y"):
-                res.append("s")
-            else:
-                res.append("k")
-        elif ch in ("q", "k"):
-            res.append("k")
-        elif ch == "x":
-            res.extend(["k", "s"])
-        elif ch == "w":
-            res.append("v")
-        else:
-            res.append(ch)
-    normalized = "".join(res)
-    return re.sub(r"([a-z])\1+", r"\1", normalized)
 
 
 def _scan_windows_applications() -> list[dict[str, Any]]:

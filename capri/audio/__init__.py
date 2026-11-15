@@ -17,22 +17,30 @@ from .recognizer import (
     recognize,
     to_mono,
 )
+from .sfx_player import (
+    SpeechSFX,
+    get_speech_sfx,
+    preload_sfx_cache_async,
+)
 from .voice import SileroVAD, VoiceInput
 
 __all__ = [
     "ModelStatus",
     "RecognitionError",
     "SileroVAD",
+    "SpeechSFX",
     "VoiceInput",
     "VoskSpeechService",
     "check_available",
     "create_recognizer",
     "get_model_info",
+    "get_speech_sfx",
     "get_vosk_model",
     "is_model_loading",
     "is_model_ready",
     "model_load_failed",
     "preload_model_async",
+    "preload_sfx_cache_async",
     "recognize",
     "to_mono",
 ]

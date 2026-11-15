@@ -34,17 +34,22 @@ from .settings import (
     save_config,
     set_config_value,
 )
-from .wake_word import (
+from .text_utils import (
     MAX_TYPO_DISTANCE,
+    edit_distance,
+    keyword_score,
+    phonetic_normalize,
+    similarity,
+    switch_layout,
+    translit_ru_to_en,
+)
+from .wake_word import (
     VOICE_COMMAND_WINDOW_MS,
     VOICE_FOLLOWUP_WINDOW_MS,
     VOICE_LISTENING_STATUS,
     VOICE_TRIGGER_RE,
     VOICE_WAITING_STATUS,
     command_after_trigger,
-    edit_distance,
-    keyword_score,
-    similarity,
     voice_normalized,
 )
 
@@ -82,10 +87,13 @@ __all__ = [
     "keyword_score",
     "load_config",
     "normalize_spoken_numbers",
+    "phonetic_normalize",
     "save_config",
     "set_config_value",
     "similarity",
     "stem_russian_word",
     "stem_text",
+    "switch_layout",
+    "translit_ru_to_en",
     "voice_normalized",
 ]

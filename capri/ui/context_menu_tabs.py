@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..audio.sfx_player import get_speech_sfx
 from ..core.dialogue_manager import get_dialogue_manager
 from ..core.settings import (
     ACTIVITY_TIMEOUT_OPTIONS_MS,
@@ -29,7 +30,6 @@ from ..core.settings import (
     set_config_value,
 )
 from .reminder_dialog import ReminderRangeDialog
-from .speech_sfx import get_speech_sfx
 from .theme import (
     ACID_GREEN,
     CSS_CYBER_UI,

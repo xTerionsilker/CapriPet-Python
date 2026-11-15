@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .speech_sfx import get_speech_sfx
+from ..audio.sfx_player import get_speech_sfx
 from .theme import (
     ACID_GREEN,
     CSS_CYBER_TERMINAL,

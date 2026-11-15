@@ -8,7 +8,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from ..commands.registry import switch_layout
+from .text_utils import switch_layout
 
 CONFIRM_TIMEOUT_MS = 15_000
 YOUTUBE_SELECT_TIMEOUT_MS = 25_000

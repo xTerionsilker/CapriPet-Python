@@ -23,7 +23,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QWidget
 
-from capri.ui.speech_sfx import get_speech_sfx
+from capri.audio.sfx_player import get_speech_sfx
 from capri.ui.theme import get_hud_font
 
 from .transition_fx import (

@@ -15,6 +15,7 @@ from PySide6.QtCore import QObject, QTimer
 from PySide6.QtMultimedia import QAudioDevice
 
 from ..audio.recognizer import preload_model_async
+from ..audio.sfx_player import get_speech_sfx
 from ..audio.voice import VoiceInput
 from ..core.settings import get_config_value, set_config_value
 from ..core.wake_word import (
@@ -22,7 +23,6 @@ from ..core.wake_word import (
     VOICE_FOLLOWUP_WINDOW_MS,
     command_after_trigger,
 )
-from .speech_sfx import get_speech_sfx
 from .voice_hud import CyberVoiceHud
 
 if TYPE_CHECKING:

@@ -15,8 +15,11 @@ from typing import Any
 import psutil
 from rapidfuzz import fuzz
 
-from ..commands.registry import switch_layout
-from .app_launcher import phonetic_normalize, translit_ru_to_en
+from ..core.text_utils import (
+    phonetic_normalize,
+    switch_layout,
+    translit_ru_to_en,
+)
 
 logger = logging.getLogger(__name__)
 

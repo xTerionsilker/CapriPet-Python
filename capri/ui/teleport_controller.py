@@ -14,12 +14,12 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QPoint, QRect, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
 
+from ..audio.sfx_player import get_speech_sfx
 from ..core.settings import set_config_value
 from ..effects.cursor_pointer import CursorPointerOverlay
 from ..effects.lightning_tether import LightningTetherOverlay
 from ..effects.transition import TransitionOverlay
 from ..integrations.system_control import get_mouse_position, move_mouse_to
-from .speech_sfx import get_speech_sfx
 
 if TYPE_CHECKING:
     from .pet_window import CapriWindow
