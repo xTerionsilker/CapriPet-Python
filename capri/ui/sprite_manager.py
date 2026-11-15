@@ -1,7 +1,7 @@
-"""Управление спрайтами, позами и масштабированием питомца Capri.
+"""Управление спрайтами и масштабированием питомца Capri.
 
-Обеспечивает загрузку графических ресурсов, кеширование растровых масок,
-проверку попадания курсора (hit-test) и переключение поз.
+Обеспечивает парсинг графических ресурсов из assets/sprites, случайный выбор
+спрайтов, масштабирование, кеширование растровых масок и проверку попадания курсора.
 """
 
 from __future__ import annotations
@@ -16,16 +16,14 @@ from PySide6.QtGui import QBitmap, QImage, QPixmap, QRegion
 from ..core.settings import get_config_value, set_config_value
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "assets"
-VAR_DIR = ASSETS_DIR / "var"
-IDLE_DIR = VAR_DIR / "idle"
-OTHER_DIR = VAR_DIR / "other"
-THINKING_DIR = VAR_DIR / "thinking"
+SPRITES_DIR = ASSETS_DIR / "sprites"
+SUPPORTED_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
 
 ALLOWED_SCALES = (50, 75, 100, 125, 150)
 
 
 class SpriteManager:
-    """Менеджер спрайтов поз питомца, масштабирования и растровых масок."""
+    """Менеджер спрайтов питомца, масштабирования и растровых масок."""
 
     def __init__(
         self,
@@ -34,29 +32,43 @@ class SpriteManager:
     ) -> None:
         self._on_pose_changed = on_pose_changed
         self._scale_percent: int = 100
-        self._current_pose: str = "idle"
+        self._current_sprite_key: str = ""
         self._current_pixmap: QPixmap = QPixmap()
         self._cached_hit_image: QImage | None = None
         self._cached_mask_region: QRegion | None = None
 
         self._raw_pixmaps: dict[str, QPixmap] = {}
         self._pixmaps: dict[str, QPixmap] = {}
-        self._pose_variants: dict[str, list[str]] = {
-            "idle": [],
-            "other": [],
-            "thinking": [],
-        }
+        self._sprite_keys: list[str] = []
 
         self._load_saved_scale()
-        self.load_all_poses()
+        self.load_all_sprites()
+        if self._sprite_keys:
+            self._current_sprite_key = random.choice(self._sprite_keys)
+            self._current_pixmap = self._pixmaps.get(
+                self._current_sprite_key, QPixmap()
+            )
+            self._update_cached_image_and_mask()
 
     @property
     def scale_percent(self) -> int:
         return self._scale_percent
 
     @property
+    def current_sprite_key(self) -> str:
+        return self._current_sprite_key
+
+    @property
     def current_pose(self) -> str:
-        return self._current_pose
+        return self._current_sprite_key
+
+    @property
+    def sprite_keys(self) -> list[str]:
+        return list(self._sprite_keys)
+
+    @property
+    def sprite_count(self) -> int:
+        return len(self._sprite_keys)
 
     @property
     def current_pixmap(self) -> QPixmap:
@@ -156,96 +168,87 @@ class SpriteManager:
         for name in list(self._raw_pixmaps.keys()):
             self._apply_scale_for_pose(name)
 
-        if self._current_pose in self._pixmaps:
-            self._current_pixmap = self._pixmaps[self._current_pose]
+        if self._current_sprite_key in self._pixmaps:
+            self._current_pixmap = self._pixmaps[self._current_sprite_key]
             self._update_cached_image_and_mask()
             if self._on_pose_changed:
                 self._on_pose_changed(
                     self._current_pixmap,
                     self._cached_hit_image,
-                    self._current_pose,
+                    self._current_sprite_key,
                 )
         return True
 
-    def load_all_poses(self) -> None:
-        pose_dirs = {
-            "idle": IDLE_DIR,
-            "other": OTHER_DIR,
-            "thinking": THINKING_DIR,
-        }
-        self._pose_variants = {
-            "idle": [],
-            "other": [],
-            "thinking": [],
-        }
+    def load_all_sprites(self) -> None:
+        self._raw_pixmaps.clear()
+        self._pixmaps.clear()
+        self._sprite_keys.clear()
 
-        for pose_name, pose_dir in pose_dirs.items():
-            if pose_dir.is_dir():
-                for file in sorted(pose_dir.glob("*.png")):
-                    variant_key = f"{pose_name}:{file.stem}"
-                    self.load_pixmap(variant_key, file)
-                    self._pose_variants[pose_name].append(variant_key)
+        if SPRITES_DIR.is_dir():
+            for file in sorted(SPRITES_DIR.iterdir()):
+                if file.is_file() and file.suffix.lower() in SUPPORTED_EXTENSIONS:
+                    key = file.stem
+                    self.load_pixmap(key, file)
+                    self._sprite_keys.append(key)
 
-        self._pose_variants["sit"] = self._pose_variants["idle"]
-        self._pose_variants["stay"] = self._pose_variants["thinking"]
-        self._pose_variants["crouch"] = self._pose_variants["other"]
-
-        for category in (
-            "idle",
-            "other",
-            "thinking",
-            "sit",
-            "stay",
-            "crouch",
-        ):
-            variants = self._pose_variants.get(category)
-            if variants:
-                first_variant = variants[0]
-                self._raw_pixmaps[category] = self._raw_pixmaps[
-                    first_variant
-                ]
-                self._pixmaps[category] = self._pixmaps[first_variant]
-
-        if not self._pixmaps:
+        if not self._sprite_keys:
             fallback = QPixmap(420, 420)
             fallback.fill(Qt.GlobalColor.transparent)
-            self._raw_pixmaps["sit"] = fallback
-            self._apply_scale_for_pose("sit")
+            self._raw_pixmaps["default"] = fallback
+            self._apply_scale_for_pose("default")
+            self._sprite_keys.append("default")
 
-    def set_pose(self, pose: str) -> bool:
+    def load_all_poses(self) -> None:
+        self.load_all_sprites()
 
-        canonical_pose = {
-            "sit": "idle",
-            "crouch": "other",
-            "stay": "thinking",
-        }.get(pose, pose)
+    def set_random_sprite(self, exclude_current: bool = True) -> bool:
+        if not self._sprite_keys:
+            return False
 
-        variants = self._pose_variants.get(
-            canonical_pose
-        ) or self._pose_variants.get(pose)
-        if variants:
-            chosen_key = random.choice(variants)
-            chosen_pixmap = self._pixmaps.get(chosen_key)
+        if len(self._sprite_keys) == 1:
+            chosen_key = self._sprite_keys[0]
+        elif exclude_current and self._current_sprite_key in self._sprite_keys:
+            pool = [k for k in self._sprite_keys if k != self._current_sprite_key]
+            chosen_key = random.choice(pool)
         else:
-            chosen_key = pose
-            chosen_pixmap = self._pixmaps.get(pose)
+            chosen_key = random.choice(self._sprite_keys)
 
-        if chosen_pixmap is not None:
-            old_pose = self._current_pose
-            self._current_pose = canonical_pose
-            self._current_pixmap = chosen_pixmap
+        pixmap = self._pixmaps.get(chosen_key)
+        if pixmap is None:
+            return False
+
+        changed = chosen_key != self._current_sprite_key
+        self._current_sprite_key = chosen_key
+        self._current_pixmap = pixmap
+        self._update_cached_image_and_mask()
+
+        if self._on_pose_changed:
+            self._on_pose_changed(
+                self._current_pixmap,
+                self._cached_hit_image,
+                self._current_sprite_key,
+            )
+        return changed
+
+    def set_pose(self, pose: str = "") -> bool:
+        if pose and pose in self._pixmaps:
+            changed = pose != self._current_sprite_key
+            self._current_sprite_key = pose
+            self._current_pixmap = self._pixmaps[pose]
             self._update_cached_image_and_mask()
             if self._on_pose_changed:
                 self._on_pose_changed(
                     self._current_pixmap,
                     self._cached_hit_image,
-                    self._current_pose,
+                    self._current_sprite_key,
                 )
-            return old_pose != canonical_pose
-        return False
+            return changed
+        return self.set_random_sprite(exclude_current=True)
 
     def set_pose_image(self, pose_name: str, path: Path) -> bool:
         self.load_pixmap(pose_name, path)
+        if pose_name not in self._sprite_keys:
+            self._sprite_keys.append(pose_name)
         return self.set_pose(pose_name)
 
     def is_point_on_sprite(self, pos_x: int, pos_y: int) -> bool:

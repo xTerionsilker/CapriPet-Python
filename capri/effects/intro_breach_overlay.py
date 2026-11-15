@@ -128,9 +128,12 @@ class IntroBreachOverlay(QWidget):
 
 
     def _load_fallback_sprite(self) -> None:
-        assets_dir = Path(__file__).resolve().parent.parent.parent / "assets" / "var" / "idle"
+        assets_dir = Path(__file__).resolve().parent.parent.parent / "assets" / "sprites"
         if assets_dir.is_dir():
-            candidates = sorted(assets_dir.glob("*.png"))
+            candidates = sorted(
+                p for p in assets_dir.iterdir()
+                if p.is_file() and p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp", ".bmp")
+            )
             if candidates:
                 self._sprite_pixmap = QPixmap(str(candidates[0]))
         if self._sprite_pixmap is None or self._sprite_pixmap.isNull():
