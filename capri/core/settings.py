@@ -275,10 +275,6 @@ def get_config_dir() -> Path:
     return Path(tempfile.gettempdir())
 
 
-def _resolve_config_dir() -> Path:
-    return get_config_dir()
-
-
 def _get_default_config_path() -> Path:
     """Определяет путь к файлу конфигурации."""
     config_dir = get_config_dir()
@@ -292,7 +288,6 @@ class ConfigManager:
     """Менеджер конфигурации с Pydantic валидацией, кэшированием и атомарным сохранением."""
 
     def __init__(self, config_path: Path | None = None) -> None:
-        self._is_custom_path = config_path is not None
         resolved_path = (config_path or _get_default_config_path()).resolve()
         self._config_path = resolved_path
         self._cached_config: dict[str, Any] | None = None

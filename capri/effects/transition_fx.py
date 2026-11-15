@@ -456,7 +456,6 @@ class CyberPixelBolt:
         self.segments: list[tuple[QPoint, QPoint]] = []
         self.branches: list[list[tuple[QPoint, QPoint]]] = []
         self.nodes: list[QPoint] = []
-        self._energy_packet_pos = random.uniform(0.0, 1.0)
         self._rebuild()
 
     def _rebuild(self) -> None:

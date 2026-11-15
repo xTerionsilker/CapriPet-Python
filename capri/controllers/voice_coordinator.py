@@ -143,17 +143,6 @@ class VoiceCoordinator(QObject):
         hud.show_hud(status="LISTENING_COMMAND", mode="TRIGGER_DETECTED")
         self._speak_fn(random.choice(WAKE_LINES))
 
-    def _disarm(self) -> None:
-        self._voice_armed_until = 0.0
-        self._voice_window_timer.stop()
-        self._voice.set_armed(False)
-        get_speech_sfx().play_voice_cancel()
-        if (
-            not self._window.input_flow.awaiting_reply
-            and self._hud is not None
-        ):
-            self._hud.hide_hud(delay_ms=2200)
-
     def _on_voice_window_expired(self) -> None:
         self._voice_armed_until = 0.0
         self._voice.set_armed(False)

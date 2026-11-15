@@ -20,9 +20,6 @@ class SystemVolumeService:
 
     _instance: SystemVolumeService | None = None
 
-    def __init__(self) -> None:
-        self._endpoint: IAudioEndpointVolume | None = None
-
     @classmethod
     def get_instance(cls) -> SystemVolumeService:
         """Получить синглтон-экземпляр сервиса системной громкости."""

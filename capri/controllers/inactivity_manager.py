@@ -39,7 +39,6 @@ class InactivityManager(QObject):
 
         self._transitioning = False
         self._transition_overlay: TransitionOverlay | None = None
-        self._voice_was_listening = False
         self._paused = False
         self._pending_show_callbacks: list[Callable[[], None]] = []
 

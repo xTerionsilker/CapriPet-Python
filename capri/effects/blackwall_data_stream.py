@@ -52,7 +52,6 @@ class BlackwallDataStream:
         self._columns: list[_StreamColumn] = []
         self._font: QFont = get_hud_font(10, bold=True)
         self._rng = random.Random(2077)
-        self._elapsed_time = 0.0
         self._init_columns()
 
     def resize(self, width: int, height: int) -> None:
@@ -84,7 +83,6 @@ class BlackwallDataStream:
             )
 
     def update(self, dt: float) -> None:
-        self._elapsed_time += dt
         for col in self._columns:
             col.y_offset += col.speed * dt
             # Случайная мутация символов для эффекта живого дампа

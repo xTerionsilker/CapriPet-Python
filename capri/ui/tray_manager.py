@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtGui import QGuiApplication, QIcon, QPixmap
-from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
 CAPRI_ICON = (
     Path(__file__).resolve().parent.parent.parent
@@ -24,11 +24,9 @@ class TrayManager:
     def __init__(
         self,
         window: CapriWindow | Any,
-        tray_menu: QMenu | None = None,
     ) -> None:
         self._window = window
         self._tray_icon: QSystemTrayIcon | None = None
-        self._tray_menu = tray_menu
         self.init_tray()
 
     @property

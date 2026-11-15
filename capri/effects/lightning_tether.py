@@ -58,11 +58,9 @@ class LightningTetherOverlay(QWidget):
 
         self._start_pos = QPoint(0, 0)
         self._target_pos = QPoint(0, 0)
-        self._origin_rect = QRect(0, 0, 0, 0)
 
         self._bolts: list[CyberPixelBolt] = []
         self._sparks: list[CyberPixelSpark] = []
-        self._tick_count = 0
         self._start_time = 0.0
 
         self._anim_timer = QTimer(self)
@@ -85,10 +83,6 @@ class LightningTetherOverlay(QWidget):
 
         self._start_pos = start_pos
         self._target_pos = target_pos
-        self._origin_rect = origin_rect or QRect(
-            start_pos.x() - 40, start_pos.y() - 40, 80, 80
-        )
-        self._tick_count = 0
         self._start_time = time.monotonic()
         self._sparks.clear()
 
@@ -114,8 +108,6 @@ class LightningTetherOverlay(QWidget):
     ) -> None:
 
         self._start_pos = start_pos
-        if origin_rect is not None:
-            self._origin_rect = origin_rect
         self._rebuild_bolts()
         self.update()
 
@@ -182,7 +174,6 @@ class LightningTetherOverlay(QWidget):
             )
 
     def _on_tick(self) -> None:
-        self._tick_count += 1
         offset = self.geometry().topLeft()
         local_target = self._target_pos - offset
 

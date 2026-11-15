@@ -57,7 +57,6 @@ class SpeechSFX(QObject):
         self._core_destabilize_effect: QSoundEffect | None = None
         self._session_effects: dict[str, QSoundEffect] = {}
         self._chirp_pool: list[QSoundEffect] = []
-        self._chirp_index = 0
         self._chirp_pools_by_style: dict[str, list[QSoundEffect]] = {}
         self._chirp_indices_by_style: dict[str, int] = {}
         self._chirp_paths_by_style: dict[str, Path] = {}

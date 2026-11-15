@@ -118,7 +118,6 @@ class CapriWindow(QWidget):
         self._sprite_manager = SpriteManager(self._on_sprite_changed)
         self.setFixedSize(self._sprite_manager.current_pixmap.size())
 
-        self._drag_offset: QPoint | None = None
         self._speech: SpeechWindow | None = None
         self._greeted = False
         self._spawn_glitch_ticks = 24
@@ -802,9 +801,6 @@ class CapriWindow(QWidget):
 
     def _on_session_unlock(self) -> None:
         self._system_events.handle_session_unlock()
-
-    def _fast_terminate(self) -> None:
-        self._system_events.fast_terminate()
 
     def _on_game_mode_changed(self, active: bool) -> None:
         self._is_stealth_mode = active
