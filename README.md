@@ -15,7 +15,7 @@
 <p align="center">
   <b>Авторы и соавторы:</b><br/>
   <b><a href="https://github.com/xTerionsilker">xTerionsilker</a></b> — автор, архитектор, дизайнер<br/>
-  <b>Google Gemini</b> — код, программная реализация и тестирование
+  <b>Google Gemini (Antigravity)</b> — код, программная реализация и тестирование
 </p>
 
 <p align="center">
