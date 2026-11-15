@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from PySide6.QtCore import QPointF, QRect, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPolygonF
 
+from ..core.dialogue_manager import get_dialogue_manager
 from ..ui.theme import get_hud_font
 from .transition_base import (
     COLOR_ACID_GREEN,
@@ -97,24 +98,18 @@ class SpeedLine:
 
 def draw_arasaka_bios_terminal(painter: QPainter, rect: QRect, t: float) -> None:
     """Отрисовка ретро-консоли BIOS Arasaka Relic OS с проверкой секторов памяти."""
+    cin = get_dialogue_manager().cinematics
     painter.save()
     painter.fillRect(rect, COLOR_OBSIDIAN)
     painter.setFont(get_hud_font(10, bold=True))
     painter.setPen(with_alpha(COLOR_WHITE, 240))
-    painter.drawText(40, 60, "ARASAKA CORP // SECURE BOOT ROM v4.09.2")
+    painter.drawText(40, 60, cin.bios_title)
     painter.setFont(get_hud_font(8, bold=False))
     painter.setPen(with_alpha(COLOR_ACID_GREEN, 200))
-    painter.drawText(40, 85, "HOST NEURAL-LINK DETECTED: [WIN32_DWM_SUBSTRATE]")
+    painter.drawText(40, 85, cin.bios_subtitle)
 
-    lines = [
-        ("INITIALIZING RELIC BUS (CHIP_ID: 0x9F4C)...", 0.15, "[OK]"),
-        ("MAPPING SYNAPTIC REGISTERS 0x0000 - 0x7FFF...", 0.35, "[OK]"),
-        ("VERIFYING ENCRYPTED CONTAINER: 'CAPRICORN'...", 0.55, "[OK]"),
-        ("AUTHENTICATING SOULKILLER KERNEL SIGNATURE...", 0.75, "[OK]"),
-        ("ALLOCATING HIGH-VOLTAGE NEURAL MEMORY...", 0.90, "[IN PROGRESS]"),
-    ]
     y = 120
-    for text, threshold, status in lines:
+    for text, threshold, status in cin.bios_lines:
         if t >= threshold:
             painter.setPen(with_alpha(COLOR_WHITE, 220))
             painter.drawText(40, y, text)
@@ -145,9 +140,10 @@ def draw_kernel_panic_strobe(painter: QPainter, rect: QRect, t: float, rng: rand
     painter.setPen(QPen(with_alpha(COLOR_CRIMSON, 255), 2.5))
     painter.drawRect(QRect(bx, by, bw, bh))
 
+    cin = get_dialogue_manager().cinematics
     painter.setFont(get_hud_font(12, bold=True))
     painter.setPen(with_alpha(COLOR_CRIMSON, 255))
-    painter.drawText(bx, by + 40, bw, 30, int(Qt.AlignmentFlag.AlignCenter), "CRITICAL BREACH: SOULKILLER_OVERFLOW")
+    painter.drawText(bx, by + 40, bw, 30, int(Qt.AlignmentFlag.AlignCenter), cin.panic_title)
 
     painter.setFont(get_hud_font(9, bold=False))
     painter.setPen(with_alpha(COLOR_WHITE, 230))
@@ -157,7 +153,7 @@ def draw_kernel_panic_strobe(painter: QPainter, rect: QRect, t: float, rng: rand
         bw,
         24,
         int(Qt.AlignmentFlag.AlignCenter),
-        "CONTAINMENT PROTOCOL BYPASSED // ENGRAM BREACH IMMINENT",
+        cin.panic_message,
     )
     painter.restore()
 
@@ -222,10 +218,7 @@ def draw_dialogue_cyber_hud(
     typewriter_len: int,
 ) -> None:
     """Высокотехнологичный диалоговый HUD-баннер со скошенными углами 45° и hazard-баром."""
-    full_text = (
-        "«Арасака думала запереть меня в железке? Ха! Теперь твой процессор — "
-        "моя игровая площадка. Двигайся, хост, я беру руль!»"
-    )
+    full_text = get_dialogue_manager().cinematics.intro_quote
     shown_text = full_text[:max(0, min(len(full_text), typewriter_len))]
 
     box_w = 640

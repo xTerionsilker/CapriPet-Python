@@ -21,9 +21,10 @@ flowchart TB
         direction TB
         Voice["voice.py<br/>(Захват звука, Silero VAD)"]
         ASR["recognizer.py<br/>(Vosk ASR)"]
-        SFXGen["sfx_generators.py<br/>(Процедурный DSP синтез PCM)"]
+        SFXBaked["assets/sfx/<br/>(Запеченные PCM WAV ассеты)"]
         SFXPlayer["sfx_player.py<br/>(Воспроизведение WAV через QSoundEffect)"]
         Voice -->|Фреймы речи| ASR
+        SFXBaked -->|Статические WAV| SFXPlayer
     end
 
     %% Ядро обработки

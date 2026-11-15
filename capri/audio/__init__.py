@@ -20,7 +20,6 @@ from .recognizer import (
 from .sfx_player import (
     SpeechSFX,
     get_speech_sfx,
-    preload_sfx_cache_async,
 )
 from .voice import SileroVAD, VoiceInput
 
@@ -40,7 +39,6 @@ __all__ = [
     "is_model_ready",
     "model_load_failed",
     "preload_model_async",
-    "preload_sfx_cache_async",
     "recognize",
     "to_mono",
 ]

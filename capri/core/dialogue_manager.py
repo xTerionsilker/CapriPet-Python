@@ -52,6 +52,29 @@ class ShredderDialogue(BaseModel):
     folder: str = "Папка '{name}' и все её {count} файлов ушли в небытие."
     default: str = "Ням! '{name}' ({mb:.1f} МБ) аннигилирован. Даже цифрового пепла не осталось!"
 
+
+class CinematicsDialogue(BaseModel):
+    """Шаблоны кинематографичного интро, BIOS и KERNEL PANIC."""
+
+    bios_title: str = "ARASAKA CORP // SECURE BOOT ROM v4.09.2"
+    bios_subtitle: str = "HOST NEURAL-LINK DETECTED: [WIN32_DWM_SUBSTRATE]"
+    bios_lines: list[tuple[str, float, str]] = Field(
+        default_factory=lambda: [
+            ("INITIALIZING RELIC BUS (CHIP_ID: 0x9F4C)...", 0.15, "[OK]"),
+            ("MAPPING SYNAPTIC REGISTERS 0x0000 - 0x7FFF...", 0.35, "[OK]"),
+            ("VERIFYING ENCRYPTED CONTAINER: 'CAPRICORN'...", 0.55, "[OK]"),
+            ("AUTHENTICATING SOULKILLER KERNEL SIGNATURE...", 0.75, "[OK]"),
+            ("ALLOCATING HIGH-VOLTAGE NEURAL MEMORY...", 0.90, "[IN PROGRESS]"),
+        ]
+    )
+    panic_title: str = "CRITICAL BREACH: SOULKILLER_OVERFLOW"
+    panic_message: str = "CONTAINMENT PROTOCOL BYPASSED // ENGRAM BREACH IMMINENT"
+    intro_quote: str = (
+        "«Арасака думала запереть меня в железке? Ха! Теперь твой процессор — "
+        "моя игровая площадка. Двигайся, хост, я беру руль!»"
+    )
+
+
 class DialoguePreset(BaseModel):
     """Корневая модель пресета диалогов CapriPet."""
 
@@ -61,6 +84,7 @@ class DialoguePreset(BaseModel):
     pranks: PranksDialogue = Field(default_factory=PranksDialogue)
     shredder: ShredderDialogue = Field(default_factory=ShredderDialogue)
     commands: dict[str, str] = Field(default_factory=dict)
+    cinematics: CinematicsDialogue = Field(default_factory=CinematicsDialogue)
 
 
 _FALLBACK_PRESET_DATA: dict[str, Any] = {
@@ -258,7 +282,10 @@ class DialogueManager:
         except Exception:
             return raw_str
 
-
+    @property
+    def cinematics(self) -> CinematicsDialogue:
+        """Возвращает настройки и реплики cinematics активного стиля."""
+        return self.active_preset.cinematics
 
 
 _dialogue_manager_instance: DialogueManager | None = None

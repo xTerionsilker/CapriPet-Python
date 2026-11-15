@@ -6,6 +6,7 @@ import contextlib
 import math
 import random
 from collections.abc import Callable
+from pathlib import Path
 
 from PySide6.QtCore import QElapsedTimer, QRect, Qt, QTimer, Signal
 from PySide6.QtGui import (
@@ -15,6 +16,7 @@ from PySide6.QtGui import (
     QPen,
     QPixmap,
 )
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QWidget
 
 from ..audio.sfx_player import get_speech_sfx
@@ -40,6 +42,29 @@ from .transition_fx import (
 
 SESSION_ANIMATION_DURATION_MS = 1500
 SESSION_ACTION_LEAD_MS = 1800
+
+
+_ICONS_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "icons"
+_SVG_RENDERERS: dict[str, QSvgRenderer] = {}
+
+
+def _get_action_renderer(action: str) -> QSvgRenderer | None:
+    """Кэшированное получение QSvgRenderer для системных действий."""
+    if action not in _SVG_RENDERERS:
+        action_files = {
+            "lock": "session_lock.svg",
+            "power_off": "session_power.svg",
+            "suspend": "session_suspend.svg",
+            "reboot": "session_reboot.svg",
+        }
+        filename = action_files.get(action)
+        if filename:
+            path = _ICONS_DIR / filename
+            if path.exists():
+                renderer = QSvgRenderer(str(path))
+                if renderer.isValid():
+                    _SVG_RENDERERS[action] = renderer
+    return _SVG_RENDERERS.get(action)
 
 
 _ACTION_PROFILES: dict[str, dict[str, object]] = {
@@ -521,135 +546,22 @@ class SessionAnimationOverlay(QWidget, SessionAnimEffectsMixin):
         )
         painter.drawRect(rect)
 
-        if self._action == "lock":
-            self._paint_lock_icon(painter, rect, accent, counter)
-        elif self._action == "power_off":
-            self._paint_power_icon(painter, rect, accent, counter)
-        elif self._action == "suspend":
-            self._paint_sleep_icon(painter, rect, accent, counter, p)
-        else:
-            self._paint_reboot_icon(painter, rect, accent, counter, p)
+        renderer = _get_action_renderer(self._action)
+        if renderer is not None and renderer.isValid():
+            renderer.render(painter, rect.adjusted(6, 6, -6, -6))
+        if self._action == "suspend":
+            painter.setFont(_font(9))
+            for i in range(3):
+                phase = (p * 1.8 + i * 0.33) % 1.0
+                alpha = int(255 * (1.0 - phase))
+                painter.setPen(with_alpha(counter, alpha))
+                painter.drawText(
+                    rect.right() - 16 + i * 6,
+                    rect.top() + 16 - int(phase * 22),
+                    "Z",
+                )
 
-    def _paint_lock_icon(
-        self,
-        painter: QPainter,
-        rect: QRect,
-        accent: QColor,
-        counter: QColor,
-    ) -> None:
-        cx = rect.center().x()
-        body = QRect(cx - 14, rect.top() + 22, 28, 20)
-        painter.fillRect(body, with_alpha(accent, 230))
-        painter.fillRect(
-            body.adjusted(4, 4, -4, -4), with_alpha(COLOR_OBSIDIAN, 240)
-        )
-        painter.setPen(QPen(with_alpha(counter, 235), PIXEL_SIZE))
-        shackle = QRect(cx - 10, rect.top() + 10, 20, 22)
-        painter.drawArc(shackle, 0, 180 * 16)
-        painter.drawLine(
-            cx - 10, rect.top() + 21, cx - 10, rect.top() + 24
-        )
-        painter.drawLine(
-            cx + 10, rect.top() + 21, cx + 10, rect.top() + 24
-        )
-        painter.fillRect(
-            cx - 2, body.top() + 7, 4, 7, with_alpha(counter, 230)
-        )
 
-    def _paint_power_icon(
-        self,
-        painter: QPainter,
-        rect: QRect,
-        accent: QColor,
-        counter: QColor,
-    ) -> None:
-        center = rect.center()
-        radius = 14
-        ring = QRect(
-            center.x() - radius,
-            center.y() - radius + 2,
-            radius * 2,
-            radius * 2,
-        )
-        painter.setPen(QPen(with_alpha(accent, 235), PIXEL_SIZE * 2))
-        painter.drawArc(ring, 110 * 16, 320 * 16)
-        painter.fillRect(
-            center.x() - 2,
-            center.y() - radius - 2,
-            4,
-            radius + 4,
-            with_alpha(counter, 240),
-        )
-
-    def _paint_sleep_icon(
-        self,
-        painter: QPainter,
-        rect: QRect,
-        accent: QColor,
-        counter: QColor,
-        p: float,
-    ) -> None:
-        painter.setPen(QPen(with_alpha(accent, 220), PIXEL_SIZE))
-        painter.drawArc(rect.adjusted(8, 8, -8, -8), 60 * 16, 250 * 16)
-        painter.setPen(QPen(with_alpha(accent, 230), PIXEL_SIZE))
-        painter.drawLine(
-            rect.left() + 26,
-            rect.top() + 12,
-            rect.left() + 37,
-            rect.top() + 12,
-        )
-        painter.drawLine(
-            rect.left() + 37,
-            rect.top() + 12,
-            rect.left() + 26,
-            rect.top() + 22,
-        )
-        painter.drawLine(
-            rect.left() + 26,
-            rect.top() + 22,
-            rect.left() + 37,
-            rect.top() + 22,
-        )
-
-        painter.setFont(_font(9))
-        for i in range(3):
-            phase = (p * 1.8 + i * 0.33) % 1.0
-            alpha = int(255 * (1.0 - phase))
-            painter.setPen(with_alpha(counter, alpha))
-            painter.drawText(
-                rect.right() - 18 + i * 8,
-                rect.top() + 16 - int(phase * 22),
-                "Z",
-            )
-
-    def _paint_reboot_icon(
-        self,
-        painter: QPainter,
-        rect: QRect,
-        accent: QColor,
-        counter: QColor,
-        p: float,
-    ) -> None:
-        center = rect.center()
-        radius = 15
-        arc = QRect(
-            center.x() - radius,
-            center.y() - radius,
-            radius * 2,
-            radius * 2,
-        )
-        painter.setPen(QPen(with_alpha(accent, 235), PIXEL_SIZE * 2))
-        painter.drawArc(arc, int(p * 360) * 16, 280 * 16)
-        painter.fillRect(
-            arc.right() - 4, arc.top() + 2, 9, 4, with_alpha(counter, 240)
-        )
-        painter.fillRect(
-            arc.right() + 1,
-            arc.top() - 2,
-            4,
-            12,
-            with_alpha(counter, 240),
-        )
 
 
 class LockdownSceneOverlay(SessionAnimationOverlay):

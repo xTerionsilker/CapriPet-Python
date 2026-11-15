@@ -82,5 +82,19 @@
     "update_prompt": "Опа, создатели выкатили для меня апгрейд! ({local_ver} -> {remote_ver}). Лезем на GitHub за свежим кодом? (да / нет)",
     "update_start": "Открываю страницу на GitHub. Качаем апгрейд!",
     "update_cancel": "Ладно, сидим на старой версии."
+  },
+  "cinematics": {
+    "bios_title": "ARASAKA CORP // SECURE BOOT ROM v4.09.2",
+    "bios_subtitle": "HOST NEURAL-LINK DETECTED: [WIN32_DWM_SUBSTRATE]",
+    "bios_lines": [
+      ["INITIALIZING RELIC BUS (CHIP_ID: 0x9F4C)...", 0.15, "[OK]"],
+      ["MAPPING SYNAPTIC REGISTERS 0x0000 - 0x7FFF...", 0.35, "[OK]"],
+      ["VERIFYING ENCRYPTED CONTAINER: 'CAPRICORN'...", 0.55, "[OK]"],
+      ["AUTHENTICATING SOULKILLER KERNEL SIGNATURE...", 0.75, "[OK]"],
+      ["ALLOCATING HIGH-VOLTAGE NEURAL MEMORY...", 0.90, "[IN PROGRESS]"]
+    ],
+    "panic_title": "CRITICAL BREACH: SOULKILLER_OVERFLOW",
+    "panic_message": "CONTAINMENT PROTOCOL BYPASSED // ENGRAM BREACH IMMINENT",
+    "intro_quote": "«Арасака думала запереть меня в железке? Ха! Теперь твой процессор — моя игровая площадка. Двигайся, хост, я беру руль!»"
   }
 }
