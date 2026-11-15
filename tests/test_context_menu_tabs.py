@@ -39,18 +39,11 @@ class TestContextMenuTabs(unittest.TestCase):
         page.btn_teleport.click()
         self.mock_window.activate_teleport.assert_called()
 
-        # Test quick toggles
-        self.assertTrue(hasattr(page, "chk_discord"))
-        page.chk_discord.setChecked(False)
-        self.mock_actions.set_discord_enabled.assert_called_with(False)
-
-        self.assertTrue(hasattr(page, "chk_voice"))
-        page.chk_voice.setChecked(False)
-        self.mock_actions.toggle_voice.assert_called()
-
-        self.assertTrue(hasattr(page, "chk_glitches"))
-        page.chk_glitches.setChecked(False)
-        self.mock_actions.toggle_glitches.assert_called()
+        # Test tactical actions and personality style
+        self.assertTrue(hasattr(page, "combo_style"))
+        self.assertFalse(hasattr(page, "chk_discord"))
+        self.assertFalse(hasattr(page, "chk_voice"))
+        self.assertFalse(hasattr(page, "chk_glitches"))
 
     def test_audio_tab_page_volume_slider_step_and_presets(self) -> None:
         page = AudioTabPage(self.mock_window)
@@ -68,16 +61,22 @@ class TestContextMenuTabs(unittest.TestCase):
         self.assertEqual(page.slider_vol.value(), 25)
         self.assertEqual(page.lbl_vol.text(), "ГРОМКОСТЬ: 25%")
 
-        # Test SFX toggles
+        # Test SFX and voice toggles
         self.assertTrue(hasattr(page, "chk_speech"))
         self.assertTrue(hasattr(page, "chk_fx"))
         self.assertTrue(hasattr(page, "combo_mic"))
+        self.assertTrue(hasattr(page, "chk_voice"))
+        page.chk_voice.setChecked(False)
+        self.mock_actions.toggle_voice.assert_called()
 
     def test_visual_tab_page_creation_and_screens(self) -> None:
         page = VisualTabPage(self.mock_window)
         self.assertIsNotNone(page)
         self.assertTrue(hasattr(page, "combo_screen"))
         self.assertTrue(hasattr(page, "btn_breach"))
+        self.assertTrue(hasattr(page, "chk_glitches"))
+        page.chk_glitches.setChecked(False)
+        self.mock_actions.toggle_glitches.assert_called()
         self.assertEqual(len(page._scale_buttons), 5)
         self.assertEqual(len(page._glitch_buttons), 3)
 
@@ -90,7 +89,9 @@ class TestContextMenuTabs(unittest.TestCase):
         self.assertTrue(hasattr(page, "chk_reminders"))
         self.assertTrue(hasattr(page, "chk_game"))
         self.assertTrue(hasattr(page, "chk_process_monitoring"))
-        self.assertFalse(hasattr(page, "chk_discord"))
+        self.assertTrue(hasattr(page, "chk_discord"))
+        page.chk_discord.setChecked(False)
+        self.mock_actions.set_discord_enabled.assert_called_with(False)
         self.assertTrue(hasattr(page, "chk_shredder"))
         self.assertEqual(len(page._timeout_buttons), 3)
 

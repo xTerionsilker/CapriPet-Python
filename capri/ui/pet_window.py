@@ -78,19 +78,7 @@ __all__ = [
 ROOT = Path(__file__).resolve().parent.parent.parent
 ASSETS = ROOT / "assets"
 CAPRI_ICON = ASSETS / "capri_icon.png"
-VAR_ASSETS = ASSETS / "var"
-
-IDLE_DIR = VAR_ASSETS / "idle"
-OTHER_DIR = VAR_ASSETS / "other"
-THINKING_DIR = VAR_ASSETS / "thinking"
-
-OVERLAY_IDLE = IDLE_DIR / "1.png"
-OVERLAY_OTHER = OTHER_DIR / "1.png"
-OVERLAY_THINKING = THINKING_DIR / "1.png"
-
-OVERLAY_SIT = OVERLAY_IDLE
-OVERLAY_STAY = OVERLAY_THINKING
-OVERLAY_CROUCH = OVERLAY_OTHER
+SPRITES_DIR = ASSETS / "sprites"
 
 STARTUP_LINES = (
     "Йо, хост! Нейролинк замкнуло, я снова у тебя в стеке!",

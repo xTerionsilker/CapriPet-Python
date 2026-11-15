@@ -5,6 +5,9 @@
 # ⟡ C A P R I ⟡
 ### Autonomous Cyber-Pet & Desktop Companion // Project Capricorn
 
+[![Author](https://img.shields.io/badge/Author%2C%20Architect%2C%20Design-xTerionsilker-F6023F?style=flat-square&labelColor=020106)](https://github.com/xTerionsilker)
+[![Co-Author](https://img.shields.io/badge/Code%20%26%20Dev-Gemini%20(Antigravity)-126EE9?style=flat-square&labelColor=020106)](https://deepmind.google/technologies/gemini/)
+<br/>
 [![Security Audit](https://img.shields.io/badge/Security-Bandit%20%26%20pip--audit-06F868?style=flat-square&labelColor=020106)](scripts/verify.bat)
 [![Lint & Code Quality](https://img.shields.io/badge/Local%20CI-6%2F6%20Verified-F6023F?style=flat-square&labelColor=020106)](scripts/verify.bat)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-F6023F?style=flat-square&labelColor=020106)](https://www.python.org/downloads/)
@@ -38,7 +41,7 @@
 | 🗑️ **Blackwall Shredder** | `DoD 5220.22-M Multi-Pass` | Безвозвратное криптографическое уничтожение файлов и папок простым перетаскиванием (drag-and-drop) на персонажа |
 | ⚡ **Procedural CRT & FX** | `Procedural Shaders / Lightning` | Динамические CRT-сканлайны, глитчи смещения, звуковой синтез речи и молниевый прицел курсора мыши |
 | 🎭 **Engram Pranks & Easter Eggs** | `EngramPrankCoordinator / Glitch FX` | Интерактивные сбои сознания (Relic memory dump, вирусное таяние экрана Melting Screen и молниевое уклонение от курсора мыши) с защитой кулдаунами |
-| 🎛️ **Cyber Hub (16:9 Menu)** | `QDialog 16:9 / Datamosh FX` | Центрированное 16:9 киберпанк-окно управления параметрами (CORE, AUDIO, VISUAL, SYSTEM) с таб-навигацией и Blackwall Datamosh анимацией |
+| 🎛️ **Cyber Hub (16:9 Menu)** | `QDialog 16:9 / Datamosh FX` | Центрированное 16:9 киберпанк-окно управления параметрами (CORE, AUDIO, VISUAL, SYSTEM) с таб-навигацией, перетаскиванием мышью и Blackwall Datamosh анимацией |
 | 🎵 **Media Orchestrator** | `Spotify MPRIS & YouTube Search` | Управление громкостью, системным звуком, воспроизведением Spotify и интерактивный выбор видео |
 
 ## ⚙️ Системные требования
@@ -160,7 +163,7 @@ pip install -r requirements.txt
 | `Ctrl + Q` | Окно приложения | Завершение работы и выгрузка Капри |
 | **ЛКМ (Зажатие и перетаскивание)** | Спрайт Капри | Плавное перемещение персонажа по экрану |
 | **Наведение / Клик (во время пасхалки)** | Спрайт Капри | Реактивное молниевое уклонение спрайта от курсора (Cursor Dodge) с саркастичной репликой |
-| **ПКМ (Правый клик)** | Спрайт Капри / Трей | 16:9 киберпанк-окно настроек Cyber Hub (переключение режимов, громкость, стелс) |
+| **ПКМ (Правый клик)** | Спрайт Капри / Трей | 16:9 перемещаемое киберпанк-окно настроек Cyber Hub (переключение режимов, громкость, стелс) |
 | **Drag-and-Drop (Файл / Папка)** | Спрайт Капри | Активация **Blackwall Shredder**: безвозвратное уничтожение брошенного файла (с подтверждением) |
 | **Клик по HUD над таскбаром** | Панель задач | Открытие Quick Bar кибердеки для текстового ввода команд |
 
