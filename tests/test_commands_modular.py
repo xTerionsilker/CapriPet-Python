@@ -6,11 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from capri.audio.sfx_generators import (
-    DEFAULT_SAMPLE_RATE,
-    _generate_chirp_wav,
-    _generate_swoosh_wav,
-)
+from capri.audio.sfx_player import SFX_DIR
 from capri.commands import (
     DEFAULT_COMMAND_CLASSES,
     create_default_registry,
@@ -32,6 +28,13 @@ from capri.commands.web import GoogleSearchCommand
 from capri.ui.reminder_dialog import ReminderRangeDialog
 from capri.ui.shredder_drop_handler import ShredderDropHandler
 from capri.ui.tray_manager import CAPRI_ICON, TrayManager
+from scripts.bake_sfx import (
+    DEFAULT_SAMPLE_RATE,
+    _generate_chirp_wav,
+    _generate_swoosh_wav,
+    _to_pcm_16bit,
+    _write_wav_16bit,
+)
 
 
 class TestCommandsModular(unittest.TestCase):
@@ -71,6 +74,40 @@ class TestCommandsModular(unittest.TestCase):
             chirp_path = Path(td) / "test_chirp.wav"
             _generate_chirp_wav(chirp_path, sample_rate=DEFAULT_SAMPLE_RATE, duration=0.05)
             self.assertTrue(chirp_path.exists())
+
+        # Проверка наличия запеченных аудиофайлов в assets/sfx
+        self.assertTrue(SFX_DIR.is_dir())
+        self.assertTrue((SFX_DIR / "cyber_swoosh.wav").exists())
+        self.assertTrue((SFX_DIR / "retro_chirp.wav").exists())
+        self.assertGreaterEqual(len(list(SFX_DIR.glob("*.wav"))), 20)
+
+    def test_pcm_16bit_clamping_and_saturation(self) -> None:
+        import numpy as np
+
+        packed_zero = _to_pcm_16bit(0.0)
+        self.assertEqual(len(packed_zero), 2)
+        packed_pos = _to_pcm_16bit(5.0)
+        self.assertEqual(len(packed_pos), 2)
+        packed_array = _to_pcm_16bit(np.zeros(100))
+        self.assertEqual(len(packed_array), 200)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            wav_path = Path(tmp_dir) / "test.wav"
+            frames = _to_pcm_16bit(np.zeros(100))
+            _write_wav_16bit(wav_path, frames, sample_rate=DEFAULT_SAMPLE_RATE)
+            self.assertTrue(wav_path.exists())
+            self.assertGreater(wav_path.stat().st_size, 44)
+
+    def test_session_svg_icons_valid(self) -> None:
+        from capri.effects.session_animations import _ICONS_DIR, _get_action_renderer
+
+        self.assertTrue(_ICONS_DIR.is_dir())
+        for action in ("lock", "power_off", "suspend", "reboot"):
+            renderer = _get_action_renderer(action)
+            self.assertIsNotNone(renderer)
+            assert renderer is not None
+            self.assertTrue(renderer.isValid())
+            self.assertFalse(renderer.defaultSize().isEmpty())
 
     def test_tray_and_dialog_classes_available(self) -> None:
         self.assertTrue(hasattr(TrayManager, "init_tray"))

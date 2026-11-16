@@ -1,29 +1,51 @@
-"""Procedural audio waveform synthesis and DSP algorithms for CapriPet.
+"""Standalone SFX audio baking script for CapriPet assets/sfx directory.
 
-Pure mathematical generation of 16-bit PCM WAV audio buffers:
+Synthesizes Studio Trigger cyber soundscape 16-bit PCM WAV audio assets:
 swoosh, chirp, lightning discharge, Blackwall breach, and system transitions.
-Independent from Qt.
+Executed offline or during development to generate static files.
 """
-
 
 from __future__ import annotations
 
+import argparse
 import logging
 import math
 import random
-import tempfile
-import threading
+import sys
+import wave
+from collections.abc import Sequence
 from pathlib import Path
 
-from .sfx_core import (
-    DEFAULT_SAMPLE_RATE,
-)
-from .sfx_core import (
-    to_pcm_16bit as _to_pcm_16bit,
-)
-from .sfx_core import (
-    write_wav_16bit as _write_wav_16bit,
-)
+import numpy as np
+
+DEFAULT_SAMPLE_RATE: int = 44100
+
+
+def _write_wav_16bit(
+    file_path: Path,
+    frames: bytes | bytearray,
+    sample_rate: int = DEFAULT_SAMPLE_RATE,
+) -> None:
+    """Записывает 16-bit моно PCM WAV файл с атомарным созданием директории."""
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    with wave.open(str(file_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(frames)
+
+
+def _to_pcm_16bit(
+    signal: float | Sequence[float] | np.ndarray,
+    drive: float = 1.0,
+    master_gain: float = 0.95,
+) -> bytes:
+    """Применяет нелинейную сатурацию tanh и преобразует массив в 16-bit PCM байты."""
+    arr = np.asarray(signal, dtype=np.float64)
+    saturated = np.tanh(arr * drive) * master_gain
+    clamped = np.clip(saturated, -1.0, 1.0)
+    samples = (clamped * 32767.0).astype(np.int16)
+    return samples.tobytes()
 
 logger = logging.getLogger(__name__)
 
@@ -650,52 +672,61 @@ def _generate_intro_breach_wav(
     _write_wav_16bit(file_path, frames, sample_rate)
 
 
-def _ensure_wav_cache_sync(temp_dir: Path) -> None:
-    """Генерирует отсутствующие процедурные WAV файлы в кэше."""
-    try:
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        jobs = [
-            (temp_dir / "cyber_swoosh.wav", lambda p: _generate_swoosh_wav(p)),
-            (temp_dir / "cyber_close.wav", lambda p: _generate_close_wav(p)),
-            (temp_dir / "retro_chirp.wav", lambda p: _generate_chirp_wav(p)),
-            (temp_dir / "cyber_lightning_strike.wav", lambda p: _generate_lightning_strike_wav(p)),
-            (temp_dir / "cyber_lightning_arc.wav", lambda p: _generate_lightning_arc_wav(p)),
-            (temp_dir / "cyber_lightning_zap.wav", lambda p: _generate_lightning_zap_wav(p)),
-            (temp_dir / "cyber_teleport_drop.wav", lambda p: _generate_teleport_drop_wav(p)),
-            (temp_dir / "cyber_target_acquired.wav", lambda p: _generate_target_acquired_wav(p)),
-            (temp_dir / "cyber_data_rip.wav", lambda p: _generate_data_rip_wav(p)),
-            (temp_dir / "cyber_voice_start.wav", lambda p: _generate_voice_start_wav(p)),
-            (temp_dir / "cyber_voice_success.wav", lambda p: _generate_voice_success_wav(p)),
-            (temp_dir / "cyber_voice_cancel.wav", lambda p: _generate_voice_cancel_wav(p)),
-            (temp_dir / "cyber_core_destabilize.wav", lambda p: _generate_core_destabilize_wav(p)),
-            (temp_dir / "cyber_relay_snap.wav", lambda p: _generate_relay_snap_wav(p)),
-            (temp_dir / "cyber_intro_breach.wav", lambda p: _generate_intro_breach_wav(p)),
-            (temp_dir / "cyber_session_lock.wav", lambda p: _generate_session_lock_wav(p)),
-            (temp_dir / "cyber_session_power.wav", lambda p: _generate_session_power_wav(p)),
-            (temp_dir / "cyber_session_suspend.wav", lambda p: _generate_session_suspend_wav(p)),
-            (temp_dir / "cyber_session_reboot.wav", lambda p: _generate_session_reboot_wav(p)),
-            (temp_dir / "cyber_chirp_normal.wav", lambda p: _generate_chirp_wav(p, style="normal")),
-            (temp_dir / "cyber_chirp_exclamation.wav", lambda p: _generate_chirp_wav(p, style="exclamation")),
-            (temp_dir / "cyber_chirp_question.wav", lambda p: _generate_chirp_wav(p, style="question")),
-            (temp_dir / "cyber_chirp_ellipsis.wav", lambda p: _generate_chirp_wav(p, style="ellipsis")),
-        ]
-        for path, generator in jobs:
-            if not path.exists():
-                generator(path)
-    except (OSError, ValueError, RuntimeError) as exc:
-        logger.warning("Ошибка при фоновой генерации SFX кэша: %s", exc)
+def get_default_sfx_dir() -> Path:
+    """Возвращает стандартный путь директории assets/sfx."""
+    return Path(__file__).resolve().parent.parent / "assets" / "sfx"
 
 
-def preload_sfx_cache_async() -> threading.Thread:
-    """Запускает фоновый воркер предварительной генерации аудио-файлов без блокировки UI."""
-    temp_dir = Path(tempfile.gettempdir()) / f"capri_sfx_{SFX_VERSION}"
-    thread = threading.Thread(
-        target=_ensure_wav_cache_sync,
-        args=(temp_dir,),
-        name="CapriSfxPreloadThread",
-        daemon=True,
-    )
-    thread.start()
-    return thread
+def bake_all_sfx(output_dir: Path, force: bool = False) -> list[Path]:
+    """Генерирует все процедурные WAV файлы в целевую директорию assets/sfx."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    jobs = [
+        (output_dir / "cyber_swoosh.wav", lambda p: _generate_swoosh_wav(p)),
+        (output_dir / "cyber_close.wav", lambda p: _generate_close_wav(p)),
+        (output_dir / "retro_chirp.wav", lambda p: _generate_chirp_wav(p)),
+        (output_dir / "cyber_lightning_strike.wav", lambda p: _generate_lightning_strike_wav(p)),
+        (output_dir / "cyber_lightning_arc.wav", lambda p: _generate_lightning_arc_wav(p)),
+        (output_dir / "cyber_lightning_zap.wav", lambda p: _generate_lightning_zap_wav(p)),
+        (output_dir / "cyber_teleport_drop.wav", lambda p: _generate_teleport_drop_wav(p)),
+        (output_dir / "cyber_target_acquired.wav", lambda p: _generate_target_acquired_wav(p)),
+        (output_dir / "cyber_data_rip.wav", lambda p: _generate_data_rip_wav(p)),
+        (output_dir / "cyber_voice_start.wav", lambda p: _generate_voice_start_wav(p)),
+        (output_dir / "cyber_voice_success.wav", lambda p: _generate_voice_success_wav(p)),
+        (output_dir / "cyber_voice_cancel.wav", lambda p: _generate_voice_cancel_wav(p)),
+        (output_dir / "cyber_core_destabilize.wav", lambda p: _generate_core_destabilize_wav(p)),
+        (output_dir / "cyber_relay_snap.wav", lambda p: _generate_relay_snap_wav(p)),
+        (output_dir / "cyber_intro_breach.wav", lambda p: _generate_intro_breach_wav(p)),
+        (output_dir / "cyber_session_lock.wav", lambda p: _generate_session_lock_wav(p)),
+        (output_dir / "cyber_session_power.wav", lambda p: _generate_session_power_wav(p)),
+        (output_dir / "cyber_session_suspend.wav", lambda p: _generate_session_suspend_wav(p)),
+        (output_dir / "cyber_session_reboot.wav", lambda p: _generate_session_reboot_wav(p)),
+        (output_dir / "cyber_chirp_normal.wav", lambda p: _generate_chirp_wav(p, style="normal")),
+        (output_dir / "cyber_chirp_exclamation.wav", lambda p: _generate_chirp_wav(p, style="exclamation")),
+        (output_dir / "cyber_chirp_question.wav", lambda p: _generate_chirp_wav(p, style="question")),
+        (output_dir / "cyber_chirp_ellipsis.wav", lambda p: _generate_chirp_wav(p, style="ellipsis")),
+    ]
+    generated: list[Path] = []
+    for path, generator in jobs:
+        if force or not path.exists():
+            generator(path)
+            generated.append(path)
+    return generated
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Запекание звуковых ассетов CapriPet в assets/sfx")
+    parser.add_argument("--output", type=Path, default=get_default_sfx_dir(), help="Целевая папка для WAV")
+    parser.add_argument("--force", action="store_true", help="Перезаписать существующие WAV файлы")
+    args = parser.parse_args()
+
+    out_dir: Path = args.output
+    print(f"[*] Запекание SFX в: {out_dir}")
+    gen = bake_all_sfx(out_dir, force=args.force)
+    print(f"[+] Успешно запечено файлов: {len(gen)} (всего доступно {23})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
 
 

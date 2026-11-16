@@ -98,6 +98,16 @@ class TestDialogueManager(unittest.TestCase):
             self.assertTrue(bool(preset.meta.id))
             self.assertTrue(bool(preset.inactivity.reminders))
             self.assertIn("dev", preset.process_reactions)
+            self.assertTrue(bool(preset.cinematics.bios_title))
+            self.assertTrue(bool(preset.cinematics.intro_quote))
+
+    def test_cinematics_dialogue_accessible(self) -> None:
+        dm = get_dialogue_manager()
+        cin = dm.cinematics
+        self.assertIn("ARASAKA", cin.bios_title)
+        self.assertGreaterEqual(len(cin.bios_lines), 3)
+        self.assertIn("CRITICAL", cin.panic_title)
+        self.assertIn("руль", cin.intro_quote)
 
     def test_singleton(self) -> None:
         dm1 = get_dialogue_manager()

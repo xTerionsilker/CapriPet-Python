@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Cyberpunk Reload/Reboot Circular Arrow -->
+  <path d="M24 10 A14 14 0 1 1 11.5 19.5" fill="none" stroke="#F6023F" stroke-width="3" stroke-linecap="square"/>
+  <polyline points="7,13 12,20 19,15" fill="none" stroke="#06F868" stroke-width="3" stroke-linecap="square"/>
+</svg>

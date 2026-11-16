@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-import time
-
 from PySide6.QtCore import QRect, Qt, QTimer
 from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QWidget
@@ -48,7 +46,6 @@ class CyberVoiceHud(QWidget):
         self._revealed_chars = 0
         self._mode_tag = "CAPRI//VOICE_INPUT"
         self._anim_tick = 0
-        self._hide_timestamp = 0.0
 
         self._width = 460
         self._height = 76
@@ -77,7 +74,6 @@ class CyberVoiceHud(QWidget):
         self._target_recognized_text = clean
         self._revealed_chars = 0
         self._status_text = "RECOGNIZED"
-        self._hide_timestamp = time.monotonic() + (keep_ms / 1000.0)
         self._auto_hide_timer.stop()
         self._auto_hide_timer.start(keep_ms)
         self._reposition()

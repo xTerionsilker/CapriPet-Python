@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Cyberpunk Padlock with 45 chamfer -->
+  <path d="M16 20 V14 A8 8 0 0 1 32 14 V20" fill="none" stroke="#F9F9F9" stroke-width="3" stroke-linecap="square"/>
+  <path d="M10 20 H38 V38 L34 42 H14 L10 38 Z" fill="#020106" stroke="#F6023F" stroke-width="2.5"/>
+  <rect x="22" y="27" width="4" height="8" fill="#06F868"/>
+</svg>

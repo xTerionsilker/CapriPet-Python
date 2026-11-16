@@ -1,30 +1,20 @@
-"""Синтез и воспроизведение звуковых эффектов речи и интерфейса.
+"""Воспроизведение звуковых эффектов речи и интерфейса CapriPet.
 
-Управляет воспроизведением процедурных аудиофайлов через QSoundEffect.
-Математика синтеза PCM-волн вынесена в capri.audio.sfx_generators.
+Управляет воспроизведением запеченных аудиофайлов из assets/sfx через QSoundEffect.
 """
 
 from __future__ import annotations
 
 import logging
-import tempfile
 import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QUrl
 from PySide6.QtMultimedia import QMediaDevices, QSoundEffect
 
-from .sfx_generators import (
-    SFX_VERSION,
-    _ensure_wav_cache_sync,
-    _generate_session_lock_wav,
-    _generate_session_power_wav,
-    _generate_session_reboot_wav,
-    _generate_session_suspend_wav,
-    preload_sfx_cache_async,
-)
-
 logger = logging.getLogger(__name__)
+
+SFX_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "sfx"
 
 
 class SpeechSFX(QObject):
@@ -67,7 +57,6 @@ class SpeechSFX(QObject):
         self._core_destabilize_effect: QSoundEffect | None = None
         self._session_effects: dict[str, QSoundEffect] = {}
         self._chirp_pool: list[QSoundEffect] = []
-        self._chirp_index = 0
         self._chirp_pools_by_style: dict[str, list[QSoundEffect]] = {}
         self._chirp_indices_by_style: dict[str, int] = {}
         self._chirp_paths_by_style: dict[str, Path] = {}
@@ -82,43 +71,28 @@ class SpeechSFX(QObject):
 
     def _init_sounds(self) -> None:
         try:
-            temp_dir = Path(tempfile.gettempdir()) / f"capri_sfx_{SFX_VERSION}"
-            swoosh_path = temp_dir / "cyber_swoosh.wav"
-            close_path = temp_dir / "cyber_close.wav"
-            chirp_path = temp_dir / "retro_chirp.wav"
-            strike_path = temp_dir / "cyber_lightning_strike.wav"
-            arc_path = temp_dir / "cyber_lightning_arc.wav"
-            zap_path = temp_dir / "cyber_lightning_zap.wav"
-            drop_path = temp_dir / "cyber_teleport_drop.wav"
-            target_path = temp_dir / "cyber_target_acquired.wav"
-            data_rip_path = temp_dir / "cyber_data_rip.wav"
-            voice_start_path = temp_dir / "cyber_voice_start.wav"
-            voice_success_path = temp_dir / "cyber_voice_success.wav"
-            voice_cancel_path = temp_dir / "cyber_voice_cancel.wav"
-            core_destabilize_path = temp_dir / "cyber_core_destabilize.wav"
-            relay_snap_path = temp_dir / "cyber_relay_snap.wav"
-            intro_breach_path = temp_dir / "cyber_intro_breach.wav"
+            swoosh_path = SFX_DIR / "cyber_swoosh.wav"
+            close_path = SFX_DIR / "cyber_close.wav"
+            chirp_path = SFX_DIR / "retro_chirp.wav"
+            strike_path = SFX_DIR / "cyber_lightning_strike.wav"
+            arc_path = SFX_DIR / "cyber_lightning_arc.wav"
+            zap_path = SFX_DIR / "cyber_lightning_zap.wav"
+            drop_path = SFX_DIR / "cyber_teleport_drop.wav"
+            target_path = SFX_DIR / "cyber_target_acquired.wav"
+            data_rip_path = SFX_DIR / "cyber_data_rip.wav"
+            voice_start_path = SFX_DIR / "cyber_voice_start.wav"
+            voice_success_path = SFX_DIR / "cyber_voice_success.wav"
+            voice_cancel_path = SFX_DIR / "cyber_voice_cancel.wav"
+            core_destabilize_path = SFX_DIR / "cyber_core_destabilize.wav"
+            relay_snap_path = SFX_DIR / "cyber_relay_snap.wav"
+            intro_breach_path = SFX_DIR / "cyber_intro_breach.wav"
 
             session_specs = {
-                "lock": (
-                    "cyber_session_lock.wav",
-                    _generate_session_lock_wav,
-                ),
-                "power_off": (
-                    "cyber_session_power.wav",
-                    _generate_session_power_wav,
-                ),
-                "suspend": (
-                    "cyber_session_suspend.wav",
-                    _generate_session_suspend_wav,
-                ),
-                "reboot": (
-                    "cyber_session_reboot.wav",
-                    _generate_session_reboot_wav,
-                ),
+                "lock": "cyber_session_lock.wav",
+                "power_off": "cyber_session_power.wav",
+                "suspend": "cyber_session_suspend.wav",
+                "reboot": "cyber_session_reboot.wav",
             }
-
-            _ensure_wav_cache_sync(temp_dir)
 
             self._swoosh_path = swoosh_path
             self._close_path = close_path
@@ -136,8 +110,8 @@ class SpeechSFX(QObject):
             self._relay_snap_path = relay_snap_path
             self._intro_breach_path = intro_breach_path
 
-            for action, (filename, _generator) in session_specs.items():
-                path = temp_dir / filename
+            for action, filename in session_specs.items():
+                path = SFX_DIR / filename
                 self._session_paths[action] = path
                 effect = QSoundEffect(self)
                 effect.setSource(QUrl.fromLocalFile(str(path)))
@@ -220,7 +194,7 @@ class SpeechSFX(QObject):
             self._chirp_indices_by_style = {}
             styles = ("normal", "exclamation", "question", "ellipsis")
             for st in styles:
-                st_path = temp_dir / f"cyber_chirp_{st}.wav"
+                st_path = SFX_DIR / f"cyber_chirp_{st}.wav"
                 self._chirp_paths_by_style[st] = st_path
                 st_pool: list[QSoundEffect] = []
                 st_url = QUrl.fromLocalFile(str(st_path))
@@ -518,7 +492,7 @@ def get_speech_sfx() -> SpeechSFX:
 
 
 __all__ = [
+    "SFX_DIR",
     "SpeechSFX",
     "get_speech_sfx",
-    "preload_sfx_cache_async",
 ]
