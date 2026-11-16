@@ -47,3 +47,6 @@ models/*
 build/
 dist/
 *.egg-info/
+
+graphify-out/
+
