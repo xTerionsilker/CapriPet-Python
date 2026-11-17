@@ -130,6 +130,17 @@ class TestContextMenuWindow(unittest.TestCase):
         win.mouseReleaseEvent(release_event)
         self.assertIsNone(win._drag_start_pos)
 
+    def test_scroll_area_and_resizable(self) -> None:
+        win = CyberContextMenuWindow(self.mock_window)
+        self.assertTrue(hasattr(win, "scroll_area"))
+        self.assertTrue(hasattr(win, "size_grip"))
+        self.assertEqual(win.minimumWidth(), 480)
+        self.assertEqual(win.minimumHeight(), 270)
+        # Test resize
+        win.resize(600, 400)
+        self.assertEqual(win.width(), 600)
+        self.assertEqual(win.height(), 400)
+
 
 if __name__ == "__main__":
     unittest.main()
