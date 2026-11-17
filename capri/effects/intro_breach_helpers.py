@@ -78,18 +78,18 @@ def draw_cyber_error_card(
     painter.setBrush(with_alpha(COLOR_OBSIDIAN, int(alpha_val * 0.94)))
     painter.drawPolygon(poly)
 
-    # Верхняя плашка заголовка
+    # Верхняя плашка заголовка (всегда акцентный красный Neon Crimson)
     header_h = 24
     header_rect = QRect(cur_rect.x(), cur_rect.y(), cur_rect.width(), header_h)
-    painter.fillRect(header_rect, with_alpha(card.border_color, int(alpha_val * 0.28)))
+    painter.fillRect(header_rect, with_alpha(COLOR_CRIMSON, int(alpha_val * 0.75)))
 
     # Заголовок и код ошибки
     painter.setFont(get_hud_font(9, bold=True))
     painter.setPen(with_alpha(COLOR_WHITE, alpha_val))
     painter.drawText(cur_rect.x() + 10, cur_rect.y() + 17, card.title)
 
-    painter.setFont(get_hud_font(8, bold=False))
-    painter.setPen(with_alpha(card.border_color, alpha_val))
+    painter.setFont(get_hud_font(8, bold=True))
+    painter.setPen(with_alpha(COLOR_WHITE, int(alpha_val * 0.9)))
     painter.drawText(
         cur_rect.x(),
         cur_rect.y() + 4,
