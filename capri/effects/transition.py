@@ -25,9 +25,9 @@ from .transition_fx import (
     DURATION_OUT_MS,
     DURATION_POINT_MS,
     PIXEL_SIZE,
-    CyberPixelBolt,
     CyberPixelSpark,
     CyberTrailFragment,
+    CyberVectorBolt,
     draw_hazard_frame,
     draw_scan_sweep,
     draw_scanlines,
@@ -118,7 +118,7 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
         )
 
         self._is_reduced_motion = is_reduced_motion_enabled()
-        self._bolts: list[CyberPixelBolt] = []
+        self._bolts: list[CyberVectorBolt] = []
         self._sparks: list[CyberPixelSpark] = []
         self._trail: list[CyberTrailFragment] = []
 
@@ -222,9 +222,11 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
             starts = perimeter_circuit_points(self._local_window, 6)
             for s in starts:
                 self._bolts.append(
-                    CyberPixelBolt(
+                    CyberVectorBolt(
                         s,
                         self._local_target_point,
+                        base_width=12.0,
+                        tip_width=2.0,
                         branch_chance=0.0,
                     )
                 )

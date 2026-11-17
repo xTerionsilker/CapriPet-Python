@@ -21,8 +21,8 @@ from .transition_fx import (
     COLOR_WHITE,
     PIXEL_SIZE,
     CyberKiroshiReticle,
-    CyberPixelBolt,
     CyberPixelSpark,
+    CyberVectorBolt,
     with_alpha,
 )
 
@@ -59,7 +59,7 @@ class LightningTetherOverlay(QWidget):
         self._start_pos = QPoint(0, 0)
         self._target_pos = QPoint(0, 0)
 
-        self._bolts: list[CyberPixelBolt] = []
+        self._bolts: list[CyberVectorBolt] = []
         self._sparks: list[CyberPixelSpark] = []
         self._start_time = 0.0
 
@@ -133,43 +133,36 @@ class LightningTetherOverlay(QWidget):
             return
 
         tension = min(1.0, dist / 800.0)
-        branch_rate = 0.28 + 0.35 * tension
+        base_w = 16.0 + 10.0 * tension
 
+        # Основной векторный луч молнии
         self._bolts.append(
-            CyberPixelBolt(
+            CyberVectorBolt(
                 local_start,
                 local_target,
-                branch_chance=branch_rate,
+                base_width=base_w,
+                tip_width=2.5,
+                branch_chance=0.35 + 0.3 * tension,
+                color=COLOR_CRIMSON,
             )
         )
 
-        if dist > 35:
+        # Дополнительная параллельная искра при сильном натяжении
+        if dist > 40:
             jitter_start = local_start + QPoint(
-                random.randint(-14, 14), random.randint(-14, 14)
-            )
-            jitter_target = local_target + QPoint(
                 random.randint(-10, 10), random.randint(-10, 10)
             )
+            jitter_target = local_target + QPoint(
+                random.randint(-6, 6), random.randint(-6, 6)
+            )
             self._bolts.append(
-                CyberPixelBolt(
+                CyberVectorBolt(
                     jitter_start,
                     jitter_target,
-                    branch_chance=min(0.65, branch_rate + 0.1),
-                )
-            )
-
-        if dist > 250 or tension > 0.4:
-            arc_start = local_start + QPoint(
-                random.randint(-8, 8), random.randint(-8, 8)
-            )
-            arc_target = local_target + QPoint(
-                random.randint(-12, 12), random.randint(-12, 12)
-            )
-            self._bolts.append(
-                CyberPixelBolt(
-                    arc_start,
-                    arc_target,
-                    branch_chance=0.45,
+                    base_width=max(4.0, base_w * 0.4),
+                    tip_width=1.5,
+                    branch_chance=0.2,
+                    color=COLOR_CRIMSON,
                 )
             )
 
@@ -213,7 +206,7 @@ class LightningTetherOverlay(QWidget):
 
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         offset = self.geometry().topLeft()
         local_start = self._start_pos - offset

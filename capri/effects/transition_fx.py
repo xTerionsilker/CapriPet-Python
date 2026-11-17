@@ -5,8 +5,8 @@ from __future__ import annotations
 import math
 import random
 
-from PySide6.QtCore import QPoint, QRect, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtCore import QPoint, QPointF, QRect, Qt, Signal
+from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import QWidget
 
 from ..integrations.system_control import is_reduced_motion_enabled
@@ -64,10 +64,10 @@ __all__ = [
     "BlackwallBreachTransitionOverlay",
     "CyberHoloReticle",
     "CyberKiroshiReticle",
-    "CyberPixelBolt",
     "CyberPixelSpark",
     "CyberShockwaveRing",
     "CyberTrailFragment",
+    "CyberVectorBolt",
     "DissolveTransitionOverlay",
     "ScreenTransitionOverlay",
     "ShardTransitionOverlay",
@@ -441,224 +441,184 @@ class CyberPixelSpark:
             painter.fillRect(px, py, self.size, self.size, c)
 
 
-class CyberPixelBolt:
-    """Пиксельный электрический разряд с процедурными ветвлениями."""
+class CyberVectorBolt:
+    """Векторная монолитная молния переменной ширины в стиле Studio Trigger."""
 
     def __init__(
         self,
-        start: QPoint,
-        end: QPoint,
-        branch_chance: float = 0.30,
+        start: QPoint | QPointF,
+        end: QPoint | QPointF,
+        base_width: float = 20.0,
+        tip_width: float = 2.0,
+        branch_chance: float = 0.25,
+        color: QColor | None = None,
     ) -> None:
-        self.start = snap_point(start)
-        self.end = snap_point(end)
-        self._branch_chance = max(0.0, min(1.0, branch_chance))
-        self.segments: list[tuple[QPoint, QPoint]] = []
-        self.branches: list[list[tuple[QPoint, QPoint]]] = []
-        self.nodes: list[QPoint] = []
+        self.start = QPointF(start)
+        self.end = QPointF(end)
+        self.base_width = max(4.0, float(base_width))
+        self.tip_width = max(0.5, float(tip_width))
+        self.branch_chance = max(0.0, min(1.0, branch_chance))
+        self.color = color or COLOR_CRIMSON
+
+        self.spine_points: list[QPointF] = []
+        self.polygon = QPolygonF()
+        self.core_spine: list[QPointF] = []
+        self.branches: list[QPolygonF] = []
         self._rebuild()
 
     def _rebuild(self) -> None:
-        self.segments.clear()
+        self.spine_points.clear()
+        self.polygon.clear()
+        self.core_spine.clear()
         self.branches.clear()
-        self.nodes.clear()
 
         sx, sy = self.start.x(), self.start.y()
         ex, ey = self.end.x(), self.end.y()
-
         dx = ex - sx
         dy = ey - sy
         dist = math.hypot(dx, dy)
-        if dist < PIXEL_SIZE * 2:
+        if dist < 4.0:
             return
 
-        steps = max(5, min(20, int(dist // 26)))
-        nx = -dy / dist
-        ny = dx / dist
+        # Направляющий вектор и нормаль
+        ux = dx / dist
+        uy = dy / dist
+        nx = -uy
+        ny = ux
 
-        offset = 0.0
-        max_offset = min(70.0, max(18.0, dist * 0.22))
-        prev = self.start
-        key_points: list[QPoint] = [prev]
+        # Количество основных изломов (3-5 для фирменного аниме-зигзага)
+        steps = max(3, min(6, int(dist // 70) + 1))
+        pts: list[QPointF] = [self.start]
 
-        for i in range(1, steps + 1):
-            t = i / steps
-            bx = sx + dx * t
-            by = sy + dy * t
+        # Чередование направления изломов для резкого зигзага (как в референсе)
+        kink_sign = 1.0 if random.random() < 0.5 else -1.0
+        max_offset = min(65.0, max(14.0, dist * 0.18))
 
-            offset += random.uniform(-1.0, 1.0) * max_offset * 0.55
-            if random.random() < 0.18:
-                offset += random.choice((-1.0, 1.0)) * max_offset * 0.9
-            offset *= 0.58
-            offset = max(-max_offset, min(max_offset, offset))
+        for i in range(1, steps):
+            ratio = i / steps
+            bx = sx + dx * ratio
+            by = sy + dy * ratio
 
-            px = snap_pixel(bx + nx * offset + random.uniform(-6.0, 6.0))
-            py = snap_pixel(by + ny * offset + random.uniform(-6.0, 6.0))
-            cur = QPoint(px, py)
+            offset = kink_sign * random.uniform(max_offset * 0.65, max_offset)
+            pts.append(QPointF(bx + nx * offset, by + ny * offset))
+            kink_sign *= -1.0
 
-            if i == steps:
-                cur = QPoint(ex, ey)
+        pts.append(self.end)
+        self.spine_points = pts
+        self.core_spine = list(pts)
 
-            seg_dx = cur.x() - prev.x()
-            seg_dy = cur.y() - prev.y()
-            seg_len = math.hypot(seg_dx, seg_dy)
-            if seg_len > 18 and random.random() < 0.75:
-                if random.random() < 0.45:
-                    step_x = prev.x() + int(
-                        seg_dx * random.choice((0.3, 0.5, 0.7))
-                    )
-                    corner = QPoint(
-                        snap_pixel(step_x), snap_pixel(prev.y())
-                    )
-                    self.segments.append((prev, corner))
-                    self.segments.append((corner, cur))
-                else:
-                    mx = prev.x() + seg_dx * random.uniform(0.30, 0.70)
-                    my = prev.y() + seg_dy * random.uniform(0.30, 0.70)
-                    snx = -seg_dy / max(1.0, seg_len)
-                    sny = seg_dx / max(1.0, seg_len)
-                    kink = random.uniform(-18.0, 18.0)
-                    mid = QPoint(
-                        snap_pixel(mx + snx * kink),
-                        snap_pixel(my + sny * kink),
-                    )
-                    self.segments.append((prev, mid))
-                    self.segments.append((mid, cur))
+        # Построение контура полигона переменной ширины (tapering: от base_width к tip_width)
+        left_side: list[QPointF] = []
+        right_side: list[QPointF] = []
+
+        n_pts = len(pts)
+        for i, pt in enumerate(pts):
+            t = i / max(1, n_pts - 1)
+            half_w = (self.base_width * (1.0 - t) + self.tip_width * t) * 0.5
+
+            # Усредненная нормаль на стыке сегментов
+            if i == 0:
+                seg_dx = pts[1].x() - pt.x()
+                seg_dy = pts[1].y() - pt.y()
+            elif i == n_pts - 1:
+                seg_dx = pt.x() - pts[i - 1].x()
+                seg_dy = pt.y() - pts[i - 1].y()
             else:
-                self.segments.append((prev, cur))
+                seg_dx = pts[i + 1].x() - pts[i - 1].x()
+                seg_dy = pts[i + 1].y() - pts[i - 1].y()
 
-            key_points.append(cur)
-            prev = cur
+            seg_len = math.hypot(seg_dx, seg_dy) or 1.0
+            p_nx = -seg_dy / seg_len
+            p_ny = seg_dx / seg_len
 
-        forks = 0
-        max_forks = max(1, int(steps * self._branch_chance))
-        for i in range(1, len(key_points) - 2):
-            if forks >= max_forks:
-                break
-            if random.random() < self._branch_chance:
-                branch = self._build_branch(key_points[i], nx, ny, dist)
-                if branch:
-                    self.branches.append(branch)
-                    forks += 1
+            left_side.append(QPointF(pt.x() + p_nx * half_w, pt.y() + p_ny * half_w))
+            right_side.append(QPointF(pt.x() - p_nx * half_w, pt.y() - p_ny * half_w))
 
-    def _build_branch(
+        # Собираем замкнутый полигон: по левой стороне вперед, по правой назад
+        full_pts = left_side + list(reversed(right_side))
+        self.polygon = QPolygonF(full_pts)
+
+        # Генерация боковых клиновидных отростков
+        if self.branch_chance > 0.05 and n_pts >= 3:
+            for b_idx in range(1, n_pts - 1):
+                if random.random() < self.branch_chance:
+                    b_poly = self._create_branch_polygon(pts[b_idx], ux, uy, dist)
+                    if b_poly and not b_poly.isEmpty():
+                        self.branches.append(b_poly)
+
+    def _create_branch_polygon(
         self,
-        origin: QPoint,
-        main_nx: float,
-        main_ny: float,
-        main_dist: float,
-    ) -> list[tuple[QPoint, QPoint]]:
-        branch: list[tuple[QPoint, QPoint]] = []
+        origin: QPointF,
+        ux: float,
+        uy: float,
+        total_dist: float,
+    ) -> QPolygonF:
+        side = 1.0 if random.random() < 0.5 else -1.0
+        angle = math.atan2(uy, ux) + side * random.uniform(0.6, 1.2)
+        b_len = random.uniform(25.0, min(120.0, total_dist * 0.4))
+        kink = random.uniform(-15.0, 15.0)
 
-        angle_sign = 1.0 if random.random() < 0.5 else -1.0
-        base_angle = math.atan2(main_ny, main_nx)
-        rad = base_angle + angle_sign * random.uniform(0.45, 1.15)
-        branch_len = random.uniform(
-            22.0, min(110.0, max(30.0, main_dist * 0.38))
-        )
-        steps = random.randint(2, 5)
+        mid_x = origin.x() + math.cos(angle) * (b_len * 0.5) + math.cos(angle + math.pi / 2) * kink
+        mid_y = origin.y() + math.sin(angle) * (b_len * 0.5) + math.sin(angle + math.pi / 2) * kink
+        tip_x = origin.x() + math.cos(angle) * b_len
+        tip_y = origin.y() + math.sin(angle) * b_len
 
-        prev = origin
-        for i in range(1, steps + 1):
-            t = i / steps
-            spread = branch_len * t
-            jitter = random.uniform(-12.0, 12.0) * t
-            px = snap_pixel(
-                origin.x()
-                + math.cos(rad) * spread
-                + math.cos(rad + math.pi / 2) * jitter
-            )
-            py = snap_pixel(
-                origin.y()
-                + math.sin(rad) * spread
-                + math.sin(rad + math.pi / 2) * jitter
-            )
-            cur = QPoint(px, py)
-            branch.append((prev, cur))
-            prev = cur
-        return branch
+        w_b = self.base_width * 0.45
+        b_nx = -math.sin(angle)
+        b_ny = math.cos(angle)
 
-    def jitter(self) -> None:
+        return QPolygonF([
+            QPointF(origin.x() + b_nx * w_b, origin.y() + b_ny * w_b),
+            QPointF(mid_x + b_nx * (w_b * 0.4), mid_y + b_ny * (w_b * 0.4)),
+            QPointF(tip_x, tip_y),
+            QPointF(mid_x - b_nx * (w_b * 0.4), mid_y - b_ny * (w_b * 0.4)),
+            QPointF(origin.x() - b_nx * w_b, origin.y() - b_ny * w_b),
+        ])
 
-        if random.random() < 0.46:
+    def jitter(self, force: bool = False) -> None:
+        if force or random.random() < 0.65:
             self._rebuild()
 
-    def draw(self, painter: QPainter, progress: float) -> None:
-        if not self.segments or progress <= 0:
+    def draw(self, painter: QPainter, progress: float = 1.0) -> None:
+        if progress <= 0.0 or self.polygon.isEmpty():
             return
 
-        visible_count = max(
-            1, int(len(self.segments) * min(1.0, progress))
-        )
-        visible_segments = self.segments[:visible_count]
-        visible_branches: list[tuple[QPoint, QPoint]] = []
-        for branch in self.branches:
-            b_count = max(1, int(len(branch) * min(1.0, progress * 1.35)))
-            visible_branches.extend(branch[:b_count])
-
         painter.save()
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, False)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-        black_pen = QPen(with_alpha(COLOR_OBSIDIAN, 245), PIXEL_SIZE * 2)
-        black_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
-        black_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
-        painter.setPen(black_pen)
-        for p1, p2 in visible_segments:
-            painter.drawLine(p1, p2)
-        for p1, p2 in visible_branches:
-            painter.drawLine(p1, p2)
+        # 1. Сплошная заливка тела молнии фирменным цветом
+        alpha_val = int(255 * min(1.0, progress))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(with_alpha(self.color, alpha_val))
+        painter.drawPolygon(self.polygon)
 
-        glow_pen = QPen(with_alpha(COLOR_CRIMSON, 70), PIXEL_SIZE * 3)
-        glow_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
-        glow_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
-        painter.setPen(glow_pen)
-        for p1, p2 in visible_segments:
-            painter.drawLine(p1, p2)
+        # 2. Боковые отростки
+        for b_poly in self.branches:
+            painter.drawPolygon(b_poly)
 
-        red_pen = QPen(COLOR_CRIMSON, PIXEL_SIZE)
-        red_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
-        red_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
-        painter.setPen(red_pen)
-        for p1, p2 in visible_segments:
-            alpha = random.randint(185, 255)
-            painter.setPen(
-                QPen(with_alpha(COLOR_CRIMSON, alpha), PIXEL_SIZE)
-            )
-            painter.drawLine(p1, p2)
+        # 3. Тонкий белый стержень ядра (энергетический сердечник)
+        if len(self.core_spine) >= 2 and progress > 0.3:
+            core_pen = QPen(with_alpha(COLOR_WHITE, int(alpha_val * 0.95)), 1.8)
+            core_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            core_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+            painter.setPen(core_pen)
+            for idx in range(len(self.core_spine) - 1):
+                painter.drawLine(self.core_spine[idx], self.core_spine[idx + 1])
 
-        core_pen = QPen(
-            with_alpha(COLOR_WHITE, random.randint(190, 255)),
-            max(1, PIXEL_SIZE // 2),
-        )
-        core_pen.setCapStyle(Qt.PenCapStyle.SquareCap)
-        painter.setPen(core_pen)
-        for p1, p2 in visible_segments:
-            painter.drawLine(p1, p2)
-
-        branch_black = QPen(with_alpha(COLOR_OBSIDIAN, 225), PIXEL_SIZE)
-        branch_black.setCapStyle(Qt.PenCapStyle.SquareCap)
-        painter.setPen(branch_black)
-        for p1, p2 in visible_branches:
-            painter.drawLine(p1, p2)
-        branch_red = QPen(COLOR_CRIMSON, max(1, PIXEL_SIZE // 2))
-        branch_red.setCapStyle(Qt.PenCapStyle.SquareCap)
-        painter.setPen(branch_red)
-        for p1, p2 in visible_branches:
-            painter.drawLine(p1, p2)
-
-        for endpoint, size in (
-            (self.start, PIXEL_SIZE * 2),
-            (self.end, PIXEL_SIZE),
-        ):
-            painter.fillRect(
-                endpoint.x() - size // 2,
-                endpoint.y() - size // 2,
-                size,
-                size,
-                COLOR_CRIMSON,
-            )
         painter.restore()
 
+
+class CyberPixelBolt(CyberVectorBolt):
+    """Адаптер обратной совместимости для старых вызовов."""
+
+    def __init__(
+        self,
+        start: QPoint | QPointF,
+        end: QPoint | QPointF,
+        branch_chance: float = 0.30,
+        **kwargs: object,
+    ) -> None:
+        super().__init__(start, end, branch_chance=branch_chance, **kwargs)  # type: ignore[arg-type]
 
 
 class ScreenTransitionOverlay(QWidget):
