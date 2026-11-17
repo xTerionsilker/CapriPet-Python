@@ -38,8 +38,10 @@ from ..effects.session_animations import (
 )
 from ..integrations.app_launcher import launch_application
 from ..integrations.discord_rpc import DiscordRpcManager
+from ..integrations.local_llm import LocalLlmClient
 from ..integrations.process_manager import kill_process_group
 from ..integrations.system_volume import get_system_volume_service
+from ..integrations.thermal_guard import ThermalGuard
 from ..integrations.web_search import safe_open_url
 from ..integrations.window_tracker import (
     get_active_window_rect,
@@ -54,7 +56,8 @@ class PetOrchestrator(QObject):
     """Оркестратор бизнес-логики: связывает команды, фоновые интеграции и UI."""
 
     def __init__(self, window: Any) -> None:
-        super().__init__(window)
+        parent = window if isinstance(window, QObject) else None
+        super().__init__(parent)
         self._window = window
         self._started_at = time.monotonic()
         self._session_overlay: SessionAnimationOverlay | None = None
@@ -115,6 +118,19 @@ class PetOrchestrator(QObject):
         )
         self._last_command: str = "нет"
         self._sync_discord_status()
+
+        self.thermal_guard = ThermalGuard(
+            temp_limit_celsius=int(get_config_value("llm.gpu_temp_limit_celsius", 78)),
+            overheat_duration_sec=float(
+                get_config_value("llm.gpu_overheat_duration_sec", 5.0)
+            ),
+        )
+        self.llm_client = LocalLlmClient(
+            api_base=str(get_config_value("llm.api_base", "http://localhost:11434")),
+            model_name=str(get_config_value("llm.model_name", "gemma-4-e2b")),
+            timeout_sec=float(get_config_value("llm.timeout_sec", 8.0)),
+            thermal_guard=self.thermal_guard,
+        )
 
         self.process_watcher = ProcessWatcher(
             is_game_active=self._is_game_active,
@@ -216,12 +232,76 @@ class PetOrchestrator(QObject):
     def reminders_enabled(self, val: bool) -> None:
         self._reminders_enabled = bool(val)
 
+    def set_llm_enabled(self, enabled: bool) -> None:
+        """Переключает использование локальной LLM модели."""
+        set_config_value("llm.enabled", enabled)
+        if enabled:
+            if not self.llm_client.is_available():
+                self._window.speak(
+                    "Внимание: сервер локальной модели недоступен на localhost:11434!"
+                )
+            else:
+                self._window.speak("Стек нейросети Gemma подключен к синапсам.")
+        else:
+            self._window.speak("Нейросеть выгружена из памяти.")
+
     def handle_command(self, text: str) -> None:
         self._last_command = text
         if self._discord_enabled:
             self._sync_discord_status()
+
+        # 1. Проверяем базовый конвейер команд
         result = self.flow.handle(text)
+
+        # 2. Если команда не распознана и LLM активна — двухфазный анализ
+        if (
+            result.startswith("Ты сказал:")
+            and bool(get_config_value("llm.enabled", False))
+        ):
+            llm_result = self._handle_llm_fallback(text)
+            if llm_result:
+                result = llm_result
+
         self._window.speak(result)
+
+    def _handle_llm_fallback(self, text: str) -> str | None:
+        """Двухфазная обработка нераспознанной фразы через локальную модель."""
+        # Проверяем термозащиту перед инференсом
+        if self.thermal_guard.check_overheat():
+            self._handle_overheat_abort()
+            return "Аварийная защита: видеокарта перегрета (>78°C). Нейросеть отключена."
+
+        cmd_names = [cmd.name for cmd in self.commands.commands]
+        resp = self.llm_client.process_query(text, cmd_names)
+        resp_type = resp.get("type")
+
+        if resp_type == "overheat":
+            self._handle_overheat_abort()
+            return "Аварийный сброс: зафиксирован перегрев GPU! Нейросеть выгружена."
+
+        if resp_type == "timeout":
+            return "Синапсы перегрелись... Модель слишком долго думала, сбрасываю стек."
+
+        if resp_type == "command":
+            target_cmd = resp.get("command", "")
+            arg = resp.get("argument", "")
+            full_query = f"{target_cmd} {arg}".strip()
+            # Пробуем выполнить распознанную команду
+            cmd_result = self.flow.handle(full_query)
+            if not cmd_result.startswith("Ты сказал:"):
+                return cmd_result
+
+        if resp_type == "chat":
+            reply = resp.get("reply", "")
+            if reply:
+                return reply
+
+        return None
+
+    def _handle_overheat_abort(self) -> None:
+        """Аварийное отключение LLM при перегреве оборудования."""
+        set_config_value("llm.enabled", False)
+        self.thermal_guard.reset()
 
     def update_system_volume(
         self,

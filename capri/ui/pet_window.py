@@ -889,6 +889,10 @@ class CapriWindow(QWidget):
             self._volume_hud = CyberVolumeHud()
         self._volume_hud.show_volume(volume_percent, is_muted, volume_db)
 
+    def set_llm_enabled(self, enabled: bool) -> None:
+        """Переключает использование локальной нейросетевой модели."""
+        self._actions.set_llm_enabled(enabled)
+
     def nativeEvent(  # type: ignore[override]
         self, event_type: Any, message: Any
     ) -> Any:

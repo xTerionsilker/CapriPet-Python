@@ -135,9 +135,10 @@ class InputFlow(QObject):
     awaiting_reply_changed = Signal(bool)
 
     def __init__(
-        self, registry: Any, parent: QObject | None = None
+        self, registry: Any, parent: Any = None
     ) -> None:
-        super().__init__(parent)
+        q_parent = parent if isinstance(parent, QObject) else None
+        super().__init__(q_parent)
         self._registry = registry
         self._pending: tuple[Any, str] | None = None
         self._custom_waiter: tuple[Callable[[str], str], QTimer] | None = (

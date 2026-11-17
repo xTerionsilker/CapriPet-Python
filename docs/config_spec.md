@@ -117,6 +117,14 @@
     "category_cooldown_sec": 240,
     "global_cooldown_sec": 30,
     "custom_rules": {}
+  },
+  "llm": {
+    "enabled": false,
+    "api_base": "http://localhost:11434",
+    "model_name": "gemma-4-e2b",
+    "timeout_sec": 8.0,
+    "gpu_temp_limit_celsius": 78,
+    "gpu_overheat_duration_sec": 5.0
   }
 }
 ```
@@ -165,6 +173,12 @@
 | `telemetry.category_cooldown_sec` | `int` | `240` | Кулдаун между реакциями на одну и ту же категорию ПО (в сек) |
 | `telemetry.global_cooldown_sec` | `int` | `30` | Глобальный интервал тишины между сменами приложений (в сек) |
 | `telemetry.custom_rules` | `dict[str, str]` | `{}` | Пользовательские маппинги процессов на категории («proc.exe»: «cat») |
+| `llm.enabled` | `bool` | `false` | Использование локальной LLM модели (Gemma) для команд и диалога |
+| `llm.api_base` | `str` | `"http://localhost:11434"` | URL локального сервера инференса (Ollama / OpenAI API) |
+| `llm.model_name` | `str` | `"gemma-4-e2b"` | Имя целевой модели для генерации |
+| `llm.timeout_sec` | `float` | `8.0` | Предельный таймаут ожидания инференса до отмены запроса (сек) |
+| `llm.gpu_temp_limit_celsius` | `int` | `78` | Критический порог температуры GPU для срабатывания защиты (°C) |
+| `llm.gpu_overheat_duration_sec` | `float` | `5.0` | Длительность непрерывного перегрева до аварийного выключения модели (сек) |
 
 ---
 

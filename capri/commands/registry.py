@@ -41,6 +41,11 @@ class CommandRegistry:
     def set_context(self, context: CommandContext | None) -> None:
         self._context = context
 
+    @property
+    def commands(self) -> list[BaseCommand]:
+        """Возвращает список всех зарегистрированных команд."""
+        return list(self._commands)
+
     def register(self, command: BaseCommand) -> BaseCommand:
         if not isinstance(command, BaseCommand):
             raise TypeError(
@@ -250,7 +255,3 @@ class CommandRegistry:
         return " ".join(
             text[:MAX_COMMAND_INPUT_LENGTH].casefold().strip(' .!?«»"').split()
         )
-
-    @property
-    def commands(self) -> list[BaseCommand]:
-        return list(self._commands)
