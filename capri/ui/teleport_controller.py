@@ -20,6 +20,7 @@ from ..effects.cursor_pointer import CursorPointerOverlay
 from ..effects.lightning_tether import LightningTetherOverlay
 from ..effects.transition import TransitionOverlay
 from ..integrations.system_control import get_mouse_position, move_mouse_to
+from ..integrations.window_tracker import place_window_behind
 
 if TYPE_CHECKING:
     from .pet_window import CapriWindow
@@ -55,6 +56,13 @@ class TeleportController:
         if self._lightning_overlay is None:
             self._lightning_overlay = LightningTetherOverlay()
         return self._lightning_overlay
+
+    def _ensure_behind_pet(self) -> None:
+        """Гарантирует, что оверлей молнии находится позади окна питомца."""
+        if self._lightning_overlay is not None and self._lightning_overlay.isVisible():
+            tether_hwnd = int(self._lightning_overlay.winId())
+            pet_hwnd = int(self._window.winId())
+            place_window_behind(tether_hwnd, pet_hwnd)
 
     def _ensure_pointer_overlay(self) -> CursorPointerOverlay:
         if self._pointer_overlay is None:
@@ -146,6 +154,7 @@ class TeleportController:
             overlay.activate(
                 pet_center, cursor_pos, self._window.geometry()
             )
+            self._ensure_behind_pet()
             return True
 
         return False

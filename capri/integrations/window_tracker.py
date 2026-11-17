@@ -109,6 +109,19 @@ def shake_window_hwnd(
         return None
 
 
+def place_window_behind(target_hwnd: int, reference_hwnd: int) -> bool:
+    """Размещает окно target_hwnd непосредственно под reference_hwnd в Z-порядке Windows."""
+    try:
+        if not win32gui.IsWindow(target_hwnd) or not win32gui.IsWindow(reference_hwnd):
+            return False
+        flags = win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE
+        win32gui.SetWindowPos(target_hwnd, reference_hwnd, 0, 0, 0, 0, flags)
+        return True
+    except Exception as e:
+        logger.debug("place_window_behind failed: %s", e)
+        return False
+
+
 def get_active_window_rect() -> QRect | None:
     rect = _get_windows_active_window_rect()
     if rect is not None and rect.isValid():

@@ -5,8 +5,8 @@ from __future__ import annotations
 import math
 import random
 
-from PySide6.QtCore import QPoint, QRect, QRectF, Qt
-from PySide6.QtGui import QColor, QPainter, QPen, QPolygon
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt
+from PySide6.QtGui import QColor, QPainter, QPen, QPolygon, QPolygonF
 
 from ..ui.draw_utils import make_chamfer_polygon
 from ..ui.theme import get_hud_font
@@ -428,6 +428,89 @@ class CyberKiroshiReticle:
             )
             painter.fillRect(cx - size, cy - 1, size * 2, 2, main)
             painter.fillRect(cx - 1, cy - size, 2, size * 2, main)
+
+
+class CyberTriggerCrosshair:
+    """Кинетичный аниме-прицел в стиле Studio Trigger с 45° скобами и ромбическим ядром."""
+
+    @staticmethod
+    def draw(
+        painter: QPainter,
+        center: QPoint,
+        progress: float,
+        color: QColor = COLOR_CRIMSON,
+        tension: float = 0.0,
+        rotation: float = 0.0,
+    ) -> None:
+        if progress <= 0.01:
+            return
+
+        cx, cy = center.x(), center.y()
+        alpha = max(0, min(255, int(255 * progress)))
+        tension = max(0.0, min(1.0, tension))
+
+        main_col = with_alpha(color, alpha)
+        shadow_col = with_alpha(COLOR_OBSIDIAN, int(alpha * 0.9))
+        white_col = with_alpha(COLOR_WHITE, alpha)
+
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        # 1. 4 скошенных под 45° кронштейна (bracket brackets), стягивающихся к центру
+        base_dist = 28.0 - 12.0 * tension
+        bracket_size = 14.0
+        arm_w = 3.0
+
+        for angle_deg in (45, 135, 225, 315):
+            rad = math.radians(angle_deg) + rotation * 0.15
+            dir_x = math.cos(rad)
+            dir_y = math.sin(rad)
+            bx = cx + dir_x * base_dist
+            by = cy + dir_y * base_dist
+
+            norm_x = -dir_y
+            norm_y = dir_x
+
+            # Шеврон со скосом 45°
+            inner_arm = bracket_size - arm_w
+            pts = [
+                QPointF(bx + norm_x * bracket_size, by + norm_y * bracket_size),
+                QPointF(bx, by),
+                QPointF(bx - norm_x * bracket_size, by - norm_y * bracket_size),
+                QPointF(bx - norm_x * inner_arm + dir_x * arm_w, by - norm_y * inner_arm + dir_y * arm_w),
+                QPointF(bx + dir_x * arm_w, by + dir_y * arm_w),
+                QPointF(bx + norm_x * inner_arm + dir_x * arm_w, by + norm_y * inner_arm + dir_y * arm_w),
+            ]
+            poly = QPolygonF(pts)
+            painter.setPen(QPen(shadow_col, 1.5))
+            painter.setBrush(main_col)
+            painter.drawPolygon(poly)
+
+        # 2. Острые направляющие лучи
+        beam_len = 16.0 + 8.0 * tension
+        beam_pen = QPen(main_col, 2.0)
+        beam_pen.setCapStyle(Qt.PenCapStyle.FlatCap)
+        painter.setPen(beam_pen)
+        for offset_x, offset_y in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            sx = cx + offset_x * 8.0
+            sy = cy + offset_y * 8.0
+            ex = cx + offset_x * (8.0 + beam_len)
+            ey = cy + offset_y * (8.0 + beam_len)
+            painter.drawLine(QPointF(sx, sy), QPointF(ex, ey))
+
+        # 3. Центральный ромб
+        diamond_r = 5.0 + 3.0 * tension
+        diamond_pts = [
+            QPointF(cx, cy - diamond_r),
+            QPointF(cx + diamond_r, cy),
+            QPointF(cx, cy + diamond_r),
+            QPointF(cx - diamond_r, cy),
+        ]
+        painter.setPen(QPen(white_col, 1.2))
+        painter.setBrush(main_col)
+        painter.drawPolygon(QPolygonF(diamond_pts))
+
+        painter.restore()
 
 
 def draw_quickhack_panel(

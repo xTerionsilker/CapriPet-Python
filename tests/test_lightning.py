@@ -51,6 +51,17 @@ class TestCyberVectorBolt(unittest.TestCase):
         finally:
             painter.end()
 
+    def test_cyber_trigger_crosshair_draw(self) -> None:
+        from capri.effects.transition_painters import CyberTriggerCrosshair
+
+        img = QImage(200, 200, QImage.Format.Format_ARGB32_Premultiplied)
+        img.fill(0)
+        painter = QPainter(img)
+        try:
+            CyberTriggerCrosshair.draw(painter, QPoint(100, 100), progress=1.0, tension=0.5, rotation=1.2)
+        finally:
+            painter.end()
+
     def test_lightning_tether_overlay_lifecycle(self) -> None:
         from capri.effects.lightning_tether import LightningTetherOverlay
         overlay = LightningTetherOverlay()

@@ -21,6 +21,7 @@ from .transition_fx import (
     PIXEL_SIZE,
     CyberKiroshiReticle,
     CyberShockwaveRing,
+    CyberTriggerCrosshair,
     draw_breach_grid,
     draw_glitch_mass,
     draw_hazard_frame,
@@ -433,18 +434,13 @@ class TransitionModesMixin:
 
         if p >= 0.20:
             recv_p = min(1.0, (p - 0.20) / 0.60)
-            target_rect = QRect(
-                target_pt.x() - 62, target_pt.y() - 62, 124, 124
-            )
-            CyberKiroshiReticle.draw(
+            CyberTriggerCrosshair.draw(
                 painter,
-                target_rect,
-                recv_p,
+                target_pt,
+                progress=recv_p,
                 color=COLOR_CRIMSON,
-                bracket_offset=int((1.0 - recv_p) * 46),
-                rotation=p * math.tau * 1.3,
-                label="CAPRI // LOCK",
-                locked=p > 0.68,
+                tension=p,
+                rotation=p * math.tau * 1.5,
             )
             panel = self._panel_near_point(target_pt, 228, 32)
             draw_quickhack_panel(

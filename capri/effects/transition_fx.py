@@ -6,7 +6,7 @@ import math
 import random
 
 from PySide6.QtCore import QPoint, QPointF, QRect, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
+from PySide6.QtGui import QColor, QPainter, QPolygonF
 from PySide6.QtWidgets import QWidget
 
 from ..integrations.system_control import is_reduced_motion_enabled
@@ -35,6 +35,7 @@ from .transition_painters import (
     CyberHoloReticle,
     CyberKiroshiReticle,
     CyberShockwaveRing,
+    CyberTriggerCrosshair,
     draw_breach_grid,
     draw_glitch_text,
     draw_hazard_frame,
@@ -67,6 +68,7 @@ __all__ = [
     "CyberPixelSpark",
     "CyberShockwaveRing",
     "CyberTrailFragment",
+    "CyberTriggerCrosshair",
     "CyberVectorBolt",
     "DissolveTransitionOverlay",
     "ScreenTransitionOverlay",
@@ -595,15 +597,6 @@ class CyberVectorBolt:
         # 2. Боковые отростки
         for b_poly in self.branches:
             painter.drawPolygon(b_poly)
-
-        # 3. Тонкий белый стержень ядра (энергетический сердечник)
-        if len(self.core_spine) >= 2 and progress > 0.3:
-            core_pen = QPen(with_alpha(COLOR_WHITE, int(alpha_val * 0.95)), 1.8)
-            core_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            core_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
-            painter.setPen(core_pen)
-            for idx in range(len(self.core_spine) - 1):
-                painter.drawLine(self.core_spine[idx], self.core_spine[idx + 1])
 
         painter.restore()
 

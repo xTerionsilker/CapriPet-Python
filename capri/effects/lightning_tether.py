@@ -20,8 +20,8 @@ from .transition_fx import (
     COLOR_OBSIDIAN,
     COLOR_WHITE,
     PIXEL_SIZE,
-    CyberKiroshiReticle,
     CyberPixelSpark,
+    CyberTriggerCrosshair,
     CyberVectorBolt,
     with_alpha,
 )
@@ -218,13 +218,6 @@ class LightningTetherOverlay(QWidget):
         for spark in self._sparks:
             spark.draw(painter)
 
-        reticle_size = 64
-        reticle_rect = QRect(
-            local_target.x() - reticle_size // 2,
-            local_target.y() - reticle_size // 2,
-            reticle_size,
-            reticle_size,
-        )
         elapsed = time.monotonic() - self._start_time
         dx = self._target_pos.x() - self._start_pos.x()
         dy = self._target_pos.y() - self._start_pos.y()
@@ -233,25 +226,13 @@ class LightningTetherOverlay(QWidget):
 
         rotation = elapsed * math.tau * (1.2 + tension * 2.5)
 
-        if tension > 0.65:
-            hud_label = "BLACKWALL // BREACH"
-        elif tension > 0.35:
-            hud_label = "OVERDRIVE // OVERLOAD"
-        else:
-            hud_label = "CYBER // LEASH_LOCK"
-
-        CyberKiroshiReticle.draw(
+        CyberTriggerCrosshair.draw(
             painter,
-            reticle_rect,
+            local_target,
             progress=1.0,
             color=COLOR_CRIMSON,
-            bracket_offset=int(
-                abs(math.sin(elapsed * (8.0 + tension * 12.0)))
-                * (6 + int(tension * 6))
-            ),
+            tension=tension,
             rotation=rotation,
-            label=hud_label,
-            locked=True,
         )
 
         font = get_hud_font(10, bold=True)
@@ -270,42 +251,6 @@ class LightningTetherOverlay(QWidget):
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
             tag,
         )
-
-        if dist > 80:
-            hex_samples = (
-                "0xDEAD",
-                "0xBEEF",
-                "BREACH",
-                "0x00FF",
-                "NULL_PTR",
-                "CORRUPT",
-            )
-            rng_hex = random.Random(int(elapsed * 15) % 1000)
-            for step_ratio in (0.3, 0.6, 0.85):
-                hx = int(
-                    local_start.x()
-                    + (local_target.x() - local_start.x()) * step_ratio
-                )
-                hy = int(
-                    local_start.y()
-                    + (local_target.y() - local_start.y()) * step_ratio
-                )
-                glyph = rng_hex.choice(hex_samples)
-                glyph_rect = QRect(
-                    hx + rng_hex.randint(-16, 16),
-                    hy + rng_hex.randint(-16, 16),
-                    56,
-                    12,
-                )
-                painter.fillRect(
-                    glyph_rect, with_alpha(COLOR_OBSIDIAN, 190)
-                )
-                painter.setPen(
-                    with_alpha(COLOR_CRIMSON, rng_hex.randint(180, 255))
-                )
-                painter.drawText(
-                    glyph_rect, Qt.AlignmentFlag.AlignCenter, glyph
-                )
 
         anchor_rect = QRect(
             local_start.x() - 6, local_start.y() - 6, 12, 12
