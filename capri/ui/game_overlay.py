@@ -16,8 +16,10 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QWidget
 
+from .draw_utils import with_alpha
 from .theme import (
     ACID_GREEN,
+    COLOR_CRIMSON,
     NEON_CRIMSON,
     OBSIDIAN_BLACK,
     PURE_WHITE,
@@ -107,7 +109,7 @@ class SilentPresenceGlyph(QWidget):
 
         painter.save()
         painter.setClipPath(path)
-        grid_pen = QPen(QColor(246, 2, 63, 22), 1)
+        grid_pen = QPen(with_alpha(COLOR_CRIMSON, 22), 1)
         painter.setPen(grid_pen)
         for y in range(2, h, 3):
             painter.drawLine(0, y, w, y)

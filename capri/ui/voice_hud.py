@@ -10,8 +10,11 @@ from PySide6.QtCore import QRect, Qt, QTimer
 from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
+from .draw_utils import with_alpha
 from .theme import (
     ACID_GREEN,
+    COLOR_CRIMSON,
+    COLOR_OBSIDIAN,
     ELECTRIC_BLUE,
     NEON_CRIMSON,
     OBSIDIAN_BLACK,
@@ -151,9 +154,9 @@ class CyberVoiceHud(QWidget):
 
         rect = self.rect().adjusted(0, 0, -1, -1)
 
-        painter.fillRect(rect, QColor(OBSIDIAN_BLACK))
+        painter.fillRect(rect, COLOR_OBSIDIAN)
 
-        scan_pen = QPen(QColor(246, 2, 63, 18), 1)
+        scan_pen = QPen(with_alpha(COLOR_CRIMSON, 18), 1)
         painter.setPen(scan_pen)
         for y in range(rect.top() + 2, rect.bottom(), 3):
             painter.drawLine(rect.left() + 2, y, rect.right() - 2, y)

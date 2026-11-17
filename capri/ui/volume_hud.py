@@ -7,7 +7,6 @@ import logging
 
 from PySide6.QtCore import QPropertyAnimation, QRect, QRectF, Qt, QTimer
 from PySide6.QtGui import (
-    QColor,
     QGuiApplication,
     QPainter,
     QPainterPath,
@@ -15,11 +14,12 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QGraphicsOpacityEffect, QWidget
 
-from .draw_utils import make_chamfer_path
+from .draw_utils import make_chamfer_path, with_alpha
 from .theme import (
     CHAMFER_HUD,
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
+    COLOR_OBSIDIAN,
     COLOR_WHITE,
     get_hud_font,
     get_terminal_font,
@@ -116,7 +116,7 @@ class CyberVolumeHud(QWidget):
         c = float(CHAMFER_HUD)
 
         bg_path = self._create_chamfered_path(rect, c)
-        painter.fillPath(bg_path, QColor(2, 1, 6, 235))
+        painter.fillPath(bg_path, with_alpha(COLOR_OBSIDIAN, 235))
 
         border_color = COLOR_CRIMSON if (self._is_muted or self._volume_percent >= 85) else COLOR_ACID_GREEN
         pen = QPen(border_color, 1.5)
@@ -153,7 +153,7 @@ class CyberVolumeHud(QWidget):
         bar_w = rect.width() - 84
         bar_h = 16
 
-        painter.fillRect(QRectF(bar_x, bar_y, bar_w, bar_h), QColor(10, 8, 18, 180))
+        painter.fillRect(QRectF(bar_x, bar_y, bar_w, bar_h), with_alpha(COLOR_OBSIDIAN, 180))
 
         num_segments = 25
         filled_segments = round((self._volume_percent / 100.0) * num_segments)
@@ -166,7 +166,7 @@ class CyberVolumeHud(QWidget):
                 seg_color = COLOR_CRIMSON if i >= int(num_segments * 0.85) else COLOR_ACID_GREEN
                 painter.fillRect(seg_rect, seg_color)
             else:
-                painter.fillRect(seg_rect, QColor(25, 20, 35, 120))
+                painter.fillRect(seg_rect, with_alpha(COLOR_OBSIDIAN, 100))
 
         painter.setFont(get_terminal_font(12, bold=True))
         painter.setPen(COLOR_WHITE if not self._is_muted else COLOR_CRIMSON)

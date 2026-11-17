@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QRect, Qt
-from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QMouseEvent, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -14,12 +14,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .draw_utils import draw_scanlines
+from .draw_utils import draw_scanlines, with_alpha
 from .theme import (
     ACID_GREEN,
+    COLOR_ACID_GREEN,
+    COLOR_CRIMSON,
+    COLOR_ELECTRIC_BLUE,
+    COLOR_OBSIDIAN,
     CSS_CYBER_TERMINAL,
     CSS_CYBER_UI,
-    ELECTRIC_BLUE,
     NEON_CRIMSON,
     OBSIDIAN_BLACK,
     PURE_WHITE,
@@ -100,7 +103,7 @@ class ReminderRangeDialog(QDialog):
             width: 16px;
         }}
         QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
-            background-color: rgba(246, 2, 63, 0.35);
+            background-color: rgba(254, 9, 41, 0.35);
         }}
         """
         self.spin_from.setStyleSheet(spin_style)
@@ -137,10 +140,10 @@ class ReminderRangeDialog(QDialog):
         QPushButton:hover {{
             border-color: {ACID_GREEN};
             color: {ACID_GREEN};
-            background-color: rgba(6, 248, 104, 0.1);
+            background-color: rgba(15, 255, 85, 0.1);
         }}
         QPushButton:pressed {{
-            background-color: rgba(246, 2, 63, 0.35);
+            background-color: rgba(254, 9, 41, 0.35);
             border-color: {NEON_CRIMSON};
             color: {PURE_WHITE};
         }}
@@ -206,19 +209,19 @@ class ReminderRangeDialog(QDialog):
         path.closeSubpath()
 
         shadow_path = path.translated(so, so)
-        painter.fillPath(shadow_path, QColor(246, 2, 63, 85))
+        painter.fillPath(shadow_path, with_alpha(COLOR_CRIMSON, 85))
 
-        painter.fillPath(path, QColor(2, 1, 6, 248))
+        painter.fillPath(path, with_alpha(COLOR_OBSIDIAN, 248))
 
         painter.save()
         painter.setClipPath(path)
-        draw_scanlines(painter, QRect(0, 0, bw, bh), spacing=3, alpha=14, color=NEON_CRIMSON)
+        draw_scanlines(painter, QRect(0, 0, bw, bh), spacing=3, alpha=14, color=COLOR_CRIMSON)
         painter.restore()
 
-        crimson_pen = QPen(QColor(NEON_CRIMSON), 2)
+        crimson_pen = QPen(COLOR_CRIMSON, 2)
         painter.strokePath(path, crimson_pen)
 
-        accent_pen = QPen(QColor(ACID_GREEN), 2)
+        accent_pen = QPen(COLOR_ACID_GREEN, 2)
         painter.setPen(accent_pen)
         painter.drawLine(bw - c, 0, bw, c)
         painter.drawLine(c, bh, 0, bh - c)
@@ -231,8 +234,8 @@ class ReminderRangeDialog(QDialog):
         painter.drawLine(bw, bh - 10, bw, bh)
 
         badge_rect = QRect(14, 6, max(10, bw - c - 20), 16)
-        painter.fillRect(QRect(12, 6, 175, 16), QColor(246, 2, 63, 40))
-        painter.setPen(QColor(ACID_GREEN))
+        painter.fillRect(QRect(12, 6, 175, 16), with_alpha(COLOR_CRIMSON, 40))
+        painter.setPen(COLOR_ACID_GREEN)
         painter.setFont(get_hud_font(10, bold=True))
         painter.drawText(
             badge_rect,
@@ -240,5 +243,5 @@ class ReminderRangeDialog(QDialog):
             "[CAPRI://AUTONOMY_RANGE]",
         )
 
-        painter.fillRect(QRect(bw - 26, 7, 10, 2), QColor(ACID_GREEN))
-        painter.fillRect(QRect(bw - 13, 7, 6, 2), QColor(ELECTRIC_BLUE))
+        painter.fillRect(QRect(bw - 26, 7, 10, 2), COLOR_ACID_GREEN)
+        painter.fillRect(QRect(bw - 13, 7, 6, 2), COLOR_ELECTRIC_BLUE)

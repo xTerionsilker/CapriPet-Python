@@ -31,9 +31,11 @@ from ..core.settings import (
     get_config_value,
     set_config_value,
 )
+from .draw_utils import with_alpha
 from .reminder_dialog import ReminderRangeDialog
 from .theme import (
     ACID_GREEN,
+    COLOR_CRIMSON,
     CYBER_MENU_STYLE,
     ELECTRIC_BLUE,
     NEON_CRIMSON,
@@ -84,7 +86,7 @@ class CyberMenu(QMenu):
 
         painter.save()
         painter.setClipPath(path)
-        scan_pen = QPen(QColor(246, 2, 63, 14), 1)
+        scan_pen = QPen(with_alpha(COLOR_CRIMSON, 14), 1)
         painter.setPen(scan_pen)
         for y in range(rect.top() + 3, rect.bottom(), 3):
             painter.drawLine(rect.left(), y, rect.right(), y)

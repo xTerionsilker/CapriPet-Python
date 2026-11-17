@@ -72,9 +72,9 @@ def draw_cyber_error_card(
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPolygon(poly_rgb)
 
-    # Основное тело карточки
+    # Основное тело карточки с очертаниями (рамкой) цвета Neon Crimson
     poly = make_chamfer_polygon(cur_rect, cut=8)
-    painter.setPen(QPen(with_alpha(card.border_color, alpha_val), 1.8))
+    painter.setPen(QPen(with_alpha(COLOR_CRIMSON, alpha_val), 1.8))
     painter.setBrush(with_alpha(COLOR_OBSIDIAN, int(alpha_val * 0.94)))
     painter.drawPolygon(poly)
 

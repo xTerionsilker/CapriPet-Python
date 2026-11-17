@@ -149,7 +149,7 @@ QGroupBox {{
     font-family: {CSS_CYBER_UI};
     font-size: 11px;
     font-weight: bold;
-    border: 1px solid rgba(246, 2, 63, 0.4);
+    border: 1px solid rgba(254, 9, 41, 0.4);
     margin-top: 10px;
     padding-top: 10px;
 }}

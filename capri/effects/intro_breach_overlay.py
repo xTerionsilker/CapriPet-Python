@@ -44,7 +44,6 @@ from .intro_breach_helpers import (
 from .transition_base import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
-    COLOR_ELECTRIC_BLUE,
     COLOR_OBSIDIAN,
     COLOR_VIOLET,
     COLOR_WHITE,
@@ -168,7 +167,7 @@ class IntroBreachOverlay(QWidget):
             rx = self._rng.randint(20, max(20, sw - cw - 20))
             ry = self._rng.randint(20, max(20, sh - ch - 20))
             spawn_t = 0.05 + (idx / total_cards) * 0.82
-            col = self._rng.choice((COLOR_CRIMSON, COLOR_CRIMSON, COLOR_ACID_GREEN, COLOR_ELECTRIC_BLUE))
+            col = COLOR_CRIMSON
             v_angle = math.atan2(ry + ch / 2 - cy, rx + cw / 2 - cx) + self._rng.uniform(-0.4, 0.4)
             v_spd = self._rng.uniform(350.0, 850.0)
             self._error_cards.append(

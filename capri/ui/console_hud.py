@@ -99,7 +99,7 @@ class CyberConsoleHud(QWidget):
         self._input_line.setStyleSheet(
             f"""
             QLineEdit {{
-                background-color: #06050C;
+                background-color: {OBSIDIAN_BLACK};
                 color: {PURE_WHITE};
                 border: 1px solid {ACID_GREEN};
                 padding: 4px 8px;
@@ -135,7 +135,7 @@ class CyberConsoleHud(QWidget):
                 color: {OBSIDIAN_BLACK};
             }}
             QPushButton:pressed {{
-                background-color: #A00228;
+                background-color: {NEON_CRIMSON};
                 color: {PURE_WHITE};
             }}
             """

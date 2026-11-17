@@ -15,9 +15,14 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QWidget
 
-from .draw_utils import draw_scanlines
+from .draw_utils import draw_scanlines, with_alpha
 from .theme import (
     ACID_GREEN,
+    COLOR_ACID_GREEN,
+    COLOR_CRIMSON,
+    COLOR_ELECTRIC_BLUE,
+    COLOR_OBSIDIAN,
+    COLOR_WHITE,
     ELECTRIC_BLUE,
     NEON_CRIMSON,
     PURE_WHITE,
@@ -174,7 +179,7 @@ class CyberHudBubble(QWidget):
                     y_mid - 4,
                     w_beam + 12,
                     8,
-                    QColor(246, 2, 63, int(190 * p1)),
+                    with_alpha(COLOR_CRIMSON, int(190 * p1)),
                 )
 
                 painter.fillRect(
@@ -182,7 +187,7 @@ class CyberHudBubble(QWidget):
                     y_mid - 2,
                     w_beam,
                     4,
-                    QColor(18, 110, 233, 240),
+                    with_alpha(COLOR_ELECTRIC_BLUE, 240),
                 )
 
                 core_w = max(1, w_beam - 8)
@@ -191,7 +196,7 @@ class CyberHudBubble(QWidget):
                     y_mid - 1,
                     core_w,
                     2,
-                    QColor(249, 249, 249, 255),
+                    with_alpha(COLOR_WHITE, 255),
                 )
 
                 painter.fillRect(
@@ -199,14 +204,14 @@ class CyberHudBubble(QWidget):
                     y_mid - 3,
                     3,
                     6,
-                    QColor(246, 2, 63, 220),
+                    with_alpha(COLOR_CRIMSON, 220),
                 )
                 painter.fillRect(
                     x_start + w_beam + 1,
                     y_mid - 3,
                     3,
                     6,
-                    QColor(18, 110, 233, 220),
+                    with_alpha(COLOR_ELECTRIC_BLUE, 220),
                 )
                 return
 
@@ -244,21 +249,21 @@ class CyberHudBubble(QWidget):
                     y_mid - 3,
                     w_beam + 8,
                     6,
-                    QColor(246, 2, 63, int(alpha * 0.5)),
+                    with_alpha(COLOR_CRIMSON, int(alpha * 0.5)),
                 )
                 painter.fillRect(
                     x_start,
                     y_mid - 1,
                     w_beam,
                     3,
-                    QColor(18, 110, 233, alpha),
+                    with_alpha(COLOR_ELECTRIC_BLUE, alpha),
                 )
                 painter.fillRect(
                     x_mid - 2,
                     y_mid - 2,
                     4,
                     4,
-                    QColor(249, 249, 249, alpha),
+                    with_alpha(COLOR_WHITE, alpha),
                 )
                 return
         else:
@@ -310,9 +315,9 @@ class CyberHudBubble(QWidget):
 
         shadow_path = path.translated(so, so)
         shadow_alpha = int(90 + 50 * intensity) if is_glitch else 90
-        painter.fillPath(shadow_path, QColor(246, 2, 63, shadow_alpha))
+        painter.fillPath(shadow_path, with_alpha(COLOR_CRIMSON, shadow_alpha))
 
-        painter.fillPath(path, QColor(2, 1, 6, 248))
+        painter.fillPath(path, with_alpha(COLOR_OBSIDIAN, 248))
 
         painter.save()
         painter.setClipPath(path)
@@ -324,13 +329,13 @@ class CyberHudBubble(QWidget):
             QRect(shake_x - 10, 0, bw + 20, bh),
             spacing=3,
             alpha=max(8, scanline_alpha),
-            color="#fe0929",
+            color=COLOR_CRIMSON,
         )
 
         if phase in ("opening", "closing") or is_glitch:
             sweep_y = int(bh * ((time.monotonic() * 2.5) % 1.0))
             painter.fillRect(
-                shake_x - 10, sweep_y, bw + 20, 2, QColor(246, 2, 63, 110)
+                shake_x - 10, sweep_y, bw + 20, 2, with_alpha(COLOR_CRIMSON, 110)
             )
 
         painter.restore()
@@ -339,18 +344,18 @@ class CyberHudBubble(QWidget):
             dx = int(random.uniform(2, 6) * intensity)
             red_path = path.translated(-dx, 0)
             painter.strokePath(
-                red_path, QPen(QColor(246, 2, 63, int(160 * intensity)), 2)
+                red_path, QPen(with_alpha(COLOR_CRIMSON, int(160 * intensity)), 2)
             )
             green_shift = path.translated(dx, 0)
             painter.strokePath(
                 green_shift,
-                QPen(QColor(6, 248, 104, int(160 * intensity)), 2),
+                QPen(with_alpha(COLOR_ACID_GREEN, int(160 * intensity)), 2),
             )
 
-        crimson_pen = QPen(QColor(NEON_CRIMSON), 2)
+        crimson_pen = QPen(COLOR_CRIMSON, 2)
         painter.strokePath(path, crimson_pen)
 
-        accent_pen = QPen(QColor(ACID_GREEN), 2)
+        accent_pen = QPen(COLOR_ACID_GREEN, 2)
         painter.setPen(accent_pen)
 
         painter.drawLine(bw - c + shake_x, shake_y, bw + shake_x, c + shake_y)
@@ -417,11 +422,11 @@ class CyberHudBubble(QWidget):
         badge_rect = QRect(16 + shake_x, 5 + shake_y, badge_w, 16)
         painter.fillRect(
             QRect(12 + shake_x, 5 + shake_y, badge_w + 6, 16),
-            QColor(246, 2, 63, 40),
+            with_alpha(COLOR_CRIMSON, 40),
         )
         painter.fillRect(
             QRect(12 + shake_x, 5 + shake_y, 2, 16),
-            QColor(ACID_GREEN),
+            COLOR_ACID_GREEN,
         )
 
         t_phase = int(time.monotonic() * 4) % 4
@@ -429,7 +434,7 @@ class CyberHudBubble(QWidget):
         chevron = _CHEVRONS.get(dir_, "")
         title_with_dir = f"{glyph} {self._title} {chevron}".strip()
 
-        painter.setPen(QColor(ACID_GREEN))
+        painter.setPen(COLOR_ACID_GREEN)
         painter.drawText(
             badge_rect,
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
@@ -437,8 +442,8 @@ class CyberHudBubble(QWidget):
         )
 
         if phase == "opening" and 0.22 <= prog < 0.95:
-            painter.fillRect(0, y_top - 1, bw, 2, QColor(246, 2, 63, 230))
-            painter.fillRect(0, y_bot - 1, bw, 2, QColor(6, 248, 104, 230))
+            painter.fillRect(0, y_top - 1, bw, 2, with_alpha(COLOR_CRIMSON, 230))
+            painter.fillRect(0, y_bot - 1, bw, 2, with_alpha(COLOR_ACID_GREEN, 230))
         elif phase == "closing" and 0.25 <= prog < 0.75:
-            painter.fillRect(0, y_top - 1, bw, 3, QColor(246, 2, 63, 245))
-            painter.fillRect(0, y_bot - 1, bw, 3, QColor(6, 248, 104, 245))
+            painter.fillRect(0, y_top - 1, bw, 3, with_alpha(COLOR_CRIMSON, 245))
+            painter.fillRect(0, y_bot - 1, bw, 3, with_alpha(COLOR_ACID_GREEN, 245))

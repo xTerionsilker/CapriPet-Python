@@ -37,12 +37,18 @@ from .context_menu_tabs import (
     SystemTabPage,
     VisualTabPage,
 )
+from .draw_utils import with_alpha
 from .theme import (
     ACID_GREEN,
+    COLOR_ACID_GREEN,
+    COLOR_CRIMSON,
+    COLOR_ELECTRIC_BLUE,
+    COLOR_NEON_VIOLET,
+    COLOR_OBSIDIAN,
+    COLOR_WHITE,
     CSS_CYBER_UI,
     ELECTRIC_BLUE,
     NEON_CRIMSON,
-    NEON_VIOLET,
     OBSIDIAN_BLACK,
     PURE_WHITE,
 )
@@ -78,8 +84,8 @@ QPushButton:hover {{
 _TAB_BTN_DEFAULT = f"""
 QPushButton {{
     background-color: {OBSIDIAN_BLACK};
-    color: rgba(249, 249, 249, 0.7);
-    border: 1px solid rgba(246, 2, 63, 0.4);
+    color: rgba(240, 241, 245, 0.7);
+    border: 1px solid rgba(254, 9, 41, 0.4);
     border-bottom: 2px solid transparent;
     padding: 6px 16px;
     font-family: {CSS_CYBER_UI};
@@ -94,7 +100,7 @@ QPushButton:hover {{
 
 _TAB_BTN_ACTIVE = f"""
 QPushButton {{
-    background-color: rgba(246, 2, 63, 0.15);
+    background-color: rgba(254, 9, 41, 0.15);
     color: {ACID_GREEN};
     border: 1px solid {NEON_CRIMSON};
     border-bottom: 3px solid {ACID_GREEN};
@@ -241,16 +247,14 @@ class DatamoshOverlay(QWidget):
             ox = rng.choice([-1, 1]) * rng.randint(10, int(45 * intensity + 12))
             painter.fillRect(
                 QRect(max(0, ox), sy, w, sh),
-                QColor(2, 1, 6, int(160 * intensity)),
+                with_alpha(COLOR_OBSIDIAN, int(160 * intensity)),
             )
-            col_crimson = QColor(NEON_CRIMSON)
-            col_crimson.setAlpha(int(220 * intensity))
+            col_crimson = with_alpha(COLOR_CRIMSON, int(220 * intensity))
             painter.fillRect(
                 QRect(max(0, ox - 3), sy, rng.randint(2, 4), sh),
                 col_crimson,
             )
-            col_violet = QColor(NEON_VIOLET)
-            col_violet.setAlpha(int(200 * intensity))
+            col_violet = with_alpha(COLOR_NEON_VIOLET, int(200 * intensity))
             painter.fillRect(
                 QRect(min(w - 3, ox + w - 2), sy, rng.randint(2, 4), sh),
                 col_violet,
@@ -261,20 +265,19 @@ class DatamoshOverlay(QWidget):
             ly = rng.randint(4, h - 4)
             lx = rng.randint(0, max(1, w - 120))
             lw = rng.randint(30, 160)
-            col = rng.choice([QColor(6, 248, 104), QColor(18, 110, 233)])
-            col.setAlpha(int(200 * intensity))
-            painter.fillRect(QRect(lx, ly, lw, 2), col)
+            col = rng.choice([COLOR_ACID_GREEN, COLOR_ELECTRIC_BLUE])
+            painter.fillRect(QRect(lx, ly, lw, 2), with_alpha(col, int(200 * intensity)))
 
         # 3. Белая вспышка в ядре
         flash = max(0.0, 1.0 - prog * 2.5) if phase == "opening" else max(0.0, (prog - 0.6) * 2.5)
         if flash > 0.05:
             cy = h // 2 + rng.randint(-12, 12)
-            painter.fillRect(QRect(0, cy, w, 2), QColor(249, 249, 249, int(255 * flash)))
+            painter.fillRect(QRect(0, cy, w, 2), with_alpha(COLOR_WHITE, int(255 * flash)))
 
         # 4. Сканирующие полосы CRT
         scan_a = int(35 * intensity)
         if scan_a > 0:
-            painter.setPen(QPen(QColor(246, 2, 63, scan_a), 1))
+            painter.setPen(QPen(with_alpha(COLOR_CRIMSON, scan_a), 1))
             for y in range(0, h, 3):
                 painter.drawLine(0, y, w, y)
 
@@ -420,7 +423,7 @@ class CyberContextMenuWindow(QDialog):
 
         painter.save()
         painter.setClipPath(path)
-        scan_pen = QPen(QColor(246, 2, 63, 14), 1)
+        scan_pen = QPen(with_alpha(COLOR_CRIMSON, 14), 1)
         painter.setPen(scan_pen)
         for y in range(rect.top() + 3, rect.bottom(), 3):
             painter.drawLine(rect.left(), y, rect.right(), y)
