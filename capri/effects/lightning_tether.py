@@ -7,8 +7,8 @@ import math
 import random
 import time
 
-from PySide6.QtCore import QPoint, QRect, Qt, QTimer
-from PySide6.QtGui import QGuiApplication, QPainter, QPen
+from PySide6.QtCore import QPoint, QPointF, QRect, Qt, QTimer
+from PySide6.QtGui import QGuiApplication, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import QWidget
 
 from capri.ui.theme import get_hud_font
@@ -134,39 +134,22 @@ class LightningTetherOverlay(QWidget):
         tension = min(1.0, dist / 800.0)
         base_w = 16.0 + 10.0 * tension
 
-        # Основной векторный луч молнии
+        # Ровно одна монолитная векторная молния
         self._bolts.append(
             CyberVectorBolt(
                 local_start,
                 local_target,
                 base_width=base_w,
                 tip_width=2.5,
-                branch_chance=0.35 + 0.3 * tension,
+                branch_chance=0.0,
                 color=COLOR_CRIMSON,
             )
         )
 
-        # Дополнительная параллельная искра при сильном натяжении
-        if dist > 40:
-            jitter_start = local_start + QPoint(
-                random.randint(-10, 10), random.randint(-10, 10)
-            )
-            jitter_target = local_target + QPoint(
-                random.randint(-6, 6), random.randint(-6, 6)
-            )
-            self._bolts.append(
-                CyberVectorBolt(
-                    jitter_start,
-                    jitter_target,
-                    base_width=max(4.0, base_w * 0.4),
-                    tip_width=1.5,
-                    branch_chance=0.2,
-                    color=COLOR_CRIMSON,
-                )
-            )
-
     def _on_tick(self) -> None:
-        # Убрана частая стробоскопическая перестройка jitter() каждые 20 мс
+        for bolt in self._bolts:
+            bolt.jitter()
+
         dt = 0.02
         self._sparks = [s for s in self._sparks if s.step(dt)]
 
@@ -207,6 +190,23 @@ class LightningTetherOverlay(QWidget):
             tension=tension,
             rotation=rotation,
         )
+
+        # Бегущие энергетические ромбические импульсы вдоль ствола молнии
+        if dist > 30:
+            for ring_i in range(3):
+                ring_phase = (elapsed * (1.8 + tension * 2.5) + ring_i / 3.0) % 1.0
+                ring_x = local_start.x() + (local_target.x() - local_start.x()) * ring_phase
+                ring_y = local_start.y() + (local_target.y() - local_start.y()) * ring_phase
+                r_size = 4.0 + 3.0 * (1.0 - ring_phase) + 3.0 * tension
+                r_pts = [
+                    QPointF(ring_x, ring_y - r_size),
+                    QPointF(ring_x + r_size, ring_y),
+                    QPointF(ring_x, ring_y + r_size),
+                    QPointF(ring_x - r_size, ring_y),
+                ]
+                painter.setPen(QPen(with_alpha(COLOR_WHITE, int(220 * ring_phase)), 1.5))
+                painter.setBrush(with_alpha(COLOR_CRIMSON, int(180 * ring_phase)))
+                painter.drawPolygon(QPolygonF(r_pts))
 
         font = get_hud_font(10, bold=True)
         painter.setFont(font)

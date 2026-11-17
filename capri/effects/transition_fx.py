@@ -464,11 +464,13 @@ class CyberVectorBolt:
 
         self.spine_points: list[QPointF] = []
         self.polygon = QPolygonF()
+        self.ghost_polygon = QPolygonF()
         self.core_spine: list[QPointF] = []
         self.branches: list[QPolygonF] = []
         self._rebuild()
 
     def _rebuild(self) -> None:
+        self.ghost_polygon = QPolygonF(self.polygon)
         self.spine_points.clear()
         self.polygon.clear()
         self.core_spine.clear()
@@ -578,7 +580,7 @@ class CyberVectorBolt:
         ])
 
     def jitter(self, force: bool = False) -> None:
-        if force:
+        if force or random.random() < 0.65:
             self._rebuild()
 
     def draw(self, painter: QPainter, progress: float = 1.0) -> None:
@@ -588,13 +590,20 @@ class CyberVectorBolt:
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-        # 1. Сплошная заливка тела молнии фирменным цветом
         alpha_val = int(255 * min(1.0, progress))
+
+        # 1. Призрачный остаточный фантом (ghost motion trail) со сдвигом
+        if not self.ghost_polygon.isEmpty():
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(with_alpha(self.color, int(alpha_val * 0.35)))
+            painter.drawPolygon(self.ghost_polygon)
+
+        # 2. Основное монолитное тело молнии
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(with_alpha(self.color, alpha_val))
         painter.drawPolygon(self.polygon)
 
-        # 2. Боковые отростки
+        # 3. Боковые отростки (если включены)
         for b_poly in self.branches:
             painter.drawPolygon(b_poly)
 
