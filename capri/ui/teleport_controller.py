@@ -181,13 +181,23 @@ class TeleportController:
             self._window.is_dragging = False
             self._window.inactivity_manager.set_paused(False)
             target_pos = event.globalPosition().toPoint()
+
+            from_rect = QRect(self._window.geometry())
+            dx = abs(from_rect.center().x() - target_pos.x())
+            dy = abs(from_rect.center().y() - target_pos.y())
+            if dx < 16 and dy < 16:
+                if self._lightning_overlay is not None:
+                    self._lightning_overlay.start_fizzle()
+                self._window.update()
+                return True
+
             if self._lightning_overlay is not None:
                 self._lightning_overlay.deactivate()
 
             self._window.surge_ticks = max(self._window.surge_ticks, 10)
             self._window.update()
 
-            self.teleport_to_point(target_pos)
+            self.teleport_to_point(target_pos, mode="lightning_to_point")
             return True
         return False
 
@@ -197,7 +207,7 @@ class TeleportController:
         self._window.is_dragging = False
         self._window.inactivity_manager.set_paused(False)
         if self._lightning_overlay is not None:
-            self._lightning_overlay.deactivate()
+            self._lightning_overlay.start_fizzle()
         self._window.update()
 
     def teleport_to_point(
@@ -291,13 +301,22 @@ class TeleportController:
             else screen_rect
         )
 
+        win_rect_for_overlay = (
+            from_rect if mode == "lightning_to_point" else to_rect
+        )
+        target_pt_for_overlay = (
+            to_rect.center()
+            if mode == "lightning_to_point"
+            else from_rect.center()
+        )
+
         self._teleport_overlay_out = TransitionOverlay(
             combined_screen_rect,
-            to_rect,
+            win_rect_for_overlay,
             mode,
             target=self._window,
             on_peak=on_peak,
-            target_point=from_rect.center(),
+            target_point=target_pt_for_overlay,
         )
         self._teleport_overlay_out.finished.connect(on_finished)
         self._teleport_overlay_out.start()

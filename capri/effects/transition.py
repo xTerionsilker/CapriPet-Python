@@ -225,9 +225,9 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
                     CyberVectorBolt(
                         s,
                         self._local_target_point,
-                        base_width=12.0,
-                        tip_width=2.0,
-                        branch_chance=0.0,
+                        base_width=14.0,
+                        tip_width=2.5,
+                        branch_chance=0.20,
                     )
                 )
 
@@ -287,10 +287,8 @@ class TransitionOverlay(QWidget, TransitionModesMixin):
             self._peak_called = True
             with contextlib.suppress(Exception):
                 sfx = get_speech_sfx()
-                if self._mode in ("in", "erratic_in", "dodge"):
+                if self._mode in ("in", "erratic_in", "dodge", "lightning_to_point"):
                     sfx.play_lightning_strike()
-                elif self._mode == "lightning_to_point":
-                    sfx.play_lightning_zap()
             if self._on_peak is not None:
                 with contextlib.suppress(Exception):
                     self._on_peak()

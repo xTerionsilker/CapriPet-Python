@@ -73,6 +73,41 @@ class TestCyberVectorBolt(unittest.TestCase):
         self.assertEqual(len(overlay._bolts), 0)
         overlay.close()
 
+    def test_cyber_vector_bolt_tension_and_layers(self) -> None:
+        bolt = CyberVectorBolt(QPoint(10, 10), QPoint(500, 500))
+        bolt.set_tension(0.9)
+        self.assertAlmostEqual(bolt.tension, 0.9, delta=0.01)
+        self.assertGreater(bolt.branch_chance, 0.40)
+        self.assertGreaterEqual(len(bolt.core_spine), 3)
+        self.assertGreaterEqual(len(bolt.tendril_spines), 2)
+        self.assertGreaterEqual(len(bolt.barbs), 1)
+
+    def test_lightning_tether_fizzle_lifecycle(self) -> None:
+        from capri.effects.lightning_tether import LightningTetherOverlay
+        overlay = LightningTetherOverlay()
+        overlay.activate(QPoint(50, 50), QPoint(300, 300))
+        overlay.start_fizzle()
+        self.assertTrue(overlay._is_fizzling)
+        self.assertGreater(len(overlay._sparks), 0)
+        overlay.deactivate()
+        self.assertFalse(overlay._is_fizzling)
+        overlay.close()
+
+    def test_transition_overlay_lightning_to_point_initialization(self) -> None:
+        from PySide6.QtCore import QRect
+
+        from capri.effects.transition import TransitionOverlay
+
+        overlay = TransitionOverlay(
+            screen_rect=QRect(0, 0, 1920, 1080),
+            window_rect=QRect(100, 100, 200, 200),
+            mode="lightning_to_point",
+            target_point=QPoint(500, 500),
+        )
+        self.assertEqual(overlay._mode, "lightning_to_point")
+        self.assertGreater(len(overlay._bolts), 0)
+        overlay.close()
+
 
 if __name__ == "__main__":
     unittest.main()

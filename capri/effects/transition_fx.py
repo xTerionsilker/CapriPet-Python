@@ -6,7 +6,7 @@ import math
 import random
 
 from PySide6.QtCore import QPoint, QPointF, QRect, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPolygonF
+from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import QWidget
 
 from ..integrations.system_control import is_reduced_motion_enabled
@@ -465,16 +465,30 @@ class CyberVectorBolt:
         self.spine_points: list[QPointF] = []
         self.polygon = QPolygonF()
         self.ghost_polygon = QPolygonF()
+        self.chromatic_polygon = QPolygonF()
         self.core_spine: list[QPointF] = []
         self.branches: list[QPolygonF] = []
+        self.branch_spines: list[list[QPointF]] = []
+        self.tendril_spines: list[list[QPointF]] = []
+        self.barbs: list[QPolygonF] = []
+        self.tension: float = 0.0
         self._rebuild()
+
+    def set_tension(self, tension: float) -> None:
+        """Обновляет уровень натяжения и масштабирует шанс ветвления."""
+        self.tension = max(0.0, min(1.0, float(tension)))
+        self.branch_chance = 0.15 + 0.40 * self.tension
 
     def _rebuild(self) -> None:
         self.ghost_polygon = QPolygonF(self.polygon)
+        self.chromatic_polygon.clear()
         self.spine_points.clear()
         self.polygon.clear()
         self.core_spine.clear()
         self.branches.clear()
+        self.branch_spines.clear()
+        self.tendril_spines.clear()
+        self.barbs.clear()
 
         sx, sy = self.start.x(), self.start.y()
         ex, ey = self.end.x(), self.end.y()
@@ -542,13 +556,53 @@ class CyberVectorBolt:
         full_pts = left_side + list(reversed(right_side))
         self.polygon = QPolygonF(full_pts)
 
+        # Хроматический глитч-контур биочипа
+        self.chromatic_polygon = self.polygon.translated(
+            QPointF(-ny * 3.5, nx * 3.5)
+        )
+
+        # Острые вирусные шипы/зазубрины вдоль ствола
+        for i in range(1, n_pts - 1):
+            if random.random() < 0.65:
+                pt = pts[i]
+                side = 1.0 if (i % 2 == 0) else -1.0
+                barb_dir_x = nx * side * 0.7 - ux * 0.7
+                barb_dir_y = ny * side * 0.7 - uy * 0.7
+                barb_len = random.uniform(10.0, 24.0)
+                tip = QPointF(
+                    pt.x() + barb_dir_x * barb_len,
+                    pt.y() + barb_dir_y * barb_len,
+                )
+                w_half = 3.0
+                b1 = QPointF(pt.x() + ux * w_half, pt.y() + uy * w_half)
+                b2 = QPointF(pt.x() - ux * w_half, pt.y() - uy * w_half)
+                self.barbs.append(QPolygonF([b1, tip, b2]))
+
+        # Паразитические извивающиеся жилы-тентакли вокруг ствола
+        for phase in (0.0, math.pi):
+            t_pts: list[QPointF] = []
+            t_steps = max(5, int(dist // 35))
+            for s_i in range(t_steps + 1):
+                r = s_i / t_steps
+                bx = sx + dx * r
+                by = sy + dy * r
+                sine_off = math.sin(r * math.pi * 3.5 + phase) * (max_offset * 0.45)
+                noise = random.uniform(-4.0, 4.0)
+                t_pts.append(
+                    QPointF(bx + nx * (sine_off + noise), by + ny * (sine_off + noise))
+                )
+            self.tendril_spines.append(t_pts)
+
         # Генерация боковых клиновидных отростков
         if self.branch_chance > 0.05 and n_pts >= 3:
             for b_idx in range(1, n_pts - 1):
                 if random.random() < self.branch_chance:
-                    b_poly = self._create_branch_polygon(pts[b_idx], ux, uy, dist)
+                    b_poly, b_spine = self._create_branch_polygon(
+                        pts[b_idx], ux, uy, dist
+                    )
                     if b_poly and not b_poly.isEmpty():
                         self.branches.append(b_poly)
+                        self.branch_spines.append(b_spine)
 
     def _create_branch_polygon(
         self,
@@ -556,7 +610,7 @@ class CyberVectorBolt:
         ux: float,
         uy: float,
         total_dist: float,
-    ) -> QPolygonF:
+    ) -> tuple[QPolygonF, list[QPointF]]:
         side = 1.0 if random.random() < 0.5 else -1.0
         angle = math.atan2(uy, ux) + side * random.uniform(0.6, 1.2)
         b_len = random.uniform(25.0, min(120.0, total_dist * 0.4))
@@ -571,13 +625,15 @@ class CyberVectorBolt:
         b_nx = -math.sin(angle)
         b_ny = math.cos(angle)
 
-        return QPolygonF([
+        spine = [origin, QPointF(mid_x, mid_y), QPointF(tip_x, tip_y)]
+        poly = QPolygonF([
             QPointF(origin.x() + b_nx * w_b, origin.y() + b_ny * w_b),
             QPointF(mid_x + b_nx * (w_b * 0.4), mid_y + b_ny * (w_b * 0.4)),
             QPointF(tip_x, tip_y),
             QPointF(mid_x - b_nx * (w_b * 0.4), mid_y - b_ny * (w_b * 0.4)),
             QPointF(origin.x() - b_nx * w_b, origin.y() - b_ny * w_b),
         ])
+        return poly, spine
 
     def jitter(self, force: bool = False) -> None:
         if force or random.random() < 0.65:
@@ -592,20 +648,59 @@ class CyberVectorBolt:
 
         alpha_val = int(255 * min(1.0, progress))
 
-        # 1. Призрачный остаточный фантом (ghost motion trail) со сдвигом
+        # 1. Хроматический глитч-контур биочипа/вируса
+        if not self.chromatic_polygon.isEmpty():
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(with_alpha(COLOR_VIOLET, int(alpha_val * 0.40)))
+            painter.drawPolygon(self.chromatic_polygon)
+
+        # 2. Призрачный остаточный фантом (ghost motion trail) со сдвигом
         if not self.ghost_polygon.isEmpty():
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(with_alpha(self.color, int(alpha_val * 0.35)))
             painter.drawPolygon(self.ghost_polygon)
 
-        # 2. Основное монолитное тело молнии
+        # 3. Основное монолитное тело молнии и вирусные шипы
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(with_alpha(self.color, alpha_val))
         painter.drawPolygon(self.polygon)
 
-        # 3. Боковые отростки (если включены)
+        for barb in self.barbs:
+            painter.drawPolygon(barb)
+
+        # 4. Боковые отростки (если включены)
         for b_poly in self.branches:
             painter.drawPolygon(b_poly)
+
+        # 5. Паразитические извивающиеся жилы-тентакли
+        if alpha_val > 25:
+            tendril_pen = QPen(with_alpha(COLOR_WHITE, int(alpha_val * 0.85)), 1.5)
+            tendril_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(tendril_pen)
+            for t_spine in self.tendril_spines:
+                for idx in range(len(t_spine) - 1):
+                    painter.drawLine(t_spine[idx], t_spine[idx + 1])
+
+        # 6. Раскаленное белое ядро в стиле Studio Trigger (Hot white core)
+        if len(self.core_spine) >= 2 and alpha_val > 15:
+            core_color = with_alpha(COLOR_WHITE, min(255, int(alpha_val * 0.95)))
+            n_core = len(self.core_spine)
+            for i in range(n_core - 1):
+                t_seg = i / max(1, n_core - 2)
+                w_core = max(1.5, (self.base_width * 0.26) * (1.0 - t_seg * 0.6))
+                pen = QPen(core_color, w_core)
+                pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+                pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+                painter.setPen(pen)
+                painter.drawLine(self.core_spine[i], self.core_spine[i + 1])
+
+            for b_spine in self.branch_spines:
+                if len(b_spine) >= 2:
+                    b_pen = QPen(core_color, max(1.2, self.base_width * 0.12))
+                    b_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+                    painter.setPen(b_pen)
+                    for i in range(len(b_spine) - 1):
+                        painter.drawLine(b_spine[i], b_spine[i + 1])
 
         painter.restore()
 

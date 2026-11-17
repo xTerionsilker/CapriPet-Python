@@ -454,22 +454,34 @@ class TransitionModesMixin:
 
         if p >= 0.55:
             flash_p = (p - 0.55) / 0.45
-            radius = snap_pixel(int(96 * flash_p))
+            radius = snap_pixel(int(110 * flash_p))
             CyberShockwaveRing.draw(
                 painter, target_pt, radius, with_alpha(COLOR_CRIMSON, 220)
             )
             CyberShockwaveRing.draw(
                 painter,
                 target_pt,
-                max(0, radius - 12),
-                with_alpha(COLOR_WHITE, 200),
+                max(0, radius - 14),
+                with_alpha(COLOR_WHITE, 220),
             )
             CyberShockwaveRing.draw(
                 painter,
                 target_pt,
-                max(0, radius - 24),
-                with_alpha(COLOR_ACID_GREEN, 150),
+                max(0, radius - 28),
+                with_alpha(COLOR_VIOLET, 180),
             )
+            crack_pen = QPen(
+                with_alpha(COLOR_CRIMSON, int(230 * (1.0 - flash_p * 0.4))), 1.5
+            )
+            painter.setPen(crack_pen)
+            for c_i in range(8):
+                c_ang = (c_i / 8.0) * math.tau + 0.3
+                c_len = radius * 1.1
+                c_end_x = target_pt.x() + int(math.cos(c_ang) * c_len)
+                c_end_y = target_pt.y() + int(math.sin(c_ang) * c_len)
+                painter.drawLine(
+                    target_pt.x(), target_pt.y(), c_end_x, c_end_y
+                )
 
         for spark in self._sparks:
             spark.draw(painter)
