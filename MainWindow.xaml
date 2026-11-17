@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:CapriPet.ViewModels"
+        xmlns:controls="clr-namespace:CapriPet.Views.Controls"
         mc:Ignorable="d"
         Title="CapriPet"
         SizeToContent="WidthAndHeight"
@@ -13,7 +14,6 @@
         Topmost="True"
         ShowInTaskbar="True"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
-        MouseRightButtonUp="Window_MouseRightButtonUp"
         Loaded="Window_Loaded"
         SizeChanged="Window_SizeChanged"
         FontFamily="{StaticResource CyberFont}">
@@ -25,9 +25,8 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
-        <!-- Глитч-эффект появления кнопок (смещение X, наклон Skew, мерцание Opacity) -->
+        <!-- Глитч-эффект появления кнопок (смещение X, наклон Skew AngleX, мерцание Opacity) -->
         <Storyboard x:Key="GlitchInStoryboard">
-            <!-- Резкие цифровые сдвиги по X -->
             <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ControlPanel"
                                            Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(TranslateTransform.X)">
                 <DiscreteDoubleKeyFrame KeyTime="0:0:0.01" Value="-8"/>
@@ -38,7 +37,6 @@
                 <DiscreteDoubleKeyFrame KeyTime="0:0:0.15" Value="0"/>
             </DoubleAnimationUsingKeyFrames>
 
-            <!-- Горизонтальное искажение Skew (эффект сканлайн-среза) -->
             <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ControlPanel"
                                            Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(SkewTransform.AngleX)">
                 <DiscreteDoubleKeyFrame KeyTime="0:0:0.02" Value="14"/>
@@ -48,7 +46,6 @@
                 <DiscreteDoubleKeyFrame KeyTime="0:0:0.15" Value="0"/>
             </DoubleAnimationUsingKeyFrames>
 
-            <!-- Стробоскопическое мерцание прозрачности -->
             <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ControlPanel"
                                            Storyboard.TargetProperty="Opacity">
                 <DiscreteDoubleKeyFrame KeyTime="0:0:0.01" Value="0.9"/>
@@ -104,19 +101,16 @@
                                   Stroke="#FF4985F9"
                                   StrokeThickness="1.5">
                                 <Path.Effect>
-                                    <DropShadowEffect x:Name="BtnShadow"
-                                                      BlurRadius="10"
+                                    <DropShadowEffect BlurRadius="10"
                                                       ShadowDepth="0"
                                                       Color="#FF4985F9"
                                                       Opacity="0.6"/>
                                 </Path.Effect>
                             </Path>
 
-                            <!-- Декоративные кибер-угловые штрихи -->
                             <Path Data="M 1,11 L 1,21" Stroke="#554985F9" StrokeThickness="1"/>
                             <Path Data="M 85,11 L 85,21" Stroke="#554985F9" StrokeThickness="1"/>
 
-                            <!-- Содержимое кнопки -->
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
 
@@ -134,130 +128,409 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Киберпанк-разделитель контекстного меню -->
+        <Style x:Key="CyberSeparator" TargetType="Separator">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Margin" Value="4,3"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Separator">
+                        <Rectangle Height="1">
+                            <Rectangle.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#FFFE0929" Offset="0"/>
+                                    <GradientStop Color="#FF0FFF55" Offset="0.5"/>
+                                    <GradientStop Color="Transparent" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Пункт киберпанк-меню -->
+        <Style x:Key="CyberMenuItem" TargetType="MenuItem">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Foreground" Value="#FFF0F1F5"/>
+            <Setter Property="FontFamily" Value="{StaticResource CyberFont}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Grid>
+                            <Border x:Name="ItemBg" Background="Transparent" Padding="10,4">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Индикатор чекбокса (если активен) -->
+                                    <Border x:Name="CheckMark"
+                                            Grid.Column="0"
+                                            Width="8" Height="8"
+                                            Background="#FF0FFF55"
+                                            Margin="0,0,8,0"
+                                            Visibility="Collapsed"/>
+
+                                    <!-- Текст пункта -->
+                                    <ContentPresenter Grid.Column="1"
+                                                      ContentSource="Header"
+                                                      VerticalAlignment="Center"/>
+
+                                    <!-- Стрелочка подменю -->
+                                    <Path x:Name="SubmenuArrow"
+                                          Grid.Column="2"
+                                          Data="M 0,0 L 4,4 L 0,8"
+                                          Stroke="#FFFE0929"
+                                          StrokeThickness="1.5"
+                                          Margin="12,0,4,0"
+                                          VerticalAlignment="Center"
+                                          Visibility="Collapsed"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Левая неоновая полоска при наведении (Matrix Green) -->
+                            <Rectangle x:Name="HoverBar"
+                                       Width="2.5"
+                                       HorizontalAlignment="Left"
+                                       Fill="#FF0FFF55"
+                                       Visibility="Collapsed"/>
+
+                            <!-- Всплывающее подменю -->
+                            <Popup x:Name="PART_Popup"
+                                   IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Placement="Right"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Fade">
+                                <controls:CyberChamferBorder Background="#FA040017"
+                                                             BorderBrush="#FFFE0929"
+                                                             BorderThickness="1.5"
+                                                             AccentBrush="#FF0FFF55"
+                                                             ChamferSize="12"
+                                                             Padding="4,4"
+                                                             Margin="6">
+                                    <controls:CyberChamferBorder.Effect>
+                                        <DropShadowEffect BlurRadius="16" ShadowDepth="0" Color="#FFFE0929" Opacity="0.9"/>
+                                    </controls:CyberChamferBorder.Effect>
+                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                </controls:CyberChamferBorder>
+                            </Popup>
+                        </Grid>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasItems" Value="True">
+                                <Setter TargetName="SubmenuArrow" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemBg" Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#60FE0929" Offset="0"/>
+                                            <GradientStop Color="#25040017" Offset="0.8"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="HoverBar" Property="Visibility" Value="Visible"/>
+                                <Setter Property="Foreground" Value="#FFFFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Заголовок контекстного меню (CAPRI//NEURAL_LINK) -->
+        <Style x:Key="CyberMenuItemHeader" TargetType="MenuItem" BasedOn="{StaticResource CyberMenuItem}">
+            <Setter Property="IsEnabled" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border Background="#15FE0929" BorderBrush="#FFFE0929" BorderThickness="0,0,0,1" Padding="10,6">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="3" Height="10" Background="#FF0FFF55" Margin="0,0,6,0"/>
+                                <TextBlock Text="{TemplateBinding Header}"
+                                           Foreground="#FF0FFF55"
+                                           FontWeight="Bold"
+                                           FontSize="10"/>
+                            </StackPanel>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Пункт завершения работы (красный акцент) -->
+        <Style x:Key="CyberHaltMenuItem" TargetType="MenuItem" BasedOn="{StaticResource CyberMenuItem}">
+            <Setter Property="Foreground" Value="#FFFE0929"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+
+        <!-- Стиль контекстного меню со скошенными углами и алым неоном -->
+        <Style x:Key="CyberContextMenu" TargetType="ContextMenu">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="FontFamily" Value="{StaticResource CyberFont}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <controls:CyberChamferBorder Background="#FA040017"
+                                                     BorderBrush="#FFFE0929"
+                                                     BorderThickness="1.5"
+                                                     AccentBrush="#FF0FFF55"
+                                                     ChamferSize="12"
+                                                     Padding="4,4">
+                            <controls:CyberChamferBorder.Effect>
+                                <DropShadowEffect BlurRadius="18" ShadowDepth="0" Color="#FFFE0929" Opacity="0.9"/>
+                            </controls:CyberChamferBorder.Effect>
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                        </controls:CyberChamferBorder>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
-    <!-- Интерактивная зона Capri: отслеживает наведение курсора для глитча -->
-    <Grid x:Name="PetInteractiveArea" Margin="24" Background="Transparent">
-        <Grid.Triggers>
-            <EventTrigger RoutedEvent="MouseEnter">
-                <BeginStoryboard Storyboard="{StaticResource GlitchInStoryboard}"/>
-            </EventTrigger>
-            <EventTrigger RoutedEvent="MouseLeave">
-                <BeginStoryboard Storyboard="{StaticResource GlitchOutStoryboard}"/>
-            </EventTrigger>
-        </Grid.Triggers>
-
+    <!-- Главный контейнер CapriPet -->
+    <Grid Margin="24">
         <Grid.RowDefinitions>
-            <!-- Спрайт персонажа -->
+            <!-- 0. Киберпанк-облачко диалога ответа -->
             <RowDefinition Height="Auto"/>
-            <!-- Панель кнопок и терминала ввода (с глитч-эффектом) -->
+            <!-- 1. Интерактивная зона персонажа и кнопок ввода -->
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 1. Спрайт Капри -->
-        <Grid Grid.Row="0" HorizontalAlignment="Center">
-            <Image Source="{Binding CurrentSpriteSource}"
-                   Width="{Binding PetSize}"
-                   Height="{Binding PetSize}"
-                   Stretch="Uniform"
-                   RenderOptions.BitmapScalingMode="HighQuality"
-                   Cursor="Hand"
-                   ToolTip="ЛКМ: перетаскивать | ПКМ: настройки размера">
-                <Image.Effect>
-                    <!-- Неоновое свечение контура персонажа -->
-                    <DropShadowEffect BlurRadius="16" ShadowDepth="0" Opacity="0.6" Color="#FF4985F9"/>
-                </Image.Effect>
-            </Image>
-        </Grid>
-
-        <!-- 2. Панель управления с глитч-анимацией (по умолчанию скрыта Opacity=0) -->
-        <StackPanel x:Name="ControlPanel"
-                    Grid.Row="1"
-                    Opacity="0"
+        <!-- 0. Киберпанк-облачко ответа Капри (CyberHudBubble) -->
+        <StackPanel Grid.Row="0"
+                    Visibility="{Binding IsSpeechBubbleVisible, Converter={StaticResource BoolToVis}}"
                     HorizontalAlignment="Center"
-                    Margin="0,8,0,0">
-            <StackPanel.RenderTransform>
-                <TransformGroup>
-                    <TranslateTransform X="0" Y="0"/>
-                    <SkewTransform AngleX="0" AngleY="0"/>
-                </TransformGroup>
-            </StackPanel.RenderTransform>
+                    Margin="0,0,0,8"
+                    MaxWidth="320">
+            <!-- Тело облачка с фирменными скошенными углами 45° и алым свечением (Arasaka Crimson) -->
+            <controls:CyberChamferBorder Background="#FA040017"
+                                         BorderBrush="#FFFE0929"
+                                         BorderThickness="1.5"
+                                         AccentBrush="#FF0FFF55"
+                                         ChamferSize="14"
+                                         Padding="14,10">
+                <controls:CyberChamferBorder.Effect>
+                    <!-- Неоновое алое свечение Arasaka Crimson (#FE0929) -->
+                    <DropShadowEffect BlurRadius="18" ShadowDepth="0" Color="#FFFE0929" Opacity="0.9"/>
+                </controls:CyberChamferBorder.Effect>
+                <StackPanel>
+                    <!-- Заголовок облачка в стиле [CAPRI // NET_LINK] -->
+                    <DockPanel LastChildFill="False" Margin="0,0,0,6">
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                            <!-- Зеленая индикаторная полоска Matrix Green -->
+                            <Border Width="3" Height="12" Background="#FF0FFF55" Margin="0,0,6,0"/>
+                            <TextBlock Text="◈ [CAPRI // NET_LINK]"
+                                       Foreground="#FF0FFF55"
+                                       FontSize="10"
+                                       FontWeight="Bold"/>
+                            <TextBlock Text="[MSG_OUT]"
+                                       Foreground="#80FE0929"
+                                       FontSize="9"
+                                       FontWeight="SemiBold"
+                                       Margin="6,0,0,0"/>
+                        </StackPanel>
 
-            <!-- Кнопки управления (TXT и MIC) со скошенными 45° углами и векторными иконками -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <!-- Кнопка быстрого закрытия сообщения (Cyber Red) -->
+                        <Button Content="✕"
+                                DockPanel.Dock="Right"
+                                Foreground="#FFFE0929"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                FontSize="12"
+                                FontWeight="Bold"
+                                Cursor="Hand"
+                                Command="{Binding CloseSpeechBubbleCommand}"
+                                ToolTip="Закрыть сообщение"/>
+                    </DockPanel>
 
-                <!-- Кнопка TXT (терминал / чат) -->
-                <Button Command="{Binding ToggleTextInputCommand}"
-                        Style="{StaticResource CyberPolyButton}"
-                        ToolTip="Терминал ввода // [TXT]"
-                        Margin="0,0,10,0">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Векторная иконка кибер-терминала >_ -->
-                        <Path Data="M 0,2 L 4,6 L 0,10 M 6,10 L 11,10"
-                              Stroke="#FF4985F9"
-                              StrokeThickness="1.5"
-                              VerticalAlignment="Center"
-                              Margin="0,0,6,0"/>
-                        <TextBlock Text="TXT"
-                                   FontSize="11"
-                                   FontWeight="Bold"
-                                   Foreground="#FFF0F1F5"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
+                    <!-- Сам текст ответа Капри (Cyber Platinum) -->
+                    <TextBlock Text="{Binding SpeechText}"
+                               Foreground="#FFF0F1F5"
+                               FontSize="12"
+                               FontWeight="Medium"
+                               TextWrapping="Wrap"
+                               LineHeight="16"/>
+                </StackPanel>
+            </controls:CyberChamferBorder>
 
-                <!-- Кнопка MIC (голосовой ввод / микрофон) -->
-                <Button Command="{Binding ToggleMicCommand}"
-                        Style="{StaticResource CyberPolyButton}"
-                        ToolTip="Сенсор голоса // [MIC]">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Векторная иконка микрофона -->
-                        <Path Data="M 4,2 C 4,0.9 4.9,0 6,0 C 7.1,0 8,0.9 8,2 L 8,6 C 8,7.1 7.1,8 6,8 C 4.9,8 4,7.1 4,6 Z M 1.5,5.5 C 1.5,8 3.5,10 6,10 C 8.5,10 10.5,8 10.5,5.5 M 6,10 L 6,13 M 3,13 L 9,13"
-                              Stroke="{Binding MicColorBrush}"
-                              StrokeThickness="1.4"
-                              VerticalAlignment="Center"
-                              Margin="0,0,6,0"/>
-                        <TextBlock Text="MIC"
-                                   FontSize="11"
-                                   FontWeight="Bold"
-                                   Foreground="{Binding MicColorBrush}"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Button>
-            </StackPanel>
-
-            <!-- Киберпанк-строка терминала (появляется при клике на TXT) -->
-            <Border Visibility="{Binding IsTextInputOpen, Converter={StaticResource BoolToVis}}"
-                    Background="#FA040017"
-                    BorderBrush="#FF4985F9"
-                    BorderThickness="1.5"
-                    Padding="10,6"
-                    Margin="0,8,0,0"
-                    MinWidth="190"
-                    MaxWidth="280">
-                <Border.Effect>
-                    <DropShadowEffect BlurRadius="12" ShadowDepth="0" Color="#FF4985F9" Opacity="0.8"/>
-                </Border.Effect>
-                <DockPanel>
-                    <TextBlock Text="> "
-                               Foreground="#FF0FFF55"
-                               FontWeight="Bold"
-                               FontSize="11"
-                               VerticalAlignment="Center"/>
-                    <TextBox Text="{Binding InputPromptText, UpdateSourceTrigger=PropertyChanged}"
-                             Background="Transparent"
-                             Foreground="#FFF0F1F5"
-                             CaretBrush="#FF0FFF55"
-                             BorderThickness="0"
-                             FontSize="11"
-                             VerticalAlignment="Center">
-                        <TextBox.InputBindings>
-                            <KeyBinding Key="Enter" Command="{Binding SubmitTextCommand}"/>
-                            <KeyBinding Key="Esc" Command="{Binding ToggleTextInputCommand}"/>
-                        </TextBox.InputBindings>
-                    </TextBox>
-                </DockPanel>
-            </Border>
+            <!-- Технологический стрелочный указатель облачка на персонажа -->
+            <Path Data="M 0,0 L 7,7 L 14,0 Z"
+                  Fill="#FA040017"
+                  Stroke="#FFFE0929"
+                  StrokeThickness="1.5"
+                  HorizontalAlignment="Center"
+                  Margin="0,-1,0,0"/>
         </StackPanel>
+
+        <!-- 1. Зона Капри и кнопок (отслеживает наведение для появления и отложенного скрытия с глитчем) -->
+        <Grid Grid.Row="1"
+              x:Name="PetInteractiveArea"
+              Background="Transparent"
+              HorizontalAlignment="Center"
+              MouseEnter="PetInteractiveArea_MouseEnter"
+              MouseLeave="PetInteractiveArea_MouseLeave">
+
+            <Grid.RowDefinitions>
+                <!-- Спрайт персонажа -->
+                <RowDefinition Height="Auto"/>
+                <!-- Панель кнопок и терминала ввода -->
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Спрайт Капри с киберпанк контекстным меню -->
+            <Grid Grid.Row="0" HorizontalAlignment="Center">
+                <Grid.ContextMenu>
+                    <ContextMenu Style="{StaticResource CyberContextMenu}">
+                        <!-- Заголовок контекстного меню -->
+                        <MenuItem Header="[ONLINE] CAPRI//NEURAL_LINK" Style="{StaticResource CyberMenuItemHeader}"/>
+                        <Separator Style="{StaticResource CyberSeparator}"/>
+
+                        <!-- Быстрые действия -->
+                        <MenuItem Header="[TXT] Консоль ввода..." Command="{Binding ToggleTextInputCommand}" Style="{StaticResource CyberMenuItem}"/>
+                        <MenuItem Header="[MIC] Сенсор микрофона" Command="{Binding ToggleMicCommand}" IsChecked="{Binding IsMicActive}" Style="{StaticResource CyberMenuItem}"/>
+                        <MenuItem Header="[POSE] Сменить позу" Command="{Binding RandomizePoseCommand}" Style="{StaticResource CyberMenuItem}"/>
+                        <Separator Style="{StaticResource CyberSeparator}"/>
+
+                        <!-- Музыка Spotify -->
+                        <MenuItem Header="[SPOTIFY] Музыка" Style="{StaticResource CyberMenuItem}">
+                            <MenuItem Header="[▶/⏸] Играть / Пауза" Command="{Binding SpotifyPlayPauseCommand}" Style="{StaticResource CyberMenuItem}"/>
+                            <MenuItem Header="[⏭] Следующий трек" Command="{Binding SpotifyNextCommand}" Style="{StaticResource CyberMenuItem}"/>
+                            <MenuItem Header="[⏮] Предыдущий трек" Command="{Binding SpotifyPrevCommand}" Style="{StaticResource CyberMenuItem}"/>
+                        </MenuItem>
+
+                        <!-- Масштабирование -->
+                        <MenuItem Header="[SCALE] Масштаб питомца" Style="{StaticResource CyberMenuItem}">
+                            <MenuItem Header="TINY (100 px)" Command="{Binding SetScalePresetCommand}" CommandParameter="0" Style="{StaticResource CyberMenuItem}"/>
+                            <MenuItem Header="SMALL (140 px)" Command="{Binding SetScalePresetCommand}" CommandParameter="1" Style="{StaticResource CyberMenuItem}"/>
+                            <MenuItem Header="MEDIUM (180 px)" Command="{Binding SetScalePresetCommand}" CommandParameter="2" Style="{StaticResource CyberMenuItem}"/>
+                            <MenuItem Header="DEFAULT (220 px)" Command="{Binding SetScalePresetCommand}" CommandParameter="3" Style="{StaticResource CyberMenuItem}"/>
+                            <MenuItem Header="BIG (280 px)" Command="{Binding SetScalePresetCommand}" CommandParameter="4" Style="{StaticResource CyberMenuItem}"/>
+                            <MenuItem Header="VERY BIG (360 px)" Command="{Binding SetScalePresetCommand}" CommandParameter="5" Style="{StaticResource CyberMenuItem}"/>
+                            <MenuItem Header="HARDCORE (460 px)" Command="{Binding SetScalePresetCommand}" CommandParameter="6" Style="{StaticResource CyberMenuItem}"/>
+                            <Separator Style="{StaticResource CyberSeparator}"/>
+                            <MenuItem Header="[SLIDER] Слайдер размера..." Command="{Binding OpenSettingsCommand}" Style="{StaticResource CyberMenuItem}"/>
+                        </MenuItem>
+
+                        <Separator Style="{StaticResource CyberSeparator}"/>
+                        <MenuItem Header="[SYS.HALT] Завершить работу" Command="{Binding CloseCommand}" Style="{StaticResource CyberHaltMenuItem}"/>
+                    </ContextMenu>
+                </Grid.ContextMenu>
+
+                <Image Source="{Binding CurrentSpriteSource}"
+                       Width="{Binding PetSize}"
+                       Height="{Binding PetSize}"
+                       Stretch="Uniform"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       Cursor="Hand"
+                       ToolTip="ЛКМ: перетаскивать | ПКМ: меню Capri">
+                    <Image.Effect>
+                        <DropShadowEffect BlurRadius="16" ShadowDepth="0" Opacity="0.6" Color="#FF4985F9"/>
+                    </Image.Effect>
+                </Image>
+            </Grid>
+
+            <!-- Панель управления с глитч-анимацией -->
+            <StackPanel x:Name="ControlPanel"
+                        Grid.Row="1"
+                        Opacity="0"
+                        IsHitTestVisible="False"
+                        HorizontalAlignment="Center"
+                        Margin="0,8,0,0">
+                <StackPanel.RenderTransform>
+                    <TransformGroup>
+                        <TranslateTransform X="0" Y="0"/>
+                        <SkewTransform AngleX="0" AngleY="0"/>
+                    </TransformGroup>
+                </StackPanel.RenderTransform>
+
+                <!-- Скошенные кнопки TXT и MIC -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <!-- Кнопка TXT (терминал / чат) -->
+                    <Button Command="{Binding ToggleTextInputCommand}"
+                            Style="{StaticResource CyberPolyButton}"
+                            ToolTip="Терминал ввода // [TXT]"
+                            Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="M 0,2 L 4,6 L 0,10 M 6,10 L 11,10"
+                                  Stroke="#FF4985F9"
+                                  StrokeThickness="1.5"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,6,0"/>
+                            <TextBlock Text="TXT"
+                                       FontSize="11"
+                                       FontWeight="Bold"
+                                       Foreground="#FFF0F1F5"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Кнопка MIC (голосовой ввод / микрофон) -->
+                    <Button Command="{Binding ToggleMicCommand}"
+                            Style="{StaticResource CyberPolyButton}"
+                            ToolTip="Сенсор голоса // [MIC]">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="M 4,2 C 4,0.9 4.9,0 6,0 C 7.1,0 8,0.9 8,2 L 8,6 C 8,7.1 7.1,8 6,8 C 4.9,8 4,7.1 4,6 Z M 1.5,5.5 C 1.5,8 3.5,10 6,10 C 8.5,10 10.5,8 10.5,5.5 M 6,10 L 6,13 M 3,13 L 9,13"
+                                  Stroke="{Binding MicColorBrush}"
+                                  StrokeThickness="1.4"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,6,0"/>
+                            <TextBlock Text="MIC"
+                                       FontSize="11"
+                                       FontWeight="Bold"
+                                       Foreground="{Binding MicColorBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- Строка кибер-терминала ввода текста -->
+                <Border Visibility="{Binding IsTextInputOpen, Converter={StaticResource BoolToVis}}"
+                        Background="#FA040017"
+                        BorderBrush="#FF4985F9"
+                        BorderThickness="1.5"
+                        Padding="10,6"
+                        Margin="0,8,0,0"
+                        MinWidth="190"
+                        MaxWidth="280">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="12" ShadowDepth="0" Color="#FF4985F9" Opacity="0.8"/>
+                    </Border.Effect>
+                    <DockPanel>
+                        <TextBlock Text="> "
+                                   Foreground="#FF0FFF55"
+                                   FontWeight="Bold"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding InputPromptText, UpdateSourceTrigger=PropertyChanged}"
+                                 Background="Transparent"
+                                 Foreground="#FFF0F1F5"
+                                 CaretBrush="#FF0FFF55"
+                                 BorderThickness="0"
+                                 FontSize="11"
+                                 VerticalAlignment="Center">
+                            <TextBox.InputBindings>
+                                <KeyBinding Key="Enter" Command="{Binding SubmitTextCommand}"/>
+                                <KeyBinding Key="Esc" Command="{Binding ToggleTextInputCommand}"/>
+                            </TextBox.InputBindings>
+                        </TextBox>
+                    </DockPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

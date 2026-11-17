@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CapriPet.Views"
+        xmlns:controls="clr-namespace:CapriPet.Views.Controls"
         mc:Ignorable="d"
         Title="CapriPet Scale Config"
         Height="250" Width="470"
@@ -24,7 +25,7 @@
                     <ControlTemplate TargetType="Thumb">
                         <Border Width="16" Height="28"
                                 Background="#FFFE0929"
-                                BorderBrush="#FFF0F1F5"
+                                BorderBrush="#FFFE0929"
                                 BorderThickness="1.5"
                                 Cursor="Hand">
                             <Border.Effect>
@@ -67,16 +68,18 @@
         </Style>
     </Window.Resources>
 
-    <!-- Основная панель в красно-черной киберпанк-палитре -->
-    <Border Background="#FA040017"
-            BorderBrush="#FFFE0929"
-            BorderThickness="2"
-            Padding="22,18"
-            Margin="10">
-        <Border.Effect>
+    <!-- Основная панель в фирменном красно-черном стиле со скошенными углами -->
+    <controls:CyberChamferBorder Background="#FA040017"
+                                 BorderBrush="#FFFE0929"
+                                 BorderThickness="2"
+                                 AccentBrush="#FFFE0929"
+                                 ChamferSize="16"
+                                 Padding="24,18"
+                                 Margin="10">
+        <controls:CyberChamferBorder.Effect>
             <!-- Агрессивное неоновое алое свечение (Arasaka Crimson #fe0929) -->
-            <DropShadowEffect BlurRadius="18" ShadowDepth="0" Opacity="0.85" Color="#FFFE0929"/>
-        </Border.Effect>
+            <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.9" Color="#FFFE0929"/>
+        </controls:CyberChamferBorder.Effect>
 
         <StackPanel>
             <!-- Заголовок окна -->
@@ -116,7 +119,7 @@
                 </Button>
             </DockPanel>
 
-            <!-- Информационная плашка с текущим размером (Черный фон + Красная рамка) -->
+            <!-- Информационная плашка с текущим размером (Черный фон + Красный текст и рамка) -->
             <Border Background="#FF040017"
                     BorderBrush="#FFFE0929"
                     BorderThickness="1.5"
@@ -124,7 +127,7 @@
                     Margin="0,0,0,18">
                 <DockPanel>
                     <TextBlock Text="ТЕКУЩИЙ РАЗМЕР:"
-                               Foreground="#FFF0F1F5"
+                               Foreground="#FFFE0929"
                                FontSize="11"
                                FontWeight="Bold"
                                VerticalAlignment="Center"
@@ -143,9 +146,9 @@
                                        FontWeight="Bold"/>
                         </Border>
 
-                        <!-- Пиксели (Cyber Platinum) -->
+                        <!-- Пиксели (Cyber Red) -->
                         <TextBlock Text="{Binding ScalePixelText}"
-                                   Foreground="#FFF0F1F5"
+                                   Foreground="#FFFE0929"
                                    FontSize="11"
                                    FontWeight="SemiBold"
                                    VerticalAlignment="Center"/>
@@ -176,11 +179,11 @@
                 <TextBlock Grid.Column="0" Text="TINY" HorizontalAlignment="Left" FontSize="9" FontWeight="Bold" Foreground="#FFFE0929"/>
                 <TextBlock Grid.Column="1" Text="SMALL" HorizontalAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="#FFFE0929"/>
                 <TextBlock Grid.Column="2" Text="MEDIUM" HorizontalAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="#FFFE0929"/>
-                <TextBlock Grid.Column="3" Text="DEFAULT" HorizontalAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="#FFF0F1F5"/>
+                <TextBlock Grid.Column="3" Text="DEFAULT" HorizontalAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="#FFFE0929"/>
                 <TextBlock Grid.Column="4" Text="BIG" HorizontalAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="#FFFE0929"/>
                 <TextBlock Grid.Column="5" Text="VERY BIG" HorizontalAlignment="Center" FontSize="9" FontWeight="Bold" Foreground="#FFFE0929"/>
                 <TextBlock Grid.Column="6" Text="HARDCORE" HorizontalAlignment="Right" FontSize="9" FontWeight="Bold" Foreground="#FFFE0929"/>
             </Grid>
         </StackPanel>
-    </Border>
+    </controls:CyberChamferBorder>
 </Window>

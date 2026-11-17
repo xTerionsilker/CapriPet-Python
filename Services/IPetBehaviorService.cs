@@ -9,5 +9,7 @@ public interface IPetBehaviorService
     event EventHandler<PetState>? StateChanged;
 
     void Interact();
+    string RespondToCommand(string command);
     string GetRandomPhrase();
+    void SetPose(string spriteName);
 }

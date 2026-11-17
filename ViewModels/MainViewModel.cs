@@ -1,5 +1,5 @@
 using System;
-using System.Threading.Tasks;
+using System.Timers;
 using System.Windows.Input;
 using System.Windows.Media;
 using CapriPet.Commands;
@@ -14,6 +14,7 @@ public class MainViewModel : BaseViewModel
     private readonly IPetBehaviorService _petService;
     private readonly IConfigService _configService;
     private readonly IVoiceRecognitionService _voiceService;
+    private readonly ISpotifyControlService _spotifyService;
 
     private string _currentSpriteSource = "pack://application:,,,/Assets/Sprites/base.png";
     private int _scaleStep;
@@ -25,16 +26,21 @@ public class MainViewModel : BaseViewModel
     private bool _isTextInputOpen;
     private string _inputPromptText = string.Empty;
 
+    private string _speechText = string.Empty;
+    private bool _isSpeechBubbleVisible;
+    private readonly System.Timers.Timer _speechHideTimer;
+
     private SettingsWindow? _settingsWindow;
 
-    public MainViewModel() : this(null, null, null)
+    public MainViewModel() : this(null, null, null, null)
     {
     }
 
     public MainViewModel(
         IPetBehaviorService? petService,
         IConfigService? configService = null,
-        IVoiceRecognitionService? voiceService = null)
+        IVoiceRecognitionService? voiceService = null,
+        ISpotifyControlService? spotifyService = null)
     {
         _configService = configService ?? new ConfigService();
         _petService = petService ?? new PetBehaviorService();
@@ -43,15 +49,62 @@ public class MainViewModel : BaseViewModel
         _voiceService = voiceService ?? new VoiceRecognitionService();
         _voiceService.SpeechRecognized += OnSpeechRecognized;
 
+        _spotifyService = spotifyService ?? new SpotifyControlService();
+
         CloseCommand = new RelayCommand(OnClose);
         OpenSettingsCommand = new RelayCommand(OnOpenSettings);
         ToggleMicCommand = new RelayCommand(async () => await ToggleMicAsync());
         ToggleTextInputCommand = new RelayCommand(OnToggleTextInput);
         SubmitTextCommand = new RelayCommand(OnSubmitText);
+        CloseSpeechBubbleCommand = new RelayCommand(OnCloseSpeechBubble);
+
+        SpotifyPlayPauseCommand = new RelayCommand(() =>
+        {
+            _spotifyService.PlayPause();
+            string? cur = _spotifyService.CurrentTrackTitle;
+            ShowSpeech(!string.IsNullOrWhiteSpace(cur) ? $"Воспроизведение: «{cur}» 🎶" : "Spotify: плей/пауза. 🎶");
+        });
+
+        SpotifyNextCommand = new RelayCommand(() =>
+        {
+            _spotifyService.NextTrack();
+            ShowSpeech("Следующий трек! ⏭️");
+        });
+
+        SpotifyPrevCommand = new RelayCommand(() =>
+        {
+            _spotifyService.PreviousTrack();
+            ShowSpeech("Предыдущий трек. ⏮️");
+        });
+
+        RandomizePoseCommand = new RelayCommand(() =>
+        {
+            _petService.Interact();
+        });
+
+        SetScalePresetCommand = new RelayCommand(p =>
+        {
+            if (p != null && int.TryParse(p.ToString(), out int step))
+            {
+                ScaleStep = step;
+            }
+        });
+
+        _speechHideTimer = new System.Timers.Timer
+        {
+            AutoReset = false
+        };
+        _speechHideTimer.Elapsed += (_, _) =>
+        {
+            System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                IsSpeechBubbleVisible = false;
+            });
+        };
 
         _currentSpriteSource = _petService.CurrentState.SpritePath;
 
-        // Загрузка масштаба из сохраненной конфигурации
+        // Загрузка масштаба из конфигурации
         ApplyScalePreset(_configService.Current.ScaleStep, saveConfig: false);
     }
 
@@ -122,13 +175,53 @@ public class MainViewModel : BaseViewModel
         set => SetProperty(ref _inputPromptText, value);
     }
 
+    public string SpeechText
+    {
+        get => _speechText;
+        set => SetProperty(ref _speechText, value);
+    }
+
+    public bool IsSpeechBubbleVisible
+    {
+        get => _isSpeechBubbleVisible;
+        set => SetProperty(ref _isSpeechBubbleVisible, value);
+    }
+
     public ICommand CloseCommand { get; }
     public ICommand OpenSettingsCommand { get; }
     public ICommand ToggleMicCommand { get; }
     public ICommand ToggleTextInputCommand { get; }
     public ICommand SubmitTextCommand { get; }
+    public ICommand CloseSpeechBubbleCommand { get; }
+    public ICommand SpotifyPlayPauseCommand { get; }
+    public ICommand SpotifyNextCommand { get; }
+    public ICommand SpotifyPrevCommand { get; }
+    public ICommand RandomizePoseCommand { get; }
+    public ICommand SetScalePresetCommand { get; }
 
     public event Action? RequestClose;
+
+    public void ShowSpeech(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message)) return;
+
+        System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+        {
+            SpeechText = message;
+            IsSpeechBubbleVisible = true;
+
+            // Длительность показа зависит от длины фразы (минимум 5 секунд)
+            _speechHideTimer.Stop();
+            _speechHideTimer.Interval = Math.Max(5000, message.Length * 80);
+            _speechHideTimer.Start();
+        });
+    }
+
+    private void OnCloseSpeechBubble()
+    {
+        _speechHideTimer.Stop();
+        IsSpeechBubbleVisible = false;
+    }
 
     private async Task ToggleMicAsync()
     {
@@ -138,16 +231,19 @@ public class MainViewModel : BaseViewModel
             {
                 await _voiceService.StopAsync();
                 IsMicActive = false;
+                ShowSpeech("Микрофон отключен. 🔇");
             }
             else
             {
                 IsMicActive = true;
                 await _voiceService.StartAsync();
+                ShowSpeech("Слушаю твою команду... 🎙️");
             }
         }
         catch
         {
             IsMicActive = false;
+            ShowSpeech("Ошибка подключения микрофона! ❌");
         }
     }
 
@@ -155,8 +251,8 @@ public class MainViewModel : BaseViewModel
     {
         System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
         {
-            // Капри реагирует сменой позы на распознанную речь
-            _petService.Interact();
+            string reply = _petService.RespondToCommand(text);
+            ShowSpeech(reply);
         });
     }
 
@@ -169,8 +265,9 @@ public class MainViewModel : BaseViewModel
     {
         if (!string.IsNullOrWhiteSpace(InputPromptText))
         {
-            // Капри реагирует на отправленный текст
-            _petService.Interact();
+            string reply = _petService.RespondToCommand(InputPromptText);
+            ShowSpeech(reply);
+
             InputPromptText = string.Empty;
             IsTextInputOpen = false;
         }
@@ -228,6 +325,9 @@ public class MainViewModel : BaseViewModel
 
     private void OnClose()
     {
+        _speechHideTimer.Stop();
+        _speechHideTimer.Dispose();
+
         _settingsWindow?.Close();
 
         if (_petService is IDisposable disposable)

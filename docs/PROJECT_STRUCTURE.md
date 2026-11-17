@@ -32,6 +32,8 @@ CapriPet/
 │   ├── IPetBehaviorService.cs     # Контракт сервиса поведения и диалогов питомца
 │   ├── PetBehaviorService.cs      # Реализация автономного поведения и смены настроений
 │   ├── IAudioService.cs           # Контракт сервиса воспроизведения звуков и озвучки
+│   ├── ISpotifyControlService.cs  # Контракт управления воспроизведением Spotify (мультимедиа-команды, поиск)
+│   ├── SpotifyControlService.cs   # Реализация интеграции со Spotify (Win32 Media Keys + URI Protocol)
 │   ├── IVoiceRecognitionService.cs # Контракт захвата микрофона и распознавания речи
 │   └── VoiceRecognitionService.cs  # Реализация ASR на базе Whisper.net и NAudio (VAD + 16kHz)
 │
@@ -40,7 +42,8 @@ CapriPet/
 │   └── MainViewModel.cs           # ViewModel главного окна (биндинги спрайта, размера и команд)
 │
 ├── Views/                         # Представления (XAML) и UI-компоненты
-│   ├── Controls/                  # Пользовательские элементы управления (UserControl)
+│   ├── Controls/                  # Пользовательские элементы управления (UserControl, Decorators)
+│   │   └── CyberChamferBorder.cs  # Фирменный киберпанк-контейнер со скошенными под 45° углами и неоном
 │   ├── MainWindow.xaml            # Главное окно оверлея (рендеринг спрайта с динамическим размером)
 │   ├── MainWindow.xaml.cs         # Code-behind окна (DragMove, вызов окна настроек по ПКМ)
 │   ├── SettingsWindow.xaml        # Киберпанк-окно настройки размера со слайдером
