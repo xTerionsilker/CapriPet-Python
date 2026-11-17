@@ -578,7 +578,7 @@ class CyberVectorBolt:
         ])
 
     def jitter(self, force: bool = False) -> None:
-        if force or random.random() < 0.65:
+        if force:
             self._rebuild()
 
     def draw(self, painter: QPainter, progress: float = 1.0) -> None:

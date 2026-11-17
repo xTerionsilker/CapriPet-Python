@@ -6,7 +6,7 @@ import math
 import random
 
 from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt
-from PySide6.QtGui import QColor, QPainter, QPen, QPolygon, QPolygonF
+from PySide6.QtGui import QColor, QPainter, QPen, QPolygon
 
 from ..ui.draw_utils import make_chamfer_polygon
 from ..ui.theme import get_hud_font
@@ -431,7 +431,7 @@ class CyberKiroshiReticle:
 
 
 class CyberTriggerCrosshair:
-    """Кинетичный аниме-прицел в стиле Studio Trigger с 45° скобами и ромбическим ядром."""
+    """Элегантный киберпанк-прицел: тонкие угловые 45° шевроны и точное микро-перекрестие."""
 
     @staticmethod
     def draw(
@@ -445,70 +445,54 @@ class CyberTriggerCrosshair:
         if progress <= 0.01:
             return
 
-        cx, cy = center.x(), center.y()
+        cx, cy = float(center.x()), float(center.y())
         alpha = max(0, min(255, int(255 * progress)))
         tension = max(0.0, min(1.0, tension))
 
         main_col = with_alpha(color, alpha)
-        shadow_col = with_alpha(COLOR_OBSIDIAN, int(alpha * 0.9))
-        white_col = with_alpha(COLOR_WHITE, alpha)
+        accent_col = with_alpha(COLOR_WHITE, int(alpha * 0.95))
+        shadow_col = with_alpha(COLOR_OBSIDIAN, int(alpha * 0.85))
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-        # 1. 4 скошенных под 45° кронштейна (bracket brackets), стягивающихся к центру
-        base_dist = 28.0 - 12.0 * tension
-        bracket_size = 14.0
-        arm_w = 3.0
+        # 1. Четыре угловых 45° скобы (плавно сжимаются от 32px до 16px при натяжении)
+        dist = 30.0 - 14.0 * tension
+        bracket_len = 8.0
 
-        for angle_deg in (45, 135, 225, 315):
-            rad = math.radians(angle_deg) + rotation * 0.15
-            dir_x = math.cos(rad)
-            dir_y = math.sin(rad)
-            bx = cx + dir_x * base_dist
-            by = cy + dir_y * base_dist
+        pen_shadow = QPen(shadow_col, 3.0)
+        pen_shadow.setCapStyle(Qt.PenCapStyle.SquareCap)
+        pen_main = QPen(main_col, 1.5)
+        pen_main.setCapStyle(Qt.PenCapStyle.SquareCap)
 
-            norm_x = -dir_y
-            norm_y = dir_x
+        for sx, sy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+            ox = cx + sx * dist
+            oy = cy + sy * dist
 
-            # Шеврон со скосом 45°
-            inner_arm = bracket_size - arm_w
-            pts = [
-                QPointF(bx + norm_x * bracket_size, by + norm_y * bracket_size),
-                QPointF(bx, by),
-                QPointF(bx - norm_x * bracket_size, by - norm_y * bracket_size),
-                QPointF(bx - norm_x * inner_arm + dir_x * arm_w, by - norm_y * inner_arm + dir_y * arm_w),
-                QPointF(bx + dir_x * arm_w, by + dir_y * arm_w),
-                QPointF(bx + norm_x * inner_arm + dir_x * arm_w, by + norm_y * inner_arm + dir_y * arm_w),
-            ]
-            poly = QPolygonF(pts)
-            painter.setPen(QPen(shadow_col, 1.5))
-            painter.setBrush(main_col)
-            painter.drawPolygon(poly)
+            # Тень
+            painter.setPen(pen_shadow)
+            painter.drawLine(QPointF(ox, oy), QPointF(ox - sx * bracket_len, oy))
+            painter.drawLine(QPointF(ox, oy), QPointF(ox, oy - sy * bracket_len))
 
-        # 2. Острые направляющие лучи
-        beam_len = 16.0 + 8.0 * tension
-        beam_pen = QPen(main_col, 2.0)
-        beam_pen.setCapStyle(Qt.PenCapStyle.FlatCap)
-        painter.setPen(beam_pen)
-        for offset_x, offset_y in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            sx = cx + offset_x * 8.0
-            sy = cy + offset_y * 8.0
-            ex = cx + offset_x * (8.0 + beam_len)
-            ey = cy + offset_y * (8.0 + beam_len)
-            painter.drawLine(QPointF(sx, sy), QPointF(ex, ey))
+            # Основная линия
+            painter.setPen(pen_main)
+            painter.drawLine(QPointF(ox, oy), QPointF(ox - sx * bracket_len, oy))
+            painter.drawLine(QPointF(ox, oy), QPointF(ox, oy - sy * bracket_len))
 
-        # 3. Центральный ромб
-        diamond_r = 5.0 + 3.0 * tension
-        diamond_pts = [
-            QPointF(cx, cy - diamond_r),
-            QPointF(cx + diamond_r, cy),
-            QPointF(cx, cy + diamond_r),
-            QPointF(cx - diamond_r, cy),
-        ]
-        painter.setPen(QPen(white_col, 1.2))
-        painter.setBrush(main_col)
-        painter.drawPolygon(QPolygonF(diamond_pts))
+        # 2. Осевые риски с разрывом под центр
+        gap = 6.0
+        line_len = 10.0 + 4.0 * tension
+        painter.setPen(QPen(main_col, 1.2))
+        painter.drawLine(QPointF(cx - gap - line_len, cy), QPointF(cx - gap, cy))
+        painter.drawLine(QPointF(cx + gap, cy), QPointF(cx + gap + line_len, cy))
+        painter.drawLine(QPointF(cx, cy - gap - line_len), QPointF(cx, cy - gap))
+        painter.drawLine(QPointF(cx, cy + gap), QPointF(cx, cy + gap + line_len))
+
+        # 3. Центральная микро-точка фиксации
+        core_r = 1.5 if tension < 0.6 else 2.5
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(accent_col if tension > 0.5 else main_col)
+        painter.drawEllipse(QPointF(cx, cy), core_r, core_r)
 
         painter.restore()
 

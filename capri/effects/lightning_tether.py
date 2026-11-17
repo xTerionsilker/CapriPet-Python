@@ -19,7 +19,6 @@ from .transition_fx import (
     COLOR_CRIMSON,
     COLOR_OBSIDIAN,
     COLOR_WHITE,
-    PIXEL_SIZE,
     CyberPixelSpark,
     CyberTriggerCrosshair,
     CyberVectorBolt,
@@ -167,33 +166,7 @@ class LightningTetherOverlay(QWidget):
             )
 
     def _on_tick(self) -> None:
-        offset = self.geometry().topLeft()
-        local_target = self._target_pos - offset
-
-        for bolt in self._bolts:
-            bolt.jitter()
-
-        if random.random() < 0.65:
-            angle = random.uniform(0, math.tau)
-            speed = random.uniform(40.0, 160.0)
-            vx = math.cos(angle) * speed
-            vy = math.sin(angle) * speed
-            kind = random.choice(("spark", "bit", "bar"))
-            self._sparks.append(
-                CyberPixelSpark(
-                    local_target.x(),
-                    local_target.y(),
-                    vx,
-                    vy,
-                    color=random.choice(
-                        (COLOR_CRIMSON, COLOR_WHITE, COLOR_ACID_GREEN)
-                    ),
-                    size=PIXEL_SIZE,
-                    life=random.uniform(0.15, 0.40),
-                    kind=kind,
-                )
-            )
-
+        # Убрана частая стробоскопическая перестройка jitter() каждые 20 мс
         dt = 0.02
         self._sparks = [s for s in self._sparks if s.step(dt)]
 
