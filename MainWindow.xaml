@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:CapriPet"
+        xmlns:vm="clr-namespace:CapriPet.ViewModels"
         mc:Ignorable="d"
         Title="CapriPet Overlay"
         Height="280" Width="260"
@@ -14,6 +14,10 @@
         ShowInTaskbar="True"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         Loaded="Window_Loaded">
+
+    <Window.DataContext>
+        <vm:MainViewModel/>
+    </Window.DataContext>
 
     <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
         <Grid.RowDefinitions>
@@ -51,11 +55,10 @@
                             FontSize="11"
                             FontWeight="Bold"
                             Cursor="Hand"
-                            Click="CloseButton_Click"
+                            Command="{Binding CloseCommand}"
                             ToolTip="Закрыть"/>
                 </DockPanel>
-                <TextBlock x:Name="SpeechText"
-                           Text="Привет! Перетаскивай меня мышкой 🐾"
+                <TextBlock Text="{Binding SpeechText}"
                            Foreground="#FFC0CAF5"
                            FontSize="12"
                            TextWrapping="Wrap"
@@ -76,10 +79,9 @@
             </Ellipse>
 
             <!-- Основной круг питомца -->
-            <Button x:Name="PetButton"
-                    Width="90" Height="90"
+            <Button Width="90" Height="90"
                     Cursor="Hand"
-                    Click="PetButton_Click"
+                    Command="{Binding InteractCommand}"
                     ToolTip="Кликни меня!">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
@@ -91,14 +93,12 @@
                             <Grid>
                                 <!-- Стилизованная мордочка питомца -->
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="PetFace"
-                                               Text="( ^ ◕ ᴥ ◕ ^ )"
+                                    <TextBlock Text="{Binding DataContext.PetFace, RelativeSource={RelativeSource AncestorType=Window}}"
                                                Foreground="#FFFFFFFF"
                                                FontWeight="Bold"
                                                FontSize="11"
                                                HorizontalAlignment="Center"/>
-                                    <TextBlock x:Name="PetMood"
-                                               Text="⚡ READY"
+                                    <TextBlock Text="{Binding DataContext.PetMoodText, RelativeSource={RelativeSource AncestorType=Window}}"
                                                Foreground="#FF7DCFFF"
                                                FontSize="9"
                                                FontWeight="SemiBold"
