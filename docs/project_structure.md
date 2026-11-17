@@ -72,6 +72,7 @@ capri/
 │   ├── app_updater.py          # Проверка релизов GitHub и переход на страницу обновлений
 │   ├── data_shredder.py        # Безвозвратное уничтожение файлов/папок с защитой системных путей
 │   ├── discord_rpc.py          # Discord Rich Presence (статус, ASR модель, таймер, кнопка)
+│   ├── local_llm.py            # Локальная LLM (Ollama/OpenAI API): двухфазный intent-роутинг и диалог Капри
 │   ├── process_manager.py      # Мониторинг, группировка и завершение процессов
 │   ├── registry_scanner.py     # Безопасный аудит реестра Windows на пустые и битые ветки с генерацией отчета
 │   ├── spotify.py              # Клиент и Web API для Spotify
@@ -79,6 +80,7 @@ capri/
 │   ├── system_control.py       # Питание, блокировка экрана и управление курсором
 │   ├── system_power_hook.py    # Win32 хуки событий питания (сон, выключение, сессии)
 │   ├── system_volume.py        # Прямой контроль мастер-громкости Windows (Core Audio API / pycaw)
+│   ├── thermal_guard.py        # Контроллер температуры GPU и аппаратная защита от перегрева
 │   ├── game_mode.py            # Детекция полноэкранных игр через Win32 API и SHQueryUserNotificationState с фильтрацией Maximized окон
 │   ├── web_search.py           # Поиск в веб-браузере и переход по безопасным ссылкам
 │   └── window_tracker.py       # Определение геометрии активного окна и PID (Win32 DWM)

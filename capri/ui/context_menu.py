@@ -26,7 +26,11 @@ from PySide6.QtWidgets import (
 )
 
 from ..audio.sfx_player import get_speech_sfx
-from ..core.settings import ACTIVITY_TIMEOUT_OPTIONS_MS
+from ..core.settings import (
+    ACTIVITY_TIMEOUT_OPTIONS_MS,
+    get_config_value,
+    set_config_value,
+)
 from .reminder_dialog import ReminderRangeDialog
 from .theme import (
     ACID_GREEN,
@@ -248,6 +252,18 @@ class ContextMenuBuilder:
         glitch_act.setChecked(glitches_enabled)
         glitch_act.triggered.connect(
             lambda *_: self.window.process_input("глитч")
+        )
+
+        llm_enabled = bool(get_config_value("llm.enabled", False))
+        llm_act = parent_menu.addAction("[LLM] Локальная нейросеть (Gemma)")
+        llm_act.setCheckable(True)
+        llm_act.setChecked(llm_enabled)
+        llm_act.triggered.connect(
+            lambda checked: (
+                self.window.set_llm_enabled(checked)
+                if hasattr(self.window, "set_llm_enabled")
+                else set_config_value("llm.enabled", checked)
+            )
         )
 
     def _add_screen_menu(self, parent_menu: QMenu) -> None:

@@ -222,6 +222,17 @@ class TelemetryConfig(BaseModel):
     custom_rules: dict[str, str] = Field(default_factory=dict)
 
 
+class LlmConfig(BaseModel):
+    """Параметры локальной нейросетевой модели для обработки команд и диалога."""
+
+    enabled: bool = False
+    api_base: str = "http://localhost:11434"
+    model_name: str = "gemma-4-e2b"
+    timeout_sec: float = Field(default=8.0, ge=2.0, le=30.0)
+    gpu_temp_limit_celsius: int = Field(default=78, ge=50, le=100)
+    gpu_overheat_duration_sec: float = Field(default=5.0, ge=1.0, le=60.0)
+
+
 class CapriConfig(BaseModel):
     """Корневая модель конфигурации приложения CapriPet."""
 
@@ -236,6 +247,7 @@ class CapriConfig(BaseModel):
     network: NetworkConfig = Field(default_factory=NetworkConfig)
     discord: DiscordConfig = Field(default_factory=DiscordConfig)
     telemetry: TelemetryConfig = Field(default_factory=TelemetryConfig)
+    llm: LlmConfig = Field(default_factory=LlmConfig)
 
 
 DEFAULT_CONFIG: dict[str, Any] = CapriConfig().model_dump()

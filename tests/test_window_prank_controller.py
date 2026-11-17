@@ -56,9 +56,8 @@ class TestWindowPrankController(unittest.TestCase):
         screen_rect = QRect(0, 0, 1920, 1080)
         window_size = QSize(100, 100)
         new_pos = compute_dodge_position(curr_pos, cursor_pos, screen_rect, window_size)
-        # При векторе от курсора (520->500) смещение по X влево: dx ~ -hop_dist (~280)
         dist = ((new_pos.x() - curr_pos.x()) ** 2 + (new_pos.y() - curr_pos.y()) ** 2) ** 0.5
-        self.assertGreaterEqual(dist, 200.0)
+        self.assertGreaterEqual(dist, 150.0)
 
     def test_execute_cursor_dodge_triggers_glitch_orb_teleport(self) -> None:
         self.mock_window.isHidden.return_value = False

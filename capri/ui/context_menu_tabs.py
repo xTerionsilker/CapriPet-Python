@@ -731,6 +731,12 @@ class SystemTabPage(QWidget):
         self.chk_discord.setChecked(rpc_enabled)
         self.chk_discord.toggled.connect(self._on_toggle_discord)
         prot_layout.addWidget(self.chk_discord)
+
+        self.chk_llm = QCheckBox("[LLM] Локальная нейросеть (Gemma)", self)
+        self.chk_llm.setStyleSheet(_CHECKBOX_STYLE)
+        self.chk_llm.setChecked(bool(get_config_value("llm.enabled", False)))
+        self.chk_llm.toggled.connect(self._on_toggle_llm)
+        prot_layout.addWidget(self.chk_llm)
         layout.addWidget(grp_protocols)
 
         layout.addStretch()
@@ -822,6 +828,14 @@ class SystemTabPage(QWidget):
             self.pet_window.set_discord_enabled(checked)
         else:
             set_config_value("discord.enabled", checked)
+
+    def _on_toggle_llm(self, checked: bool) -> None:
+        _play_ui_snap()
+        fn = getattr(self.pet_window, "set_llm_enabled", None)
+        if callable(fn):
+            fn(checked)
+        else:
+            set_config_value("llm.enabled", checked)
 
     def _on_halt(self) -> None:
         _play_ui_snap()

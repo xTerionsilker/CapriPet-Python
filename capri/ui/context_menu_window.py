@@ -23,6 +23,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
+    QSizeGrip,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -102,6 +104,52 @@ QPushButton {{
     font-weight: bold;
 }}
 """
+_SCROLL_STYLE = f"""
+QScrollArea {{
+    background: transparent;
+    border: none;
+}}
+QScrollBar:vertical {{
+    border: 1px solid {NEON_CRIMSON};
+    background: {OBSIDIAN_BLACK};
+    width: 8px;
+    margin: 0px 0px 0px 0px;
+}}
+QScrollBar::handle:vertical {{
+    background: {NEON_CRIMSON};
+    min-height: 20px;
+}}
+QScrollBar::handle:vertical:hover {{
+    background: {ACID_GREEN};
+}}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+    height: 0px;
+}}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+    background: none;
+}}
+QScrollBar:horizontal {{
+    border: 1px solid {NEON_CRIMSON};
+    background: {OBSIDIAN_BLACK};
+    height: 8px;
+    margin: 0px 0px 0px 0px;
+}}
+QScrollBar::handle:horizontal {{
+    background: {NEON_CRIMSON};
+    min-width: 20px;
+}}
+QScrollBar::handle:horizontal:hover {{
+    background: {ACID_GREEN};
+}}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+    width: 0px;
+}}
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+    background: none;
+}}
+"""
+
+
 class CyberTabBar(QWidget):
     """Горизонтальная кибер-панель вкладок с поддержкой колесика мыши."""
 
@@ -260,6 +308,7 @@ class CyberContextMenuWindow(QDialog):
         self._anim_timer.timeout.connect(self._on_anim_tick)
         self._drag_start_pos: QPoint | None = None
 
+        self.setMinimumSize(480, 270)
         self._init_geometry()
         self._init_ui()
         self._overlay = DatamoshOverlay(self)
@@ -318,7 +367,7 @@ class CyberContextMenuWindow(QDialog):
         self.tab_bar.current_changed.connect(self._on_tab_changed)
         main_layout.addWidget(self.tab_bar)
 
-        # Stacked pages
+        # Stacked pages wrapped in Cyber Scroll Area
         self.stack = QStackedWidget(self)
         self.page_core = CoreTabPage(self.pet_window, self)
         self.page_audio = AudioTabPage(self.pet_window, self)
@@ -330,7 +379,22 @@ class CyberContextMenuWindow(QDialog):
         self.stack.addWidget(self.page_visual)
         self.stack.addWidget(self.page_system)
 
-        main_layout.addWidget(self.stack, 1)
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setStyleSheet(_SCROLL_STYLE)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        self.scroll_area.setWidget(self.stack)
+
+        main_layout.addWidget(self.scroll_area, 1)
+
+        # Bottom bar with resize grip
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.addStretch()
+        self.size_grip = QSizeGrip(self)
+        self.size_grip.setStyleSheet(f"background: transparent; width: 16px; height: 16px; color: {NEON_CRIMSON};")
+        bottom_layout.addWidget(self.size_grip)
+        main_layout.addLayout(bottom_layout)
 
     def _on_tab_changed(self, index: int) -> None:
         self.stack.setCurrentIndex(index)
@@ -373,6 +437,13 @@ class CyberContextMenuWindow(QDialog):
         painter.fillRect(QRect(w - 28, 4, 12, 2), QColor(ACID_GREEN))
         painter.fillRect(QRect(w - 14, 4, 8, 2), QColor(ELECTRIC_BLUE))
         painter.fillRect(QRect(4, h - 6, 10, 2), QColor(PURE_WHITE))
+
+        # Угловой индикатор ресайза в правом нижнем углу
+        grip_pen = QPen(QColor(NEON_CRIMSON), 1)
+        painter.setPen(grip_pen)
+        painter.drawLine(w - 14, h - 4, w - 4, h - 14)
+        painter.drawLine(w - 10, h - 4, w - 4, h - 10)
+        painter.drawLine(w - 6, h - 4, w - 4, h - 6)
         painter.end()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:

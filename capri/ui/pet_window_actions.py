@@ -283,3 +283,9 @@ class PetWindowActionDelegate:
             orchestrator.set_process_monitoring_enabled(enabled)
         else:
             set_config_value("telemetry.process_monitoring_enabled", enabled)
+
+    def set_llm_enabled(self, enabled: bool) -> None:
+        set_config_value("llm.enabled", enabled)
+        orchestrator = getattr(self._window, "_orchestrator", None)
+        if orchestrator and hasattr(orchestrator, "set_llm_enabled"):
+            orchestrator.set_llm_enabled(enabled)
