@@ -6,7 +6,7 @@
         xmlns:vm="clr-namespace:CapriPet.ViewModels"
         mc:Ignorable="d"
         Title="CapriPet Overlay"
-        Height="280" Width="260"
+        Height="310" Width="280"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -32,21 +32,36 @@
                 Background="#EE1A1B26"
                 BorderBrush="#FF7AA2F7"
                 BorderThickness="1.5"
-                CornerRadius="12"
-                Padding="12,8"
+                CornerRadius="14"
+                Padding="12,10"
                 Margin="0,0,0,10"
-                MaxWidth="220"
+                MaxWidth="250"
                 HorizontalAlignment="Center">
             <Border.Effect>
-                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.4" Color="#000000"/>
+                <DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity="0.45" Color="#000000"/>
             </Border.Effect>
             <StackPanel>
+                <!-- Заголовок с кнопками управления -->
                 <DockPanel LastChildFill="False">
-                    <TextBlock Text="CapriPet C#"
-                               FontWeight="Bold"
-                               FontSize="11"
-                               Foreground="#FF7AA2F7"
-                               DockPanel.Dock="Left"/>
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                        <TextBlock Text="CapriPet"
+                                   FontWeight="Bold"
+                                   FontSize="11"
+                                   Foreground="#FF7AA2F7"/>
+                        <!-- Кнопка микрофона -->
+                        <Button Command="{Binding ToggleMicCommand}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Margin="8,0,0,0"
+                                Cursor="Hand"
+                                ToolTip="Вкл/Выкл микрофон">
+                            <TextBlock Text="{Binding MicButtonIcon}"
+                                       FontSize="11"
+                                       Foreground="#FF9ECE6A"/>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Кнопка закрытия -->
                     <Button Content="✕"
                             DockPanel.Dock="Right"
                             Foreground="#FFFF757F"
@@ -58,11 +73,20 @@
                             Command="{Binding CloseCommand}"
                             ToolTip="Закрыть"/>
                 </DockPanel>
+
+                <!-- Статус микрофона/нейросети -->
+                <TextBlock Text="{Binding MicStatusText}"
+                           Foreground="#FF7DCFFF"
+                           FontSize="10"
+                           FontWeight="Medium"
+                           Margin="0,2,0,0"/>
+
+                <!-- Текст речи питомца / распознанной фразы -->
                 <TextBlock Text="{Binding SpeechText}"
                            Foreground="#FFC0CAF5"
                            FontSize="12"
                            TextWrapping="Wrap"
-                           Margin="0,4,0,0"/>
+                           Margin="0,6,0,0"/>
             </StackPanel>
         </Border>
 

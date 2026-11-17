@@ -26,7 +26,9 @@ CapriPet/
 ├── Services/                      # Бизнес-логика, внешние API, фоновые сервисы
 │   ├── IPetBehaviorService.cs     # Контракт сервиса поведения и диалогов питомца
 │   ├── PetBehaviorService.cs      # Реализация автономного поведения и смены настроений
-│   └── IAudioService.cs           # Контракт сервиса воспроизведения звуков и озвучки
+│   ├── IAudioService.cs           # Контракт сервиса воспроизведения звуков и озвучки
+│   ├── IVoiceRecognitionService.cs # Контракт захвата микрофона и распознавания речи
+│   └── VoiceRecognitionService.cs  # Реализация ASR на базе Whisper.net и NAudio (VAD + 16kHz)
 │
 ├── ViewModels/                    # Презентационная логика (MVVM)
 │   ├── BaseViewModel.cs           # Базовый класс с реализацией INotifyPropertyChanged
