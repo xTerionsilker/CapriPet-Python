@@ -68,40 +68,50 @@ class LocalLlmClient:
                 continue
         return False
 
+    def _resolve_model_name(self) -> str:
+        """Автоматически подхватывает загруженную модель из API при несовпадении имени."""
+        try:
+            with httpx.Client(timeout=1.5) as client:
+                resp = client.get(f"{self.api_base}/v1/models")
+                if resp.status_code == 200:
+                    data = resp.json().get("data", [])
+                    models = [m.get("id") for m in data if m.get("id")]
+                    if self.model_name in models:
+                        return self.model_name
+                    # Ищем похожее имя (например google/gemma-4-e2b вместо gemma-4-e2b)
+                    for m in models:
+                        if self.model_name.lower() in m.lower():
+                            return m
+                    if models:
+                        return models[0]
+        except Exception:
+            pass
+        return self.model_name
+
     def process_query(
         self,
         text: str,
         available_commands: list[str],
     ) -> dict[str, Any]:
-        """Обрабатывает фразу через локальную модель.
-
-        Returns:
-            Словарь вида:
-            - {"type": "command", "command": "тише", "argument": ""}
-            - {"type": "chat", "reply": "..."}
-            - {"type": "timeout"}
-            - {"type": "overheat"}
-            - {"type": "error", "error": "..."}
-        """
+        """Обрабатывает фразу через локальную модель."""
         # 1. Проверка термозащиты перед запросом
         if self.thermal_guard is not None and self.thermal_guard.check_overheat():
             logger.warning("[LocalLlmClient] Request aborted due to thermal overheat")
             return {"type": "overheat"}
 
+        model_to_use = self._resolve_model_name()
         commands_str = ", ".join(f'"{c}"' for c in available_commands)
         system_prompt = SYSTEM_PROMPT_TEMPLATE.format(commands=commands_str)
 
-        # 2. Формирование запроса к OpenAI-совместимому эндпоинту (/v1/chat/completions)
-        # либо Ollama (/api/chat)
         url = f"{self.api_base}/v1/chat/completions"
         payload = {
-            "model": self.model_name,
+            "model": model_to_use,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": text},
             ],
             "temperature": 0.2,
-            "max_tokens": 150,
+            "max_tokens": 500,
         }
 
         try:
