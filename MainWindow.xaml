@@ -6,40 +6,33 @@
         xmlns:vm="clr-namespace:CapriPet.ViewModels"
         mc:Ignorable="d"
         Title="CapriPet"
-        Height="220" Width="220"
+        SizeToContent="WidthAndHeight"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="True"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
-        Loaded="Window_Loaded">
+        MouseRightButtonUp="Window_MouseRightButtonUp"
+        Loaded="Window_Loaded"
+        SizeChanged="Window_SizeChanged">
 
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>
 
-    <!-- Контекстное меню по правому клику для удобного закрытия -->
-    <Window.ContextMenu>
-        <ContextMenu Background="#EE040017" BorderBrush="#FF4985F9" BorderThickness="1">
-            <MenuItem Header="Закрыть CapriPet"
-                      Foreground="#FFF0F1F5"
-                      FontFamily="{StaticResource CyberFont}"
-                      FontSize="12"
-                      Command="{Binding CloseCommand}"/>
-        </ContextMenu>
-    </Window.ContextMenu>
-
-    <!-- Только сам персонаж без лишних плашек и текста -->
-    <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+    <!-- Внешний отступ 24px гарантирует, что неоновое свечение не обрежется границами окна -->
+    <Grid Margin="24">
         <Image Source="{Binding CurrentSpriteSource}"
-               Width="200" Height="200"
+               Width="{Binding PetSize}"
+               Height="{Binding PetSize}"
                Stretch="Uniform"
                RenderOptions.BitmapScalingMode="HighQuality"
-               Cursor="Hand">
+               Cursor="Hand"
+               ToolTip="ЛКМ: перетаскивать | ПКМ: настройки размера">
             <Image.Effect>
-                <!-- Тонкое свечение по контуру персонажа -->
-                <DropShadowEffect BlurRadius="12" ShadowDepth="0" Opacity="0.5" Color="#FF4985F9"/>
+                <!-- Неоновое свечение персонажа -->
+                <DropShadowEffect BlurRadius="16" ShadowDepth="0" Opacity="0.6" Color="#FF4985F9"/>
             </Image.Effect>
         </Image>
     </Grid>

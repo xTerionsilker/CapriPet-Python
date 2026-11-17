@@ -22,6 +22,7 @@ CapriPet/
 │
 ├── Models/                        # Доменные сущности, состояние и данные (Domain / State)
 │   ├── PetState.cs                # Состояние питомца (настроение PetMood, энергия, счетчики)
+│   ├── PetScalePreset.cs          # Пресеты масштабирования (Tiny, Small, Medium, Default, Big, VeryBig, Hardcore)
 │   └── DialoguePhrase.cs          # Модель реплик диалога и условий их отображения
 │
 ├── Services/                      # Бизнес-логика, внешние API, фоновые сервисы
@@ -33,12 +34,14 @@ CapriPet/
 │
 ├── ViewModels/                    # Презентационная логика (MVVM)
 │   ├── BaseViewModel.cs           # Базовый класс с реализацией INotifyPropertyChanged
-│   └── MainViewModel.cs           # ViewModel главного окна (биндинги диалогов, реакций и команд)
+│   └── MainViewModel.cs           # ViewModel главного окна (биндинги спрайта, размера и команд)
 │
 ├── Views/                         # Представления (XAML) и UI-компоненты
 │   ├── Controls/                  # Пользовательские элементы управления (UserControl)
-│   ├── MainWindow.xaml            # Главное окно оверлея (разметка, стили, анимации, биндинги)
-│   └── MainWindow.xaml.cs         # Code-behind окна (исключительно оконные события: DragMove, координаты)
+│   ├── MainWindow.xaml            # Главное окно оверлея (рендеринг спрайта с динамическим размером)
+│   ├── MainWindow.xaml.cs         # Code-behind окна (DragMove, вызов окна настроек по ПКМ)
+│   ├── SettingsWindow.xaml        # Киберпанк-окно настройки размера со слайдером
+│   └── SettingsWindow.xaml.cs     # Code-behind окна настроек
 │
 ├── App.xaml / App.xaml.cs         # Точка входа приложения, жизненный цикл и глобальные ресурсы
 ├── AssemblyInfo.cs                # Метаданные сборки
