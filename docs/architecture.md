@@ -59,7 +59,7 @@ flowchart TB
         direction TB
         Registry["commands/registry.py<br/>(Реестр и нечёткий поиск)"]
         Handlers["commands/ (system, volume, media, apps, web, debug)<br/>(Доменные обработчики)"]
-        Integrations["integrations/<br/>(Spotify, Discord RPC, AppLauncher, SystemControl, SystemVolume, GameMode, Cleaner, DataShredder)"]
+        Integrations["integrations/<br/>(Spotify, Discord RPC, AppLauncher, SystemControl, SystemVolume, GameMode, Cleaner, DataShredder, LocalLLM, ThermalGuard)"]
 
         Registry --> Handlers
         Handlers --> Integrations
@@ -149,8 +149,8 @@ sequenceDiagram
 1. **`capri.audio`**: Непрерывный низкоуровневый захват с аудиокарты, отсечение тишины моделью Silero VAD и передача активных отрезков в локальную модель ASR (Vosk).
 2. **`capri.core`**: Выделение триггерных фраз имени питомца, лемматизация и стемминг русской речи, поддержание контекста ожидания подтверждения («да/нет» для критических действий).
 3. **`capri.controllers`**: Оркестратор выступает диспетчером между событиями аудио, пользовательскими окнами Qt и запуском командных сценариев.
-4. **`capri.commands` & `capri.integrations`**: Изолированные обработчики действий — поиск приложений, управление питанием Windows, взаимодействие со Spotify API и Discord RPC.
-5. **`capri.ui` & `capri.effects`**: Полностью процедурный интерфейс на PySide6 в кинетическом дуотоне Studio Trigger (Hot Pink / Acid Green, frameless-окна со скосами под 45°, реактивный эквалайзер Voice HUD, CRT-коллапс луча, экшен-линии, пасхалки энграммы с вирусными оверлеями и ретро-синтез речи).
+4. **`capri.commands` & `capri.integrations`**: Изолированные обработчики действий — поиск приложений, управление питанием Windows, взаимодействие со Spotify API, Discord RPC, локальная нейросетевая интеграция (`LocalLlmClient`) с аппаратной термозащитой GPU (`ThermalGuard`).
+5. **`capri.ui` & `capri.effects`**: Полностью процедурный интерфейс на PySide6 в кинетическом дуотоне Studio Trigger (Hot Pink / Acid Green, frameless-окна со скосами под 45°, реактивный эквалайзер Voice HUD, CRT-коллапс луча, экшен-линии, пасхалки энграммы с вирусными оверлеями, масштабируемый и прокручиваемый Cyber Hub и ретро-синтез речи).
 
 
 ---

@@ -50,7 +50,7 @@
 - **Python:** [Python 3.10+](https://www.python.org/downloads/) (рекомендуется 3.11/3.12).
 - **Распознавание речи:** Модели [`vosk`](https://alphacephei.com/vosk/models) (по умолчанию скачивается легкая русская модель `vosk-model-small-ru-0.22`).
 - **Периферия:** Рабочий микрофон для голосового управления.
-- **Опционально:** Клиент **Spotify** (нативно через MPRIS / Web API) и **Discord** (Discord Rich Presence статус).
+- **Опционально:** Клиент **Spotify** (нативно через MPRIS / Web API), **Discord** (Discord Rich Presence статус) и **LM Studio** / **Ollama** (локальный сервер инференса нейросетей для свободного общения и распознавания абстрактных команд).
 
 ## 🚀 Быстрый старт и запуск
 
@@ -94,6 +94,17 @@ pip install -r requirements.txt
 .venv\Scripts\python.exe scripts/download_models.py
 .venv\Scripts\python.exe main.py
 ```
+
+### 🧠 Подключение локальной нейросети (LM Studio / Ollama)
+
+Для свободного диалога с Капри и понимания неточных команд («звук больно ушам» $\rightarrow$ «тише»):
+1. Скачайте и установите **[LM Studio](https://lmstudio.ai/)** (или [Ollama](https://ollama.com/)).
+2. Загрузите модель Gemma (рекомендуется `google/gemma-4-e2b` или `gemma2:2b`).
+3. В LM Studio перейдите во вкладку **Developer / Local Server** (`<->`) и нажмите **Start Server** на порту `11434` (или `1234`).
+4. Нажмите **ПКМ** по Капри и включите тумблер:
+   👉 **`[x] [LLM] Локальная нейросеть (Gemma)`**
+
+*Капри автоматически определит загруженную в LM Studio модель и подключит её к диалогу. Встроена аппаратная защита от перегрева GPU (>78°C).*
 
 ## 🎙️ Триггерные слова
 
