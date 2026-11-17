@@ -79,12 +79,12 @@ def get_ui_font(pixel_size: int = 12, bold: bool = False) -> QFont:
 
 PIXEL_FONT = CSS_CYBER_TERMINAL
 
-NEON_CRIMSON = "#F6023F"
-OBSIDIAN_BLACK = "#020106"
-ACID_GREEN = "#06F868"
-PURE_WHITE = "#F9F9F9"
-ELECTRIC_BLUE = "#126EE9"
-NEON_VIOLET = "#9E1FDE"
+NEON_CRIMSON = "#fe0929"
+OBSIDIAN_BLACK = "#040017"
+ACID_GREEN = "#0fff55"
+PURE_WHITE = "#f0f1f5"
+ELECTRIC_BLUE = "#4985f9"
+NEON_VIOLET = "#0fff55"
 
 CHAMFER_DEFAULT = 8
 CHAMFER_BUBBLE = 10
@@ -135,15 +135,15 @@ QMenu::item {{
 }}
 QMenu::item:selected {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 rgba(246, 2, 63, 0.9),
-        stop:0.65 rgba(246, 2, 63, 0.4),
-        stop:1 rgba(2, 1, 6, 0.2));
+        stop:0 rgba(254, 9, 41, 0.9),
+        stop:0.65 rgba(254, 9, 41, 0.4),
+        stop:1 rgba(4, 0, 23, 0.2));
     color: {PURE_WHITE};
     border-left: 2px solid {ACID_GREEN};
 }}
 QMenu::item:disabled {{
-    color: rgba(246, 2, 63, 0.7);
-    background: rgba(246, 2, 63, 0.08);
+    color: rgba(254, 9, 41, 0.7);
+    background: rgba(254, 9, 41, 0.08);
     font-weight: bold;
     border-left: 2px solid {NEON_CRIMSON};
 }}
@@ -225,7 +225,7 @@ QLineEdit {{
     border-radius: 0;
     padding: 8px 10px;
     color: {PURE_WHITE};
-    placeholder-text-color: rgba(246, 2, 63, 0.4);
+    placeholder-text-color: rgba(254, 9, 41, 0.4);
     selection-background-color: {NEON_CRIMSON};
     selection-color: {OBSIDIAN_BLACK};
 }}
@@ -271,15 +271,15 @@ QMenu::item {{
 }}
 QMenu::item:selected {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 rgba(246, 2, 63, 0.9),
-        stop:0.65 rgba(246, 2, 63, 0.4),
-        stop:1 rgba(2, 1, 6, 0.2));
+        stop:0 rgba(254, 9, 41, 0.9),
+        stop:0.65 rgba(254, 9, 41, 0.4),
+        stop:1 rgba(4, 0, 23, 0.2));
     color: {PURE_WHITE};
     border-left: 2px solid {ACID_GREEN};
 }}
 QMenu::item:disabled {{
-    color: rgba(246, 2, 63, 0.7);
-    background: rgba(246, 2, 63, 0.08);
+    color: rgba(254, 9, 41, 0.7);
+    background: rgba(254, 9, 41, 0.08);
     font-weight: bold;
     border-left: 2px solid {NEON_CRIMSON};
 }}

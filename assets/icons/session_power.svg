@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
   <!-- Cyberpunk Power Standby Symbol -->
-  <path d="M17 13.5 A14 14 0 1 0 31 13.5" fill="none" stroke="#F6023F" stroke-width="3" stroke-linecap="square"/>
-  <line x1="24" y1="8" x2="24" y2="24" stroke="#06F868" stroke-width="3.5" stroke-linecap="square"/>
+  <path d="M17 13.5 A14 14 0 1 0 31 13.5" fill="none" stroke="#fe0929" stroke-width="3" stroke-linecap="square"/>
+  <line x1="24" y1="8" x2="24" y2="24" stroke="#0fff55" stroke-width="3.5" stroke-linecap="square"/>
 </svg>

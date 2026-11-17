@@ -324,7 +324,7 @@ class CyberHudBubble(QWidget):
             QRect(shake_x - 10, 0, bw + 20, bh),
             spacing=3,
             alpha=max(8, scanline_alpha),
-            color="#F6023F",
+            color="#fe0929",
         )
 
         if phase in ("opening", "closing") or is_glitch:

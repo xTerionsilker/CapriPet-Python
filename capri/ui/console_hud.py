@@ -32,6 +32,7 @@ from .draw_utils import draw_scanlines, make_chamfer_path
 from .theme import (
     ACID_GREEN,
     CSS_CYBER_TERMINAL,
+    ELECTRIC_BLUE,
     NEON_CRIMSON,
     OBSIDIAN_BLACK,
     PURE_WHITE,
@@ -284,7 +285,7 @@ class CyberConsoleHud(QWidget):
         painter.fillPath(path, QColor(OBSIDIAN_BLACK))
 
         # Сканлайны
-        draw_scanlines(painter, QRectF(6, 4, w - 12, h - 8), spacing=3, alpha=18, color="#126EE9")
+        draw_scanlines(painter, QRectF(6, 4, w - 12, h - 8), spacing=3, alpha=18, color=ELECTRIC_BLUE)
 
         # Рамка — Neon Crimson с акцентами Acid Green
         border_pen = QPen(QColor(NEON_CRIMSON), 1.5)

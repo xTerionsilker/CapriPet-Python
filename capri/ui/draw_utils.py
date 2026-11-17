@@ -65,7 +65,7 @@ def draw_scanlines(
     rect: QRect | QRectF,
     spacing: int = 3,
     alpha: int = 15,
-    color: QColor | str = "#126EE9",
+    color: QColor | str = "#4985f9",
 ) -> None:
     """Отрисовывает горизонтальные сканлайны CRT внутри заданного прямоугольника."""
     w, h = int(rect.width()), int(rect.height())

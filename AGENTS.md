@@ -86,12 +86,12 @@ All UI, HUDs, overlays, particles, glitches, and dialogues **must** strictly use
 
 | Color Name | Hex Code | Approx. Share | Usage Description |
 | :--- | :--- | :--- | :--- |
-| **Neon Crimson / Hot Pink** | `#F6023F` | 38% | Primary signature color, hair aura, Blackwall breach, danger indicators, laser reticles, active borders |
-| **Obsidian Black** | `#020106` | 32% | Backgrounds, panel fills, deep shadow contrasts |
-| **Acid Green** | `#06F868` | 24% | Capri's secondary signature color, telemetry, active energy arcs, telemetry markers, success highlights |
-| **White** | `#F9F9F9` | 3% | Overdrive lightning core, sharp text highlights, technical crosshairs, kinetic flash sparks |
-| **Electric Blue** | `#126EE9` | 2% | Neural link tether, memory bus indicators, auxiliary data tags, secondary scanlines |
-| **Neon Violet** | `#9E1FDE` | 1% | Chromatic aberration, biochip instability, deep energy displacement, exotic glitch artifacts |
+| **Neon Crimson / Hot Pink** | `#fe0929` | 38% | Primary signature color, hair aura, Blackwall breach, danger indicators, laser reticles, active borders |
+| **Obsidian Black** | `#040017` | 32% | Backgrounds, panel fills, deep shadow contrasts |
+| **Acid Green** | `#0fff55` | 24% | Capri's secondary signature color, telemetry, active energy arcs, telemetry markers, success highlights |
+| **White** | `#f0f1f5` | 3% | Overdrive lightning core, sharp text highlights, technical crosshairs, kinetic flash sparks |
+| **Electric Blue** | `#4985f9` | 2% | Neural link tether, memory bus indicators, auxiliary data tags, secondary scanlines |
+| **Neon Violet** | `#0fff55` | 1% | Chromatic aberration, biochip instability, deep energy displacement, exotic glitch artifacts |
 
 > **Mandatory Visual Constraints:**
 > - Sharp 45° chamfered geometry, pixel-grid snapping, and exclusive Exo 2 typography from `assets/fonts/` (`"Exo 2"`, sans-serif). No soft rounded corners (`border-radius`) or pastel palettes.

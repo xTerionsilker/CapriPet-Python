@@ -30,7 +30,7 @@ class TestIntroBreachHelpers(unittest.TestCase):
             message="MEMORY_SUBSTRATE_CORRUPTION",
             rect=QRect(100, 150, 260, 90),
             spawn_time=0.2,
-            border_color=QColor("#F6023F"),
+            border_color=QColor("#fe0929"),
         )
         self.assertEqual(card.title, "CRITICAL_EXCEPTION")
         self.assertEqual(card.code, "0xC0000005")
@@ -48,7 +48,7 @@ class TestIntroBreachHelpers(unittest.TestCase):
                 message="RELIC_SYNAPSE_FAULT",
                 rect=QRect(50, 50, 280, 100),
                 spawn_time=0.1,
-                border_color=QColor("#F6023F"),
+                border_color=QColor("#fe0929"),
             )
             draw_cyber_error_card(painter, card, progress=0.8, glitch_power=0.0)
             draw_cyber_error_card(painter, card, progress=1.0, glitch_power=0.7)

@@ -102,7 +102,7 @@ class TestEngramPrankCoordinator(unittest.TestCase):
             MeltingScreenOverlay,
         )
 
-        self.assertEqual(COLOR_OBSIDIAN.name().lower(), "#020106")
+        self.assertEqual(COLOR_OBSIDIAN.name().lower(), "#040017")
         overlay = MeltingScreenOverlay(screen=None, duration_ms=500)
         flags = overlay.windowFlags()
         self.assertTrue(bool(flags & Qt.WindowType.WindowTransparentForInput))
