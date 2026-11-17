@@ -21,11 +21,14 @@ CapriPet/
 │   └── PROJECT_STRUCTURE.md       # Описание структуры проекта и архитектурных соглашений
 │
 ├── Models/                        # Доменные сущности, состояние и данные (Domain / State)
+│   ├── AppConfig.cs               # Модель конфигурации приложения (размер, координаты)
 │   ├── PetState.cs                # Состояние питомца (настроение PetMood, энергия, счетчики)
 │   ├── PetScalePreset.cs          # Пресеты масштабирования (Tiny, Small, Medium, Default, Big, VeryBig, Hardcore)
 │   └── DialoguePhrase.cs          # Модель реплик диалога и условий их отображения
 │
 ├── Services/                      # Бизнес-логика, внешние API, фоновые сервисы
+│   ├── IConfigService.cs          # Контракт сервиса сохранения и загрузки конфигурации
+│   ├── ConfigService.cs           # Реализация атомарного сохранения настроек в %AppData%/CapriPet/config.json
 │   ├── IPetBehaviorService.cs     # Контракт сервиса поведения и диалогов питомца
 │   ├── PetBehaviorService.cs      # Реализация автономного поведения и смены настроений
 │   ├── IAudioService.cs           # Контракт сервиса воспроизведения звуков и озвучки

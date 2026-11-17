@@ -10,21 +10,23 @@ namespace CapriPet.ViewModels;
 public class MainViewModel : BaseViewModel
 {
     private readonly IPetBehaviorService _petService;
-    private string _currentSpriteSource = "pack://application:,,,/Assets/Sprites/base.png";
+    private readonly IConfigService _configService;
 
-    private int _scaleStep = (int)PetScalePreset.Default;
-    private double _petSize = PetScalePreset.Default.ToPixelSize();
-    private string _scaleDisplayName = PetScalePreset.Default.ToDisplayName();
-    private string _scalePixelText = $"({(int)PetScalePreset.Default.ToPixelSize()} x {(int)PetScalePreset.Default.ToPixelSize()} px)";
+    private string _currentSpriteSource = "pack://application:,,,/Assets/Sprites/base.png";
+    private int _scaleStep;
+    private double _petSize;
+    private string _scaleDisplayName = string.Empty;
+    private string _scalePixelText = string.Empty;
 
     private SettingsWindow? _settingsWindow;
 
-    public MainViewModel() : this(null)
+    public MainViewModel() : this(null, null)
     {
     }
 
-    public MainViewModel(IPetBehaviorService? petService)
+    public MainViewModel(IPetBehaviorService? petService, IConfigService? configService = null)
     {
+        _configService = configService ?? new ConfigService();
         _petService = petService ?? new PetBehaviorService();
         _petService.StateChanged += OnPetStateChanged;
 
@@ -32,7 +34,13 @@ public class MainViewModel : BaseViewModel
         OpenSettingsCommand = new RelayCommand(OnOpenSettings);
 
         _currentSpriteSource = _petService.CurrentState.SpritePath;
+
+        // Загрузка масштаба из сохраненной конфигурации
+        ApplyScalePreset(_configService.Current.ScaleStep, saveConfig: false);
     }
+
+    public double? SavedLeft => _configService.Current.WindowLeft;
+    public double? SavedTop => _configService.Current.WindowTop;
 
     public string CurrentSpriteSource
     {
@@ -45,12 +53,9 @@ public class MainViewModel : BaseViewModel
         get => _scaleStep;
         set
         {
-            if (SetProperty(ref _scaleStep, value))
+            if (_scaleStep != value)
             {
-                var preset = (PetScalePreset)Math.Clamp(value, 0, 6);
-                PetSize = preset.ToPixelSize();
-                ScaleDisplayName = preset.ToDisplayName();
-                ScalePixelText = $"({(int)PetSize} x {(int)PetSize} px)";
+                ApplyScalePreset(value, saveConfig: true);
             }
         }
     }
@@ -58,16 +63,8 @@ public class MainViewModel : BaseViewModel
     public double PetSize
     {
         get => _petSize;
-        set
-        {
-            if (SetProperty(ref _petSize, value))
-            {
-                OnPropertyChanged(nameof(WindowSize));
-            }
-        }
+        set => SetProperty(ref _petSize, value);
     }
-
-    public double WindowSize => PetSize + 24;
 
     public string ScaleDisplayName
     {
@@ -85,6 +82,32 @@ public class MainViewModel : BaseViewModel
     public ICommand OpenSettingsCommand { get; }
 
     public event Action? RequestClose;
+
+    private void ApplyScalePreset(int step, bool saveConfig)
+    {
+        int clampedStep = Math.Clamp(step, 0, 6);
+        _scaleStep = clampedStep;
+        OnPropertyChanged(nameof(ScaleStep));
+
+        var preset = (PetScalePreset)clampedStep;
+        PetSize = preset.ToPixelSize();
+        ScaleDisplayName = preset.ToDisplayName();
+        ScalePixelText = $"({(int)PetSize} x {(int)PetSize} px)";
+
+        if (saveConfig)
+        {
+            _configService.Update(c => c.ScaleStep = clampedStep);
+        }
+    }
+
+    public void SaveWindowPosition(double left, double top)
+    {
+        _configService.Update(c =>
+        {
+            c.WindowLeft = left;
+            c.WindowTop = top;
+        });
+    }
 
     private void OnPetStateChanged(object? sender, PetState state)
     {

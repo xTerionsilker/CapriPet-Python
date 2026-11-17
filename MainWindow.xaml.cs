@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿using System;
+using System.ComponentModel;
+using System.Windows;
 using System.Windows.Input;
 using CapriPet.ViewModels;
 
@@ -20,26 +22,37 @@ public partial class MainWindow : Window
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        // Исходное позиционирование в правом нижнем углу над панелью задач
         var workingArea = SystemParameters.WorkArea;
-        Left = workingArea.Right - ActualWidth - 30;
-        Top = workingArea.Bottom - ActualHeight - 30;
+
+        if (DataContext is MainViewModel vm && vm.SavedLeft.HasValue && vm.SavedTop.HasValue)
+        {
+            Left = vm.SavedLeft.Value;
+            Top = vm.SavedTop.Value;
+            ClampToScreenBounds();
+        }
+        else
+        {
+            Left = workingArea.Right - ActualWidth - 30;
+            Top = workingArea.Bottom - ActualHeight - 30;
+        }
+
         _isInitialLoaded = true;
+        SaveCurrentPosition();
     }
 
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (!_isInitialLoaded || !e.PreviousSize.Width.Equals(0))
+        if (_isInitialLoaded && !e.PreviousSize.Width.Equals(0))
         {
-            // Корректируем координаты: при росте размера окно расширяется вверх и влево от опоры
+            // При изменении размера расширяемся вверх и влево от точки опоры
             double deltaWidth = e.NewSize.Width - e.PreviousSize.Width;
             double deltaHeight = e.NewSize.Height - e.PreviousSize.Height;
 
             Left -= deltaWidth / 2.0;
             Top -= deltaHeight;
 
-            // Защита от выхода за границы экрана (WorkArea)
             ClampToScreenBounds();
+            SaveCurrentPosition();
         }
     }
 
@@ -73,6 +86,7 @@ public partial class MainWindow : Window
         if (e.ChangedButton == MouseButton.Left)
         {
             DragMove();
+            SaveCurrentPosition();
         }
     }
 
@@ -81,6 +95,20 @@ public partial class MainWindow : Window
         if (DataContext is MainViewModel vm)
         {
             vm.OpenSettingsCommand.Execute(null);
+        }
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        SaveCurrentPosition();
+        base.OnClosing(e);
+    }
+
+    private void SaveCurrentPosition()
+    {
+        if (_isInitialLoaded && DataContext is MainViewModel vm)
+        {
+            vm.SaveWindowPosition(Left, Top);
         }
     }
 }
