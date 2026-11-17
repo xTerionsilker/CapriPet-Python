@@ -15,25 +15,249 @@
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         MouseRightButtonUp="Window_MouseRightButtonUp"
         Loaded="Window_Loaded"
-        SizeChanged="Window_SizeChanged">
+        SizeChanged="Window_SizeChanged"
+        FontFamily="{StaticResource CyberFont}">
 
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>
 
-    <!-- Внешний отступ 24px гарантирует, что неоновое свечение не обрежется границами окна -->
-    <Grid Margin="24">
-        <Image Source="{Binding CurrentSpriteSource}"
-               Width="{Binding PetSize}"
-               Height="{Binding PetSize}"
-               Stretch="Uniform"
-               RenderOptions.BitmapScalingMode="HighQuality"
-               Cursor="Hand"
-               ToolTip="ЛКМ: перетаскивать | ПКМ: настройки размера">
-            <Image.Effect>
-                <!-- Неоновое свечение персонажа -->
-                <DropShadowEffect BlurRadius="16" ShadowDepth="0" Opacity="0.6" Color="#FF4985F9"/>
-            </Image.Effect>
-        </Image>
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Глитч-эффект появления кнопок (смещение X, наклон Skew, мерцание Opacity) -->
+        <Storyboard x:Key="GlitchInStoryboard">
+            <!-- Резкие цифровые сдвиги по X -->
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ControlPanel"
+                                           Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(TranslateTransform.X)">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.01" Value="-8"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.03" Value="7"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.06" Value="-5"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.09" Value="3"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.12" Value="-1"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.15" Value="0"/>
+            </DoubleAnimationUsingKeyFrames>
+
+            <!-- Горизонтальное искажение Skew (эффект сканлайн-среза) -->
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ControlPanel"
+                                           Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(SkewTransform.AngleX)">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.02" Value="14"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.05" Value="-10"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.08" Value="6"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.12" Value="-2"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.15" Value="0"/>
+            </DoubleAnimationUsingKeyFrames>
+
+            <!-- Стробоскопическое мерцание прозрачности -->
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ControlPanel"
+                                           Storyboard.TargetProperty="Opacity">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.01" Value="0.9"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.03" Value="0.1"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.06" Value="0.85"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.09" Value="0.3"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.12" Value="0.95"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.15" Value="1.0"/>
+            </DoubleAnimationUsingKeyFrames>
+        </Storyboard>
+
+        <!-- Глитч-эффект исчезновения кнопок при уходе курсора -->
+        <Storyboard x:Key="GlitchOutStoryboard">
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ControlPanel"
+                                           Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(TranslateTransform.X)">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.02" Value="6"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.05" Value="-7"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.09" Value="2"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.13" Value="0"/>
+            </DoubleAnimationUsingKeyFrames>
+
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ControlPanel"
+                                           Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(SkewTransform.AngleX)">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.02" Value="-12"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.06" Value="8"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.10" Value="-3"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.13" Value="0"/>
+            </DoubleAnimationUsingKeyFrames>
+
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ControlPanel"
+                                           Storyboard.TargetProperty="Opacity">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.02" Value="0.7"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.05" Value="0.1"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.08" Value="0.4"/>
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.13" Value="0.0"/>
+            </DoubleAnimationUsingKeyFrames>
+        </Storyboard>
+
+        <!-- Высокотехнологичная киберпанк-кнопка со скошенными под 45° углами -->
+        <Style x:Key="CyberPolyButton" TargetType="Button">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Width" Value="86"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <!-- Скошенная 45° подложка кнопки -->
+                            <Path x:Name="BtnShape"
+                                  Data="M 7,0 L 79,0 L 86,7 L 86,25 L 79,32 L 7,32 L 0,25 L 0,7 Z"
+                                  Fill="#F2040017"
+                                  Stroke="#FF4985F9"
+                                  StrokeThickness="1.5">
+                                <Path.Effect>
+                                    <DropShadowEffect x:Name="BtnShadow"
+                                                      BlurRadius="10"
+                                                      ShadowDepth="0"
+                                                      Color="#FF4985F9"
+                                                      Opacity="0.6"/>
+                                </Path.Effect>
+                            </Path>
+
+                            <!-- Декоративные кибер-угловые штрихи -->
+                            <Path Data="M 1,11 L 1,21" Stroke="#554985F9" StrokeThickness="1"/>
+                            <Path Data="M 85,11 L 85,21" Stroke="#554985F9" StrokeThickness="1"/>
+
+                            <!-- Содержимое кнопки -->
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BtnShape" Property="Fill" Value="#FF101B35"/>
+                                <Setter TargetName="BtnShape" Property="Stroke" Value="#FF0FFF55"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BtnShape" Property="Fill" Value="#FF1C0207"/>
+                                <Setter TargetName="BtnShape" Property="Stroke" Value="#FFFE0929"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Интерактивная зона Capri: отслеживает наведение курсора для глитча -->
+    <Grid x:Name="PetInteractiveArea" Margin="24" Background="Transparent">
+        <Grid.Triggers>
+            <EventTrigger RoutedEvent="MouseEnter">
+                <BeginStoryboard Storyboard="{StaticResource GlitchInStoryboard}"/>
+            </EventTrigger>
+            <EventTrigger RoutedEvent="MouseLeave">
+                <BeginStoryboard Storyboard="{StaticResource GlitchOutStoryboard}"/>
+            </EventTrigger>
+        </Grid.Triggers>
+
+        <Grid.RowDefinitions>
+            <!-- Спрайт персонажа -->
+            <RowDefinition Height="Auto"/>
+            <!-- Панель кнопок и терминала ввода (с глитч-эффектом) -->
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 1. Спрайт Капри -->
+        <Grid Grid.Row="0" HorizontalAlignment="Center">
+            <Image Source="{Binding CurrentSpriteSource}"
+                   Width="{Binding PetSize}"
+                   Height="{Binding PetSize}"
+                   Stretch="Uniform"
+                   RenderOptions.BitmapScalingMode="HighQuality"
+                   Cursor="Hand"
+                   ToolTip="ЛКМ: перетаскивать | ПКМ: настройки размера">
+                <Image.Effect>
+                    <!-- Неоновое свечение контура персонажа -->
+                    <DropShadowEffect BlurRadius="16" ShadowDepth="0" Opacity="0.6" Color="#FF4985F9"/>
+                </Image.Effect>
+            </Image>
+        </Grid>
+
+        <!-- 2. Панель управления с глитч-анимацией (по умолчанию скрыта Opacity=0) -->
+        <StackPanel x:Name="ControlPanel"
+                    Grid.Row="1"
+                    Opacity="0"
+                    HorizontalAlignment="Center"
+                    Margin="0,8,0,0">
+            <StackPanel.RenderTransform>
+                <TransformGroup>
+                    <TranslateTransform X="0" Y="0"/>
+                    <SkewTransform AngleX="0" AngleY="0"/>
+                </TransformGroup>
+            </StackPanel.RenderTransform>
+
+            <!-- Кнопки управления (TXT и MIC) со скошенными 45° углами и векторными иконками -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+
+                <!-- Кнопка TXT (терминал / чат) -->
+                <Button Command="{Binding ToggleTextInputCommand}"
+                        Style="{StaticResource CyberPolyButton}"
+                        ToolTip="Терминал ввода // [TXT]"
+                        Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Векторная иконка кибер-терминала >_ -->
+                        <Path Data="M 0,2 L 4,6 L 0,10 M 6,10 L 11,10"
+                              Stroke="#FF4985F9"
+                              StrokeThickness="1.5"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0"/>
+                        <TextBlock Text="TXT"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="#FFF0F1F5"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <!-- Кнопка MIC (голосовой ввод / микрофон) -->
+                <Button Command="{Binding ToggleMicCommand}"
+                        Style="{StaticResource CyberPolyButton}"
+                        ToolTip="Сенсор голоса // [MIC]">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Векторная иконка микрофона -->
+                        <Path Data="M 4,2 C 4,0.9 4.9,0 6,0 C 7.1,0 8,0.9 8,2 L 8,6 C 8,7.1 7.1,8 6,8 C 4.9,8 4,7.1 4,6 Z M 1.5,5.5 C 1.5,8 3.5,10 6,10 C 8.5,10 10.5,8 10.5,5.5 M 6,10 L 6,13 M 3,13 L 9,13"
+                              Stroke="{Binding MicColorBrush}"
+                              StrokeThickness="1.4"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0"/>
+                        <TextBlock Text="MIC"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="{Binding MicColorBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <!-- Киберпанк-строка терминала (появляется при клике на TXT) -->
+            <Border Visibility="{Binding IsTextInputOpen, Converter={StaticResource BoolToVis}}"
+                    Background="#FA040017"
+                    BorderBrush="#FF4985F9"
+                    BorderThickness="1.5"
+                    Padding="10,6"
+                    Margin="0,8,0,0"
+                    MinWidth="190"
+                    MaxWidth="280">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="12" ShadowDepth="0" Color="#FF4985F9" Opacity="0.8"/>
+                </Border.Effect>
+                <DockPanel>
+                    <TextBlock Text="> "
+                               Foreground="#FF0FFF55"
+                               FontWeight="Bold"
+                               FontSize="11"
+                               VerticalAlignment="Center"/>
+                    <TextBox Text="{Binding InputPromptText, UpdateSourceTrigger=PropertyChanged}"
+                             Background="Transparent"
+                             Foreground="#FFF0F1F5"
+                             CaretBrush="#FF0FFF55"
+                             BorderThickness="0"
+                             FontSize="11"
+                             VerticalAlignment="Center">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding SubmitTextCommand}"/>
+                            <KeyBinding Key="Esc" Command="{Binding ToggleTextInputCommand}"/>
+                        </TextBox.InputBindings>
+                    </TextBox>
+                </DockPanel>
+            </Border>
+        </StackPanel>
     </Grid>
 </Window>

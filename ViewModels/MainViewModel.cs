@@ -1,5 +1,7 @@
 using System;
+using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows.Media;
 using CapriPet.Commands;
 using CapriPet.Models;
 using CapriPet.Services;
@@ -11,6 +13,7 @@ public class MainViewModel : BaseViewModel
 {
     private readonly IPetBehaviorService _petService;
     private readonly IConfigService _configService;
+    private readonly IVoiceRecognitionService _voiceService;
 
     private string _currentSpriteSource = "pack://application:,,,/Assets/Sprites/base.png";
     private int _scaleStep;
@@ -18,20 +21,33 @@ public class MainViewModel : BaseViewModel
     private string _scaleDisplayName = string.Empty;
     private string _scalePixelText = string.Empty;
 
+    private bool _isMicActive;
+    private bool _isTextInputOpen;
+    private string _inputPromptText = string.Empty;
+
     private SettingsWindow? _settingsWindow;
 
-    public MainViewModel() : this(null, null)
+    public MainViewModel() : this(null, null, null)
     {
     }
 
-    public MainViewModel(IPetBehaviorService? petService, IConfigService? configService = null)
+    public MainViewModel(
+        IPetBehaviorService? petService,
+        IConfigService? configService = null,
+        IVoiceRecognitionService? voiceService = null)
     {
         _configService = configService ?? new ConfigService();
         _petService = petService ?? new PetBehaviorService();
         _petService.StateChanged += OnPetStateChanged;
 
+        _voiceService = voiceService ?? new VoiceRecognitionService();
+        _voiceService.SpeechRecognized += OnSpeechRecognized;
+
         CloseCommand = new RelayCommand(OnClose);
         OpenSettingsCommand = new RelayCommand(OnOpenSettings);
+        ToggleMicCommand = new RelayCommand(async () => await ToggleMicAsync());
+        ToggleTextInputCommand = new RelayCommand(OnToggleTextInput);
+        SubmitTextCommand = new RelayCommand(OnSubmitText);
 
         _currentSpriteSource = _petService.CurrentState.SpritePath;
 
@@ -78,10 +94,87 @@ public class MainViewModel : BaseViewModel
         set => SetProperty(ref _scalePixelText, value);
     }
 
+    public bool IsMicActive
+    {
+        get => _isMicActive;
+        set
+        {
+            if (SetProperty(ref _isMicActive, value))
+            {
+                OnPropertyChanged(nameof(MicIcon));
+                OnPropertyChanged(nameof(MicColorBrush));
+            }
+        }
+    }
+
+    public string MicIcon => IsMicActive ? "🎙️" : "🔇";
+    public Brush MicColorBrush => IsMicActive ? new SolidColorBrush(Color.FromRgb(0x0F, 0xFF, 0x55)) : new SolidColorBrush(Color.FromRgb(0xFE, 0x09, 0x29));
+
+    public bool IsTextInputOpen
+    {
+        get => _isTextInputOpen;
+        set => SetProperty(ref _isTextInputOpen, value);
+    }
+
+    public string InputPromptText
+    {
+        get => _inputPromptText;
+        set => SetProperty(ref _inputPromptText, value);
+    }
+
     public ICommand CloseCommand { get; }
     public ICommand OpenSettingsCommand { get; }
+    public ICommand ToggleMicCommand { get; }
+    public ICommand ToggleTextInputCommand { get; }
+    public ICommand SubmitTextCommand { get; }
 
     public event Action? RequestClose;
+
+    private async Task ToggleMicAsync()
+    {
+        try
+        {
+            if (_voiceService.IsListening)
+            {
+                await _voiceService.StopAsync();
+                IsMicActive = false;
+            }
+            else
+            {
+                IsMicActive = true;
+                await _voiceService.StartAsync();
+            }
+        }
+        catch
+        {
+            IsMicActive = false;
+        }
+    }
+
+    private void OnSpeechRecognized(object? sender, string text)
+    {
+        System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+        {
+            // Капри реагирует сменой позы на распознанную речь
+            _petService.Interact();
+        });
+    }
+
+    private void OnToggleTextInput()
+    {
+        IsTextInputOpen = !IsTextInputOpen;
+    }
+
+    private void OnSubmitText()
+    {
+        if (!string.IsNullOrWhiteSpace(InputPromptText))
+        {
+            // Капри реагирует на отправленный текст
+            _petService.Interact();
+            InputPromptText = string.Empty;
+            IsTextInputOpen = false;
+        }
+    }
 
     private void ApplyScalePreset(int step, bool saveConfig)
     {
@@ -141,6 +234,8 @@ public class MainViewModel : BaseViewModel
         {
             disposable.Dispose();
         }
+
+        _ = _voiceService.DisposeAsync();
 
         RequestClose?.Invoke();
     }
