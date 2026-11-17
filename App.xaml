@@ -4,6 +4,15 @@
              xmlns:local="clr-namespace:CapriPet"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <!-- Киберпанк шрифт Exo 2 -->
+        <FontFamily x:Key="CyberFont">pack://application:,,,/Assets/Fonts/#Exo 2</FontFamily>
+
+        <!-- Глобальное применение шрифта Exo 2 по умолчанию -->
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource CyberFont}"/>
+        </Style>
+        <Style TargetType="Control">
+            <Setter Property="FontFamily" Value="{StaticResource CyberFont}"/>
+        </Style>
     </Application.Resources>
 </Application>
