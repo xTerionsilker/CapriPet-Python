@@ -625,49 +625,48 @@ def _generate_relay_snap_wav(
 
 
 def _generate_intro_breach_wav(
-    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 4.5
+    file_path: Path, sample_rate: int = DEFAULT_SAMPLE_RATE, duration: float = 2.85
 ) -> None:
-    """Кинематографичный саундтрек взлома биочипа: BIOS-клики, сирена тревоги, суб-басовый удар и кибер-аккорд."""
+    """Кинематографичный саундтрек пробоя экрана: шторм системных ошибок, глитч-перегрузка и бас-дроп появления."""
     num_samples = int(sample_rate * duration)
     frames = bytearray()
     rng = random.Random(101)
     for i in range(num_samples):
         t = i / sample_rate
-        if t < 1.0:
-            hum = math.sin(2.0 * math.pi * 55.0 * t) * 0.08
-            tick_t = t % 0.18
-            tick = math.sin(2.0 * math.pi * 1400.0 * tick_t) * math.exp(-65.0 * tick_t) if tick_t < 0.04 else 0.0
-            val = hum + tick * 0.35
-            frames.extend(_to_pcm_16bit(val, drive=1.5, master_gain=0.75))
-        elif t < 1.8:
-            t_alarm = t - 1.0
-            lfo = math.sin(2.0 * math.pi * 8.0 * t_alarm) * 350.0
-            siren = (
-                math.sin(2.0 * math.pi * (6500.0 + lfo) * t_alarm) * 0.5
-                + math.sin(2.0 * math.pi * (7200.0 - lfo) * t_alarm) * 0.3
+        if t < 0.9:
+            # Фаза 1: Пулеметные щелчки спама окон ошибок с нарастающей частотой и атональным гулом
+            step = max(0.04, 0.12 - (t / 0.9) * 0.08)
+            tick_t = t % step
+            click_freq = 1800.0 + (t / 0.9) * 2200.0
+            click = math.sin(2.0 * math.pi * click_freq * tick_t) * math.exp(-120.0 * tick_t) if tick_t < 0.025 else 0.0
+            buzz = math.sin(2.0 * math.pi * 110.0 * t) * (0.05 + 0.15 * (t / 0.9))
+            val = click * 0.6 + buzz + rng.uniform(-0.04, 0.04) * (t / 0.9)
+            frames.extend(_to_pcm_16bit(val, drive=1.8, master_gain=0.82))
+        elif t < 1.6:
+            # Фаза 2: Глитч-взрыв, строчные сдвиги и перегрузка шины
+            t_glitch = t - 0.9
+            lfo = math.sin(2.0 * math.pi * 16.0 * t_glitch) * 600.0
+            glitch_tone = (
+                math.sin(2.0 * math.pi * (4200.0 + lfo) * t_glitch) * 0.4
+                + math.sin(2.0 * math.pi * 840.0 * t_glitch) * 0.35
             )
-            pulse = 0.5 + 0.5 * math.sin(2.0 * math.pi * 4.0 * t_alarm)
-            env = min(1.0, t_alarm / 0.3)
-            val = siren * pulse * env + rng.uniform(-0.15, 0.15) * env
-            frames.extend(_to_pcm_16bit(val, drive=2.6, master_gain=0.88))
-        elif t < 2.6:
-            t_snap = t - 1.8
-            freq = 28.0 + 57.0 * math.exp(-10.0 * t_snap)
-            sub = math.sin(2.0 * math.pi * freq * t_snap) * math.exp(-5.0 * t_snap)
-            electric = math.sin(2.0 * math.pi * 2400.0 * t_snap) * rng.uniform(-0.6, 0.6) * math.exp(-12.0 * t_snap)
-            val = sub * 1.3 + electric * 0.4
-            frames.extend(_to_pcm_16bit(val, drive=3.2, master_gain=0.98))
+            noise = rng.uniform(-0.35, 0.35)
+            val = glitch_tone * 0.6 + noise * 0.5
+            frames.extend(_to_pcm_16bit(val, drive=3.4, master_gain=0.92))
         else:
-            t_cyber = t - 2.6
-            p = min(1.0, t_cyber / 1.9)
-            env = max(0.0, 1.0 - p) ** 1.3
+            # Фаза 3: Вспышка, мощный саб-басовый дроп (sub-bass drop 65 -> 32 Гц) и неоновый аккорд появления
+            t_snap = t - 1.6
+            p = min(1.0, t_snap / 1.25)
+            env = max(0.0, 1.0 - p) ** 1.4
+            freq = 32.0 + 33.0 * math.exp(-6.0 * t_snap)
+            sub = math.sin(2.0 * math.pi * freq * t_snap) * math.exp(-3.5 * t_snap) * 1.5
+            spark = math.sin(2.0 * math.pi * 3200.0 * t_snap) * rng.uniform(-0.4, 0.4) * math.exp(-14.0 * t_snap)
             chord = (
-                math.sin(2.0 * math.pi * 659.25 * t_cyber) * 0.35
-                + math.sin(2.0 * math.pi * 880.00 * t_cyber) * 0.30
-                + math.sin(2.0 * math.pi * 1318.5 * t_cyber) * 0.20
+                math.sin(2.0 * math.pi * 659.25 * t_snap) * 0.3
+                + math.sin(2.0 * math.pi * 987.77 * t_snap) * 0.25
             ) * env
-            val = chord + math.sin(2.0 * math.pi * 42.0 * t_cyber) * 0.15 * env
-            frames.extend(_to_pcm_16bit(val, drive=1.4, master_gain=0.80))
+            val = sub + spark * 0.3 + chord * 0.5
+            frames.extend(_to_pcm_16bit(val, drive=2.4, master_gain=0.95))
 
     _write_wav_16bit(file_path, frames, sample_rate)
 

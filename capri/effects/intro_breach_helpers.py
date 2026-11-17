@@ -10,15 +10,124 @@ from PySide6.QtCore import QPointF, QRect, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPolygonF
 
 from ..core.dialogue_manager import get_dialogue_manager
+from ..ui.draw_utils import make_chamfer_polygon
 from ..ui.theme import get_hud_font
 from .transition_base import (
     COLOR_ACID_GREEN,
     COLOR_CRIMSON,
-    COLOR_ELECTRIC_BLUE,
     COLOR_OBSIDIAN,
+    COLOR_VIOLET,
     COLOR_WHITE,
     with_alpha,
 )
+
+
+@dataclass
+class CyberErrorCard:
+    """Модель диалогового окна системной ошибки кибердеки/стека."""
+
+    title: str
+    code: str
+    message: str
+    rect: QRect
+    spawn_time: float
+    border_color: QColor
+    vel_x: float = 0.0
+    vel_y: float = 0.0
+    glitch_offset: float = 0.0
+
+
+def draw_cyber_error_card(
+    painter: QPainter,
+    card: CyberErrorCard,
+    progress: float,
+    glitch_power: float = 0.0,
+    rng: random.Random | None = None,
+) -> None:
+    """Отрисовка стилизованного 45° chamfer окна ошибки с глитчем."""
+    if progress <= 0.0:
+        return
+
+    r = card.rect
+    gx = 0.0
+    gy = 0.0
+    if glitch_power > 0.0 and rng is not None:
+        gx = rng.uniform(-14.0, 14.0) * glitch_power
+        gy = rng.uniform(-6.0, 6.0) * glitch_power
+
+    cur_rect = QRect(int(r.x() + gx), int(r.y() + gy), r.width(), r.height())
+    alpha_val = int(255 * min(1.0, progress))
+    if glitch_power > 0.8:
+        alpha_val = int(alpha_val * (1.0 - (glitch_power - 0.8) * 4.0))
+        if alpha_val <= 0:
+            return
+
+    painter.save()
+
+    # Хроматический сдвиг при сильном глитче
+    if glitch_power > 0.35 and rng is not None:
+        rgb_rect = QRect(cur_rect.x() + int(rng.uniform(-6, 6)), cur_rect.y(), cur_rect.width(), cur_rect.height())
+        poly_rgb = make_chamfer_polygon(rgb_rect, cut=8)
+        painter.setPen(QPen(with_alpha(COLOR_VIOLET, int(alpha_val * 0.7)), 1.5))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPolygon(poly_rgb)
+
+    # Основное тело карточки
+    poly = make_chamfer_polygon(cur_rect, cut=8)
+    painter.setPen(QPen(with_alpha(card.border_color, alpha_val), 1.8))
+    painter.setBrush(with_alpha(COLOR_OBSIDIAN, int(alpha_val * 0.94)))
+    painter.drawPolygon(poly)
+
+    # Верхняя плашка заголовка
+    header_h = 24
+    header_rect = QRect(cur_rect.x(), cur_rect.y(), cur_rect.width(), header_h)
+    painter.fillRect(header_rect, with_alpha(card.border_color, int(alpha_val * 0.28)))
+
+    # Заголовок и код ошибки
+    painter.setFont(get_hud_font(9, bold=True))
+    painter.setPen(with_alpha(COLOR_WHITE, alpha_val))
+    painter.drawText(cur_rect.x() + 10, cur_rect.y() + 17, card.title)
+
+    painter.setFont(get_hud_font(8, bold=False))
+    painter.setPen(with_alpha(card.border_color, alpha_val))
+    painter.drawText(
+        cur_rect.x(),
+        cur_rect.y() + 4,
+        cur_rect.width() - 10,
+        18,
+        int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter),
+        card.code,
+    )
+
+    # Текст сообщения об ошибке
+    painter.setFont(get_hud_font(8, bold=False))
+    painter.setPen(with_alpha(COLOR_WHITE, int(alpha_val * 0.9)))
+    painter.drawText(
+        cur_rect.x() + 10,
+        cur_rect.y() + 32,
+        cur_rect.width() - 20,
+        cur_rect.height() - 36,
+        int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap),
+        card.message,
+    )
+
+    painter.restore()
+
+
+def draw_glitch_slice(
+    painter: QPainter,
+    screen_rect: QRect,
+    slice_y: int,
+    height: int,
+    offset_x: int,
+) -> None:
+    """Горизонтальный строчный срез глитча по экрану."""
+    painter.save()
+    target_rect = QRect(screen_rect.x(), slice_y, screen_rect.width(), height)
+    painter.fillRect(target_rect, with_alpha(COLOR_CRIMSON, 45))
+    painter.setPen(QPen(with_alpha(COLOR_WHITE, 120), 1.0))
+    painter.drawLine(screen_rect.x(), slice_y, screen_rect.right(), slice_y)
+    painter.restore()
 
 
 @dataclass
@@ -94,68 +203,6 @@ class SpeedLine:
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(pen)
         painter.drawLine(QPointF(p1_x, p1_y), QPointF(p2_x, p2_y))
-
-
-def draw_arasaka_bios_terminal(painter: QPainter, rect: QRect, t: float) -> None:
-    """Отрисовка ретро-консоли BIOS Arasaka Relic OS с проверкой секторов памяти."""
-    cin = get_dialogue_manager().cinematics
-    painter.save()
-    painter.fillRect(rect, COLOR_OBSIDIAN)
-    painter.setFont(get_hud_font(10, bold=True))
-    painter.setPen(with_alpha(COLOR_WHITE, 240))
-    painter.drawText(40, 60, cin.bios_title)
-    painter.setFont(get_hud_font(8, bold=False))
-    painter.setPen(with_alpha(COLOR_ACID_GREEN, 200))
-    painter.drawText(40, 85, cin.bios_subtitle)
-
-    y = 120
-    for text, threshold, status in cin.bios_lines:
-        if t >= threshold:
-            painter.setPen(with_alpha(COLOR_WHITE, 220))
-            painter.drawText(40, y, text)
-            status_col = COLOR_ACID_GREEN if status == "[OK]" else COLOR_ELECTRIC_BLUE
-            painter.setPen(with_alpha(status_col, 240))
-            painter.drawText(560, y, status)
-            y += 24
-
-    if int(t * 5.0) % 2 == 0:
-        painter.fillRect(40, y + 4, 10, 14, COLOR_ACID_GREEN)
-    painter.restore()
-
-
-def draw_kernel_panic_strobe(painter: QPainter, rect: QRect, t: float, rng: random.Random) -> None:
-    """Аварийный стробоскоп и тревожный баннер KERNEL PANIC при переполнении биочипа."""
-    painter.save()
-    t_phase = t - 1.0
-    if int(t_phase * 14.0) % 2 == 0:
-        painter.fillRect(rect, with_alpha(COLOR_CRIMSON, 55))
-
-    cx = rect.center().x()
-    cy = rect.center().y()
-    bw, bh = 680, 110
-    bx = cx - bw // 2 + int(rng.uniform(-4, 4))
-    by = cy - bh // 2 + int(rng.uniform(-3, 3))
-
-    painter.fillRect(QRect(bx, by, bw, bh), with_alpha(COLOR_OBSIDIAN, 240))
-    painter.setPen(QPen(with_alpha(COLOR_CRIMSON, 255), 2.5))
-    painter.drawRect(QRect(bx, by, bw, bh))
-
-    cin = get_dialogue_manager().cinematics
-    painter.setFont(get_hud_font(12, bold=True))
-    painter.setPen(with_alpha(COLOR_CRIMSON, 255))
-    painter.drawText(bx, by + 40, bw, 30, int(Qt.AlignmentFlag.AlignCenter), cin.panic_title)
-
-    painter.setFont(get_hud_font(9, bold=False))
-    painter.setPen(with_alpha(COLOR_WHITE, 230))
-    painter.drawText(
-        bx,
-        by + 75,
-        bw,
-        24,
-        int(Qt.AlignmentFlag.AlignCenter),
-        cin.panic_message,
-    )
-    painter.restore()
 
 
 def draw_breach_lightning(
