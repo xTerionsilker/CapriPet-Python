@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:CapriPet.ViewModels"
         mc:Ignorable="d"
-        Title="CapriPet Overlay"
-        Height="310" Width="280"
+        Title="CapriPet"
+        Height="220" Width="220"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -19,127 +19,28 @@
         <vm:MainViewModel/>
     </Window.DataContext>
 
+    <!-- Контекстное меню по правому клику для удобного закрытия -->
+    <Window.ContextMenu>
+        <ContextMenu Background="#EE040017" BorderBrush="#FF4985F9" BorderThickness="1">
+            <MenuItem Header="Закрыть CapriPet"
+                      Foreground="#FFF0F1F5"
+                      FontFamily="{StaticResource CyberFont}"
+                      FontSize="12"
+                      Command="{Binding CloseCommand}"/>
+        </ContextMenu>
+    </Window.ContextMenu>
+
+    <!-- Только сам персонаж без лишних плашек и текста -->
     <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
-        <Grid.RowDefinitions>
-            <!-- Диалоговое облачко (Speech Bubble) -->
-            <RowDefinition Height="Auto"/>
-            <!-- Тело питомца -->
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- Диалоговое облачко -->
-        <Border Grid.Row="0"
-                Background="#EE1A1B26"
-                BorderBrush="#FF7AA2F7"
-                BorderThickness="1.5"
-                CornerRadius="14"
-                Padding="12,10"
-                Margin="0,0,0,10"
-                MaxWidth="250"
-                HorizontalAlignment="Center">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity="0.45" Color="#000000"/>
-            </Border.Effect>
-            <StackPanel>
-                <!-- Заголовок с кнопками управления -->
-                <DockPanel LastChildFill="False">
-                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                        <TextBlock Text="CapriPet"
-                                   FontWeight="Bold"
-                                   FontSize="11"
-                                   Foreground="#FF7AA2F7"/>
-                        <!-- Кнопка микрофона -->
-                        <Button Command="{Binding ToggleMicCommand}"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Margin="8,0,0,0"
-                                Cursor="Hand"
-                                ToolTip="Вкл/Выкл микрофон">
-                            <TextBlock Text="{Binding MicButtonIcon}"
-                                       FontSize="11"
-                                       Foreground="#FF9ECE6A"/>
-                        </Button>
-                    </StackPanel>
-
-                    <!-- Кнопка закрытия -->
-                    <Button Content="✕"
-                            DockPanel.Dock="Right"
-                            Foreground="#FFFF757F"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            FontSize="11"
-                            FontWeight="Bold"
-                            Cursor="Hand"
-                            Command="{Binding CloseCommand}"
-                            ToolTip="Закрыть"/>
-                </DockPanel>
-
-                <!-- Статус микрофона/нейросети -->
-                <TextBlock Text="{Binding MicStatusText}"
-                           Foreground="#FF7DCFFF"
-                           FontSize="10"
-                           FontWeight="Medium"
-                           Margin="0,2,0,0"/>
-
-                <!-- Текст речи питомца / распознанной фразы -->
-                <TextBlock Text="{Binding SpeechText}"
-                           Foreground="#FFC0CAF5"
-                           FontSize="12"
-                           TextWrapping="Wrap"
-                           Margin="0,6,0,0"/>
-            </StackPanel>
-        </Border>
-
-        <!-- Питомец (интерактивный аватар с подсветкой) -->
-        <Grid Grid.Row="1" HorizontalAlignment="Center">
-            <!-- Неоновое свечение вокруг питомца -->
-            <Ellipse Width="120" Height="120">
-                <Ellipse.Fill>
-                    <RadialGradientBrush>
-                        <GradientStop Color="#557AA2F7" Offset="0"/>
-                        <GradientStop Color="#007AA2F7" Offset="1"/>
-                    </RadialGradientBrush>
-                </Ellipse.Fill>
-            </Ellipse>
-
-            <!-- Основной круг питомца -->
-            <Button Width="90" Height="90"
-                    Cursor="Hand"
-                    Command="{Binding InteractCommand}"
-                    ToolTip="Кликни меня!">
-                <Button.Template>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="PetBorder"
-                                Background="#DD1F2335"
-                                BorderBrush="#FFBB9AF7"
-                                BorderThickness="2"
-                                CornerRadius="45">
-                            <Grid>
-                                <!-- Стилизованная мордочка питомца -->
-                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <TextBlock Text="{Binding DataContext.PetFace, RelativeSource={RelativeSource AncestorType=Window}}"
-                                               Foreground="#FFFFFFFF"
-                                               FontWeight="Bold"
-                                               FontSize="11"
-                                               HorizontalAlignment="Center"/>
-                                    <TextBlock Text="{Binding DataContext.PetMoodText, RelativeSource={RelativeSource AncestorType=Window}}"
-                                               Foreground="#FF7DCFFF"
-                                               FontSize="9"
-                                               FontWeight="SemiBold"
-                                               HorizontalAlignment="Center"
-                                               Margin="0,4,0,0"/>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="PetBorder" Property="BorderBrush" Value="#FF7DCFFF"/>
-                                <Setter TargetName="PetBorder" Property="Background" Value="#FF24283B"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Button.Template>
-            </Button>
-        </Grid>
+        <Image Source="{Binding CurrentSpriteSource}"
+               Width="200" Height="200"
+               Stretch="Uniform"
+               RenderOptions.BitmapScalingMode="HighQuality"
+               Cursor="Hand">
+            <Image.Effect>
+                <!-- Тонкое свечение по контуру персонажа -->
+                <DropShadowEffect BlurRadius="12" ShadowDepth="0" Opacity="0.5" Color="#FF4985F9"/>
+            </Image.Effect>
+        </Image>
     </Grid>
 </Window>

@@ -16,16 +16,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void Window_Loaded(object sender, RoutedEventArgs e)
+    private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         var workingArea = SystemParameters.WorkArea;
         Left = workingArea.Right - Width - 30;
         Top = workingArea.Bottom - Height - 30;
-
-        if (DataContext is MainViewModel vm)
-        {
-            await vm.InitializeAsync();
-        }
     }
 
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
